@@ -1,5 +1,5 @@
 name: flutter_zxing
-description: A new flutter plugin project.
+description: A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing.
 version: 0.0.1
 # homepage:
 environment:
