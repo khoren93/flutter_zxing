@@ -2,19 +2,21 @@ name: flutter_zxing
 description: A new flutter plugin project.
 version: 0.0.1
 # homepage:
-
 environment:
   sdk: ">=2.16.1 <3.0.0"
   flutter: ">=2.5.0"
 
 dependencies:
+  camera: ^0.9.4+16
+  ffi: ^1.1.2
   flutter:
     sdk: flutter
 
 dev_dependencies:
+  ffigen: ^4.1.3 # dart run ffigen
+  flutter_lints: ^1.0.0
   flutter_test:
     sdk: flutter
-  flutter_lints: ^1.0.0
 
 flutter:
   plugin:
@@ -25,3 +27,10 @@ flutter:
       ios:
         pluginClass: FlutterZxingPlugin
 
+ffigen:
+  name: GeneratedBindings
+  description: Bindings to `native_verokit.h`.
+  output: 'lib/generated_bindings.dart'
+  headers:
+    entry-points:
+      - 'ios/Classes/src/native_zxing.h'
