@@ -1,21 +1,27 @@
 PODS:
+  - camera (0.0.1):
+    - Flutter
   - Flutter (1.0.0)
   - flutter_zxing (0.0.1):
     - Flutter
 
 DEPENDENCIES:
+  - camera (from `.symlinks/plugins/camera/ios`)
   - Flutter (from `Flutter`)
   - flutter_zxing (from `.symlinks/plugins/flutter_zxing/ios`)
 
 EXTERNAL SOURCES:
+  camera:
+    :path: ".symlinks/plugins/camera/ios"
   Flutter:
     :path: Flutter
   flutter_zxing:
     :path: ".symlinks/plugins/flutter_zxing/ios"
 
 SPEC CHECKSUMS:
+  camera: 9993f92f2c793e87b65e35f3a23c70582afb05b1
   Flutter: 50d75fe2f02b26cc09d224853bb45737f8b3214a
-  flutter_zxing: 9d0bc3e7d684f2b2d05e111f322c1e2a91ed5c03
+  flutter_zxing: 19a866d17c8a87ee1026d68521c69d2f008635f6
 
 PODFILE CHECKSUM: aafe91acc616949ddb318b77800a7f51bffa2a4c
 

@@ -20,4 +20,18 @@ A new flutter plugin project.
   # Flutter.framework does not contain a i386 slice.
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
   s.swift_version = '5.0'
+
+  # telling linker to include opencv2 framework
+  s.xcconfig = { 
+    'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20',
+  }
+
+  # including C++ library
+  s.library = 'c++'
+
+  # # Set as a static lib
+  # s.static_framework = true
+
+  # module_map is needed so this module can be used as a framework
+  s.module_map = 'flutter_zxing.modulemap'
 end
