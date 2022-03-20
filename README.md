@@ -1,15 +1,7 @@
 # flutter_zxing
 
-A new flutter plugin project.
+A barcode and QR code scanner based on [ZXing C++](https://github.com/nu-book/zxing-cpp) library natively in Flutter with Dart FFI.
 
-## Getting Started
+## License
 
-This project is a starting point for a Flutter
-[plug-in package](https://flutter.dev/developing-packages/),
-a specialized package that includes platform-specific implementation code for
-Android and/or iOS.
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-
+MIT License. See [LICENSE](https://github.com/khoren93/flutter_zxing/blob/master/LICENSE).
