@@ -18,21 +18,26 @@ class FlutterZxing {
 
   static final bindings = GeneratedBindings(dylib);
 
+  static bool logEnabled = true;
+
   static String zxingVersion() {
     return bindings.zxingVersion().cast<Utf8>().toDartString();
   }
 
-  static CodeResult zxingRead(
-      Uint8List bytes, int width, int height, int cropSize) {
-    return bindings.zxingRead(bytes.allocatePointer(), width, height, cropSize);
+  static CodeResult zxingRead(Uint8List bytes, int format, int width,
+      int height, int cropWidth, int cropHeight) {
+    return bindings.zxingRead(bytes.allocatePointer(), format, width, height,
+        cropWidth, cropHeight, _logEnabled);
   }
 
   static EncodeResult zxingEncode(String contents, int width, int height,
       int format, int margin, int eccLevel) {
     var result = bindings.zxingEncode(contents.toNativeUtf8().cast<Int8>(),
-        width, height, format, margin, eccLevel);
+        width, height, format, margin, eccLevel, _logEnabled);
     return result;
   }
+
+  static int get _logEnabled => logEnabled ? 1 : 0;
 }
 
 // Getting a library that holds needed symbols

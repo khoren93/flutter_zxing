@@ -34,30 +34,40 @@ class GeneratedBindings {
 
   /// @brief Reads barcode from image.
   /// @param bytes Image bytes.
+  /// @param format The format of the barcode
   /// @param width Image width.
   /// @param height Image height.
-  /// @param cropSize Crop size.
+  /// @param cropWidth Crop width.
+  /// @param cropHeight Crop height.
+  /// @param logEnabled Log enabled.
   /// @return Barcode result.
   CodeResult zxingRead(
     ffi.Pointer<ffi.Int8> bytes,
+    int format,
     int width,
     int height,
-    int cropSize,
+    int cropWidth,
+    int cropHeight,
+    int logEnabled,
   ) {
     return _zxingRead(
       bytes,
+      format,
       width,
       height,
-      cropSize,
+      cropWidth,
+      cropHeight,
+      logEnabled,
     );
   }
 
   late final _zxingReadPtr = _lookup<
       ffi.NativeFunction<
           CodeResult Function(ffi.Pointer<ffi.Int8>, ffi.Int32, ffi.Int32,
-              ffi.Int32)>>('zxingRead');
-  late final _zxingRead = _zxingReadPtr
-      .asFunction<CodeResult Function(ffi.Pointer<ffi.Int8>, int, int, int)>();
+              ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32)>>('zxingRead');
+  late final _zxingRead = _zxingReadPtr.asFunction<
+      CodeResult Function(
+          ffi.Pointer<ffi.Int8>, int, int, int, int, int, int)>();
 
   /// @brief Encode a string into a barcode
   /// @param contents The string to encode
@@ -65,6 +75,7 @@ class GeneratedBindings {
   /// @param height The height of the barcode
   /// @param format The format of the barcode
   /// @param margin The margin of the barcode
+  /// @param logEnabled Log enabled.
   /// @param eccLevel The error correction level of the barcode. Used for Aztec, PDF417, and QRCode only, [0-8].
   /// @return The barcode data
   EncodeResult zxingEncode(
@@ -74,6 +85,7 @@ class GeneratedBindings {
     int format,
     int margin,
     int eccLevel,
+    int logEnabled,
   ) {
     return _zxingEncode(
       contents,
@@ -82,15 +94,17 @@ class GeneratedBindings {
       format,
       margin,
       eccLevel,
+      logEnabled,
     );
   }
 
   late final _zxingEncodePtr = _lookup<
       ffi.NativeFunction<
           EncodeResult Function(ffi.Pointer<ffi.Int8>, ffi.Int32, ffi.Int32,
-              ffi.Int32, ffi.Int32, ffi.Int32)>>('zxingEncode');
+              ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32)>>('zxingEncode');
   late final _zxingEncode = _zxingEncodePtr.asFunction<
-      EncodeResult Function(ffi.Pointer<ffi.Int8>, int, int, int, int, int)>();
+      EncodeResult Function(
+          ffi.Pointer<ffi.Int8>, int, int, int, int, int, int)>();
 }
 
 abstract class Format {

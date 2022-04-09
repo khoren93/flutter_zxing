@@ -16,7 +16,7 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResult zxingRead(char *bytes, int width, int height, int cropSize)
+    struct CodeResult zxingRead(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int logEnabled)
     {
         long long start = get_now();
 
@@ -24,11 +24,12 @@ extern "C"
         uint8_t *data = new uint8_t[length];
         memcpy(data, bytes, length);
 
-        BarcodeFormats formats = BarcodeFormat::Any;
+        BarcodeFormats formats = BarcodeFormat(format); // BarcodeFormat::Any;
         DecodeHints hints = DecodeHints().setTryHarder(false).setTryRotate(true).setFormats(formats);
         ImageView image{data, width, height, ImageFormat::Lum};
-        if (cropSize > 0 && cropSize < width && cropSize < height) {
-            image = image.cropped(width / 2 - cropSize / 2, height / 2 - cropSize / 2, cropSize, cropSize);
+        if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
+        {
+            image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
         }
         Result result = ReadBarcode(image, hints);
 
@@ -43,16 +44,19 @@ extern "C"
         }
 
         int evalInMillis = static_cast<int>(get_now() - start);
-        platform_log("Read done in %dms\n", evalInMillis);
+        if (logEnabled)
+        {
+            platform_log("zxingRead: %d ms", evalInMillis);
+        }
         return code;
     }
 
     FUNCTION_ATTRIBUTE
-    struct EncodeResult zxingEncode(char *contents, int width, int height, int format, int margin, int eccLevel)
+    struct EncodeResult zxingEncode(char *contents, int width, int height, int format, int margin, int eccLevel, int logEnabled)
     {
         long long start = get_now();
-        
-        struct EncodeResult result = { nullptr, 0, false, nullptr };
+
+        struct EncodeResult result = {nullptr, 0, false, nullptr};
         try
         {
             auto writer = MultiFormatWriter(BarcodeFormat(format)).setMargin(margin).setEccLevel(eccLevel);
@@ -63,13 +67,19 @@ extern "C"
         }
         catch (const std::exception &e)
         {
-            platform_log("Can't encode text: %s\nError: %s\n", contents, e.what());
+            if (logEnabled)
+            {
+                platform_log("Can't encode text: %s\nError: %s\n", contents, e.what());
+            }
             result.error = new char[strlen(e.what()) + 1];
             strcpy(result.error, e.what());
         }
 
         int evalInMillis = static_cast<int>(get_now() - start);
-        platform_log("Encode done in %dms\n", evalInMillis);
+        if (logEnabled)
+        {
+            platform_log("zxingEncode: %d ms", evalInMillis);
+        }
         return result;
     }
 }

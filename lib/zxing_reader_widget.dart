@@ -18,6 +18,7 @@ class ZxingReaderWidget extends StatefulWidget {
     Key? key,
     required this.onScan,
     this.onControllerCreated,
+    this.codeFormat = Format.Any,
     this.beep = true,
     this.showCroppingRect = true,
     this.scanDelay = const Duration(milliseconds: 500), // 500ms delay
@@ -27,6 +28,7 @@ class ZxingReaderWidget extends StatefulWidget {
 
   final Function(CodeResult) onScan;
   final Function(CameraController?)? onControllerCreated;
+  final int codeFormat;
   final bool beep;
   final bool showCroppingRect;
   final Duration scanDelay;
@@ -144,7 +146,8 @@ class _ZxingReaderWidgetState extends State<ZxingReaderWidget>
     if (!_isProcessing) {
       _isProcessing = true;
       try {
-        var isolateData = IsolateData(image, widget.cropPercent);
+        var isolateData =
+            IsolateData(image, widget.codeFormat, widget.cropPercent);
 
         /// perform inference in separate isolate
         CodeResult result = await inference(isolateData);

@@ -11,12 +11,14 @@ import 'image_converter.dart';
 /// Bundles data to pass between Isolate
 class IsolateData {
   CameraImage cameraImage;
+  int format;
   double cropPercent;
 
   SendPort? responsePort;
 
   IsolateData(
     this.cameraImage,
+    this.format,
     this.cropPercent,
   );
 }
@@ -54,15 +56,20 @@ class IsolateUtils {
 
     await for (final IsolateData? isolateData in port) {
       if (isolateData != null) {
-        final image = isolateData.cameraImage;
-        final cropPercent = isolateData.cropPercent;
-        final bytes = await convertImage(image);
-        final cropSize = (min(image.width, image.height) * cropPercent).round();
+        try {
+          final image = isolateData.cameraImage;
+          final cropPercent = isolateData.cropPercent;
+          final bytes = await convertImage(image);
+          final cropSize =
+              (min(image.width, image.height) * cropPercent).round();
 
-        final result =
-            FlutterZxing.zxingRead(bytes, image.width, image.height, cropSize);
+          final result = FlutterZxing.zxingRead(bytes, isolateData.format,
+              image.width, image.height, cropSize, cropSize);
 
-        isolateData.responsePort?.send(result);
+          isolateData.responsePort?.send(result);
+        } on Exception catch (e) {
+          isolateData.responsePort?.send(e);
+        }
       }
     }
   }
