@@ -91,9 +91,7 @@ static bool TerminatesCompaction(int code)
 	case BYTE_COMPACTION_MODE_LATCH_6:
 	case BEGIN_MACRO_PDF417_CONTROL_BLOCK:
 	case BEGIN_MACRO_PDF417_OPTIONAL_FIELD:
-	case MACRO_PDF417_TERMINATOR:
-		return true;
-		break;
+	case MACRO_PDF417_TERMINATOR: return true;
 	}
 	return false;
 }
@@ -297,6 +295,7 @@ static int TextCompaction(DecodeStatus& status, const std::vector<int>& codeword
 
 	int index = 0;
 	bool end = false;
+
 	while ((codeIndex < codewords[0]) && !end) {
 		int code = codewords[codeIndex++];
 		if (code < TEXT_COMPACTION_MODE_LATCH) {
@@ -669,8 +668,9 @@ DecodeStatus DecodeMacroBlock(const std::vector<int>& codewords, int codeIndex, 
 	// the fileId using text compaction, so in those cases the fileId will appear mangled.
 	std::ostringstream fileId;
 	fileId.fill('0');
-	for (int i = 0; codeIndex < codewords[0] && codewords[codeIndex] != MACRO_PDF417_TERMINATOR
-			&& codewords[codeIndex] != BEGIN_MACRO_PDF417_OPTIONAL_FIELD; i++, codeIndex++) {
+	for (; codeIndex < codewords[0] && codewords[codeIndex] != MACRO_PDF417_TERMINATOR &&
+		   codewords[codeIndex] != BEGIN_MACRO_PDF417_OPTIONAL_FIELD;
+		 codeIndex++) {
 		fileId << std::setw(3) << codewords[codeIndex];
 	}
 	resultMetadata.setFileId(fileId.str());
@@ -682,70 +682,64 @@ DecodeStatus DecodeMacroBlock(const std::vector<int>& codewords, int codeIndex, 
 
 	while (codeIndex < codewords[0]) {
 		switch (codewords[codeIndex]) {
-			case BEGIN_MACRO_PDF417_OPTIONAL_FIELD: {
-				codeIndex++;
-				if (codeIndex >= codewords[0]) {
-					break;
-				}
-				switch (codewords[codeIndex]) {
-					case MACRO_PDF417_OPTIONAL_FIELD_FILE_NAME: {
-						std::string fileName;
-						codeIndex = DecodeMacroOptionalTextField(status, codewords, codeIndex + 1, fileName);
-						resultMetadata.setFileName(fileName);
-						break;
-					}
-					case MACRO_PDF417_OPTIONAL_FIELD_SENDER: {
-						std::string sender;
-						codeIndex = DecodeMacroOptionalTextField(status, codewords, codeIndex + 1, sender);
-						resultMetadata.setSender(sender);
-						break;
-					}
-					case MACRO_PDF417_OPTIONAL_FIELD_ADDRESSEE: {
-						std::string addressee;
-						codeIndex = DecodeMacroOptionalTextField(status, codewords, codeIndex + 1, addressee);
-						resultMetadata.setAddressee(addressee);
-						break;
-					}
-					case MACRO_PDF417_OPTIONAL_FIELD_SEGMENT_COUNT: {
-						uint64_t segmentCount;
-						codeIndex = DecodeMacroOptionalNumericField(status, codewords, codeIndex + 1, segmentCount);
-						resultMetadata.setSegmentCount(segmentCount);
-						break;
-					}
-					case MACRO_PDF417_OPTIONAL_FIELD_TIME_STAMP: {
-						uint64_t timestamp;
-						codeIndex = DecodeMacroOptionalNumericField(status, codewords, codeIndex + 1, timestamp);
-						resultMetadata.setTimestamp(timestamp);
-						break;
-					}
-					case MACRO_PDF417_OPTIONAL_FIELD_CHECKSUM: {
-						uint64_t checksum;
-						codeIndex = DecodeMacroOptionalNumericField(status, codewords, codeIndex + 1, checksum);
-						resultMetadata.setChecksum(checksum);
-						break;
-					}
-					case MACRO_PDF417_OPTIONAL_FIELD_FILE_SIZE: {
-						uint64_t fileSize;
-						codeIndex = DecodeMacroOptionalNumericField(status, codewords, codeIndex + 1, fileSize);
-						resultMetadata.setFileSize(fileSize);
-						break;
-					}
-					default: {
-						status = DecodeStatus::FormatError;
-						break;
-					}
-				}
+		case BEGIN_MACRO_PDF417_OPTIONAL_FIELD: {
+			codeIndex++;
+			if (codeIndex >= codewords[0]) {
 				break;
 			}
-			case MACRO_PDF417_TERMINATOR: {
-				codeIndex++;
-				resultMetadata.setLastSegment(true);
+			switch (codewords[codeIndex]) {
+			case MACRO_PDF417_OPTIONAL_FIELD_FILE_NAME: {
+				std::string fileName;
+				codeIndex = DecodeMacroOptionalTextField(status, codewords, codeIndex + 1, fileName);
+				resultMetadata.setFileName(fileName);
 				break;
 			}
-			default: {
-				status = DecodeStatus::FormatError;
+			case MACRO_PDF417_OPTIONAL_FIELD_SENDER: {
+				std::string sender;
+				codeIndex = DecodeMacroOptionalTextField(status, codewords, codeIndex + 1, sender);
+				resultMetadata.setSender(sender);
 				break;
 			}
+			case MACRO_PDF417_OPTIONAL_FIELD_ADDRESSEE: {
+				std::string addressee;
+				codeIndex = DecodeMacroOptionalTextField(status, codewords, codeIndex + 1, addressee);
+				resultMetadata.setAddressee(addressee);
+				break;
+			}
+			case MACRO_PDF417_OPTIONAL_FIELD_SEGMENT_COUNT: {
+				uint64_t segmentCount;
+				codeIndex = DecodeMacroOptionalNumericField(status, codewords, codeIndex + 1, segmentCount);
+				resultMetadata.setSegmentCount(static_cast<int>(segmentCount));
+				break;
+			}
+			case MACRO_PDF417_OPTIONAL_FIELD_TIME_STAMP: {
+				uint64_t timestamp;
+				codeIndex = DecodeMacroOptionalNumericField(status, codewords, codeIndex + 1, timestamp);
+				resultMetadata.setTimestamp(timestamp);
+				break;
+			}
+			case MACRO_PDF417_OPTIONAL_FIELD_CHECKSUM: {
+				uint64_t checksum;
+				codeIndex = DecodeMacroOptionalNumericField(status, codewords, codeIndex + 1, checksum);
+				resultMetadata.setChecksum(static_cast<int>(checksum));
+				break;
+			}
+			case MACRO_PDF417_OPTIONAL_FIELD_FILE_SIZE: {
+				uint64_t fileSize;
+				codeIndex = DecodeMacroOptionalNumericField(status, codewords, codeIndex + 1, fileSize);
+				resultMetadata.setFileSize(fileSize);
+				break;
+			}
+			default: status = DecodeStatus::FormatError; break;
+			}
+			break;
+		}
+		case MACRO_PDF417_TERMINATOR: {
+			codeIndex++;
+			resultMetadata.setLastSegment(true);
+			break;
+		}
+		default: status = DecodeStatus::FormatError; break;
 		}
 		if (StatusIsError(status)) {
 			return status;
@@ -860,6 +854,9 @@ DecodedBitStreamParser::Decode(const std::vector<int>& codewords, int ecLevel, c
 
 	return DecoderResult(ByteArray(), std::move(resultEncoded))
 		.setEcLevel(std::to_wstring(ecLevel))
+		// As converting character set ECIs ourselves and ignoring/skipping non-character ECIs, not using modifier
+		// that indicates ECI protocol (ISO/IEC 15438:2015 Annex L Table L.1)
+		.setSymbologyIdentifier("]L2")
 		.setStructuredAppend(sai)
 		.setReaderInit(readerInit)
 		.setExtra(resultMetadata);

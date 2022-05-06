@@ -398,7 +398,7 @@ static DetectorResult DetectOld(const BitMatrix& image)
 			dimensionCorrected++;
 		}
 
-		dimensionTop = dimensionRight = dimension;
+		dimensionTop = dimensionRight = dimensionCorrected;
 	}
 
 	return SampleGrid(image, *topLeft, *bottomLeft, *bottomRight, correctedTopRight, dimensionTop, dimensionRight);
@@ -409,7 +409,7 @@ static DetectorResult DetectOld(const BitMatrix& image)
 * It is performing something like a (back) trace search along edges through the bit matrix, first looking for
 * the 'L'-pattern, then tracing the black/white borders at the top/right. Advantages over the old code are:
 *  * works with lower resolution scans (around 2 pixel per module), due to sub-pixel precision grid placement
-*  * works with real-world codes that have just one module wide quite-zone (which is perfectly in spec)
+*  * works with real-world codes that have just one module wide quiet-zone (which is perfectly in spec)
 */
 
 class DMRegressionLine : public RegressionLine
@@ -580,7 +580,10 @@ public:
 				// make sure we are making progress even when back-projecting:
 				// consider a 90deg corner, rotated 45deg. we step away perpendicular from the line and get
 				// back projected where we left off the line.
-				if (distance(np, line.project(line.points().back())) < 1)
+				// The 'while' instead of 'if' was introduced to fix the issue with #245. It turns out that
+				// np can actually be behind the projection of the last line point and we need 2 steps in d
+				// to prevent a dead lock. see #245.png
+				while (distance(np, line.project(line.points().back())) < 1)
 					np = np + d;
 				p = centered(np);
 			}

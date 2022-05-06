@@ -18,7 +18,6 @@
 #include "DMReader.h"
 
 #include "BinaryBitmap.h"
-#include "BitMatrix.h"
 #include "DMDecoder.h"
 #include "DMDetector.h"
 #include "DecodeHints.h"
@@ -27,7 +26,6 @@
 #include "Result.h"
 
 #include <utility>
-#include <vector>
 
 namespace ZXing::DataMatrix {
 
@@ -48,7 +46,7 @@ Reader::Reader(const DecodeHints& hints)
 Result
 Reader::decode(const BinaryBitmap& image) const
 {
-	auto binImg = image.getBlackMatrix();
+	auto binImg = image.getBitMatrix();
 	if (binImg == nullptr) {
 		return Result(DecodeStatus::NotFound);
 	}

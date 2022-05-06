@@ -25,8 +25,8 @@
 #include <cassert>
 #include <cstddef>
 #include <iterator>
+#include <limits>
 #include <memory>
-#include <type_traits>
 
 /*
 Code39 : 1:2/3, 5+4+1 (0x3|2x1 wide) -> 12-15 mods, v1-? | ToNarrowWide(OMG 1) == *
@@ -70,7 +70,7 @@ public:
 
 	virtual ~RowReader() {}
 
-	virtual Result decodePattern(int rowNumber, const PatternView& row, std::unique_ptr<DecodingState>& state) const = 0;
+	virtual Result decodePattern(int rowNumber, PatternView& next, std::unique_ptr<DecodingState>& state) const = 0;
 
 	/**
 	 * Determines how closely a set of observed counts of runs of black/white values matches a given
@@ -118,7 +118,7 @@ public:
 	* digit.
 	*
 	* @param counters the counts of runs of observed black/white/black/... values
-	* @param patterns the list of patterns to compare the contens of counters to
+	* @param patterns the list of patterns to compare the contents of counters to
 	* @param requireUnambiguousMatch the 'best match' must be better than all other matches
 	* @return The decoded digit index, -1 if no pattern matched
 	*/

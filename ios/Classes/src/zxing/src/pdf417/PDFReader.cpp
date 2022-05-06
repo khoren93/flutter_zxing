@@ -20,7 +20,6 @@
 #include "PDFDetector.h"
 #include "PDFScanningDecoder.h"
 #include "PDFCodewordDecoder.h"
-#include "PDFDecoderResultExtra.h"
 #include "DecodeHints.h"
 #include "DecoderResult.h"
 #include "Result.h"
@@ -30,15 +29,19 @@
 #include "BitArray.h"
 #include "DecodeStatus.h"
 #include "Pattern.h"
-#include "PDFDecodedBitStreamParser.h"
-#include "BitMatrixIO.h"
-#include <iostream>
 
 #include <vector>
 #include <cstdlib>
 #include <algorithm>
 #include <limits>
 #include <utility>
+
+#ifdef PRINT_DEBUG
+#include "PDFDecoderResultExtra.h"
+#include "PDFDecodedBitStreamParser.h"
+#include "BitMatrixIO.h"
+#include <iostream>
+#endif
 
 namespace ZXing {
 namespace Pdf417 {
@@ -214,7 +217,7 @@ SymbolInfo DetectSymbol(BitMatrixCursor<POINT> topCur, int width, int height)
 	res.lastRow = botSI.firstRow;
 	res.rowHeight = float(height) / (std::abs(res.lastRow - res.firstRow) + 1);
 	if (topSI.nCols != botSI.nCols)
-		// if there is something fishy with the number of cols (alising), guess them from the width
+		// if there is something fishy with the number of cols (aliasing), guess them from the width
 		res.nCols = (width + res.colWidth / 2) / res.colWidth - 4;
 
 	return res;
@@ -268,7 +271,7 @@ DecoderResult DecodeCodewords(std::vector<int>& codewords, int ecLevel, const st
 
 static Result DecodePure(const BinaryBitmap& image_, const std::string& characterSet)
 {
-	auto pimage = image_.getBlackMatrix();
+	auto pimage = image_.getBitMatrix();
 	if (!pimage)
 		return Result(DecodeStatus::NotFound);
 	auto& image = *pimage;
@@ -333,6 +336,13 @@ Reader::decode(const BinaryBitmap& image) const
 		return results.front();
 	}
 	return Result(status);
+}
+
+Results Reader::decode(const BinaryBitmap& image, [[maybe_unused]] int maxSymbols) const
+{
+	std::list<Result> results;
+	DoDecode(image, true, results, _characterSet);
+	return Results(results.begin(), results.end());
 }
 
 std::list<Result>

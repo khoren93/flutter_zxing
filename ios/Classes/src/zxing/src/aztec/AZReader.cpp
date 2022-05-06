@@ -27,7 +27,6 @@
 
 #include <memory>
 #include <utility>
-#include <vector>
 
 namespace ZXing::Aztec {
 
@@ -39,22 +38,22 @@ Reader::Reader(const DecodeHints& hints)
 Result
 Reader::decode(const BinaryBitmap& image) const
 {
-	auto binImg = image.getBlackMatrix();
+	auto binImg = image.getBitMatrix();
 	if (binImg == nullptr) {
 		return Result(DecodeStatus::NotFound);
 	}
 
-	DetectorResult detectResult = Detector::Detect(*binImg, false, _isPure);
+	DetectorResult detectResult = Detect(*binImg, false, _isPure);
 	DecoderResult decodeResult = DecodeStatus::NotFound;
 	if (detectResult.isValid()) {
-		decodeResult = Decoder::Decode(detectResult, _characterSet);
+		decodeResult = Decode(detectResult, _characterSet);
 	}
 
 	//TODO: don't start detection all over again, just to swap 2 corner points
 	if (!decodeResult.isValid()) {
-		detectResult = Detector::Detect(*binImg, true, _isPure);
+		detectResult = Detect(*binImg, true, _isPure);
 		if (detectResult.isValid()) {
-			decodeResult = Decoder::Decode(detectResult, _characterSet);
+			decodeResult = Decode(detectResult, _characterSet);
 		}
 	}
 

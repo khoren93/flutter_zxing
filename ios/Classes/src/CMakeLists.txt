@@ -81,16 +81,13 @@ if (BUILD_READERS)
         ${ZXING_PATH}/DecodeStatus.cpp
         ${ZXING_PATH}/DecoderResult.h
         ${ZXING_PATH}/DetectorResult.h
-        ${ZXING_PATH}/GenericLuminanceSource.h
-        ${ZXING_PATH}/GenericLuminanceSource.cpp
         ${ZXING_PATH}/GlobalHistogramBinarizer.h
         ${ZXING_PATH}/GlobalHistogramBinarizer.cpp
         ${ZXING_PATH}/GridSampler.h
         ${ZXING_PATH}/GridSampler.cpp
         ${ZXING_PATH}/HybridBinarizer.h
         ${ZXING_PATH}/HybridBinarizer.cpp
-        ${ZXING_PATH}/LuminanceSource.h
-        ${ZXING_PATH}/LuminanceSource.cpp
+        ${ZXING_PATH}/ImageView.h
         ${ZXING_PATH}/MultiFormatReader.h
         ${ZXING_PATH}/MultiFormatReader.cpp
         ${ZXING_PATH}/PerspectiveTransform.h
@@ -102,8 +99,6 @@ if (BUILD_READERS)
         ${ZXING_PATH}/ReedSolomonDecoder.cpp
         ${ZXING_PATH}/Result.h
         ${ZXING_PATH}/Result.cpp
-        ${ZXING_PATH}/ResultMetadata.h
-        ${ZXING_PATH}/ResultMetadata.cpp
         ${ZXING_PATH}/ResultPoint.h
         ${ZXING_PATH}/ResultPoint.cpp
         ${ZXING_PATH}/TextDecoder.h
@@ -157,6 +152,8 @@ endif()
 set (DATAMATRIX_FILES
     ${ZXING_PATH}/datamatrix/DMBitLayout.h
     ${ZXING_PATH}/datamatrix/DMBitLayout.cpp
+    ${ZXING_PATH}/datamatrix/DMVersion.h
+    ${ZXING_PATH}/datamatrix/DMVersion.cpp
 )
 if (BUILD_READERS)
     set (DATAMATRIX_FILES ${DATAMATRIX_FILES}
@@ -166,8 +163,6 @@ if (BUILD_READERS)
         ${ZXING_PATH}/datamatrix/DMDecoder.cpp
         ${ZXING_PATH}/datamatrix/DMDetector.h
         ${ZXING_PATH}/datamatrix/DMDetector.cpp
-        ${ZXING_PATH}/datamatrix/DMVersion.h
-        ${ZXING_PATH}/datamatrix/DMVersion.cpp
         ${ZXING_PATH}/datamatrix/DMReader.h
         ${ZXING_PATH}/datamatrix/DMReader.cpp
     )
@@ -335,7 +330,6 @@ if (BUILD_READERS)
         ${ZXING_PATH}/qrcode/QRDataMask.h
         ${ZXING_PATH}/qrcode/QRDecoder.h
         ${ZXING_PATH}/qrcode/QRDecoder.cpp
-        ${ZXING_PATH}/qrcode/QRDecoderMetadata.h
         ${ZXING_PATH}/qrcode/QRDetector.h
         ${ZXING_PATH}/qrcode/QRDetector.cpp
         ${ZXING_PATH}/qrcode/QRECB.h

@@ -27,6 +27,7 @@
 #include <cassert>
 #include <cstdint>
 #include <iterator>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -237,15 +238,14 @@ public:
 	*
 	* @param i bit to set
 	*/
-	void set(int i) {
+	void set(int i, bool val) {
 #ifdef ZX_FAST_BIT_STORAGE
-#if 0
-		_bits[i] = 1;
+		_bits.at(i) = val;
 #else
-		_bits.at(i) = 1;
-#endif
-#else
-		_bits.at(i >> 5) |= 1 << (i & 0x1F);
+		if (val)
+			_bits.at(i >> 5) |= 1 << (i & 0x1F);
+		else
+			_bits.at(i >> 5) &= ~(1 << (i & 0x1F));
 #endif
 	}
 
@@ -274,9 +274,9 @@ public:
 #endif
 
 	// Little helper method to make common isRange use case more readable.
-	// Pass positive zone size to look for quite zone after i and negative for zone in front of i.
+	// Pass positive zone size to look for quiet zone after i and negative for zone in front of i.
 	// Set allowClippedZone to false if clipping the zone at the image border is not acceptable.
-	bool hasQuiteZone(Iterator i, int signedZoneSize, bool allowClippedZone = true) const {
+	bool hasQuietZone(Iterator i, int signedZoneSize, bool allowClippedZone = true) const {
 		int index = static_cast<int>(i - begin());
 		if (signedZoneSize > 0) {
 			if (!allowClippedZone && index + signedZoneSize >= size())
@@ -289,8 +289,8 @@ public:
 		}
 	}
 
-	bool hasQuiteZone(ReverseIterator i, int signedZoneSize, bool allowClippedZone = true) const {
-		return hasQuiteZone(i.base(), -signedZoneSize, allowClippedZone);
+	bool hasQuietZone(ReverseIterator i, int signedZoneSize, bool allowClippedZone = true) const {
+		return hasQuietZone(i.base(), -signedZoneSize, allowClippedZone);
 	}
 
 	/**
@@ -345,6 +345,8 @@ public:
 	*/
 	ByteArray toBytes(int bitOffset = 0, int numBytes = -1) const;
 
+	Range range() const { return {begin(), end()}; }
+
 	friend bool operator==(const BitArray& a, const BitArray& b)
 	{
 		return
@@ -372,6 +374,14 @@ int ToInt(const ARRAY& a)
 	return pattern;
 }
 
+inline int ReadBits(BitArray::Range& bits, int n)
+{
+	int res = 0;
+	for (; n > 0 && bits.size(); --n, bits.begin++)
+		AppendBit(res, *bits.begin);
+	return res;
+}
+
 template <typename T = int, typename = std::enable_if_t<std::is_integral_v<T>>>
 T ToInt(const BitArray& bits, int pos = 0, int count = 8 * sizeof(T))
 {
@@ -388,12 +398,15 @@ T ToInt(const BitArray& bits, int pos = 0, int count = 8 * sizeof(T))
 }
 
 template <typename T = int, typename = std::enable_if_t<std::is_integral_v<T>>>
-std::vector<T> ToInts(const BitArray& bits, int wordSize, int totalWords)
+std::vector<T> ToInts(const BitArray& bits, int wordSize, int totalWords, int offset = 0)
 {
 	assert(totalWords >= bits.size() / wordSize);
-	std::vector<int> res(totalWords, 0);
-	for (int i = 0; i < bits.size(); i += wordSize)
-		res[i/wordSize] = ToInt(bits, i, wordSize);
+	assert(wordSize <= 8 * (int)sizeof(T));
+
+	std::vector<T> res(totalWords, 0);
+	for (int i = offset; i < bits.size(); i += wordSize)
+		res[(i - offset) / wordSize] = ToInt(bits, i, wordSize);
+
 	return res;
 }
 

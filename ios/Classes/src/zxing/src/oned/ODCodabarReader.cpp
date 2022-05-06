@@ -18,15 +18,12 @@
 
 #include "ODCodabarReader.h"
 
-#include "BitArray.h"
 #include "DecodeHints.h"
 #include "Result.h"
 #include "ZXContainerAlgorithms.h"
 
-#include <array>
-#include <limits>
 #include <string>
-#include <vector>
+#include <memory>
 
 namespace ZXing::OneD {
 
@@ -51,8 +48,8 @@ CodabarReader::CodabarReader(const DecodeHints& hints)
 
 // each character has 4 bars and 3 spaces
 constexpr int CHAR_LEN = 7;
-// quite zone is half the width of a character symbol
-constexpr float QUITE_ZONE_SCALE = 0.5f;
+// quiet zone is half the width of a character symbol
+constexpr float QUIET_ZONE_SCALE = 0.5f;
 
 // official start and stop symbols are "ABCD"
 // some codabar generator allow the codabar string to be closed by every
@@ -60,12 +57,12 @@ constexpr float QUITE_ZONE_SCALE = 0.5f;
 
 bool IsLeftGuard(const PatternView& view, int spaceInPixel)
 {
-	return spaceInPixel > view.sum() * QUITE_ZONE_SCALE &&
+	return spaceInPixel > view.sum() * QUIET_ZONE_SCALE &&
 		   Contains({0x1A, 0x29, 0x0B, 0x0E}, RowReader::NarrowWideBitPattern(view));
 }
 
 Result
-CodabarReader::decodePattern(int rowNumber, const PatternView& row, std::unique_ptr<DecodingState>&) const
+CodabarReader::decodePattern(int rowNumber, PatternView& next, std::unique_ptr<DecodingState>&) const
 {
 	// minimal number of characters that must be present (including start, stop and checksum characters)
 	// absolute minimum would be 2 (meaning 0 'content'). everything below 4 produces too many false
@@ -73,7 +70,7 @@ CodabarReader::decodePattern(int rowNumber, const PatternView& row, std::unique_
 	const int minCharCount = 4;
 	auto isStartOrStopSymbol = [](char c) { return 'A' <= c && c <= 'D'; };
 
-	auto next = FindLeftGuard<CHAR_LEN>(row, minCharCount * CHAR_LEN, IsLeftGuard);
+	next = FindLeftGuard<CHAR_LEN>(next, minCharCount * CHAR_LEN, IsLeftGuard);
 	if (!next.isValid())
 		return Result(DecodeStatus::NotFound);
 
@@ -99,15 +96,19 @@ CodabarReader::decodePattern(int rowNumber, const PatternView& row, std::unique_
 
 	// next now points to the last decoded symbol
 	// check txt length and whitespace after the last char. See also FindStartPattern.
-	if (Size(txt) < minCharCount || !next.hasQuiteZoneAfter(QUITE_ZONE_SCALE))
+	if (Size(txt) < minCharCount || !next.hasQuietZoneAfter(QUIET_ZONE_SCALE))
 		return Result(DecodeStatus::NotFound);
 
 	// remove stop/start characters
 	if (!_returnStartEnd)
 		txt = txt.substr(1, txt.size() - 2);
 
+	// symbology identifier ISO/IEC 15424:2008 4.4.9
+	// if checksum processing were implemented and checksum present and stripped then modifier would be 4
+	std::string symbologyIdentifier("]F0");
+
 	int xStop = next.pixelsTillEnd();
-	return Result(txt, rowNumber, xStart, xStop, BarcodeFormat::Codabar);
+	return Result(txt, rowNumber, xStart, xStop, BarcodeFormat::Codabar, std::move(symbologyIdentifier));
 }
 
 } // namespace ZXing::OneD

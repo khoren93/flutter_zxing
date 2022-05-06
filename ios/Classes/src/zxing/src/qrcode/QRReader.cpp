@@ -18,15 +18,13 @@
 #include "QRReader.h"
 
 #include "BinaryBitmap.h"
-#include "BitMatrix.h"
 #include "DecodeHints.h"
 #include "DecoderResult.h"
 #include "DetectorResult.h"
+#include "LogMatrix.h"
 #include "QRDecoder.h"
-#include "QRDecoderMetadata.h"
 #include "QRDetector.h"
 #include "Result.h"
-#include "ResultPoint.h"
 
 #include <utility>
 
@@ -40,7 +38,14 @@ Reader::Reader(const DecodeHints& hints)
 Result
 Reader::decode(const BinaryBitmap& image) const
 {
-	auto binImg = image.getBlackMatrix();
+#if 1
+	if (!_isPure) {
+		auto res = decode(image, 1);
+		return res.empty() ? Result(DecodeStatus::NotFound) : res.front();
+	}
+#endif
+
+	auto binImg = image.getBitMatrix();
 	if (binImg == nullptr) {
 		return Result(DecodeStatus::NotFound);
 	}
@@ -52,10 +57,43 @@ Reader::decode(const BinaryBitmap& image) const
 	auto decoderResult = Decode(detectorResult.bits(), _charset);
 	auto position = detectorResult.position();
 
-	// TODO: report the information that the symbol was mirrored back to the caller
-	//bool isMirrored = decoderResult.extra() && static_cast<DecoderMetadata*>(decoderResult.extra().get())->isMirrored();
-
 	return Result(std::move(decoderResult), std::move(position), BarcodeFormat::QRCode);
+}
+
+Results Reader::decode(const BinaryBitmap& image, int maxSymbols) const
+{
+	auto binImg = image.getBitMatrix();
+	if (binImg == nullptr)
+		return {};
+
+#ifdef PRINT_DEBUG
+	LogMatrixWriter lmw(log, *binImg, 5, "qr-log.pnm");
+#endif
+
+	FinderPatternSets allFPSets = FindFinderPatternSets(*binImg, _tryHarder);
+	std::vector<ConcentricPattern> usedFPs;
+	Results results;
+
+	for(auto& fpSet : allFPSets) {
+		if (Contains(usedFPs, fpSet.bl) || Contains(usedFPs, fpSet.tl) || Contains(usedFPs, fpSet.tr))
+			continue;
+
+		auto detectorResult = SampleAtFinderPatternSet(*binImg, fpSet);
+		if (detectorResult.isValid()) {
+			auto decoderResult = Decode(detectorResult.bits(), _charset);
+			auto position = detectorResult.position();
+			if (decoderResult.isValid()) {
+				usedFPs.push_back(fpSet.bl);
+				usedFPs.push_back(fpSet.tl);
+				usedFPs.push_back(fpSet.tr);
+				results.emplace_back(std::move(decoderResult), std::move(position), BarcodeFormat::QRCode);
+				if (maxSymbols && Size(results) == maxSymbols)
+					break;
+			}
+		}
+	}
+
+	return results;
 }
 
 } // namespace ZXing::QRCode

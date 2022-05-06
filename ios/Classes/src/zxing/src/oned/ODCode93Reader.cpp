@@ -18,7 +18,6 @@
 
 #include "ODCode93Reader.h"
 
-#include "BitArray.h"
 #include "Result.h"
 #include "ZXContainerAlgorithms.h"
 
@@ -78,8 +77,8 @@ bool DecodeExtendedCode39AndCode93(std::string& encoded, const char ctrl[4]);
 
 constexpr int CHAR_LEN = 6;
 constexpr int CHAR_SUM = 9;
-// quite zone is half the width of a character symbol
-constexpr float QUITE_ZONE_SCALE = 0.5f;
+// quiet zone is half the width of a character symbol
+constexpr float QUIET_ZONE_SCALE = 0.5f;
 
 static bool IsStartGuard(const PatternView& window, int spaceInPixel)
 {
@@ -87,17 +86,17 @@ static bool IsStartGuard(const PatternView& window, int spaceInPixel)
 	// Use only the first 4 elements which results in more than a 2x speedup. This is counter-intuitive since we save at
 	// most 1/3rd of the loop iterations in FindPattern. The reason might be a successful vectorization with the limited
 	// pattern size that is missed otherwise. We check for the remaining 2 slots for plausibility of the 4:1 ratio.
-	return IsPattern(window, FixedPattern<4, 4>{1, 1, 1, 1}, spaceInPixel, QUITE_ZONE_SCALE * 12) &&
+	return IsPattern(window, FixedPattern<4, 4>{1, 1, 1, 1}, spaceInPixel, QUIET_ZONE_SCALE * 12) &&
 		   window[4] > 3 * window[5] - 2 &&
 		   RowReader::OneToFourBitPattern<CHAR_LEN, CHAR_SUM>(window) == ASTERISK_ENCODING;
 }
 
-Result Code93Reader::decodePattern(int rowNumber, const PatternView& row, std::unique_ptr<DecodingState>&) const
+Result Code93Reader::decodePattern(int rowNumber, PatternView& next, std::unique_ptr<DecodingState>&) const
 {
 	// minimal number of characters that must be present (including start, stop, checksum and 1 payload characters)
 	int minCharCount = 5;
 
-	auto next = FindLeftGuard<CHAR_LEN>(row, minCharCount * CHAR_LEN, IsStartGuard);
+	next = FindLeftGuard<CHAR_LEN>(next, minCharCount * CHAR_LEN, IsStartGuard);
 	if (!next.isValid())
 		return Result(DecodeStatus::NotFound);
 
@@ -121,9 +120,9 @@ Result Code93Reader::decodePattern(int rowNumber, const PatternView& row, std::u
 	if (Size(txt) < minCharCount - 2)
 		return Result(DecodeStatus::NotFound);
 
-	// check termination bar (is present and not wider than about 2 modules) and quite zone
+	// check termination bar (is present and not wider than about 2 modules) and quiet zone
 	next = next.subView(0, CHAR_LEN + 1);
-	if (!next.isValid() || next[CHAR_LEN] > next.sum(CHAR_LEN) / 4 || !next.hasQuiteZoneAfter(QUITE_ZONE_SCALE))
+	if (!next.isValid() || next[CHAR_LEN] > next.sum(CHAR_LEN) / 4 || !next.hasQuietZoneAfter(QUIET_ZONE_SCALE))
 		return Result(DecodeStatus::NotFound);
 
 	if (!CheckChecksums(txt))
@@ -135,8 +134,11 @@ Result Code93Reader::decodePattern(int rowNumber, const PatternView& row, std::u
 	if (!DecodeExtendedCode39AndCode93(txt, "abcd"))
 		return Result(DecodeStatus::FormatError);
 
+	// Symbology identifier ISO/IEC 15424:2008 4.4.10 no modifiers
+	std::string symbologyIdentifier("]G0");
+
 	int xStop = next.pixelsTillEnd();
-	return Result(txt, rowNumber, xStart, xStop, BarcodeFormat::Code93);
+	return Result(txt, rowNumber, xStart, xStop, BarcodeFormat::Code93, std::move(symbologyIdentifier));
 }
 
 } // namespace ZXing::OneD

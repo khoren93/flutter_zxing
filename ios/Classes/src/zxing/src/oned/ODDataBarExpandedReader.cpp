@@ -131,7 +131,7 @@ constexpr int FINDER_D = 4;
 constexpr int FINDER_E = 5;
 constexpr int FINDER_F = 6;
 
-// A negative number means the finder pattern is layed out right2left. Note: each finder may only occur once per code.
+// A negative number means the finder pattern is laid out right2left. Note: each finder may only occur once per code.
 static const std::array<std::vector<int>, 10> FINDER_PATTERN_SEQUENCES = {{
 	{FINDER_A, -FINDER_A},
 	{FINDER_A, -FINDER_B, FINDER_B},
@@ -201,16 +201,15 @@ static Pair ReadPair(const PatternView& view, Direction dir)
 }
 
 template<bool STACKED>
-static Pairs ReadRowOfPairs(const PatternView& view, int rowNumber)
+static Pairs ReadRowOfPairs(PatternView& next, int rowNumber)
 {
 	Pairs pairs;
 	Pair pair;
-	PatternView next;
 
 	if constexpr (STACKED) {
 		// a possible first pair is either left2right starting on a space or right2left starting on a bar.
 		// it might be a half-pair
-		next = view.subView(0, HALF_PAIR_SIZE);
+		next = next.subView(0, HALF_PAIR_SIZE);
 		while (next.shift(1)) {
 			if (IsL2RPair(next) && (pair = ReadPair(next, Direction::Right)) &&
 				(pair.finder != FINDER_A || IsGuard(next[-1], next[11])))
@@ -221,7 +220,7 @@ static Pairs ReadRowOfPairs(const PatternView& view, int rowNumber)
 	} else {
 		// the only possible first pair is a full, left2right FINDER_A pair starting on a space
 		// with a guard bar on the left
-		next = view.subView(-1, FULL_PAIR_SIZE);
+		next = next.subView(-1, FULL_PAIR_SIZE);
 		while (next.shift(2)) {
 			if (IsL2RPair(next) && IsGuard(next[-1], next[11]) &&
 				(pair = ReadPair(next, Direction::Right)).finder == FINDER_A)
@@ -231,8 +230,10 @@ static Pairs ReadRowOfPairs(const PatternView& view, int rowNumber)
 		next = next.subView(0, HALF_PAIR_SIZE);
 	}
 
-	if (!pair)
+	if (!pair) {
+		next = {}; // if we didn't find a single pair, consume the rest of the row
 		return {};
+	}
 
 	auto flippedDir = [](Pair p) { return p.finder < 0 ? Direction::Right : Direction::Left; };
 	auto isValidPair = [](Pair p, PatternView v) { return p.right || IsGuard(v[p.finder < 0 ? 9 : 11], v[13]); };
@@ -280,7 +281,8 @@ static bool FindValidSequence(const PairMap& all, ITER begin, ITER end, Pairs& s
 		constexpr int N = 2;
 		// TODO c++20 ranges::views::take()
 		auto& pairs = ppairs->second;
-		for (auto p = pairs.begin(), pend = std::min(pairs.end(), pairs.begin() + N); p != pend; ++p) {
+		int n = 0;
+		for (auto p = pairs.begin(), pend = pairs.end(); p != pend && n < N; ++p, ++n) {
 			// skip p if it is a half-pair but not the last one in the sequence
 			if (!p->right && std::next(begin) != end)
 				continue;
@@ -314,6 +316,14 @@ static Pairs FindValidSequence(PairMap& all)
 	return stack;
 }
 
+static void RemovePairs(PairMap& all, const Pairs& pairs)
+{
+	for(const auto& p : pairs)
+		if (auto i = Find(all[p.finder], p); i != all[p.finder].end())
+			if (--i->count == 0)
+				all[p.finder].erase(i);
+}
+
 static BitArray BuildBitArray(const Pairs& pairs)
 {
 	BitArray res;
@@ -333,7 +343,7 @@ struct DBERState : public RowReader::DecodingState
 	PairMap allPairs;
 };
 
-Result DataBarExpandedReader::decodePattern(int rowNumber, const PatternView& view,
+Result DataBarExpandedReader::decodePattern(int rowNumber, PatternView& view,
 											std::unique_ptr<RowReader::DecodingState>& state) const
 {
 #if 0 // non-stacked version
@@ -346,7 +356,7 @@ Result DataBarExpandedReader::decodePattern(int rowNumber, const PatternView& vi
 		state.reset(new DBERState);
 	auto& allPairs = static_cast<DBERState*>(state.get())->allPairs;
 
-	// Stacked codes can be layed out in a number of ways. The following rules apply:
+	// Stacked codes can be laid out in a number of ways. The following rules apply:
 	//  * the first row starts with FINDER_A in left-to-right (l2r) layout
 	//  * pairs in l2r layout start with a space, r2l ones with a bar
 	//  * l2r and r2l finders always alternate
@@ -368,11 +378,19 @@ Result DataBarExpandedReader::decodePattern(int rowNumber, const PatternView& vi
 #endif
 
 	auto txt = DecodeExpandedBits(BuildBitArray(pairs));
-	if(txt.empty())
+	if (txt.empty())
 		return Result(DecodeStatus::NotFound);
 
+	RemovePairs(allPairs, pairs);
+
+	// Symbology identifier ISO/IEC 24724:2011 Section 9 and GS1 General Specifications 5.1.3 Figure 5.1.3-2
+	std::string symbologyIdentifier("]e0");
+
+	// TODO: EstimatePosition misses part of the symbol in the stacked case where the last row contains less pairs than
+	// the first
 	return {TextDecoder::FromLatin1(txt), EstimatePosition(pairs.front(), pairs.back()),
-			BarcodeFormat::DataBarExpanded};
+			BarcodeFormat::DataBarExpanded, std::move(symbologyIdentifier), {}, {}, false,
+			EstimateLineCount(pairs.front(), pairs.back())};
 }
 
 } // namespace ZXing::OneD

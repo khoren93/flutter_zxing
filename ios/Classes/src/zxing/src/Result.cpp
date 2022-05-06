@@ -25,31 +25,28 @@
 
 namespace ZXing {
 
-Result::Result(std::wstring&& text, Position&& position, BarcodeFormat format, ByteArray&& rawBytes,
-			   const bool readerInit)
+Result::Result(std::wstring&& text, Position&& position, BarcodeFormat format, std::string&& symbologyIdentifier,
+			   ByteArray&& rawBytes, StructuredAppendInfo&& sai, const bool readerInit, int lineCount)
 	: _format(format), _text(std::move(text)), _position(std::move(position)), _rawBytes(std::move(rawBytes)),
-	  _readerInit(readerInit)
+	  _symbologyIdentifier(std::move(symbologyIdentifier)), _sai(std::move(sai)), _readerInit(readerInit),
+	  _lineCount(lineCount)
 {
 	_numBits = Size(_rawBytes) * 8;
 }
 
-Result::Result(const std::string& text, int y, int xStart, int xStop, BarcodeFormat format, ByteArray&& rawBytes,
-			   const bool readerInit)
-	: Result(TextDecoder::FromLatin1(text), Line(y, xStart, xStop), format, std::move(rawBytes), readerInit)
+Result::Result(const std::string& text, int y, int xStart, int xStop, BarcodeFormat format,
+			   std::string&& symbologyIdentifier, ByteArray&& rawBytes, const bool readerInit)
+	: Result(TextDecoder::FromLatin1(text), Line(y, xStart, xStop), format, std::move(symbologyIdentifier),
+			 std::move(rawBytes), {}, readerInit)
 {}
 
 Result::Result(DecoderResult&& decodeResult, Position&& position, BarcodeFormat format)
 	: _status(decodeResult.errorCode()), _format(format), _text(std::move(decodeResult).text()),
 	  _position(std::move(position)), _rawBytes(std::move(decodeResult).rawBytes()), _numBits(decodeResult.numBits()),
-	  _ecLevel(decodeResult.ecLevel()), _sai(decodeResult.structuredAppend()), _readerInit(decodeResult.readerInit())
+	  _ecLevel(decodeResult.ecLevel()), _symbologyIdentifier(decodeResult.symbologyIdentifier()),
+	  _sai(decodeResult.structuredAppend()), _isMirrored(decodeResult.isMirrored()),
+	  _readerInit(decodeResult.readerInit())
 {
-	// TODO: keep that for one release so people get the deprecation warning with a still intact functionality
-	if (isPartOfSequence()) {
-		_metadata.put(ResultMetadata::STRUCTURED_APPEND_SEQUENCE, sequenceIndex());
-		_metadata.put(ResultMetadata::STRUCTURED_APPEND_CODE_COUNT, sequenceSize());
-		if (_format == BarcodeFormat::QRCode)
-			_metadata.put(ResultMetadata::STRUCTURED_APPEND_PARITY, std::stoi(sequenceId()));
-	}
 
 	// TODO: add type opaque and code specific 'extra data'? (see DecoderResult::extra())
 }
@@ -58,6 +55,23 @@ int Result::orientation() const
 {
 	constexpr auto std_numbers_pi_v = 3.14159265358979323846; // TODO: c++20 <numbers>
 	return std::lround(_position.orientation() * 180 / std_numbers_pi_v);
+}
+
+bool Result::operator==(const Result& o) const
+{
+	if (format() != o.format() || text() != o.text())
+		return false;
+
+	if (BarcodeFormats(BarcodeFormat::TwoDCodes).testFlag(format()))
+		return IsInside(Center(o.position()), position());
+
+	// if one line is less than half the length of the other away from the
+	// latter, we consider it to belong to the same symbol
+	auto dTop = maxAbsComponent(o.position().topLeft() - position().topLeft());
+	auto dBot = maxAbsComponent(o.position().bottomLeft() - position().topLeft());
+	auto length = maxAbsComponent(position().topLeft() - position().bottomRight());
+
+	return std::min(dTop, dBot) < length / 2;
 }
 
 } // ZXing

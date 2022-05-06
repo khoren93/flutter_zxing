@@ -19,7 +19,6 @@
 #include "ODReader.h"
 
 #include "BinaryBitmap.h"
-#include "BitArray.h"
 #include "DecodeHints.h"
 #include "ODCodabarReader.h"
 #include "ODCode128Reader.h"
@@ -39,7 +38,8 @@ namespace ZXing::OneD {
 Reader::Reader(const DecodeHints& hints) :
 	_tryHarder(hints.tryHarder()),
 	_tryRotate(hints.tryRotate()),
-	_isPure(hints.isPure())
+	_isPure(hints.isPure()),
+	_minLineCount(hints.minLineCount())
 {
 	_readers.reserve(8);
 
@@ -53,7 +53,7 @@ Reader::Reader(const DecodeHints& hints) :
 	if (formats.testFlag(BarcodeFormat::Code93))
 		_readers.emplace_back(new Code93Reader());
 	if (formats.testFlag(BarcodeFormat::Code128))
-		_readers.emplace_back(new Code128Reader(hints));
+		_readers.emplace_back(new Code128Reader());
 	if (formats.testFlag(BarcodeFormat::ITF))
 		_readers.emplace_back(new ITFReader(hints));
 	if (formats.testFlag(BarcodeFormat::Codabar))
@@ -74,28 +74,33 @@ Reader::~Reader() = default;
 * rowStep is bigger as the image is taller, but is always at least 1. We've somewhat arbitrarily
 * decided that moving up and down by about 1/16 of the image is pretty good; we try more of the
 * image if "trying harder".
-*
-* @param image The image to decode
-* @param hints Any hints that were requested
-* @return The contents of the decoded barcode
-* @throws NotFoundException Any spontaneous errors which occur
 */
-static Result
-DoDecode(const std::vector<std::unique_ptr<RowReader>>& readers, const BinaryBitmap& image, bool tryHarder, bool isPure)
+static Results DoDecode(const std::vector<std::unique_ptr<RowReader>>& readers, const BinaryBitmap& image,
+						bool tryHarder, bool rotate, bool isPure, int maxSymbols, int minLineCount)
 {
+	Results res;
+
 	std::vector<std::unique_ptr<RowReader::DecodingState>> decodingState(readers.size());
 
 	int width = image.width();
 	int height = image.height();
 
+	if (rotate)
+		std::swap(width, height);
+
 	int middle = height / 2;
-	int rowStep = std::max(1, height / (tryHarder ? 256 : 32));
+	// TODO: find a better heuristic/parameterization if maxSymbols != 1
+	int rowStep = std::max(1, height / ((tryHarder && !isPure) ? (maxSymbols == 1 ? 256 : 512) : 32));
 	int maxLines = tryHarder ?
 		height :	// Look at the whole image, not just the center
 		15;			// 15 rows spaced 1/32 apart is roughly the middle half of the image
 
+	if (isPure)
+		minLineCount = 1;
+	std::vector<int> checkRows;
+
 	PatternRow bars;
-	bars.reserve(128); // e.g. EAN-13 has 96 bars
+	bars.reserve(128); // e.g. EAN-13 has 59 bars/spaces
 
 	for (int i = 0; i < maxLines; i++) {
 
@@ -108,16 +113,24 @@ DoDecode(const std::vector<std::unique_ptr<RowReader>>& readers, const BinaryBit
 			break;
 		}
 
-		if (!image.getPatternRow(rowNumber, bars))
+		// See if we have additional check rows (see below) to process
+		if (checkRows.size()) {
+			--i;
+			rowNumber = checkRows.back();
+			checkRows.pop_back();
+			if (rowNumber < 0 || rowNumber >= height)
+				continue;
+		}
+
+		if (!image.getPatternRow(rowNumber, rotate ? 270 : 0, bars))
 			continue;
 
 		// While we have the image data in a PatternRow, it's fairly cheap to reverse it in place to
 		// handle decoding upside down barcodes.
-		// Note: the DataBarExpanded decoder depends on seeing each line from both directions. This
-		// 'surprising' and inconsistent. It also requires the decoderState to be shared between
-		// normal and reversed scans, which makes no sense in general because it would mix partial
-		// detection data from two codes of the same type next to each other. TODO..
-		// See also https://github.com/nu-book/zxing-cpp/issues/87
+		// TODO: the DataBarExpanded (stacked) decoder depends on seeing each line from both directions. This
+		// 'surprising' and inconsistent. It also requires the decoderState to be shared between normal and reversed
+		// scans, which makes no sense in general because it would mix partial detection data from two codes of the same
+		// type next to each other. See also https://github.com/nu-book/zxing-cpp/issues/87
 		for (bool upsideDown : {false, true}) {
 			// trying again?
 			if (upsideDown) {
@@ -126,48 +139,117 @@ DoDecode(const std::vector<std::unique_ptr<RowReader>>& readers, const BinaryBit
 			}
 			// Look for a barcode
 			for (size_t r = 0; r < readers.size(); ++r) {
-				Result result = readers[r]->decodePattern(rowNumber, bars, decodingState[r]);
-				if (result.isValid()) {
-					if (upsideDown) {
-						// update position (flip horizontally).
-						auto points = result.position();
-						for (auto& p : points) {
-							p = {width - p.x - 1, p.y};
+				// If this is a pure symbol, then checking a single non-empty line is sufficient for all but the stacked
+				// DataBar codes. They are the only ones using the decodingState, which we can use as a flag here.
+				if (isPure && i && !decodingState[r])
+					continue;
+
+				PatternView next(bars);
+				do {
+					Result result = readers[r]->decodePattern(rowNumber, next, decodingState[r]);
+					if (result.isValid()) {
+						result.incrementLineCount();
+						if (upsideDown) {
+							// update position (flip horizontally).
+							auto points = result.position();
+							for (auto& p : points) {
+								p = {width - p.x - 1, p.y};
+							}
+							result.setPosition(std::move(points));
 						}
-						result.setPosition(std::move(points));
+						if (rotate) {
+							auto points = result.position();
+							for (auto& p : points) {
+								p = {height - p.y - 1, p.x};
+							}
+							result.setPosition(std::move(points));
+						}
+
+						// check if we know this code already
+						for (auto& other : res) {
+							if (other == result) {
+								// merge the position information
+								auto dTop = maxAbsComponent(other.position().topLeft() - result.position().topLeft());
+								auto dBot = maxAbsComponent(other.position().bottomLeft() - result.position().topLeft());
+								auto points = other.position();
+								if (dTop < dBot || (dTop == dBot && rotate ^ (sumAbsComponent(points[0]) >
+																			  sumAbsComponent(result.position()[0])))) {
+									points[0] = result.position()[0];
+									points[1] = result.position()[1];
+								} else {
+									points[2] = result.position()[2];
+									points[3] = result.position()[3];
+								}
+								other.setPosition(points);
+								other.incrementLineCount();
+								// clear the result, so we don't insert it again below
+								result = Result(DecodeStatus::NotFound);
+								break;
+							}
+						}
+
+						if (result.isValid())
+							res.push_back(std::move(result));
+
+						if (maxSymbols && Reduce(res, 0, [&](int s, const Result& r) {
+											  return s + (r.lineCount() >= minLineCount);
+										  }) == maxSymbols) {
+							goto out;
+						}
+
+						// if we found a valid code but have a minLineCount > 1, add additional check rows above and
+						// below the current one
+						if (checkRows.empty() && minLineCount > 1 && rowStep > 1) {
+							checkRows = {rowNumber - 1, rowNumber + 1};
+							if (rowStep > 2)
+								checkRows.insert(checkRows.end(), {rowNumber - 2, rowNumber + 2});
+						}
 					}
-					return result;
-				}
+					// make sure we make progress and we start the next try on a bar
+					next.shift(2 - (next.index() % 2));
+					next.extend();
+				} while (tryHarder && next.size());
 			}
 		}
-
-		// If this is a pure symbol, then checking a single non-empty line is sufficient
-		if (isPure)
-			break;
 	}
-	return Result(DecodeStatus::NotFound);
+
+out:
+	// remove all symbols with insufficient line count
+	auto it = std::remove_if(res.begin(), res.end(), [&](auto&& r) { return r.lineCount() < minLineCount; });
+	res.erase(it, res.end());
+
+	// if symbols overlap, remove the one with a lower line count
+	for (auto a = res.begin(); a != res.end(); ++a)
+		for (auto b = std::next(a); b != res.end(); ++b)
+			if (HaveIntersectingBoundingBoxes(a->position(), b->position()))
+				*(a->lineCount() < b->lineCount() ? a : b) = Result(DecodeStatus::NotFound);
+
+	//TODO: C++20 res.erase_if()
+	it = std::remove_if(res.begin(), res.end(), [](auto&& r) { return r.status() == DecodeStatus::NotFound; });
+	res.erase(it, res.end());
+
+	return res;
 }
 
 Result
 Reader::decode(const BinaryBitmap& image) const
 {
-	Result result = DoDecode(_readers, image, _tryHarder, _isPure);
+	auto result = DoDecode(_readers, image, _tryHarder, false, _isPure, 1, _minLineCount);
 
-	if (!result.isValid() && _tryRotate && image.canRotate()) {
-		auto rotatedImage = image.rotated(270);
-		result = DoDecode(_readers, *rotatedImage, _tryHarder, _isPure);
-		if (result.isValid()) {
-			// Update position
-			auto points = result.position();
-			int height = rotatedImage->height();
-			for (auto& p : points) {
-				p = {height - p.y - 1, p.x};
-			}
-			result.setPosition(std::move(points));
-		}
+	if (result.empty() && _tryRotate)
+		result = DoDecode(_readers, image, _tryHarder, true, _isPure, 1, _minLineCount);
+
+	return result.empty() ? Result(DecodeStatus::NotFound) : result.front();
+}
+
+Results Reader::decode(const BinaryBitmap& image, int maxSymbols) const
+{
+	auto resH = DoDecode(_readers, image, _tryHarder, false, _isPure, maxSymbols, _minLineCount);
+	if ((!maxSymbols || Size(resH) < maxSymbols) && _tryRotate) {
+		auto resV = DoDecode(_readers, image, _tryHarder, true, _isPure, maxSymbols - Size(resH), _minLineCount);
+		resH.insert(resH.end(), resV.begin(), resV.end());
 	}
-
-	return result;
+	return resH;
 }
 
 } // namespace ZXing::OneD

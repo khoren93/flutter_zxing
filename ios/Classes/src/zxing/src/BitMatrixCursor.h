@@ -119,24 +119,27 @@ public:
 	 * @brief stepToEdge advances cursor to one step behind the next (or n-th) edge.
 	 * @param nth number of edges to pass
 	 * @param range max number of steps to take
+	 * @param backup whether or not to backup one step so we land in front of the edge
 	 * @return number of steps taken or 0 if moved outside of range/image
 	 */
-	int stepToEdge(int nth = 1, int range = 0)
+	int stepToEdge(int nth = 1, int range = 0, bool backup = false)
 	{
 		// TODO: provide an alternative and faster out-of-bounds check than isIn() inside testAt()
-		int sum = 0;
+		int steps = 0;
 		auto lv = testAt(p);
 
-		while (nth && (!range || sum < range) && lv.isValid()) {
-			step();
-			++sum;
-			auto v = testAt(p);
+		while (nth && (!range || steps < range) && lv.isValid()) {
+			++steps;
+			auto v = testAt(p + steps * d);
 			if (lv != v) {
 				lv = v;
 				--nth;
 			}
 		}
-		return sum * (nth == 0);
+		if (backup)
+			--steps;
+		p += steps * d;
+		return steps * (nth == 0);
 	}
 
 	bool stepAlongEdge(Direction dir, bool skipCorner = false)

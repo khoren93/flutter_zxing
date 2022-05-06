@@ -100,9 +100,6 @@ public:
 		return *this;
 	}
 
-	[[deprecated]]
-	ByteMatrix toByteMatrix(int black = 0, int white = 255) const;
-
 #ifdef ZX_FAST_BIT_STORAGE
 	// experimental iterator based access
 	template<typename iterator>
@@ -284,11 +281,11 @@ public:
 };
 
 /**
- * @brief Inflate scales a BitMatrix up and adds a quite Zone plus padding
+ * @brief Inflate scales a BitMatrix up and adds a quiet Zone plus padding
  * @param matrix input to be expanded
  * @param width new width in bits (pixel)
  * @param height new height in bits (pixel)
- * @param quietZone size of quite zone to add in modules
+ * @param quietZone size of quiet zone to add in modules
  * @return expanded BitMatrix, maybe move(input) if size did not change
  */
 BitMatrix Inflate(BitMatrix&& input, int width, int height, int quietZone);

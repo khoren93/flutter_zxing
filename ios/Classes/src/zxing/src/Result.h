@@ -21,12 +21,9 @@
 #include "ByteArray.h"
 #include "DecodeStatus.h"
 #include "Quadrilateral.h"
-#include "ResultMetadata.h"
-#include "ResultPoint.h"
 #include "StructuredAppend.h"
 
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace ZXing {
@@ -45,12 +42,13 @@ class Result
 public:
 	explicit Result(DecodeStatus status) : _status(status) {}
 
-	Result(std::wstring&& text, Position&& position, BarcodeFormat format, ByteArray&& rawBytes = {},
-		   const bool readerInit = false);
+	Result(std::wstring&& text, Position&& position, BarcodeFormat format, std::string&& symbologyIdentifier = "",
+		   ByteArray&& rawBytes = {}, StructuredAppendInfo&& sai = {}, const bool readerInit = false,
+		   int lineCount = 0);
 
 	// 1D convenience constructor
-	Result(const std::string& text, int y, int xStart, int xStop, BarcodeFormat format, ByteArray&& rawBytes = {},
-		   const bool readerInit = false);
+	Result(const std::string& text, int y, int xStart, int xStop, BarcodeFormat format,
+		   std::string&& symbologyIdentifier = "", ByteArray&& rawBytes = {}, const bool readerInit = false);
 
 	Result(DecoderResult&& decodeResult, Position&& position, BarcodeFormat format);
 
@@ -66,18 +64,8 @@ public:
 		return _format;
 	}
 
-	[[deprecated]]
-	void setFormat(BarcodeFormat format) {
-		_format = format;
-	}
-
 	const std::wstring& text() const {
 		return _text;
-	}
-
-	[[deprecated]]
-	void setText(std::wstring&& text) {
-		_text = std::move(text);
 	}
 
 	const Position& position() const {
@@ -89,10 +77,17 @@ public:
 
 	int orientation() const; //< orientation of barcode in degree, see also Position::orientation()
 
+	/**
+	 * @brief isMirrored is the symbol mirrored (currently only supported by QRCode and DataMatrix)
+	 */
+	bool isMirrored() const {
+		return _isMirrored;
+	}
+
 	const ByteArray& rawBytes() const {
 		return _rawBytes;
 	}
-	
+
 	int numBits() const {
 		return _numBits;
 	}
@@ -101,19 +96,11 @@ public:
 		return _ecLevel;
 	}
 
-	[[deprecated]]
-	std::vector<ResultPoint> resultPoints() const {
-		return {position().begin(), position().end()};
-	}
-
-	[[deprecated]]
-	const ResultMetadata& metadata() const {
-		return _metadata;
-	}
-
-	[[deprecated]]
-	ResultMetadata& metadata() {
-		return _metadata;
+	/**
+	 * @brief symbologyIdentifier Symbology identifier "]cm" where "c" is symbology code character, "m" the modifier.
+	 */
+	const std::string& symbologyIdentifier() const {
+		return _symbologyIdentifier;
 	}
 
 	/**
@@ -149,6 +136,18 @@ public:
 		return _readerInit;
 	}
 
+	/**
+	 * @brief How many lines have been detected with this code (applies only to 1D symbologies)
+	 */
+	int lineCount() const {
+		return _lineCount;
+	}
+	void incrementLineCount() {
+		++_lineCount;
+	}
+
+	bool operator==(const Result& o) const;
+
 private:
 	DecodeStatus _status = DecodeStatus::NoError;
 	BarcodeFormat _format = BarcodeFormat::None;
@@ -157,9 +156,13 @@ private:
 	ByteArray _rawBytes;
 	int _numBits = 0;
 	std::wstring _ecLevel;
-	ResultMetadata _metadata;
+	std::string _symbologyIdentifier;
 	StructuredAppendInfo _sai;
+	bool _isMirrored = false;
 	bool _readerInit = false;
+	int _lineCount = 0;
 };
+
+using Results = std::vector<Result>;
 
 } // ZXing

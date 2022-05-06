@@ -24,8 +24,8 @@
 #include "DetectorResult.h"
 #include "GridSampler.h"
 #include "LogMatrix.h"
-#include "PerspectiveTransform.h"
-#include "QRVersion.h"
+#include "Pattern.h"
+#include "Quadrilateral.h"
 #include "RegressionLine.h"
 
 #include "BitMatrixIO.h"
@@ -33,9 +33,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
-#include <limits>
+#include <iterator>
 #include <map>
 #include <utility>
+#include <vector>
 
 namespace ZXing::QRCode {
 
@@ -73,6 +74,7 @@ static auto FindFinderPatterns(const BitMatrix& image, bool tryHarder)
 													   Reduce(next) * 3 / 2); // 1.5 for very skewed samples
 				if (pattern) {
 					log(*pattern, 3);
+					assert(image.get(pattern->x, pattern->y));
 					res.push_back(*pattern);
 				}
 			}
@@ -86,13 +88,6 @@ static auto FindFinderPatterns(const BitMatrix& image, bool tryHarder)
 	return res;
 }
 
-struct FinderPatternSet
-{
-	ConcentricPattern bl, tl, tr;
-};
-
-using FinderPatternSets = std::vector<FinderPatternSet>;
-
 /**
  * @brief GenerateFinderPatternSets
  * @param patterns list of ConcentricPattern objects, i.e. found finder pattern squares
@@ -103,7 +98,13 @@ static FinderPatternSets GenerateFinderPatternSets(std::vector<ConcentricPattern
 	std::sort(patterns.begin(), patterns.end(), [](const auto& a, const auto& b) { return a.size < b.size; });
 
 	auto sets            = std::multimap<double, FinderPatternSet>();
-	auto squaredDistance = [](PointF a, PointF b) { return dot((a - b), (a - b)); };
+	auto squaredDistance = [](const auto* a, const auto* b) {
+		// The scaling of the distance by the b/a size ratio is a very coarse compensation for the shortening effect of
+		// the camera projection on slanted symbols. The fact that the size of the finder pattern is proportional to the
+		// distance from the camera is used here. This approximation only works if a < b < 2*a (see below).
+		// Test image: fix-finderpattern-order.jpg
+		return dot((*a - *b), (*a - *b)) * std::pow(double(b->size) / a->size, 2);
+	};
 
 	int nbPatterns = Size(patterns);
 	for (int i = 0; i < nbPatterns - 2; i++) {
@@ -120,9 +121,9 @@ static FinderPatternSets GenerateFinderPatternSets(std::vector<ConcentricPattern
 				// Orders the three points in an order [A,B,C] such that AB is less than AC
 				// and BC is less than AC, and the angle between BC and BA is less than 180 degrees.
 
-				auto distAB = squaredDistance(*a, *b);
-				auto distBC = squaredDistance(*b, *c);
-				auto distAC = squaredDistance(*a, *c);
+				auto distAB = squaredDistance(a, b);
+				auto distBC = squaredDistance(b, c);
+				auto distAC = squaredDistance(a, c);
 
 				if (distBC >= distAB && distBC >= distAC) {
 					std::swap(a, b);
@@ -152,9 +153,10 @@ static FinderPatternSets GenerateFinderPatternSets(std::vector<ConcentricPattern
 					std::swap(a, c);
 
 				// arbitrarily limit the number of potential sets
-				if (sets.size() < 16 || sets.crbegin()->first > d) {
+				const auto setSizeLimit = 16;
+				if (sets.size() < setSizeLimit || sets.crbegin()->first > d) {
 					sets.emplace(d, FinderPatternSet{*a, *b, *c});
-					if (sets.size() > 16)
+					if (sets.size() > setSizeLimit)
 						sets.erase(std::prev(sets.end()));
 				}
 			}
@@ -172,16 +174,18 @@ static FinderPatternSets GenerateFinderPatternSets(std::vector<ConcentricPattern
 static double EstimateModuleSize(const BitMatrix& image, PointF a, PointF b)
 {
 	BitMatrixCursorF cur(image, a, b - a);
-
-	cur.stepToEdge(3);
-
-	cur.turnBack();
-	cur.step();
 	assert(cur.isBlack());
 
-	auto pattern = cur.readPattern<std::array<int, 4>>();
+	if (!cur.stepToEdge(3, distance(a, b) / 3, true))
+		return -1;
 
-	return Reduce(pattern) / 6.0 * length(cur.d);
+	assert(cur.isBlack());
+	cur.turnBack();
+
+
+	auto pattern = cur.readPattern<std::array<int, 5>>();
+
+	return (2 * Reduce(pattern) - pattern[0] - pattern[4]) / 12.0 * length(cur.d);
 }
 
 struct DimensionEstimate
@@ -195,6 +199,10 @@ static DimensionEstimate EstimateDimension(const BitMatrix& image, PointF a, Poi
 {
 	auto ms_a = EstimateModuleSize(image, a, b);
 	auto ms_b = EstimateModuleSize(image, b, a);
+
+	if (ms_a < 0 || ms_b < 0)
+		return {};
+
 	auto moduleSize = (ms_a + ms_b) / 2;
 
 	int dimension = std::lround(distance(a, b) / moduleSize) + 7;
@@ -209,26 +217,25 @@ static RegressionLine TraceLine(const BitMatrix& image, PointF p, PointF d, int 
 	RegressionLine line;
 	line.setDirectionInward(cur.back());
 
-	cur.stepToEdge(edge);
-	if (edge == 3) {
-		// collect points inside the black line -> go one step back
+	// collect points inside the black line -> backup on 3rd edge
+	cur.stepToEdge(edge, 0, edge == 3);
+	if (edge == 3)
 		cur.turnBack();
-		cur.step();
+
+	auto curI = BitMatrixCursorI(image, PointI(cur.p), PointI(mainDirection(cur.d)));
+	// make sure curI positioned such that the white->black edge is directly behind
+	// Test image: fix-traceline.jpg
+	while (!curI.edgeAtBack()) {
+		if (curI.edgeAtLeft())
+			curI.turnRight();
+		else if (curI.edgeAtRight())
+			curI.turnLeft();
+		else
+			curI.step(-1);
 	}
 
 	for (auto dir : {Direction::LEFT, Direction::RIGHT}) {
-		auto c = BitMatrixCursorI(image, PointI(cur.p), PointI(mainDirection(cur.direction(dir))));
-		// if cur.d is near diagonal, it could be c.p is at a corner, i.e. c is not currently at an edge and hence,
-		// stepAlongEdge() would fail. Going either a step forward or backward should do the trick.
-		if (!c.edgeAt(dir)) {
-			c.step();
-			if (!c.edgeAt(dir)) {
-				c.step(-2);
-				if (!c.edgeAt(dir))
-					return {};
-			}
-		}
-
+		auto c = BitMatrixCursorI(image, curI.p, curI.direction(dir));
 		auto stepCount = static_cast<int>(maxAbsComponent(cur.p - p));
 		do {
 			line.add(centered(c.p));
@@ -243,10 +250,22 @@ static RegressionLine TraceLine(const BitMatrix& image, PointF p, PointF d, int 
 	return line;
 }
 
-static DetectorResult SampleAtFinderPatternSet(const BitMatrix& image, const FinderPatternSet& fp)
+// estimate how tilted the symbol is (return value between 1 and 2, see also above)
+static double EstimateTilt(const FinderPatternSet& fp)
+{
+	int min = std::min({fp.bl.size, fp.tl.size, fp.tr.size});
+	int max = std::max({fp.bl.size, fp.tl.size, fp.tr.size});
+	return double(max) / min;
+}
+
+DetectorResult SampleAtFinderPatternSet(const BitMatrix& image, const FinderPatternSet& fp)
 {
 	auto top  = EstimateDimension(image, fp.tl, fp.tr);
 	auto left = EstimateDimension(image, fp.tl, fp.bl);
+
+	if (!top.dim || !left.dim)
+		return {};
+
 	auto best = top.err < left.err ? top : left;
 	int dimension = best.dim;
 	int moduleSize = static_cast<int>(best.ms + 1);
@@ -260,7 +279,7 @@ static DetectorResult SampleAtFinderPatternSet(const BitMatrix& image, const Fin
 	};
 
 	// Everything except version 1 (21 modules) has an alignment pattern. Estimate the center of that by intersecting
-	// line extensions of the 1 module wide sqare around the finder patterns. This could also help with detecting
+	// line extensions of the 1 module wide square around the finder patterns. This could also help with detecting
 	// slanted symbols of version 1.
 
 	// generate 4 lines: outer and inner edge of the 1 module wide black line between the two outer and the inner
@@ -275,26 +294,26 @@ static DetectorResult SampleAtFinderPatternSet(const BitMatrix& image, const Fin
 		auto brInter = (intersect(bl2, tr2) + intersect(bl3, tr3)) / 2;
 		log(brInter, 3);
 
-		// if the estimated alignment pattern position is outside of the image, stop here
-		if (!image.isIn(PointI(brInter), 3 * moduleSize))
-			return {};
-
-		if (dimension > 21) {
-			// just in case we landed outside of the central black module of the alignment pattern, use the center
-			// of the next best circle (either outer or inner edge of the white part of the alignment pattern)
-			auto brCoR = CenterOfRing(image, PointI(brInter), moduleSize * 4, 1, false).value_or(brInter);
-			// if we did not land on a black pixel or the concentric pattern finder fails,
-			// leave the intersection of the lines as the best guess
-			if (image.get(brCoR)) {
-				if (auto brCP = LocateConcentricPattern<true>(image, FixedPattern<3, 3>{1, 1, 1}, brCoR, moduleSize * 3))
-					return sample(*brCP, quad[2] - PointF(3, 3));
+		// check that the estimated alignment pattern position is inside of the image
+		if (image.isIn(PointI(brInter), 3 * moduleSize)) {
+			if (dimension > 21) {
+				// just in case we landed outside of the central black module of the alignment pattern, use the center
+				// of the next best circle (either outer or inner edge of the white part of the alignment pattern)
+				auto brCoR = CenterOfRing(image, PointI(brInter), moduleSize * 4, 1, false).value_or(brInter);
+				// if we did not land on a black pixel or the concentric pattern finder fails,
+				// leave the intersection of the lines as the best guess
+				if (image.get(brCoR)) {
+					if (auto brCP =
+							LocateConcentricPattern<true>(image, FixedPattern<3, 3>{1, 1, 1}, brCoR, moduleSize * 3))
+						return sample(*brCP, quad[2] - PointF(3, 3));
+				}
 			}
-		}
 
-		// if the resolution of the RegressionLines is sufficient, use their intersection as the best estimate
-		// (see discussion in #199, TODO: tune threshold in RegressionLine::isHighRes())
-		if (bl2.isHighRes() && bl3.isHighRes() && tr2.isHighRes() && tr3.isHighRes())
-			return sample(brInter, quad[2] - PointF(3, 3));
+			// if the symbol is tilted or the resolution of the RegressionLines is sufficient, use their intersection
+			// as the best estimate (see discussion in #199 and test image estimate-tilt.jpg )
+			if (EstimateTilt(fp) > 1.1 || (bl2.isHighRes() && bl3.isHighRes() && tr2.isHighRes() && tr3.isHighRes()))
+				return sample(brInter, quad[2] - PointF(3, 3));
+		}
 	}
 
 	// otherwise the simple estimation used by upstream is used as a best guess fallback
@@ -323,7 +342,7 @@ static DetectorResult DetectPure(const BitMatrix& image)
 
 	PointI tl{left, top}, tr{right, top}, bl{left, bottom};
 	Pattern diagonal;
-	// allow corners be moved one pixel inside to accomodate for possible aliasing artifacts
+	// allow corners be moved one pixel inside to accommodate for possible aliasing artifacts
 	for (auto [p, d] : {std::pair(tl, PointI{1, 1}), {tr, {-1, 1}}, {bl, {1, -1}}}) {
 		diagonal = BitMatrixCursorI(image, p, d).readPatternFromBlack<Pattern>(1, width / 3);
 		if (!IsPattern(diagonal, PATTERN))
@@ -350,6 +369,11 @@ static DetectorResult DetectPure(const BitMatrix& image)
 	// Now just read off the bits (this is a crop + subsample)
 	return {Deflate(image, dimension, dimension, top + moduleSize / 2, left + moduleSize / 2, moduleSize),
 			{{left, top}, {right, top}, {right, bottom}, {left, bottom}}};
+}
+
+FinderPatternSets FindFinderPatternSets(const BitMatrix& image, bool tryHarder)
+{
+	return GenerateFinderPatternSets(FindFinderPatterns(image, tryHarder));
 }
 
 DetectorResult Detect(const BitMatrix& image, bool tryHarder, bool isPure)

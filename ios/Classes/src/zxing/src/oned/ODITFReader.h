@@ -34,8 +34,7 @@ namespace OneD {
 * lengths are scanned, especially shorter ones, to avoid false positives. This in turn is due to a lack of
 * required checksum function.</p>
 *
-* <p>The checksum is optional and is not applied by this Reader. The consumer of the decoded
-* value will have to apply a checksum if required.</p>
+* <p>The checksum is optional and is only applied by this Reader if the assumeITFCheckDigit hint is given.</p>
 *
 * <p><a href="http://en.wikipedia.org/wiki/Interleaved_2_of_5">http://en.wikipedia.org/wiki/Interleaved_2_of_5</a>
 * is a great reference for Interleaved 2 of 5 information.</p>
@@ -46,10 +45,11 @@ class ITFReader : public RowReader
 {
 public:
 	explicit ITFReader(const DecodeHints& hints);
-	Result decodePattern(int rowNumber, const PatternView& row, std::unique_ptr<DecodingState>&) const override;
+	Result decodePattern(int rowNumber, PatternView& next, std::unique_ptr<DecodingState>&) const override;
 
 private:
 	std::vector<int> _allowedLengths;
+	bool _validateCheckSum;
 };
 
 } // OneD
