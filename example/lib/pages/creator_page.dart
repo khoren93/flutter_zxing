@@ -14,16 +14,17 @@ import 'package:share_plus/share_plus.dart';
 late Directory tempDir;
 String get tempPath => '${tempDir.path}/zxing.jpg';
 
-class ZxingPage extends StatefulWidget {
-  const ZxingPage({
+class CreatorPage extends StatefulWidget {
+  const CreatorPage({
     Key? key,
   }) : super(key: key);
 
   @override
-  State<ZxingPage> createState() => _ZxingPageState();
+  State<CreatorPage> createState() => _CreatorPageState();
 }
 
-class _ZxingPageState extends State<ZxingPage> with TickerProviderStateMixin {
+class _CreatorPageState extends State<CreatorPage>
+    with TickerProviderStateMixin {
   CameraController? controller;
   TabController? _tabController;
 
@@ -80,7 +81,7 @@ class _ZxingPageState extends State<ZxingPage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Flutter Scanner'),
+        title: const Text('Creator'),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [

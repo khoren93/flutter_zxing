@@ -67,7 +67,9 @@ class _ZxingReaderWidgetState extends State<ZxingReaderWidget>
     availableCameras().then((cameras) {
       setState(() {
         this.cameras = cameras;
-        onNewCameraSelected(cameras.first);
+        if (cameras.isNotEmpty) {
+          onNewCameraSelected(cameras.first);
+        }
       });
     });
 
