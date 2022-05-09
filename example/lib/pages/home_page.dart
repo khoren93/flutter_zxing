@@ -1,5 +1,6 @@
 import 'package:convex_bottom_bar/convex_bottom_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_zxing_example/pages/barcodes_page.dart';
 import 'package:flutter_zxing_example/pages/creator_page.dart';
 import 'package:flutter_zxing_example/pages/history_page.dart';
 import 'package:flutter_zxing_example/pages/scanner_page.dart';
@@ -16,14 +17,14 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   var selectedIndex = 2;
 
-  final creatorPage = const CreatorPage();
+  final barcodesPage = const BarcodesPage();
   final historyPage = const HistoryPage();
   final scannerPage = const ScannerPage();
   final helpPage = Container();
   final settingsPage = const SettingsPage();
 
   dynamic pages() => [
-        creatorPage,
+        barcodesPage,
         historyPage,
         scannerPage,
         helpPage,

@@ -12,7 +12,7 @@ class ZxingWriterWidget extends StatefulWidget {
     this.onError,
   }) : super(key: key);
 
-  final Function(Uint8List)? onSuccess;
+  final Function(EncodeResult, Uint8List)? onSuccess;
   final Function(String)? onError;
 
   @override
@@ -48,7 +48,7 @@ class _ZxingWriterWidgetState extends State<ZxingWriterWidget>
                 items: _supportedFormats
                     .map((format) => DropdownMenuItem(
                           value: format,
-                          child: Text(CodeFormat.formatName(format)),
+                          child: Text(FlutterZxing.formatName(format)),
                         ))
                     .toList(),
                 onChanged: (format) {
@@ -84,16 +84,16 @@ class _ZxingWriterWidgetState extends State<ZxingWriterWidget>
                     final text = _textController.value.text;
                     const width = 300;
                     const height = 300;
-                    final result = FlutterZxing.encodeBarcode(
+                    var result = FlutterZxing.encodeBarcode(
                         text, width, height, _codeFormat, 5, 0);
                     String? error;
                     if (result.isValidBool) {
                       try {
                         final img =
                             imglib.Image.fromBytes(width, height, result.bytes);
-                        final resultBytes =
+                        final encodedBytes =
                             Uint8List.fromList(imglib.encodeJpg(img));
-                        widget.onSuccess?.call(resultBytes);
+                        widget.onSuccess?.call(result, encodedBytes);
                       } on Exception catch (e) {
                         error = e.toString();
                       }

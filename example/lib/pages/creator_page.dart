@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing_example/models/encode.dart';
+import 'package:flutter_zxing_example/utils/db_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -22,7 +24,7 @@ class _CreatorPageState extends State<CreatorPage> {
   bool isAndroid() => Theme.of(context).platform == TargetPlatform.android;
 
   // Write result
-  Uint8List? writeResult;
+  Encode? encode;
 
   @override
   void initState() {
@@ -47,14 +49,14 @@ class _CreatorPageState extends State<CreatorPage> {
         child: Column(
           children: [
             ZxingWriterWidget(
-              onSuccess: (result) {
+              onSuccess: (result, bytes) {
                 setState(() {
-                  writeResult = result;
+                  encode = Encode.fromEncodeResult(result, bytes);
                 });
               },
               onError: (error) {
                 setState(() {
-                  writeResult = null;
+                  encode = null;
                 });
                 ScaffoldMessenger.of(context).hideCurrentSnackBar();
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -70,7 +72,7 @@ class _CreatorPageState extends State<CreatorPage> {
                 );
               },
             ),
-            if (writeResult != null) buildWriteResult(),
+            if (encode != null) buildWriteResult(),
           ],
         ),
       ),
@@ -81,18 +83,34 @@ class _CreatorPageState extends State<CreatorPage> {
     return Column(
       children: [
         // Barcode image
-        Image.memory(writeResult ?? Uint8List(0)),
+        Image.memory(encode?.data ?? Uint8List(0)),
+        const SizedBox(height: 20),
         // Share button
-        ElevatedButton(
-          onPressed: () {
-            // Save image to device
-            final file = File(tempPath);
-            file.writeAsBytesSync(writeResult ?? Uint8List(0));
-            final path = file.path;
-            // Share image
-            Share.shareFiles([path]);
-          },
-          child: const Text('Share'),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                // Save image to device
+                final file = File(tempPath);
+                file.writeAsBytesSync(encode?.data ?? Uint8List(0));
+                final path = file.path;
+                // Share image
+                Share.shareFiles([path]);
+              },
+              child: const Text('Share'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (encode != null) {
+                  await DbService.instance.addEncode(encode!);
+                  Navigator.of(context).pop();
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
         ),
       ],
     );

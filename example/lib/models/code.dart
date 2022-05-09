@@ -21,4 +21,6 @@ class Code extends HiveObject {
     format = result.format;
     text = result.textString;
   }
+
+  String get formatName => FlutterZxing.formatName(format ?? 0);
 }

@@ -51,6 +51,8 @@ class FlutterZxing {
   }
 
   static int get _logEnabled => logEnabled ? 1 : 0;
+
+  static String formatName(int format) => _formatNames[format] ?? 'Unknown';
 }
 
 // Getting a library that holds needed symbols
@@ -79,44 +81,20 @@ extension CodeExt on CodeResult {
   bool get isValidBool => isValid == 1;
   String? get textString =>
       text == nullptr ? null : text.cast<Utf8>().toDartString();
-  String get formatString => CodeFormat.formatName(format);
+  String get formatString => FlutterZxing.formatName(format);
 }
 
 extension EncodeExt on EncodeResult {
   bool get isValidBool => isValid == 1;
   String? get textString =>
       text == nullptr ? null : text.cast<Utf8>().toDartString();
-  String get formatString => CodeFormat.formatName(format);
+  String get formatString => FlutterZxing.formatName(format);
   Uint32List get bytes => data.asTypedList(length);
   String get errorMessage => error.cast<Utf8>().toDartString();
 }
 
 extension CodeFormat on Format {
-  static String formatName(int format) => formatNames[format] ?? 'Unknown';
-  String get name => formatNames[this] ?? 'Unknown';
-
-  static final formatNames = {
-    Format.None: 'None',
-    Format.Aztec: 'Aztec',
-    Format.Codabar: 'CodaBar',
-    Format.Code39: 'Code39',
-    Format.Code93: 'Code93',
-    Format.Code128: 'Code128',
-    Format.DataBar: 'DataBar',
-    Format.DataBarExpanded: 'DataBarExpanded',
-    Format.DataMatrix: 'DataMatrix',
-    Format.EAN8: 'EAN8',
-    Format.EAN13: 'EAN13',
-    Format.ITF: 'ITF',
-    Format.MaxiCode: 'MaxiCode',
-    Format.PDF417: 'PDF417',
-    Format.QRCode: 'QR Code',
-    Format.UPCA: 'UPCA',
-    Format.UPCE: 'UPCE',
-    Format.OneDCodes: 'OneD',
-    Format.TwoDCodes: 'TwoD',
-    Format.Any: 'Any',
-  };
+  String get name => _formatNames[this] ?? 'Unknown';
 
   static final writerFormats = [
     Format.QRCode,
@@ -137,3 +115,26 @@ extension CodeFormat on Format {
     // Format.MaxiCode,
   ];
 }
+
+final _formatNames = {
+  Format.None: 'None',
+  Format.Aztec: 'Aztec',
+  Format.Codabar: 'CodaBar',
+  Format.Code39: 'Code39',
+  Format.Code93: 'Code93',
+  Format.Code128: 'Code128',
+  Format.DataBar: 'DataBar',
+  Format.DataBarExpanded: 'DataBarExpanded',
+  Format.DataMatrix: 'DataMatrix',
+  Format.EAN8: 'EAN8',
+  Format.EAN13: 'EAN13',
+  Format.ITF: 'ITF',
+  Format.MaxiCode: 'MaxiCode',
+  Format.PDF417: 'PDF417',
+  Format.QRCode: 'QR Code',
+  Format.UPCA: 'UPCA',
+  Format.UPCE: 'UPCE',
+  Format.OneDCodes: 'OneD',
+  Format.TwoDCodes: 'TwoD',
+  Format.Any: 'Any',
+};

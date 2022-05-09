@@ -24,11 +24,13 @@ class Encode extends HiveObject {
 
   Encode();
 
-  Encode.fromEncodeResult(EncodeResult result) {
+  Encode.fromEncodeResult(EncodeResult result, Uint8List? bytes) {
     isValid = result.isValidBool;
     format = result.format;
     text = result.textString;
-    data = result.bytes as Uint8List?;
+    data = bytes;
     length = result.length;
   }
+
+  String get formatName => FlutterZxing.formatName(format ?? 0);
 }

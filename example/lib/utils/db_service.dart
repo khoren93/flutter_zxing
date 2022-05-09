@@ -9,42 +9,53 @@ class DbService {
   Future<void> initializeApp() async {
     await Hive.initFlutter();
     Hive.registerAdapter(CodeAdapter());
+    Hive.registerAdapter(EncodeAdapter());
 
     await Hive.openBox<Code>('codes');
     await Hive.openBox<Encode>('encodes');
-
-    // Hive.box('codes').close();
   }
 
   Box<Code> getCodes() => Hive.box<Code>('codes');
 
   Future deleteCodes() async {
-    var codes = getCodes();
-    await codes.deleteAll(codes.keys);
+    var items = getCodes();
+    await items.deleteAll(items.keys);
     return;
   }
 
   Future addCode(Code value) async {
-    var codes = getCodes();
-    if (!codes.values.contains(value)) {
-      return codes.add(value);
+    var items = getCodes();
+    if (!items.values.contains(value)) {
+      return items.add(value);
     }
+    return;
+  }
+
+  Future<void> deleteCode(Code value) async {
+    var items = getCodes();
+    await items.delete(value.key);
     return;
   }
 
   Box<Encode> getEncodes() => Hive.box<Encode>('encodes');
 
   Future deleteEncodes() async {
-    var encodes = getEncodes();
-    await encodes.deleteAll(encodes.keys);
+    var items = getEncodes();
+    await items.deleteAll(items.keys);
     return;
   }
 
   Future addEncode(Encode value) async {
-    var encodes = getEncodes();
-    if (!encodes.values.contains(value)) {
-      return encodes.add(value);
+    var items = getEncodes();
+    if (!items.values.contains(value)) {
+      return items.add(value);
     }
+    return;
+  }
+
+  Future<void> deleteEncode(Encode value) async {
+    var items = getEncodes();
+    await items.delete(value.key);
     return;
   }
 }
