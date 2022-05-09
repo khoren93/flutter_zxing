@@ -1,5 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_zxing/zxing_reader_widget.dart';
+import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as imglib;
 
 class ScannerPage extends StatefulWidget {
   const ScannerPage({
@@ -10,60 +15,45 @@ class ScannerPage extends StatefulWidget {
   State<ScannerPage> createState() => _ScannerPageState();
 }
 
-class _ScannerPageState extends State<ScannerPage>
-    with TickerProviderStateMixin {
-  TabController? _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-
-    initStateAsync();
-  }
-
-  void initStateAsync() async {
-    _tabController = TabController(length: 3, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    _tabController?.dispose();
-  }
+class _ScannerPageState extends State<ScannerPage> {
+  final ImagePicker _picker = ImagePicker();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scanner'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Single code'),
-            Tab(text: 'Multi code'),
-            Tab(text: 'Image'),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Single code scanner
-          ZxingReaderWidget(onScan: (result) async {
-            // _resultQueue.insert(0, result);
-            // await Future.delayed(const Duration(milliseconds: 500));
-            // setState(() {});
-          }),
-          // Multi code scanner
-          Container(),
-          // ZxingReaderWidget(onScan: (result) async {
-          //   // _resultQueue.insert(0, result);
-          //   // await Future.delayed(const Duration(milliseconds: 500));
-          //   // setState(() {});
-          // }),
-          // Image scanner
-          Container(),
-        ],
+      body: ZxingReaderWidget(
+        onScan: (result) async {
+          // _resultQueue.insert(0, result);
+          // await Future.delayed(const Duration(milliseconds: 500));
+          // setState(() {});
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        child: const Icon(FontAwesomeIcons.image),
+        onPressed: () async {
+          final XFile? file =
+              await _picker.pickImage(source: ImageSource.gallery);
+          if (file != null) {
+            final Uint8List bytes = await file.readAsBytes();
+            imglib.Image? image = imglib.decodeImage(bytes);
+            if (image != null) {
+              final CodeResult result = FlutterZxing.readBarcode(
+                image.getBytes(format: imglib.Format.luminance),
+                Format.Any,
+                image.width,
+                image.height,
+                0,
+                0,
+              );
+              if (result.isValidBool) {
+                debugPrint(result.textString);
+              }
+            }
+          }
+        },
       ),
     );
   }

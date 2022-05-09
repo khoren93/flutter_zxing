@@ -18,6 +18,7 @@ dependencies:
   flutter_zxing:
     path: ../
   font_awesome_flutter: ^10.1.0
+  image_picker: ^0.8.5
   nb_utils: ^4.5.0
   path_provider: ^2.0.9
   share_plus: ^4.0.4

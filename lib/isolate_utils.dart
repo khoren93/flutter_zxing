@@ -63,7 +63,7 @@ class IsolateUtils {
           final cropSize =
               (min(image.width, image.height) * cropPercent).round();
 
-          final result = FlutterZxing.zxingRead(bytes, isolateData.format,
+          final result = FlutterZxing.readBarcode(bytes, isolateData.format,
               image.width, image.height, cropSize, cropSize);
 
           isolateData.responsePort?.send(result);

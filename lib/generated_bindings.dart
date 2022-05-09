@@ -22,15 +22,14 @@ class GeneratedBindings {
   /// Returns the version of the zxing library.
   ///
   /// @return The version of the zxing library.
-  ffi.Pointer<ffi.Int8> zxingVersion() {
-    return _zxingVersion();
+  ffi.Pointer<ffi.Int8> version() {
+    return _version();
   }
 
-  late final _zxingVersionPtr =
-      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Int8> Function()>>(
-          'zxingVersion');
-  late final _zxingVersion =
-      _zxingVersionPtr.asFunction<ffi.Pointer<ffi.Int8> Function()>();
+  late final _versionPtr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Int8> Function()>>('version');
+  late final _version =
+      _versionPtr.asFunction<ffi.Pointer<ffi.Int8> Function()>();
 
   /// @brief Reads barcode from image.
   /// @param bytes Image bytes.
@@ -41,7 +40,7 @@ class GeneratedBindings {
   /// @param cropHeight Crop height.
   /// @param logEnabled Log enabled.
   /// @return Barcode result.
-  CodeResult zxingRead(
+  CodeResult readBarcode(
     ffi.Pointer<ffi.Int8> bytes,
     int format,
     int width,
@@ -50,7 +49,7 @@ class GeneratedBindings {
     int cropHeight,
     int logEnabled,
   ) {
-    return _zxingRead(
+    return _readBarcode(
       bytes,
       format,
       width,
@@ -61,12 +60,55 @@ class GeneratedBindings {
     );
   }
 
-  late final _zxingReadPtr = _lookup<
+  late final _readBarcodePtr = _lookup<
       ffi.NativeFunction<
           CodeResult Function(ffi.Pointer<ffi.Int8>, ffi.Int32, ffi.Int32,
-              ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32)>>('zxingRead');
-  late final _zxingRead = _zxingReadPtr.asFunction<
+              ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32)>>('readBarcode');
+  late final _readBarcode = _readBarcodePtr.asFunction<
       CodeResult Function(
+          ffi.Pointer<ffi.Int8>, int, int, int, int, int, int)>();
+
+  /// @brief Reads barcodes from image.
+  /// @param bytes Image bytes.
+  /// @param format The format of the barcode
+  /// @param width Image width.
+  /// @param height Image height.
+  /// @param cropWidth Crop width.
+  /// @param cropHeight Crop height.
+  /// @param logEnabled Log enabled.
+  /// @return Barcode results.
+  ffi.Pointer<CodeResult> readBarcodes(
+    ffi.Pointer<ffi.Int8> bytes,
+    int format,
+    int width,
+    int height,
+    int cropWidth,
+    int cropHeight,
+    int logEnabled,
+  ) {
+    return _readBarcodes(
+      bytes,
+      format,
+      width,
+      height,
+      cropWidth,
+      cropHeight,
+      logEnabled,
+    );
+  }
+
+  late final _readBarcodesPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<CodeResult> Function(
+              ffi.Pointer<ffi.Int8>,
+              ffi.Int32,
+              ffi.Int32,
+              ffi.Int32,
+              ffi.Int32,
+              ffi.Int32,
+              ffi.Int32)>>('readBarcodes');
+  late final _readBarcodes = _readBarcodesPtr.asFunction<
+      ffi.Pointer<CodeResult> Function(
           ffi.Pointer<ffi.Int8>, int, int, int, int, int, int)>();
 
   /// @brief Encode a string into a barcode
@@ -78,7 +120,7 @@ class GeneratedBindings {
   /// @param logEnabled Log enabled.
   /// @param eccLevel The error correction level of the barcode. Used for Aztec, PDF417, and QRCode only, [0-8].
   /// @return The barcode data
-  EncodeResult zxingEncode(
+  EncodeResult encodeBarcode(
     ffi.Pointer<ffi.Int8> contents,
     int width,
     int height,
@@ -87,7 +129,7 @@ class GeneratedBindings {
     int eccLevel,
     int logEnabled,
   ) {
-    return _zxingEncode(
+    return _encodeBarcode(
       contents,
       width,
       height,
@@ -98,11 +140,11 @@ class GeneratedBindings {
     );
   }
 
-  late final _zxingEncodePtr = _lookup<
+  late final _encodeBarcodePtr = _lookup<
       ffi.NativeFunction<
           EncodeResult Function(ffi.Pointer<ffi.Int8>, ffi.Int32, ffi.Int32,
-              ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32)>>('zxingEncode');
-  late final _zxingEncode = _zxingEncodePtr.asFunction<
+              ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32)>>('encodeBarcode');
+  late final _encodeBarcode = _encodeBarcodePtr.asFunction<
       EncodeResult Function(
           ffi.Pointer<ffi.Int8>, int, int, int, int, int, int)>();
 }

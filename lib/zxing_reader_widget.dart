@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_beep/flutter_beep.dart';
 import 'flutter_zxing.dart';
-import 'generated_bindings.dart';
 
 import 'isolate_utils.dart';
 import 'scanner_overlay.dart';

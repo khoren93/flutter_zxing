@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:image/image.dart' as imglib;
 
 import 'flutter_zxing.dart';
-import 'generated_bindings.dart';
 
 class ZxingWriterWidget extends StatefulWidget {
   const ZxingWriterWidget({
@@ -71,7 +70,7 @@ class _ZxingWriterWidgetState extends State<ZxingWriterWidget>
                 decoration: InputDecoration(
                   border: const OutlineInputBorder(),
                   filled: true,
-                  hintText: 'Enter text to encode',
+                  hintText: 'Enter text to create a barcode',
                   counterText:
                       '${_textController.value.text.length} / $_maxTextLength',
                 ),
@@ -85,7 +84,7 @@ class _ZxingWriterWidgetState extends State<ZxingWriterWidget>
                     final text = _textController.value.text;
                     const width = 300;
                     const height = 300;
-                    final result = FlutterZxing.zxingEncode(
+                    final result = FlutterZxing.encodeBarcode(
                         text, width, height, _codeFormat, 5, 0);
                     String? error;
                     if (result.isValidBool) {
@@ -107,7 +106,7 @@ class _ZxingWriterWidgetState extends State<ZxingWriterWidget>
                     }
                   }
                 },
-                child: const Text('Encode'),
+                child: const Text('Create'),
               ),
               const SizedBox(height: 20),
             ],

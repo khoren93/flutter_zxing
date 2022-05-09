@@ -4,9 +4,14 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'generated_bindings.dart';
+
+export 'generated_bindings.dart';
+export 'zxing_reader_widget.dart';
+export 'zxing_writer_widget.dart';
 
 class FlutterZxing {
   static const MethodChannel _channel = MethodChannel('flutter_zxing');
@@ -20,19 +25,27 @@ class FlutterZxing {
 
   static bool logEnabled = true;
 
-  static String zxingVersion() {
-    return bindings.zxingVersion().cast<Utf8>().toDartString();
+  static String version() {
+    return bindings.version().cast<Utf8>().toDartString();
   }
 
-  static CodeResult zxingRead(Uint8List bytes, int format, int width,
+  static CodeResult readBarcode(Uint8List bytes, int format, int width,
       int height, int cropWidth, int cropHeight) {
-    return bindings.zxingRead(bytes.allocatePointer(), format, width, height,
+    return bindings.readBarcode(bytes.allocatePointer(), format, width, height,
         cropWidth, cropHeight, _logEnabled);
   }
 
-  static EncodeResult zxingEncode(String contents, int width, int height,
+  static List<CodeResult> readBarcodes(Uint8List bytes, int format, int width,
+      int height, int cropWidth, int cropHeight) {
+    final result = bindings.readBarcodes(bytes.allocatePointer(), format, width,
+        height, cropWidth, cropHeight, _logEnabled);
+    debugPrint(result.toString());
+    return [];
+  }
+
+  static EncodeResult encodeBarcode(String contents, int width, int height,
       int format, int margin, int eccLevel) {
-    var result = bindings.zxingEncode(contents.toNativeUtf8().cast<Int8>(),
+    var result = bindings.encodeBarcode(contents.toNativeUtf8().cast<Int8>(),
         width, height, format, margin, eccLevel, _logEnabled);
     return result;
   }
@@ -70,7 +83,8 @@ extension Encode on EncodeResult {
 
 extension Code on CodeResult {
   bool get isValidBool => isValid == 1;
-  String get textString => text.cast<Utf8>().toDartString();
+  String? get textString =>
+      text == nullptr ? null : text.cast<Utf8>().toDartString();
 
   String get formatString {
     return CodeFormat.formatName(format);
