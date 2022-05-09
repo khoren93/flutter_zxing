@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing_example/models/models.dart';
+import 'package:flutter_zxing_example/utils/db_service.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as imglib;
@@ -26,9 +28,7 @@ class _ScannerPageState extends State<ScannerPage> {
       ),
       body: ZxingReaderWidget(
         onScan: (result) async {
-          // _resultQueue.insert(0, result);
-          // await Future.delayed(const Duration(milliseconds: 500));
-          // setState(() {});
+          addCode(result);
         },
       ),
       floatingActionButton: FloatingActionButton(
@@ -49,11 +49,30 @@ class _ScannerPageState extends State<ScannerPage> {
                 0,
               );
               if (result.isValidBool) {
-                debugPrint(result.textString);
+                addCode(result);
               }
             }
           }
         },
+      ),
+    );
+  }
+
+  void addCode(CodeResult result) {
+    Code code = Code.fromCodeResult(result);
+    DbService.instance.addCode(code);
+
+    // show snackbar
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Padding(
+          padding: const EdgeInsets.only(bottom: 30.0),
+          child: Text(
+            code.text ?? '',
+            textAlign: TextAlign.center,
+          ),
+        ),
       ),
     );
   }

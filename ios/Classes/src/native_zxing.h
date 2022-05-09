@@ -37,9 +37,11 @@ extern "C"
 
     struct EncodeResult
     {
+        int isValid;
+        char *text;
+        enum Format format;
         const unsigned int *data;
         int length;
-        int isValid;
         char *error;
     };
 

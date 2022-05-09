@@ -75,20 +75,20 @@ extension Uint8ListBlobConversion on Uint8List {
   }
 }
 
-extension Encode on EncodeResult {
-  bool get isValidBool => isValid == 1;
-  Uint32List get bytes => data.asTypedList(length);
-  String get errorMessage => error.cast<Utf8>().toDartString();
-}
-
-extension Code on CodeResult {
+extension CodeExt on CodeResult {
   bool get isValidBool => isValid == 1;
   String? get textString =>
       text == nullptr ? null : text.cast<Utf8>().toDartString();
+  String get formatString => CodeFormat.formatName(format);
+}
 
-  String get formatString {
-    return CodeFormat.formatName(format);
-  }
+extension EncodeExt on EncodeResult {
+  bool get isValidBool => isValid == 1;
+  String? get textString =>
+      text == nullptr ? null : text.cast<Utf8>().toDartString();
+  String get formatString => CodeFormat.formatName(format);
+  Uint32List get bytes => data.asTypedList(length);
+  String get errorMessage => error.cast<Utf8>().toDartString();
 }
 
 extension CodeFormat on Format {

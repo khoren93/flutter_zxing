@@ -216,13 +216,18 @@ class CodeResult extends ffi.Struct {
 }
 
 class EncodeResult extends ffi.Struct {
+  @ffi.Int32()
+  external int isValid;
+
+  external ffi.Pointer<ffi.Int8> text;
+
+  @ffi.Int32()
+  external int format;
+
   external ffi.Pointer<ffi.Uint32> data;
 
   @ffi.Int32()
   external int length;
-
-  @ffi.Int32()
-  external int isValid;
 
   external ffi.Pointer<ffi.Int8> error;
 }

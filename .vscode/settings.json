@@ -1,3 +1,7 @@
 {
-    "cmake.sourceDirectory": "${workspaceFolder}/ios/Classes/src"
+    "cmake.sourceDirectory": "${workspaceFolder}/ios/Classes/src",
+    "files.associations": {
+        "__config": "cpp",
+        "__nullptr": "cpp"
+    }
 }

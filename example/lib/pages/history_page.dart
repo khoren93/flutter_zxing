@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing_example/models/code.dart';
+import 'package:flutter_zxing_example/utils/db_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({
@@ -12,8 +14,6 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  final _resultQueue = <CodeResult>[];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -25,42 +25,47 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   _buildResultList() {
-    return _resultQueue.isEmpty
-        ? const Center(
-            child: Text(
-            'No Results',
-            style: TextStyle(fontSize: 24),
-          ))
-        : ListView.builder(
-            itemCount: _resultQueue.length,
-            itemBuilder: (context, index) {
-              final result = _resultQueue[index];
-              return ListTile(
-                title: Text(result.textString ?? ''),
-                subtitle: Text(result.formatString),
-                trailing: ButtonBar(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Copy button
-                    TextButton(
-                      child: const Text('Copy'),
-                      onPressed: () {
-                        Clipboard.setData(
-                            ClipboardData(text: result.textString));
-                      },
-                    ),
-                    // Remove button
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () {
-                        _resultQueue.removeAt(index);
-                        setState(() {});
-                      },
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
+    return ValueListenableBuilder<Box<Code>>(
+        valueListenable: DbService.instance.getCodes().listenable(),
+        builder: (context, box, _) {
+          final results = box.values.toList().cast<Code>();
+          return results.isEmpty
+              ? const Center(
+                  child: Text(
+                  'No Results',
+                  style: TextStyle(fontSize: 24),
+                ))
+              : ListView.builder(
+                  itemCount: results.length,
+                  itemBuilder: (context, index) {
+                    final result = results[index];
+                    return ListTile(
+                      title: Text(result.text ?? ''),
+                      subtitle: Text(result.format.toString()),
+                      trailing: ButtonBar(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Copy button
+                          TextButton(
+                            child: const Text('Copy'),
+                            onPressed: () {
+                              Clipboard.setData(
+                                  ClipboardData(text: result.text));
+                            },
+                          ),
+                          // Remove button
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () {
+                              // DbService.instance.deleteCode(result);
+                              // setState(() {});
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+        });
   }
 }

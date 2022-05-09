@@ -99,7 +99,7 @@ extern "C"
     {
         long long start = get_now();
 
-        struct EncodeResult result = {nullptr, 0, false, nullptr};
+        struct EncodeResult result = {0, contents, Format(format), nullptr, 0, nullptr};
         try
         {
             auto writer = MultiFormatWriter(BarcodeFormat(format)).setMargin(margin).setEccLevel(eccLevel);

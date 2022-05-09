@@ -19,14 +19,14 @@ class _HomePageState extends State<HomePage> {
   final creatorPage = const CreatorPage();
   final historyPage = const HistoryPage();
   final scannerPage = const ScannerPage();
-  final notificationsPage = const ScannerPage();
+  final helpPage = Container();
   final settingsPage = const SettingsPage();
 
   dynamic pages() => [
         creatorPage,
         historyPage,
         scannerPage,
-        notificationsPage,
+        helpPage,
         settingsPage,
       ];
 
@@ -34,7 +34,7 @@ class _HomePageState extends State<HomePage> {
         const TabItem(icon: FontAwesomeIcons.barcode),
         const TabItem(icon: FontAwesomeIcons.clockRotateLeft),
         const TabItem(icon: Icons.qr_code_scanner),
-        const TabItem(icon: FontAwesomeIcons.solidBell),
+        const TabItem(icon: FontAwesomeIcons.circleQuestion),
         const TabItem(icon: FontAwesomeIcons.gear),
       ];
 
