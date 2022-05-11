@@ -52,7 +52,10 @@ class _BarcodesPageState extends State<BarcodesPage> {
                     final result = results[index];
                     return ContainerX(
                       child: ListTile(
-                        leading: Image.memory(result.data ?? Uint8List(0)),
+                        leading: Image.memory(
+                          result.data ?? Uint8List(0),
+                          width: 60,
+                        ),
                         title: Text(result.text ?? ''),
                         subtitle: Text(result.formatName),
                         trailing: ButtonBar(
