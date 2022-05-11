@@ -10,7 +10,6 @@ import 'package:flutter_beep/flutter_beep.dart';
 import 'flutter_zxing.dart';
 
 import 'isolate_utils.dart';
-import 'scanner_overlay.dart';
 
 class ZxingReaderWidget extends StatefulWidget {
   const ZxingReaderWidget({

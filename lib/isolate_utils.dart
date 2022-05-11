@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:camera/camera.dart';
 
 import 'flutter_zxing.dart';
-import 'image_converter.dart';
 
 // Inspired from https://github.com/am15h/object_detection_flutter
 
