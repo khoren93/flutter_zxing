@@ -1,3 +1,8 @@
+## 0.1.1
+
+* renamed 'ZxingReaderWidget' to 'ReaderWidget'
+* renamed 'ZxingWriterWidget' to 'WriterWidget'
+
 ## 0.1.0
 
 * renamed 'zxingRead' to 'readBarcode'
