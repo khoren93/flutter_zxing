@@ -11,8 +11,8 @@ import 'flutter_zxing.dart';
 
 import 'isolate_utils.dart';
 
-class ZxingReaderWidget extends StatefulWidget {
-  const ZxingReaderWidget({
+class ReaderWidget extends StatefulWidget {
+  const ReaderWidget({
     Key? key,
     required this.onScan,
     this.onControllerCreated,
@@ -34,10 +34,10 @@ class ZxingReaderWidget extends StatefulWidget {
   final ResolutionPreset resolution;
 
   @override
-  State<ZxingReaderWidget> createState() => _ZxingReaderWidgetState();
+  State<ReaderWidget> createState() => _ReaderWidgetState();
 }
 
-class _ZxingReaderWidgetState extends State<ZxingReaderWidget>
+class _ReaderWidgetState extends State<ReaderWidget>
     with TickerProviderStateMixin {
   late List<CameraDescription> cameras;
   CameraController? controller;

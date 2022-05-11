@@ -5,8 +5,8 @@ import 'package:image/image.dart' as imglib;
 
 import 'flutter_zxing.dart';
 
-class ZxingWriterWidget extends StatefulWidget {
-  const ZxingWriterWidget({
+class WriterWidget extends StatefulWidget {
+  const WriterWidget({
     Key? key,
     this.onSuccess,
     this.onError,
@@ -16,10 +16,10 @@ class ZxingWriterWidget extends StatefulWidget {
   final Function(String)? onError;
 
   @override
-  State<ZxingWriterWidget> createState() => _ZxingWriterWidgetState();
+  State<WriterWidget> createState() => _WriterWidgetState();
 }
 
-class _ZxingWriterWidgetState extends State<ZxingWriterWidget>
+class _WriterWidgetState extends State<WriterWidget>
     with TickerProviderStateMixin {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _textController = TextEditingController();

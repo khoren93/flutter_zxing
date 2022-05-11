@@ -6,6 +6,7 @@ import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:flutter_zxing_example/configs/constants.dart';
 import 'package:flutter_zxing_example/models/encode.dart';
 import 'package:flutter_zxing_example/utils/db_service.dart';
+import 'package:flutter_zxing_example/utils/extensions.dart';
 import 'package:flutter_zxing_example/widgets/common_widgets.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -51,7 +52,7 @@ class _CreatorPageState extends State<CreatorPage> {
         child: ContainerX(
           child: Column(
             children: [
-              ZxingWriterWidget(
+              WriterWidget(
                 onSuccess: (result, bytes) {
                   setState(() {
                     encode = Encode.fromEncodeResult(result, bytes);
@@ -61,18 +62,7 @@ class _CreatorPageState extends State<CreatorPage> {
                   setState(() {
                     encode = null;
                   });
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Padding(
-                        padding: const EdgeInsets.only(bottom: 30.0),
-                        child: Text(
-                          error,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                  );
+                  context.showToast(error);
                 },
               ),
               if (encode != null) buildWriteResult(),

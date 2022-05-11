@@ -69,7 +69,7 @@ Widget build(BuildContext context) {
 
 // Or use FlutterZxing to create barcode directly
 final text = 'Text to encode';
-final result = FlutterZxing.encodeBarcode(text, 300, 300, Format.Any, 10, 0);
+final result = FlutterZxing.encodeBarcode(text, 300, 300, Format.QRCode, 10, 0);
 if (result.isValidBool) {
     final img = imglib.Image.fromBytes(width, height, result.bytes);
     final encodedBytes = Uint8List.fromList(imglib.encodeJpg(img));
