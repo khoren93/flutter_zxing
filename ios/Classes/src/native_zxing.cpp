@@ -10,7 +10,7 @@ using namespace ZXing;
 extern "C"
 {
     FUNCTION_ATTRIBUTE
-    char *version()
+    char const *version()
     {
         return "1.3.0";
     }
@@ -21,7 +21,7 @@ extern "C"
         long long start = get_now();
 
         long length = width * height;
-        uint8_t *data = new uint8_t[length];
+        auto *data = new uint8_t[length];
         memcpy(data, bytes, length);
 
         BarcodeFormats formats = BarcodeFormat(format); // BarcodeFormat::Any;
@@ -57,7 +57,7 @@ extern "C"
         long long start = get_now();
 
         long length = width * height;
-        uint8_t *data = new uint8_t[length];
+        auto *data = new uint8_t[length];
         memcpy(data, bytes, length);
 
         BarcodeFormats formats = BarcodeFormat(format); // BarcodeFormat::Any;
@@ -69,7 +69,7 @@ extern "C"
         }
         Results results = ReadBarcodes(image, hints);
 
-        struct CodeResult *codes = new struct CodeResult [results.size()];
+        auto *codes = new struct CodeResult [results.size()];
         int i = 0;
         for (auto &result : results)
         {

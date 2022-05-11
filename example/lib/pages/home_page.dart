@@ -1,7 +1,7 @@
 import 'package:convex_bottom_bar/convex_bottom_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing_example/pages/barcodes_page.dart';
-import 'package:flutter_zxing_example/pages/creator_page.dart';
+import 'package:flutter_zxing_example/pages/help_page.dart';
 import 'package:flutter_zxing_example/pages/history_page.dart';
 import 'package:flutter_zxing_example/pages/scanner_page.dart';
 import 'package:flutter_zxing_example/pages/settings_page.dart';
@@ -20,7 +20,7 @@ class _HomePageState extends State<HomePage> {
   final barcodesPage = const BarcodesPage();
   final historyPage = const HistoryPage();
   final scannerPage = const ScannerPage();
-  final helpPage = Container();
+  final helpPage = const HelpPage();
   final settingsPage = const SettingsPage();
 
   dynamic pages() => [

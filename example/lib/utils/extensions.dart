@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'package:flutter/material.dart';
 
 extension LocaleParsing on String {
   Locale parseLocale() {
@@ -44,5 +44,20 @@ extension LocaleParsing on String {
   String toLangCode() {
     assert(contains('_') == true);
     return split('_').first;
+  }
+}
+
+// context extension to show a toast message
+extension ContextExtension on BuildContext {
+  void showToast(String message) {
+    ScaffoldMessenger.of(this).hideCurrentSnackBar();
+    ScaffoldMessenger.of(this).showSnackBar(
+      SnackBar(
+        content: Padding(
+          padding: const EdgeInsets.only(bottom: 30.0),
+          child: Text(message, textAlign: TextAlign.center),
+        ),
+      ),
+    );
   }
 }

@@ -46,11 +46,11 @@ extern "C"
     };
 
     /**
-     * Returns the version of the zxing library.
+     * Returns the version of the zxing-cpp library.
      *
-     * @return The version of the zxing library.
+     * @return The version of the zxing-cpp library.
      */
-    char *version();
+    char const *version();
 
     /**
      * @brief Reads barcode from image.

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_zxing_example/models/code.dart';
 import 'package:flutter_zxing_example/utils/db_service.dart';
+import 'package:flutter_zxing_example/widgets/common_widgets.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 class HistoryPage extends StatefulWidget {
@@ -39,29 +41,32 @@ class _HistoryPageState extends State<HistoryPage> {
                   itemCount: results.length,
                   itemBuilder: (context, index) {
                     final result = results[index];
-                    return ListTile(
-                      title: Text(result.text ?? ''),
-                      subtitle: Text(result.formatName),
-                      trailing: ButtonBar(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Copy button
-                          TextButton(
-                            child: const Text('Copy'),
-                            onPressed: () {
-                              Clipboard.setData(
-                                  ClipboardData(text: result.text));
-                            },
-                          ),
-                          // Remove button
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              DbService.instance.deleteCode(result);
-                              setState(() {});
-                            },
-                          ),
-                        ],
+                    return ContainerX(
+                      child: ListTile(
+                        title: Text(result.text ?? ''),
+                        subtitle: Text(result.formatName),
+                        trailing: ButtonBar(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Copy button
+                            IconButton(
+                              icon: const Icon(FontAwesomeIcons.copy),
+                              onPressed: () {
+                                Clipboard.setData(
+                                    ClipboardData(text: result.text));
+                              },
+                            ),
+                            // Remove button
+                            IconButton(
+                              icon: const Icon(FontAwesomeIcons.trash,
+                                  color: Colors.red),
+                              onPressed: () {
+                                DbService.instance.deleteCode(result);
+                                setState(() {});
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },

@@ -19,9 +19,9 @@ class GeneratedBindings {
           lookup)
       : _lookup = lookup;
 
-  /// Returns the version of the zxing library.
+  /// Returns the version of the zxing-cpp library.
   ///
-  /// @return The version of the zxing library.
+  /// @return The version of the zxing-cpp library.
   ffi.Pointer<ffi.Int8> version() {
     return _version();
   }

@@ -23,7 +23,7 @@ class FlutterZxing {
 
   static final bindings = GeneratedBindings(dylib);
 
-  static bool logEnabled = true;
+  static bool logEnabled = false;
 
   static String version() {
     return bindings.version().cast<Utf8>().toDartString();

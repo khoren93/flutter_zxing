@@ -12,6 +12,8 @@ PODS:
   - fluttertoast (0.0.2):
     - Flutter
     - Toast
+  - image_picker_ios (0.0.1):
+    - Flutter
   - nb_utils (0.0.1):
     - Flutter
   - path_provider_ios (0.0.1):
@@ -32,6 +34,7 @@ DEPENDENCIES:
   - flutter_beep (from `.symlinks/plugins/flutter_beep/ios`)
   - flutter_zxing (from `.symlinks/plugins/flutter_zxing/ios`)
   - fluttertoast (from `.symlinks/plugins/fluttertoast/ios`)
+  - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
   - nb_utils (from `.symlinks/plugins/nb_utils/ios`)
   - path_provider_ios (from `.symlinks/plugins/path_provider_ios/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
@@ -56,6 +59,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_zxing/ios"
   fluttertoast:
     :path: ".symlinks/plugins/fluttertoast/ios"
+  image_picker_ios:
+    :path: ".symlinks/plugins/image_picker_ios/ios"
   nb_utils:
     :path: ".symlinks/plugins/nb_utils/ios"
   path_provider_ios:
@@ -74,6 +79,7 @@ SPEC CHECKSUMS:
   flutter_beep: 54fb393b22dfa0f0e4573c81b1c74dd71c4e5af8
   flutter_zxing: 19a866d17c8a87ee1026d68521c69d2f008635f6
   fluttertoast: 16fbe6039d06a763f3533670197d01fc73459037
+  image_picker_ios: b786a5dcf033a8336a657191401bfdf12017dabb
   nb_utils: ada4338858d8827ec92fdab2a545206b4ba4cfb1
   path_provider_ios: 14f3d2fd28c4fdb42f44e0f751d12861c43cee02
   ReachabilitySwift: 985039c6f7b23a1da463388634119492ff86c825
