@@ -33,8 +33,8 @@ class _ScannerPageState extends State<ScannerPage> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        child: const Icon(FontAwesomeIcons.image),
         onPressed: pickImage,
+        child: const Icon(FontAwesomeIcons.image),
       ),
     );
   }
@@ -66,6 +66,7 @@ class _ScannerPageState extends State<ScannerPage> {
       if (result.isValidBool) {
         addCode(result);
       } else {
+        if (!mounted) return;
         context.showToast('No code found');
       }
     }

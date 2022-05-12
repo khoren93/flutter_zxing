@@ -20,7 +20,7 @@ class ThemeSelector extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _ThemeSelectorState createState() => _ThemeSelectorState();
+  State<ThemeSelector> createState() => _ThemeSelectorState();
 }
 
 class _ThemeSelectorState extends State<ThemeSelector> {

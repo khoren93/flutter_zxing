@@ -99,6 +99,7 @@ class _CreatorPageState extends State<CreatorPage> {
               onPressed: () async {
                 if (encode != null) {
                   await DbService.instance.addEncode(encode!);
+                  if (!mounted) return;
                   Navigator.of(context).pop();
                 }
               },

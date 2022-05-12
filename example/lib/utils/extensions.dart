@@ -30,14 +30,14 @@ extension LocaleParsing on String {
     switch (toLowerCase()) {
       case 'us':
       case 'en':
-        return toLangIcon() + ' English';
+        return '${toLangIcon()} English';
       case 'ru':
-        return toLangIcon() + ' Русский';
+        return '${toLangIcon()} Русский';
       case 'am':
       case 'hy':
-        return toLangIcon() + ' Հայերեն';
+        return '${toLangIcon()} Հայերեն';
       default:
-        return toLangIcon() + ' English';
+        return '${toLangIcon()} English';
     }
   }
 
