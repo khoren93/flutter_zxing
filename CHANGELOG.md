@@ -1,3 +1,7 @@
+## 0.1.2
+
+* minor fixes for analyzer options
+
 ## 0.1.1
 
 * renamed 'ZxingReaderWidget' to 'ReaderWidget'
