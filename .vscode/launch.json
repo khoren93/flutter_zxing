@@ -10,18 +10,6 @@
             "type": "dart"
         },
         {
-            "name": "flutter_zxing (profile mode)",
-            "request": "launch",
-            "type": "dart",
-            "flutterMode": "profile"
-        },
-        {
-            "name": "flutter_zxing (release mode)",
-            "request": "launch",
-            "type": "dart",
-            "flutterMode": "release"
-        },
-        {
             "name": "example",
             "cwd": "example",
             "request": "launch",
@@ -35,8 +23,21 @@
             "flutterMode": "profile"
         },
         {
-            "name": "example (release mode)",
-            "cwd": "example",
+            "name": "ZxScanner",
+            "cwd": "zxscanner",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "ZxScanner (profile mode)",
+            "cwd": "zxscanner",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "ZxScanner (release mode)",
+            "cwd": "zxscanner",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release"
