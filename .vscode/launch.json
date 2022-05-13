@@ -16,13 +16,6 @@
             "type": "dart"
         },
         {
-            "name": "example (profile mode)",
-            "cwd": "example",
-            "request": "launch",
-            "type": "dart",
-            "flutterMode": "profile"
-        },
-        {
             "name": "ZxScanner",
             "cwd": "zxscanner",
             "request": "launch",

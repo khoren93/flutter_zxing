@@ -2,9 +2,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
-import 'package:flutter_zxing_example/models/models.dart';
-import 'package:flutter_zxing_example/utils/db_service.dart';
-import 'package:flutter_zxing_example/utils/extensions.dart';
+import 'package:zxscanner/models/models.dart';
+import 'package:zxscanner/utils/db_service.dart';
+import 'package:zxscanner/utils/extensions.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as imglib;

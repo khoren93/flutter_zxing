@@ -3,11 +3,11 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
-import 'package:flutter_zxing_example/configs/constants.dart';
-import 'package:flutter_zxing_example/models/encode.dart';
-import 'package:flutter_zxing_example/utils/db_service.dart';
-import 'package:flutter_zxing_example/utils/extensions.dart';
-import 'package:flutter_zxing_example/widgets/common_widgets.dart';
+import 'package:zxscanner/configs/constants.dart';
+import 'package:zxscanner/models/encode.dart';
+import 'package:zxscanner/utils/db_service.dart';
+import 'package:zxscanner/utils/extensions.dart';
+import 'package:zxscanner/widgets/common_widgets.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 

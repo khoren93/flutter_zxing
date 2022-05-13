@@ -1,4 +1,4 @@
-import 'package:flutter_zxing_example/models/models.dart';
+import 'package:zxscanner/models/models.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 class DbService {

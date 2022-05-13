@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_zxing_example/pages/creator_page.dart';
-import 'package:flutter_zxing_example/pages/history_page.dart';
-import 'package:flutter_zxing_example/pages/home_page.dart';
-import 'package:flutter_zxing_example/pages/scanner_page.dart';
-import 'package:flutter_zxing_example/pages/settings_page.dart';
+import 'package:zxscanner/pages/creator_page.dart';
+import 'package:zxscanner/pages/history_page.dart';
+import 'package:zxscanner/pages/home_page.dart';
+import 'package:zxscanner/pages/scanner_page.dart';
+import 'package:zxscanner/pages/settings_page.dart';
 
 abstract class AppRoutes {
   static const creator = '/creator';

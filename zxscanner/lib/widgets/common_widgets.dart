@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_zxing_example/configs/constants.dart';
+import 'package:zxscanner/configs/constants.dart';
 
 class ContainerX extends StatelessWidget {
   const ContainerX({Key? key, this.child}) : super(key: key);

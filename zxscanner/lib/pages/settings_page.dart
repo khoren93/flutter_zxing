@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_zxing_example/configs/app_store.dart';
-import 'package:flutter_zxing_example/configs/constants.dart';
-import 'package:flutter_zxing_example/generated/l10n.dart';
-import 'package:flutter_zxing_example/widgets/common_widgets.dart';
+import 'package:zxscanner/configs/app_store.dart';
+import 'package:zxscanner/configs/constants.dart';
+import 'package:zxscanner/generated/l10n.dart';
+import 'package:zxscanner/widgets/common_widgets.dart';
 
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 

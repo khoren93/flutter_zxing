@@ -27,6 +27,10 @@ class FlutterZxing {
 
   static bool logEnabled = false;
 
+  static void setLogEnabled(bool enabled) {
+    logEnabled = enabled;
+  }
+
   static String version() {
     return bindings.version().cast<Utf8>().toDartString();
   }

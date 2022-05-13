@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_zxing_example/configs/app_store.dart';
-import 'package:flutter_zxing_example/generated/l10n.dart';
-import 'package:flutter_zxing_example/utils/extensions.dart';
+import 'package:zxscanner/configs/app_store.dart';
+import 'package:zxscanner/generated/l10n.dart';
+import 'package:zxscanner/utils/extensions.dart';
 
 class LanguageWidget extends StatelessWidget {
   const LanguageWidget({Key? key, required this.onChanged}) : super(key: key);

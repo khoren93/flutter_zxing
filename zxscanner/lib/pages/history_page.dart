@@ -1,49 +1,40 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_zxing_example/models/models.dart';
-import 'package:flutter_zxing_example/utils/db_service.dart';
-import 'package:flutter_zxing_example/utils/router.dart';
-import 'package:flutter_zxing_example/widgets/common_widgets.dart';
+import 'package:zxscanner/models/code.dart';
+import 'package:zxscanner/utils/db_service.dart';
+import 'package:zxscanner/widgets/common_widgets.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-class BarcodesPage extends StatefulWidget {
-  const BarcodesPage({
+class HistoryPage extends StatefulWidget {
+  const HistoryPage({
     Key? key,
   }) : super(key: key);
 
   @override
-  State<BarcodesPage> createState() => _BarcodesPageState();
+  State<HistoryPage> createState() => _HistoryPageState();
 }
 
-class _BarcodesPageState extends State<BarcodesPage> {
+class _HistoryPageState extends State<HistoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Barcodes'),
+        title: const Text('History'),
       ),
       body: _buildResultList(),
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(FontAwesomeIcons.plus),
-        onPressed: () {
-          Navigator.of(context).pushNamed(AppRoutes.creator);
-        },
-      ),
     );
   }
 
   _buildResultList() {
-    return ValueListenableBuilder<Box<Encode>>(
-        valueListenable: DbService.instance.getEncodes().listenable(),
+    return ValueListenableBuilder<Box<Code>>(
+        valueListenable: DbService.instance.getCodes().listenable(),
         builder: (context, box, _) {
-          final results = box.values.toList().cast<Encode>();
+          final results = box.values.toList().cast<Code>();
           return results.isEmpty
               ? const Center(
                   child: Text(
-                  'Tap + to create a Barcode',
+                  'No Results',
                   style: TextStyle(fontSize: 24),
                 ))
               : ListView.builder(
@@ -52,10 +43,6 @@ class _BarcodesPageState extends State<BarcodesPage> {
                     final result = results[index];
                     return ContainerX(
                       child: ListTile(
-                        leading: Image.memory(
-                          result.data ?? Uint8List(0),
-                          width: 60,
-                        ),
                         title: Text(result.text ?? ''),
                         subtitle: Text(result.formatName),
                         trailing: ButtonBar(
@@ -74,7 +61,7 @@ class _BarcodesPageState extends State<BarcodesPage> {
                               icon: const Icon(FontAwesomeIcons.trash,
                                   color: Colors.red),
                               onPressed: () {
-                                DbService.instance.deleteEncode(result);
+                                DbService.instance.deleteCode(result);
                                 setState(() {});
                               },
                             ),

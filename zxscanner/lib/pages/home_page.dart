@@ -1,10 +1,10 @@
 import 'package:convex_bottom_bar/convex_bottom_bar.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_zxing_example/pages/barcodes_page.dart';
-import 'package:flutter_zxing_example/pages/help_page.dart';
-import 'package:flutter_zxing_example/pages/history_page.dart';
-import 'package:flutter_zxing_example/pages/scanner_page.dart';
-import 'package:flutter_zxing_example/pages/settings_page.dart';
+import 'package:zxscanner/pages/barcodes_page.dart';
+import 'package:zxscanner/pages/help_page.dart';
+import 'package:zxscanner/pages/history_page.dart';
+import 'package:zxscanner/pages/scanner_page.dart';
+import 'package:zxscanner/pages/settings_page.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class HomePage extends StatefulWidget {
