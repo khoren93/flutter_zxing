@@ -266,7 +266,7 @@ packages:
       name: ffi
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.1.2"
+    version: "1.2.1"
   file:
     dependency: transitive
     description:
@@ -312,13 +312,20 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_markdown:
+    dependency: "direct main"
+    description:
+      name: flutter_markdown
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.6.10"
   flutter_mobx:
     dependency: "direct main"
     description:
       name: flutter_mobx
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "2.0.5"
+    version: "2.0.5+1"
   flutter_plugin_android_lifecycle:
     dependency: transitive
     description:
@@ -339,9 +346,9 @@ packages:
   flutter_zxing:
     dependency: "direct main"
     description:
-      name: flutter_zxing
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: ".."
+      relative: true
+    source: path
     version: "0.1.2"
   fluttertoast:
     dependency: transitive
@@ -504,6 +511,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.0.2"
+  markdown:
+    dependency: transitive
+    description:
+      name: markdown
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "5.0.0"
   matcher:
     dependency: transitive
     description:
@@ -545,7 +559,7 @@ packages:
       name: mobx_codegen
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "2.0.5+2"
+    version: "2.0.6+1"
   nb_utils:
     dependency: "direct main"
     description:

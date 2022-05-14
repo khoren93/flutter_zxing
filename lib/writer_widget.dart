@@ -195,7 +195,7 @@ class _WriterWidgetState extends State<WriterWidget>
           final img = imglib.Image.fromBytes(width, height, result.bytes);
           final encodedBytes = Uint8List.fromList(imglib.encodeJpg(img));
           widget.onSuccess?.call(result, encodedBytes);
-        } on Exception catch (e) {
+        } catch (e) {
           error = e.toString();
         }
       } else {

@@ -17,7 +17,7 @@ Future<Uint8List> convertImage(CameraImage image) async {
     }
     return img.getBytes(format: imglib.Format.luminance);
   } catch (e) {
-    debugPrint(">>>>>>>>>>>> ERROR:" + e.toString());
+    debugPrint(">>>>>>>>>>>> ERROR: $e");
   }
   return Uint8List(0);
 }

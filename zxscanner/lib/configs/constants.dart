@@ -1,4 +1,4 @@
-const String appName = 'ZxScanner';
+const String appName = 'ZXScanner';
 
 /// space between widgets
 const spaceSmall = 2.0;

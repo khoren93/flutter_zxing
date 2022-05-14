@@ -31,9 +31,12 @@ class _MyAppState extends State<MyApp> {
             ),
           ),
           body: TabBarView(
+            physics: const NeverScrollableScrollPhysics(),
             children: [
               ReaderWidget(
-                onScan: (value) {},
+                onScan: (value) {
+                  debugPrint(value.textString ?? '');
+                },
               ),
               WriterWidget(
                 onSuccess: (result, bytes) {},

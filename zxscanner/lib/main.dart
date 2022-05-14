@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:zxscanner/configs/constants.dart';
 import 'package:zxscanner/utils/db_service.dart';
 import 'package:zxscanner/utils/extensions.dart';
 import 'package:nb_utils/nb_utils.dart';
@@ -57,7 +58,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return Observer(
       builder: (_) => MaterialApp(
-        title: 'ZxScanner',
+        title: appName,
         theme: AppTheme.flexLightTheme(),
         darkTheme: AppTheme.flexDarkTheme(),
         themeMode: appStore.themeMode,

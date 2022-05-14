@@ -58,10 +58,11 @@ class ScannerOverlay extends ShapeBorder {
     final borderWidthSize = width / 2;
     final height = rect.height;
     final borderOffset = borderWidth / 2;
-    final _borderLength = borderLength > cutOutSize / 2 + borderWidth * 2
+    final newBorderLength = borderLength > cutOutSize / 2 + borderWidth * 2
         ? borderWidthSize / 2
         : borderLength;
-    final _cutOutSize = cutOutSize < width ? cutOutSize : width - borderOffset;
+    final newCutOutSize =
+        cutOutSize < width ? cutOutSize : width - borderOffset;
 
     final backgroundPaint = Paint()
       ..color = overlayColor
@@ -78,10 +79,10 @@ class ScannerOverlay extends ShapeBorder {
       ..blendMode = BlendMode.dstOut;
 
     final cutOutRect = Rect.fromLTWH(
-      rect.left + width / 2 - _cutOutSize / 2 + borderOffset,
-      rect.top + height / 2 - _cutOutSize / 2 + borderOffset,
-      _cutOutSize - borderOffset * 2,
-      _cutOutSize - borderOffset * 2,
+      rect.left + width / 2 - newCutOutSize / 2 + borderOffset,
+      rect.top + height / 2 - newCutOutSize / 2 + borderOffset,
+      newCutOutSize - borderOffset * 2,
+      newCutOutSize - borderOffset * 2,
     );
 
     canvas
@@ -96,10 +97,10 @@ class ScannerOverlay extends ShapeBorder {
       // Draw top right corner
       ..drawRRect(
         RRect.fromLTRBAndCorners(
-          cutOutRect.right - _borderLength,
+          cutOutRect.right - newBorderLength,
           cutOutRect.top,
           cutOutRect.right,
-          cutOutRect.top + _borderLength,
+          cutOutRect.top + newBorderLength,
           topRight: Radius.circular(borderRadius),
         ),
         borderPaint,
@@ -109,8 +110,8 @@ class ScannerOverlay extends ShapeBorder {
         RRect.fromLTRBAndCorners(
           cutOutRect.left,
           cutOutRect.top,
-          cutOutRect.left + _borderLength,
-          cutOutRect.top + _borderLength,
+          cutOutRect.left + newBorderLength,
+          cutOutRect.top + newBorderLength,
           topLeft: Radius.circular(borderRadius),
         ),
         borderPaint,
@@ -118,8 +119,8 @@ class ScannerOverlay extends ShapeBorder {
       // Draw bottom right corner
       ..drawRRect(
         RRect.fromLTRBAndCorners(
-          cutOutRect.right - _borderLength,
-          cutOutRect.bottom - _borderLength,
+          cutOutRect.right - newBorderLength,
+          cutOutRect.bottom - newBorderLength,
           cutOutRect.right,
           cutOutRect.bottom,
           bottomRight: Radius.circular(borderRadius),
@@ -130,8 +131,8 @@ class ScannerOverlay extends ShapeBorder {
       ..drawRRect(
         RRect.fromLTRBAndCorners(
           cutOutRect.left,
-          cutOutRect.bottom - _borderLength,
-          cutOutRect.left + _borderLength,
+          cutOutRect.bottom - newBorderLength,
+          cutOutRect.left + newBorderLength,
           cutOutRect.bottom,
           bottomLeft: Radius.circular(borderRadius),
         ),
