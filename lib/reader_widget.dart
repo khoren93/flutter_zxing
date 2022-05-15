@@ -39,7 +39,7 @@ class ReaderWidget extends StatefulWidget {
 
 class _ReaderWidgetState extends State<ReaderWidget>
     with TickerProviderStateMixin {
-  late List<CameraDescription> cameras;
+  List<CameraDescription>? cameras;
   CameraController? controller;
 
   bool isAndroid() => Theme.of(context).platform == TargetPlatform.android;
@@ -195,7 +195,10 @@ class _ReaderWidgetState extends State<ReaderWidget>
   // Display the preview from the camera.
   Widget _cameraPreviewWidget(double cropSize) {
     final CameraController? cameraController = controller;
-    if (cameraController == null || !cameraController.value.isInitialized) {
+    if (cameras != null && cameras?.isEmpty == true) {
+      return const Text('No cameras found');
+    } else if (cameraController == null ||
+        !cameraController.value.isInitialized) {
       return const CircularProgressIndicator();
     } else {
       final size = MediaQuery.of(context).size;

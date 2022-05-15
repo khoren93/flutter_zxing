@@ -170,7 +170,7 @@ class _WriterWidgetState extends State<WriterWidget>
                 onPressed: createBarcode,
                 child: const Text('Create'),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
             ],
           ),
         ),
@@ -202,7 +202,6 @@ class _WriterWidgetState extends State<WriterWidget>
         error = result.errorMessage;
       }
       if (error != null) {
-        debugPrint(error);
         widget.onError?.call(error);
       }
     }
