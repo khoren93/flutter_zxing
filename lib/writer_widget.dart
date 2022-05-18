@@ -12,7 +12,7 @@ class WriterWidget extends StatefulWidget {
     this.onError,
   }) : super(key: key);
 
-  final Function(EncodeResult, Uint8List)? onSuccess;
+  final Function(EncodeResult, Uint8List?)? onSuccess;
   final Function(String)? onError;
 
   @override

@@ -77,7 +77,7 @@ class _CreatorPageState extends State<CreatorPage> {
     return Column(
       children: [
         // Barcode image
-        Image.memory(encode?.data ?? Uint8List(0)),
+        if (encode?.data != null) Image.memory(encode?.data ?? Uint8List(0)),
         const SizedBox(height: spaceLarge),
         // Share button
         Row(

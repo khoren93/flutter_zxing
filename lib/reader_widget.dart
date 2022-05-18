@@ -41,6 +41,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
     with TickerProviderStateMixin {
   List<CameraDescription>? cameras;
   CameraController? controller;
+  var _cameraOn = false;
 
   bool isAndroid() => Theme.of(context).platform == TargetPlatform.android;
 
@@ -79,9 +80,11 @@ class _ReaderWidgetState extends State<ReaderWidget>
       }
       if (mounted) {
         if (message == AppLifecycleState.paused.toString()) {
-          cameraController.dispose();
+          _cameraOn = false;
+          setState(() {});
         }
         if (message == AppLifecycleState.resumed.toString()) {
+          _cameraOn = true;
           onNewCameraSelected(cameraController.description);
         }
       }
@@ -121,6 +124,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
     });
 
     if (mounted) {
+      _cameraOn = true;
       setState(() {});
     }
 
@@ -198,7 +202,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
     if (cameras != null && cameras?.isEmpty == true) {
       return const Text('No cameras found');
     } else if (cameraController == null ||
-        !cameraController.value.isInitialized) {
+        !cameraController.value.isInitialized ||
+        !_cameraOn) {
       return const CircularProgressIndicator();
     } else {
       final size = MediaQuery.of(context).size;
