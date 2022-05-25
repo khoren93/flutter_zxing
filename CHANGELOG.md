@@ -1,3 +1,7 @@
+## 0.1.3
+
+* minor improvements
+
 ## 0.1.2
 
 * minor fixes for analyzer options
