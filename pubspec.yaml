@@ -8,12 +8,12 @@ environment:
   flutter: ">=2.5.0"
 
 dependencies:
-  camera: ^0.9.5
+  camera: ^0.9.7
   ffi: ^1.2.1
   flutter:
     sdk: flutter
   flutter_beep: ^1.0.0
-  image: ^3.1.3
+  image: ^3.2.0
 
 dev_dependencies:
   ffigen: ^5.0.0 # dart run ffigen

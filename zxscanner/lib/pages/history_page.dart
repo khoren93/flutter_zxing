@@ -42,30 +42,32 @@ class _HistoryPageState extends State<HistoryPage> {
                   itemBuilder: (context, index) {
                     final result = results[index];
                     return ContainerX(
-                      child: ListTile(
-                        title: Text(result.text ?? ''),
-                        subtitle: Text(result.formatName),
-                        trailing: ButtonBar(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Copy button
-                            IconButton(
-                              icon: const Icon(FontAwesomeIcons.copy),
-                              onPressed: () {
-                                Clipboard.setData(
-                                    ClipboardData(text: result.text));
-                              },
-                            ),
-                            // Remove button
-                            IconButton(
-                              icon: const Icon(FontAwesomeIcons.trash,
-                                  color: Colors.red),
-                              onPressed: () {
-                                DbService.instance.deleteCode(result);
-                                setState(() {});
-                              },
-                            ),
-                          ],
+                      child: Card(
+                        child: ListTile(
+                          title: Text(result.text ?? ''),
+                          subtitle: Text(result.formatName),
+                          trailing: ButtonBar(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Copy button
+                              IconButton(
+                                icon: const Icon(FontAwesomeIcons.copy),
+                                onPressed: () {
+                                  Clipboard.setData(
+                                      ClipboardData(text: result.text));
+                                },
+                              ),
+                              // Remove button
+                              IconButton(
+                                icon: const Icon(FontAwesomeIcons.trash,
+                                    color: Colors.red),
+                                onPressed: () {
+                                  DbService.instance.deleteCode(result);
+                                  setState(() {});
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );

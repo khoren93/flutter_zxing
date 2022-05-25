@@ -51,34 +51,36 @@ class _BarcodesPageState extends State<BarcodesPage> {
                   itemBuilder: (context, index) {
                     final result = results[index];
                     return ContainerX(
-                      child: ListTile(
-                        leading: Image.memory(
-                          result.data ?? Uint8List(0),
-                          width: 60,
-                        ),
-                        title: Text(result.text ?? ''),
-                        subtitle: Text(result.formatName),
-                        trailing: ButtonBar(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Copy button
-                            IconButton(
-                              icon: const Icon(FontAwesomeIcons.copy),
-                              onPressed: () {
-                                Clipboard.setData(
-                                    ClipboardData(text: result.text));
-                              },
-                            ),
-                            // Remove button
-                            IconButton(
-                              icon: const Icon(FontAwesomeIcons.trash,
-                                  color: Colors.red),
-                              onPressed: () {
-                                DbService.instance.deleteEncode(result);
-                                setState(() {});
-                              },
-                            ),
-                          ],
+                      child: Card(
+                        child: ListTile(
+                          leading: Image.memory(
+                            result.data ?? Uint8List(0),
+                            width: 60,
+                          ),
+                          title: Text(result.text ?? ''),
+                          subtitle: Text(result.formatName),
+                          trailing: ButtonBar(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Copy button
+                              IconButton(
+                                icon: const Icon(FontAwesomeIcons.copy),
+                                onPressed: () {
+                                  Clipboard.setData(
+                                      ClipboardData(text: result.text));
+                                },
+                              ),
+                              // Remove button
+                              IconButton(
+                                icon: const Icon(FontAwesomeIcons.trash,
+                                    color: Colors.red),
+                                onPressed: () {
+                                  DbService.instance.deleteEncode(result);
+                                  setState(() {});
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );

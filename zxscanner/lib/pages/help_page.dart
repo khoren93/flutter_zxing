@@ -5,6 +5,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image/image.dart' as imglib;
+import 'package:url_launcher/url_launcher_string.dart';
 import 'package:zxscanner/configs/constants.dart';
 import 'package:zxscanner/widgets/common_widgets.dart';
 
@@ -18,9 +19,30 @@ class HelpPage extends StatelessWidget {
         title: const Text('Help'),
       ),
       body: ContainerX(
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: spaceLarge2),
-          children: createSlides(context),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(spaceDefault),
+              child: InkWell(
+                onTap: () {
+                  launchUrlString('https://scanbot.io');
+                },
+                child: Column(
+                  children: const [
+                    Text('All information is taken from'),
+                    Text('scanbot.io',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: spaceLarge2),
+                children: createSlides(context),
+              ),
+            ),
+          ],
         ),
       ),
     );

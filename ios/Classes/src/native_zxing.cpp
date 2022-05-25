@@ -102,7 +102,7 @@ extern "C"
         struct EncodeResult result = {0, contents, Format(format), nullptr, 0, nullptr};
         try
         {
-            auto writer = MultiFormatWriter(BarcodeFormat(format)).setMargin(margin).setEccLevel(eccLevel);
+            auto writer = MultiFormatWriter(BarcodeFormat(format)).setMargin(margin).setEccLevel(eccLevel).setEncoding(CharacterSet::UTF8);
             auto bitMatrix = writer.encode(TextUtfEncoding::FromUtf8(std::string(contents)), width, height);
             result.data = ToMatrix<uint32_t>(bitMatrix).data();
             result.length = bitMatrix.width() * bitMatrix.height();
