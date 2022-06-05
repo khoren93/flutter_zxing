@@ -1,3 +1,9 @@
+## 0.2.0
+
+* added 'readImagePath' function
+* added 'readImagePathString' function
+* added 'readImageUrl' function
+
 ## 0.1.3
 
 * minor improvements
