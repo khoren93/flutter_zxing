@@ -3,9 +3,11 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:camera/camera.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:image/image.dart' as imglib;
 
 import 'generated_bindings.dart';
 
@@ -31,8 +33,64 @@ class FlutterZxing {
     logEnabled = enabled;
   }
 
-  static String version() {
-    return bindings.version().cast<Utf8>().toDartString();
+  /// Returns a version of the zxing library
+  static String version() => bindings.version().cast<Utf8>().toDartString();
+
+  /// Reads barcode from String image path
+  static Future<CodeResult?> readImagePathString(
+    String path, {
+    int format = Format.Any,
+    int cropWidth = 0,
+    int cropHeight = 0,
+  }) =>
+      readImagePath(XFile(path),
+          format: format, cropWidth: cropWidth, cropHeight: cropHeight);
+
+  /// Reads barcode from XFile image path
+  static Future<CodeResult?> readImagePath(
+    XFile path, {
+    int format = Format.Any,
+    int cropWidth = 0,
+    int cropHeight = 0,
+  }) async {
+    final Uint8List imageBytes = await path.readAsBytes();
+    imglib.Image? image = imglib.decodeImage(imageBytes);
+    if (image == null) {
+      return null;
+    }
+    return readBarcode(
+      image.getBytes(format: imglib.Format.luminance),
+      format,
+      image.width,
+      image.height,
+      cropWidth,
+      cropHeight,
+    );
+  }
+
+  /// Reads barcode from image url
+  static Future<CodeResult?> readImageUrl(
+    String url, {
+    int format = Format.Any,
+    int cropWidth = 0,
+    int cropHeight = 0,
+  }) async {
+    final Uint8List imageBytes =
+        (await NetworkAssetBundle(Uri.parse(url)).load(url))
+            .buffer
+            .asUint8List();
+    imglib.Image? image = imglib.decodeImage(imageBytes);
+    if (image == null) {
+      return null;
+    }
+    return readBarcode(
+      image.getBytes(format: imglib.Format.luminance),
+      format,
+      image.width,
+      image.height,
+      cropWidth,
+      cropHeight,
+    );
   }
 
   static CodeResult readBarcode(Uint8List bytes, int format, int width,

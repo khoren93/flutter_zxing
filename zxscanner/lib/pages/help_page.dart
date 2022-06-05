@@ -1,10 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:flutter_zxing/flutter_zxing.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:image/image.dart' as imglib;
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:zxscanner/configs/constants.dart';
 import 'package:zxscanner/widgets/common_widgets.dart';
@@ -52,22 +47,7 @@ class HelpPage extends StatelessWidget {
     BuildContext context, {
     String? title,
     String? body,
-    int format = Format.QRCode,
-    String? qrText,
-    int width = 100,
-    int height = 100,
   }) {
-    Uint8List? bytes;
-    if (qrText != null) {
-      final result =
-          FlutterZxing.encodeBarcode(qrText, width, height, format, 5, 0);
-      if (result.isValidBool) {
-        final img = imglib.Image.fromBytes(width, height, result.bytes);
-        bytes = Uint8List.fromList(imglib.encodeJpg(img));
-      } else {
-        debugPrint('Error: ${result.errorMessage}');
-      }
-    }
     return Card(
       margin: const EdgeInsets.all(8.0),
       child: Padding(
@@ -77,12 +57,6 @@ class HelpPage extends StatelessWidget {
             dividerColor: Colors.transparent,
           ),
           child: ExpansionTile(
-            leading: bytes != null
-                ? Image.memory(bytes, width: 100)
-                : const SizedBox(
-                    width: 100,
-                    child: Icon(FontAwesomeIcons.barcode, size: 50),
-                  ),
             title: Text(title ?? ''),
             children: [
               Padding(
@@ -108,8 +82,6 @@ QR codes are highly versatile and cover a range of applications because they sto
 * Can be used free of charge – specifications are available from the Swiss-based International Organization for Standardization.
 * Automatic error correction recovers damage to up to 30%, depending on the correction level chosen.
         """,
-        format: Format.QRCode,
-        qrText: '123456789012',
       ),
       createSlide(
         context,
@@ -123,8 +95,6 @@ Due to its small size and large storage capacity, the Data Matrix code is most f
 * Often engraved on items via Direct Part Marking (DPM).
 * Readable even with low contrast.
         """,
-        format: Format.DataMatrix,
-        qrText: '123456789012',
       ),
       createSlide(
         context,
@@ -138,8 +108,6 @@ The transportation sector accounts for most Aztec Code use cases. Lufthansa airl
 * Enables both high data density and up to 95% error tolerance.
 * Pattern resembles a top-down view of an Aztec pyramid
             """,
-        format: Format.Aztec,
-        qrText: '123456789012',
       ),
       createSlide(
         context,
@@ -152,7 +120,6 @@ Ticketing, travel, and logistics are some of the most common areas of applicatio
 * High data density, yet with adjustable length and width.
 * Striking redundancy: Up to 40% damage can be compensated.
         """,
-        format: Format.PDF417,
       ),
       createSlide(
         context,
@@ -163,9 +130,6 @@ The Universal Product Code (UPC) is perfect for retail, warehousing, and distrib
 * One-dimensional barcode that stores exactly 12 numeric characters, which form the Global Trade Item Number (GTIN).
 * The low data density makes it inadequate for encoding complex data.
         """,
-        format: Format.UPCA,
-        qrText: '123456789012',
-        width: 200,
       ),
       createSlide(
         context,
@@ -177,9 +141,6 @@ The most important areas of application for EAN codes are retail, distribution, 
 * The last digit is a mod10 checksum.
 * EAN codes are defined as GS1 standards.
         """,
-        format: Format.EAN13,
-        qrText: '123456789012',
-        width: 200,
       ),
       createSlide(
         context,
@@ -191,9 +152,6 @@ Unlike other common barcodes, Code 39 can also encode letters, which makes it in
 * The low data density makes it unsuitable for tiny items.
 * Standardized as ANSI MH 10.8 M-1983 and ANSI/AIM BC1/1995.
         """,
-        format: Format.Code39,
-        qrText: '123456789012',
-        width: 200,
       ),
       createSlide(
         context,
@@ -203,9 +161,6 @@ This barcode symbology can store alphanumeric characters. Its main user, Canada 
 * One-dimensional barcode encoding 43 alphanumeric characters and 5 special characters.
 * In Code 93 Extended, combinations of those characters can represent all 128 ASCII characters.
         """,
-        format: Format.Code93,
-        qrText: '123456789012',
-        width: 200,
       ),
       createSlide(
         context,
@@ -216,9 +171,6 @@ The Code 128 barcode is most frequently used in transporting goods, especially t
 * Can encode all ASCII characters, including special characters.
 * High data density compared to other 1D barcode formats.
         """,
-        format: Format.Code128,
-        qrText: '123456789012',
-        width: 200,
       ),
       createSlide(
         context,
@@ -231,9 +183,6 @@ The Codabar barcode is only used in blood banks, libraries, and in laboratories.
 * Stores up to 16 characters.
 * Newer barcode types can store more data in less space.
         """,
-        format: Format.Codabar,
-        qrText: '123456789012',
-        width: 200,
       ),
       createSlide(
         context,
@@ -244,9 +193,6 @@ ITF barcodes are often described as Standard Distribution Codes. They are freque
 * High data density, as data is stored in both the bars and the gaps. 
 * Compared to other linear barcodes, more data can be accommodated using the same label size.
         """,
-        format: Format.ITF,
-        qrText: '123456789012',
-        width: 200,
       ),
     ];
   }

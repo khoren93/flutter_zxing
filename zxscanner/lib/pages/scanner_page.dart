@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:zxscanner/models/models.dart';
@@ -7,7 +5,6 @@ import 'package:zxscanner/utils/db_service.dart';
 import 'package:zxscanner/utils/extensions.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image/image.dart' as imglib;
 
 class ScannerPage extends StatefulWidget {
   const ScannerPage({
@@ -52,23 +49,12 @@ class _ScannerPageState extends State<ScannerPage> {
   }
 
   readCodeFromImage(XFile file) async {
-    final Uint8List bytes = await file.readAsBytes();
-    imglib.Image? image = imglib.decodeImage(bytes);
-    if (image != null) {
-      final CodeResult result = FlutterZxing.readBarcode(
-        image.getBytes(format: imglib.Format.luminance),
-        Format.Any,
-        image.width,
-        image.height,
-        0,
-        0,
-      );
-      if (result.isValidBool) {
-        addCode(result);
-      } else {
-        if (!mounted) return;
-        context.showToast('No code found');
-      }
+    final CodeResult? result = await FlutterZxing.readImagePath(file);
+    if (result != null && result.isValidBool) {
+      addCode(result);
+    } else {
+      if (!mounted) return;
+      context.showToast('No code found');
     }
   }
 
