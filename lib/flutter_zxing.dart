@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
@@ -10,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:image/image.dart' as imglib;
 
 import 'generated_bindings.dart';
+import 'isolate_utils.dart';
 
 export 'generated_bindings.dart';
 export 'reader_widget.dart';
@@ -17,6 +19,7 @@ export 'writer_widget.dart';
 export 'image_converter.dart';
 export 'scanner_overlay.dart';
 
+/// The main class for reading barcodes from images or camera.
 class FlutterZxing {
   static const MethodChannel _channel = MethodChannel('flutter_zxing');
 
@@ -27,6 +30,8 @@ class FlutterZxing {
 
   static final bindings = GeneratedBindings(dylib);
 
+  static IsolateUtils? isolateUtils;
+
   static bool logEnabled = false;
 
   static void setLogEnabled(bool enabled) {
@@ -35,6 +40,16 @@ class FlutterZxing {
 
   /// Returns a version of the zxing library
   static String version() => bindings.version().cast<Utf8>().toDartString();
+
+  /// Starts reading barcode from the camera
+  static Future startCameraProcessing() async {
+    // Spawn a new isolate
+    isolateUtils = IsolateUtils();
+    await isolateUtils?.startReadingBarcode();
+  }
+
+  /// Stops reading barcode from the camera
+  static stopCameraProcessing() => isolateUtils?.stopReadingBarcode();
 
   /// Reads barcode from String image path
   static Future<CodeResult?> readImagePathString(
@@ -114,7 +129,25 @@ class FlutterZxing {
     return result;
   }
 
-  static int get _logEnabled => logEnabled ? 1 : 0;
+  static Future<CodeResult> processCameraImage(
+      CameraImage image, int format, double cropPercent) async {
+    var isolateData = IsolateData(image, format, cropPercent);
+    CodeResult result = await _inference(isolateData);
+    return result;
+  }
+
+  /// Runs inference in another isolate
+  static Future<CodeResult> _inference(IsolateData isolateData) async {
+    ReceivePort responsePort = ReceivePort();
+    isolateUtils?.sendPort
+        ?.send(isolateData..responsePort = responsePort.sendPort);
+    var results = await responsePort.first;
+    return results;
+  }
+
+  static int get _logEnabled {
+    return logEnabled ? 1 : 0;
+  }
 
   static String formatName(int format) => _formatNames[format] ?? 'Unknown';
 }

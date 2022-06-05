@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:isolate';
 import 'dart:math';
 
 import 'package:camera/camera.dart';
@@ -60,8 +59,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   void initStateAsync() async {
     // Spawn a new isolate
-    isolateUtils = IsolateUtils();
-    await isolateUtils?.start();
+    await FlutterZxing.startCameraProcessing();
 
     availableCameras().then((cameras) {
       setState(() {
@@ -94,8 +92,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   @override
   void dispose() {
+    FlutterZxing.stopCameraProcessing();
     controller?.dispose();
-    isolateUtils?.stop();
     super.dispose();
   }
 
@@ -116,7 +114,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
       await controller?.initialize();
       controller?.startImageStream(processCameraImage);
     } on CameraException catch (e) {
-      _showCameraException(e);
+      debugPrint('${e.code}: ${e.description}');
     }
 
     controller?.addListener(() {
@@ -131,30 +129,15 @@ class _ReaderWidgetState extends State<ReaderWidget>
     widget.onControllerCreated?.call(controller);
   }
 
-  void _showCameraException(CameraException e) {
-    logError(e.code, e.description);
-    showInSnackBar('Error: ${e.code}\n${e.description}');
-  }
-
-  void showInSnackBar(String message) {}
-
-  void logError(String code, String? message) {
-    if (message != null) {
-      debugPrint('Error: $code\nError Message: $message');
-    } else {
-      debugPrint('Error: $code');
-    }
-  }
-
   processCameraImage(CameraImage image) async {
     if (!_isProcessing) {
       _isProcessing = true;
       try {
-        var isolateData =
-            IsolateData(image, widget.codeFormat, widget.cropPercent);
-
-        /// perform inference in separate isolate
-        CodeResult result = await inference(isolateData);
+        CodeResult result = await FlutterZxing.processCameraImage(
+          image,
+          widget.codeFormat,
+          widget.cropPercent,
+        );
         if (result.isValidBool) {
           if (widget.beep) {
             FlutterBeep.beep();
@@ -173,15 +156,6 @@ class _ReaderWidgetState extends State<ReaderWidget>
     }
 
     return null;
-  }
-
-  /// Runs inference in another isolate
-  Future<CodeResult> inference(IsolateData isolateData) async {
-    ReceivePort responsePort = ReceivePort();
-    isolateUtils?.sendPort
-        ?.send(isolateData..responsePort = responsePort.sendPort);
-    var results = await responsePort.first;
-    return results;
   }
 
   @override

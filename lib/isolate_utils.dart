@@ -33,9 +33,9 @@ class IsolateUtils {
 
   SendPort? get sendPort => _sendPort;
 
-  Future<void> start() async {
+  Future<void> startReadingBarcode() async {
     _isolate = await Isolate.spawn<SendPort>(
-      entryPoint,
+      readBarcodeEntryPoint,
       _receivePort.sendPort,
       debugName: kDebugName,
     );
@@ -43,13 +43,13 @@ class IsolateUtils {
     _sendPort = await _receivePort.first;
   }
 
-  void stop() {
+  void stopReadingBarcode() {
     _isolate?.kill(priority: Isolate.immediate);
     _isolate = null;
     _sendPort = null;
   }
 
-  static void entryPoint(SendPort sendPort) async {
+  static void readBarcodeEntryPoint(SendPort sendPort) async {
     final port = ReceivePort();
     sendPort.send(port.sendPort);
 
@@ -66,7 +66,7 @@ class IsolateUtils {
               image.width, image.height, cropSize, cropSize);
 
           isolateData.responsePort?.send(result);
-        } on Exception catch (e) {
+        } catch (e) {
           isolateData.responsePort?.send(e);
         }
       }
