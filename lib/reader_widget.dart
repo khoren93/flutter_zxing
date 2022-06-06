@@ -18,7 +18,9 @@ class ReaderWidget extends StatefulWidget {
     this.codeFormat = Format.Any,
     this.beep = true,
     this.showCroppingRect = true,
+    this.scannerOverlay,
     this.showFlashlight = true,
+    this.allowPinchZoom = true,
     this.scanDelay = const Duration(milliseconds: 1000), // 1000ms delay
     this.cropPercent = 0.5, // 50% of the screen
     this.resolution = ResolutionPreset.high,
@@ -29,7 +31,9 @@ class ReaderWidget extends StatefulWidget {
   final int codeFormat;
   final bool beep;
   final bool showCroppingRect;
+  final ScannerOverlay? scannerOverlay;
   final bool showFlashlight;
+  final bool allowPinchZoom;
   final Duration scanDelay;
   final double cropPercent;
   final ResolutionPreset resolution;
@@ -43,6 +47,11 @@ class _ReaderWidgetState extends State<ReaderWidget>
   List<CameraDescription>? cameras;
   CameraController? controller;
   var _cameraOn = false;
+
+  double _zoom = 1.0;
+  double _scaleFactor = 1.0;
+  double _maxZoomLevel = 1.0;
+  double _minZoomLevel = 1.0;
 
   bool isAndroid() => Theme.of(context).platform == TargetPlatform.android;
 
@@ -111,16 +120,21 @@ class _ReaderWidgetState extends State<ReaderWidget>
       imageFormatGroup:
           isAndroid() ? ImageFormatGroup.yuv420 : ImageFormatGroup.bgra8888,
     );
-
+    final CameraController? cameraController = controller;
+    if (cameraController == null) {
+      return;
+    }
     try {
-      await controller?.initialize();
-      await controller?.setFlashMode(FlashMode.off);
-      controller?.startImageStream(processCameraImage);
+      await cameraController.initialize();
+      await cameraController.setFlashMode(FlashMode.off);
+      _maxZoomLevel = await cameraController.getMaxZoomLevel();
+      _minZoomLevel = await cameraController.getMinZoomLevel();
+      cameraController.startImageStream(processCameraImage);
     } on CameraException catch (e) {
       debugPrint('${e.code}: ${e.description}');
     }
 
-    controller?.addListener(() {
+    cameraController.addListener(() {
       if (mounted) setState(() {});
     });
 
@@ -129,7 +143,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
       setState(() {});
     }
 
-    widget.onControllerCreated?.call(controller);
+    widget.onControllerCreated?.call(cameraController);
   }
 
   processCameraImage(CameraImage image) async {
@@ -208,19 +222,31 @@ class _ReaderWidgetState extends State<ReaderWidget>
           if (widget.showCroppingRect)
             Container(
               decoration: ShapeDecoration(
-                shape: ScannerOverlay(
-                  borderColor: Theme.of(context).primaryColor,
-                  overlayColor: const Color.fromRGBO(0, 0, 0, 0.5),
-                  borderRadius: 1,
-                  borderLength: 16,
-                  borderWidth: 8,
-                  cutOutSize: cropSize,
-                ),
+                shape: widget.scannerOverlay ??
+                    ScannerOverlay(
+                      borderColor: Theme.of(context).primaryColor,
+                      overlayColor: Colors.black45,
+                      borderRadius: 1,
+                      borderLength: 16,
+                      borderWidth: 8,
+                      cutOutSize: cropSize,
+                    ),
               ),
+            ),
+          if (widget.allowPinchZoom)
+            GestureDetector(
+              onScaleStart: (details) {
+                _zoom = _scaleFactor;
+              },
+              onScaleUpdate: (details) {
+                _scaleFactor =
+                    (_zoom * details.scale).clamp(_minZoomLevel, _maxZoomLevel);
+                cameraController.setZoomLevel(_scaleFactor);
+              },
             ),
           if (widget.showFlashlight)
             Positioned(
-              top: 20,
+              bottom: 20,
               left: 20,
               child: FloatingActionButton(
                 onPressed: () {
@@ -237,7 +263,6 @@ class _ReaderWidgetState extends State<ReaderWidget>
                   cameraController.setFlashMode(mode);
                   setState(() {});
                 },
-                mini: true,
                 backgroundColor: Colors.black26,
                 child: Icon(_flashIcon(cameraController)),
               ),
