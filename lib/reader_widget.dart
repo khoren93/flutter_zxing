@@ -18,7 +18,8 @@ class ReaderWidget extends StatefulWidget {
     this.codeFormat = Format.Any,
     this.beep = true,
     this.showCroppingRect = true,
-    this.scanDelay = const Duration(milliseconds: 500), // 500ms delay
+    this.showFlashlight = true,
+    this.scanDelay = const Duration(milliseconds: 1000), // 1000ms delay
     this.cropPercent = 0.5, // 50% of the screen
     this.resolution = ResolutionPreset.high,
   }) : super(key: key);
@@ -28,6 +29,7 @@ class ReaderWidget extends StatefulWidget {
   final int codeFormat;
   final bool beep;
   final bool showCroppingRect;
+  final bool showFlashlight;
   final Duration scanDelay;
   final double cropPercent;
   final ResolutionPreset resolution;
@@ -112,6 +114,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
     try {
       await controller?.initialize();
+      await controller?.setFlashMode(FlashMode.off);
       controller?.startImageStream(processCameraImage);
     } on CameraException catch (e) {
       debugPrint('${e.code}: ${e.description}');
@@ -202,22 +205,57 @@ class _ReaderWidgetState extends State<ReaderWidget>
               ),
             ),
           ),
-          widget.showCroppingRect
-              ? Container(
-                  decoration: ShapeDecoration(
-                    shape: ScannerOverlay(
-                      borderColor: Theme.of(context).primaryColor,
-                      overlayColor: const Color.fromRGBO(0, 0, 0, 0.5),
-                      borderRadius: 1,
-                      borderLength: 16,
-                      borderWidth: 8,
-                      cutOutSize: cropSize,
-                    ),
-                  ),
-                )
-              : Container()
+          if (widget.showCroppingRect)
+            Container(
+              decoration: ShapeDecoration(
+                shape: ScannerOverlay(
+                  borderColor: Theme.of(context).primaryColor,
+                  overlayColor: const Color.fromRGBO(0, 0, 0, 0.5),
+                  borderRadius: 1,
+                  borderLength: 16,
+                  borderWidth: 8,
+                  cutOutSize: cropSize,
+                ),
+              ),
+            ),
+          if (widget.showFlashlight)
+            Positioned(
+              top: 20,
+              left: 20,
+              child: FloatingActionButton(
+                onPressed: () {
+                  FlashMode mode = cameraController.value.flashMode;
+                  switch (mode) {
+                    case FlashMode.torch:
+                      mode = FlashMode.off;
+                      break;
+                    case FlashMode.off:
+                      mode = FlashMode.torch;
+                      break;
+                    default:
+                  }
+                  cameraController.setFlashMode(mode);
+                  setState(() {});
+                },
+                mini: true,
+                backgroundColor: Colors.black26,
+                child: Icon(_flashIcon(cameraController)),
+              ),
+            )
         ],
       );
+    }
+  }
+
+  IconData _flashIcon(CameraController cameraController) {
+    final FlashMode mode = cameraController.value.flashMode;
+    switch (mode) {
+      case FlashMode.torch:
+        return Icons.flash_on;
+      case FlashMode.off:
+        return Icons.flash_off;
+      default:
+        return Icons.flash_off;
     }
   }
 }

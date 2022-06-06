@@ -27,7 +27,7 @@ dependencies:
   intl: ^0.17.0
   mobx: ^2.0.7
   path_provider: ^2.0.10
-  share_plus: ^4.0.6
+  share_plus: ^4.0.7
   shared_preferences: ^2.0.15
   url_launcher: ^6.1.2
 
