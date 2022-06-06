@@ -73,7 +73,7 @@ import 'package:flutter_zxing/flutter_zxing.dart';
 import 'dart:typed_data';
 import 'package:image/image.dart' as imglib;
 
-// Use WriterWidget to quickly read barcode from camera image
+// Use WriterWidget to quickly create barcode
 @override
 Widget build(BuildContext context) {
     return Scaffold(
