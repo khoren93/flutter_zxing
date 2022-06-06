@@ -152,8 +152,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
       try {
         CodeResult result = await FlutterZxing.processCameraImage(
           image,
-          widget.codeFormat,
-          widget.cropPercent,
+          format: widget.codeFormat,
+          cropPercent: widget.cropPercent,
         );
         if (result.isValidBool) {
           if (widget.beep) {

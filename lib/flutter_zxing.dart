@@ -129,8 +129,8 @@ class FlutterZxing {
     return result;
   }
 
-  static Future<CodeResult> processCameraImage(
-      CameraImage image, int format, double cropPercent) async {
+  static Future<CodeResult> processCameraImage(CameraImage image,
+      {int format = Format.Any, double cropPercent = 0.5}) async {
     var isolateData = IsolateData(image, format, cropPercent);
     CodeResult result = await _inference(isolateData);
     return result;

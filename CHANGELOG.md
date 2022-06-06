@@ -1,3 +1,10 @@
+## 0.3.0
+
+* added processCameraImage function
+* added pinch to zoom sopport
+* added flash sopport
+* added custom scanner overlay support
+
 ## 0.2.0
 
 * added 'readImagePath' function

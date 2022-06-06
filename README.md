@@ -19,11 +19,14 @@ A barcode and QR code scanner based on [ZXing C++](https://github.com/nu-book/zx
 |            | DataBar Expanded  |
 
 ## Features
-- [x] Scan barcode from camera stream
-- [x] Scan barcode from image path or url
-- [x] Create barcode from text
-- [ ] Read multiple barcodes from camera or gallery
-- [ ] Return scanned barcode position and size
+- Scan barcode from camera stream
+- Scan barcode from image path or url
+- Create barcode from text
+- Flashlight and pinch to zoom support
+
+## Todo
+- Read multiple barcodes from camera or gallery
+- Return scanned barcode position and size
 
 ## Getting Started
 ### To read barcode:
@@ -42,15 +45,25 @@ Widget build(BuildContext context) {
     ),
 );
 
-// Or use FlutterZxing to read barcode from camera image directly
-cameraController?.startImageStream((img) async {
-    final bytes = await convertImage(img);
-    final result = FlutterZxing.readBarcode(bytes, Format.Any, img.width, img.height, 200, 200);
+// Or use FlutterZxing
+// To read barcode from camera image directly
+cameraController?.startImageStream((image) async {
+    CodeResult result = await FlutterZxing.processCameraImage(image);
     if (result.isValidBool) {
         debugPrint(result.textString);
     }
     return null;
 });
+
+// To read barcode from XFile, String or url
+XFile xFile = XFile('Your image path');
+CodeResult? resultFromXFile = await FlutterZxing.readImagePath(xFile);
+
+String path = 'Your image path';
+CodeResult? resultFromPath = await FlutterZxing.readImagePathString(path);
+
+String url = 'Your image url';
+CodeResult? resultFromUrl = await FlutterZxing.readImageUrl(url);
 ```
 
 ### To create barcode:
