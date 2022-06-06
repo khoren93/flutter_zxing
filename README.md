@@ -27,6 +27,7 @@ A barcode and QR code scanner based on [ZXing C++](https://github.com/nu-book/zx
 ## Todo
 - Read multiple barcodes from camera or gallery
 - Return scanned barcode position and size
+- Write tests
 
 ## Getting Started
 ### To read barcode:
