@@ -124,7 +124,7 @@ class FlutterZxing {
 
   static EncodeResult encodeBarcode(String contents, int width, int height,
       int format, int margin, int eccLevel) {
-    var result = bindings.encodeBarcode(contents.toNativeUtf8().cast<Int8>(),
+    var result = bindings.encodeBarcode(contents.toNativeUtf8().cast<Char>(),
         width, height, format, margin, eccLevel, _logEnabled);
     return result;
   }
@@ -166,11 +166,11 @@ DynamicLibrary dylib = _openDynamicLibrary();
 
 extension Uint8ListBlobConversion on Uint8List {
   /// Allocates a pointer filled with the Uint8List data.
-  Pointer<Int8> allocatePointer() {
+  Pointer<Char> allocatePointer() {
     final blob = calloc<Int8>(length);
     final blobBytes = blob.asTypedList(length);
     blobBytes.setAll(0, this);
-    return blob;
+    return blob.cast<Char>();
   }
 }
 
@@ -186,7 +186,7 @@ extension EncodeExt on EncodeResult {
   String? get textString =>
       text == nullptr ? null : text.cast<Utf8>().toDartString();
   String get formatString => FlutterZxing.formatName(format);
-  Uint32List get bytes => data.asTypedList(length);
+  Uint32List get bytes => data.cast<Uint32>().asTypedList(length);
   String get errorMessage => error.cast<Utf8>().toDartString();
 }
 

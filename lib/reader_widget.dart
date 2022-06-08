@@ -89,6 +89,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
       }
       if (mounted) {
         if (message == AppLifecycleState.paused.toString()) {
+          await cameraController.stopImageStream();
+          await cameraController.dispose();
           _cameraOn = false;
           setState(() {});
         }

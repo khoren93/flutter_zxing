@@ -24,7 +24,7 @@ extern "C"
         auto *data = new uint8_t[length];
         memcpy(data, bytes, length);
 
-        BarcodeFormats formats = BarcodeFormat(format); // BarcodeFormat::Any;
+        BarcodeFormats formats = BarcodeFormat(format);
         DecodeHints hints = DecodeHints().setTryHarder(false).setTryRotate(true).setFormats(formats);
         ImageView image{data, width, height, ImageFormat::Lum};
         if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
@@ -37,10 +37,13 @@ extern "C"
         if (result.isValid())
         {
             code.isValid = result.isValid();
-            code.text = new char[result.text().length() + 1];
-            std::string text = std::string(result.text().begin(), result.text().end());
-            strcpy(code.text, text.c_str());
+
             code.format = Format(static_cast<int>(result.format()));
+
+            const wchar_t *resultText = result.text().c_str();
+            size_t size = (wcslen(resultText) + 1) * sizeof(wchar_t);
+            code.text = new char[size];
+            std::wcstombs(code.text, resultText, size);
         }
 
         int evalInMillis = static_cast<int>(get_now() - start);
@@ -60,7 +63,7 @@ extern "C"
         auto *data = new uint8_t[length];
         memcpy(data, bytes, length);
 
-        BarcodeFormats formats = BarcodeFormat(format); // BarcodeFormat::Any;
+        BarcodeFormats formats = BarcodeFormat(format);
         DecodeHints hints = DecodeHints().setTryHarder(false).setTryRotate(true).setFormats(formats);
         ImageView image{data, width, height, ImageFormat::Lum};
         if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
@@ -77,10 +80,14 @@ extern "C"
             if (result.isValid())
             {
                 code.isValid = result.isValid();
-                code.text = new char[result.text().length() + 1];
-                std::string text = std::string(result.text().begin(), result.text().end());
-                strcpy(code.text, text.c_str());
+
                 code.format = Format(static_cast<int>(result.format()));
+
+                const wchar_t *resultText = result.text().c_str();
+                size_t size = (wcslen(resultText) + 1) * sizeof(wchar_t);
+                code.text = new char[size];
+                std::wcstombs(code.text, resultText, size);
+                
                 codes[i] = code;
                 i++;
             }
