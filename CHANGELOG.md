@@ -1,3 +1,7 @@
+## 0.3.1
+
+* fixed Chinese support
+
 ## 0.3.0
 
 * added processCameraImage function
