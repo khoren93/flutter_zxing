@@ -77,7 +77,7 @@ class GeneratedBindings {
   /// @param cropHeight Crop height.
   /// @param logEnabled Log enabled.
   /// @return Barcode results.
-  ffi.Pointer<CodeResult> readBarcodes(
+  CodeResults readBarcodes(
     ffi.Pointer<ffi.Char> bytes,
     int format,
     int width,
@@ -99,10 +99,10 @@ class GeneratedBindings {
 
   late final _readBarcodesPtr = _lookup<
       ffi.NativeFunction<
-          ffi.Pointer<CodeResult> Function(ffi.Pointer<ffi.Char>, ffi.Int,
-              ffi.Int, ffi.Int, ffi.Int, ffi.Int, ffi.Int)>>('readBarcodes');
+          CodeResults Function(ffi.Pointer<ffi.Char>, ffi.Int, ffi.Int, ffi.Int,
+              ffi.Int, ffi.Int, ffi.Int)>>('readBarcodes');
   late final _readBarcodes = _readBarcodesPtr.asFunction<
-      ffi.Pointer<CodeResult> Function(
+      CodeResults Function(
           ffi.Pointer<ffi.Char>, int, int, int, int, int, int)>();
 
   /// @brief Encode a string into a barcode
@@ -207,6 +207,13 @@ class CodeResult extends ffi.Struct {
 
   @ffi.Int32()
   external int format;
+}
+
+class CodeResults extends ffi.Struct {
+  @ffi.Int()
+  external int count;
+
+  external ffi.Pointer<CodeResult> results;
 }
 
 class EncodeResult extends ffi.Struct {

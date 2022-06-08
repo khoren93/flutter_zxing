@@ -6,7 +6,6 @@ import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:ffi/ffi.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as imglib;
 
@@ -118,8 +117,11 @@ class FlutterZxing {
       int height, int cropWidth, int cropHeight) {
     final result = bindings.readBarcodes(bytes.allocatePointer(), format, width,
         height, cropWidth, cropHeight, _logEnabled);
-    debugPrint(result.toString());
-    return [];
+    List<CodeResult> results = [];
+    for (int i = 0; i < result.count; i++) {
+      results.add(result.results.elementAt(i).ref);
+    }
+    return results;
   }
 
   static EncodeResult encodeBarcode(String contents, int width, int height,

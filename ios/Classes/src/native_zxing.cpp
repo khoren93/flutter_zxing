@@ -55,7 +55,7 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResult* readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int logEnabled)
+    struct CodeResults readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int logEnabled)
     {
         long long start = get_now();
 
@@ -98,7 +98,7 @@ extern "C"
         {
             platform_log("zxingRead: %d ms", evalInMillis);
         }
-        return codes;
+        return {i, codes};
     }
 
     FUNCTION_ATTRIBUTE

@@ -35,6 +35,12 @@ extern "C"
         enum Format format;
     };
 
+    struct CodeResults
+    {
+        int count;
+        struct CodeResult* results;
+    };
+
     struct EncodeResult
     {
         int isValid;
@@ -76,7 +82,7 @@ extern "C"
      * @param logEnabled Log enabled.
      * @return Barcode results.
      */ 
-    struct CodeResult* readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int logEnabled);
+    struct CodeResults readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int logEnabled);
 
     /**
      * @brief Encode a string into a barcode
