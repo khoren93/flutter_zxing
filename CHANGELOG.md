@@ -1,3 +1,7 @@
+## 0.3.2
+
+* fixed enabling/disabling of the logger
+
 ## 0.3.1
 
 * fixed Chinese support
