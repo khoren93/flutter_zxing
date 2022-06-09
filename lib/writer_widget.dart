@@ -7,10 +7,10 @@ import 'flutter_zxing.dart';
 
 class WriterWidget extends StatefulWidget {
   const WriterWidget({
-    Key? key,
+    super.key,
     this.onSuccess,
     this.onError,
-  }) : super(key: key);
+  });
 
   final Function(EncodeResult, Uint8List?)? onSuccess;
   final Function(String)? onError;
@@ -24,18 +24,18 @@ class _WriterWidgetState extends State<WriterWidget>
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _textController = TextEditingController();
   final TextEditingController _widthController =
-      TextEditingController(text: "300");
+      TextEditingController(text: '300');
   final TextEditingController _heightController =
-      TextEditingController(text: "300");
+      TextEditingController(text: '300');
   final TextEditingController _marginController =
-      TextEditingController(text: "10");
-  final TextEditingController _eccController = TextEditingController(text: "0");
+      TextEditingController(text: '10');
+  final TextEditingController _eccController = TextEditingController(text: '0');
 
   bool isAndroid() => Theme.of(context).platform == TargetPlatform.android;
 
-  final _maxTextLength = 2000;
-  final _supportedFormats = CodeFormat.writerFormats;
-  var _codeFormat = Format.QRCode;
+  final int _maxTextLength = 2000;
+  final List<int> _supportedFormats = CodeFormat.writerFormats;
+  int _codeFormat = Format.QRCode;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +47,7 @@ class _WriterWidgetState extends State<WriterWidget>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
+            children: <Widget>[
               const SizedBox(height: 20),
               // Input multiline text
               TextFormField(
@@ -55,7 +55,7 @@ class _WriterWidgetState extends State<WriterWidget>
                 keyboardType: TextInputType.multiline,
                 maxLines: null,
                 maxLength: _maxTextLength,
-                onChanged: (value) {
+                onChanged: (String value) {
                   setState(() {});
                 },
                 decoration: InputDecoration(
@@ -65,8 +65,8 @@ class _WriterWidgetState extends State<WriterWidget>
                   counterText:
                       '${_textController.value.text.length} / $_maxTextLength',
                 ),
-                validator: (value) {
-                  if (value?.isEmpty == true) {
+                validator: (String? value) {
+                  if (value?.isEmpty ?? false) {
                     return 'Please enter some text';
                   }
                   return null;
@@ -77,12 +77,12 @@ class _WriterWidgetState extends State<WriterWidget>
               DropdownButtonFormField<int>(
                 value: _codeFormat,
                 items: _supportedFormats
-                    .map((format) => DropdownMenuItem(
+                    .map((int format) => DropdownMenuItem<int>(
                           value: format,
                           child: Text(FlutterZxing.formatName(format)),
                         ))
                     .toList(),
-                onChanged: (format) {
+                onChanged: (int? format) {
                   setState(() {
                     _codeFormat = format ?? Format.QRCode;
                   });
@@ -90,7 +90,7 @@ class _WriterWidgetState extends State<WriterWidget>
               ),
               const SizedBox(height: 20),
               Row(
-                children: [
+                children: <Widget>[
                   Flexible(
                     child: TextFormField(
                       controller: _widthController,
@@ -98,8 +98,8 @@ class _WriterWidgetState extends State<WriterWidget>
                       decoration: const InputDecoration(
                         labelText: 'Width',
                       ),
-                      validator: (value) {
-                        final width = int.tryParse(value ?? '');
+                      validator: (String? value) {
+                        final int? width = int.tryParse(value ?? '');
                         if (width == null) {
                           return 'Invalid number';
                         }
@@ -115,8 +115,8 @@ class _WriterWidgetState extends State<WriterWidget>
                       decoration: const InputDecoration(
                         labelText: 'Height',
                       ),
-                      validator: (value) {
-                        final width = int.tryParse(value ?? '');
+                      validator: (String? value) {
+                        final int? width = int.tryParse(value ?? '');
                         if (width == null) {
                           return 'Invalid number';
                         }
@@ -128,7 +128,7 @@ class _WriterWidgetState extends State<WriterWidget>
               ),
               const SizedBox(height: 20),
               Row(
-                children: [
+                children: <Widget>[
                   Flexible(
                     child: TextFormField(
                       controller: _marginController,
@@ -136,8 +136,8 @@ class _WriterWidgetState extends State<WriterWidget>
                       decoration: const InputDecoration(
                         labelText: 'Margin',
                       ),
-                      validator: (value) {
-                        final width = int.tryParse(value ?? '');
+                      validator: (String? value) {
+                        final int? width = int.tryParse(value ?? '');
                         if (width == null) {
                           return 'Invalid number';
                         }
@@ -153,8 +153,8 @@ class _WriterWidgetState extends State<WriterWidget>
                       decoration: const InputDecoration(
                         labelText: 'ECC Level',
                       ),
-                      validator: (value) {
-                        final width = int.tryParse(value ?? '');
+                      validator: (String? value) {
+                        final int? width = int.tryParse(value ?? '');
                         if (width == null) {
                           return 'Invalid number';
                         }
@@ -182,18 +182,24 @@ class _WriterWidgetState extends State<WriterWidget>
     if (_formKey.currentState?.validate() ?? false) {
       _formKey.currentState?.save();
       FocusScope.of(context).unfocus();
-      final text = _textController.value.text;
-      final width = int.parse(_widthController.value.text);
-      final height = int.parse(_heightController.value.text);
-      final margin = int.parse(_marginController.value.text);
-      final ecc = int.parse(_eccController.value.text);
-      var result = FlutterZxing.encodeBarcode(
+      final String text = _textController.value.text;
+      final int width = int.parse(_widthController.value.text);
+      final int height = int.parse(_heightController.value.text);
+      final int margin = int.parse(_marginController.value.text);
+      final int ecc = int.parse(_eccController.value.text);
+      final EncodeResult result = FlutterZxing.encodeBarcode(
           text, width, height, _codeFormat, margin, ecc);
       String? error;
       if (result.isValidBool) {
         try {
-          final img = imglib.Image.fromBytes(width, height, result.bytes);
-          final encodedBytes = Uint8List.fromList(imglib.encodeJpg(img));
+          final imglib.Image img = imglib.Image.fromBytes(
+            width,
+            height,
+            result.bytes,
+          );
+          final Uint8List encodedBytes = Uint8List.fromList(
+            imglib.encodeJpg(img),
+          );
           widget.onSuccess?.call(result, encodedBytes);
         } catch (e) {
           error = e.toString();

@@ -13,11 +13,13 @@ import 'generated_bindings.dart';
 import 'isolate_utils.dart';
 
 export 'generated_bindings.dart';
-export 'reader_widget.dart';
-export 'writer_widget.dart';
 export 'image_converter.dart';
+export 'reader_widget.dart';
 export 'scanner_overlay.dart';
+export 'writer_widget.dart';
 
+// TODO: fix below warning from lint
+// ignore: avoid_classes_with_only_static_members
 /// The main class for reading barcodes from images or camera.
 class FlutterZxing {
   static const MethodChannel _channel = MethodChannel('flutter_zxing');
@@ -27,7 +29,7 @@ class FlutterZxing {
     return version;
   }
 
-  static final bindings = GeneratedBindings(dylib);
+  static final GeneratedBindings bindings = GeneratedBindings(dylib);
 
   static IsolateUtils? isolateUtils;
 
@@ -39,7 +41,7 @@ class FlutterZxing {
   static String version() => bindings.version().cast<Utf8>().toDartString();
 
   /// Starts reading barcode from the camera
-  static Future startCameraProcessing() async {
+  static Future<void> startCameraProcessing() async {
     // Spawn a new isolate
     isolateUtils = IsolateUtils();
     await isolateUtils?.startReadingBarcode();
@@ -66,7 +68,7 @@ class FlutterZxing {
     int cropHeight = 0,
   }) async {
     final Uint8List imageBytes = await path.readAsBytes();
-    imglib.Image? image = imglib.decodeImage(imageBytes);
+    final imglib.Image? image = imglib.decodeImage(imageBytes);
     if (image == null) {
       return null;
     }
@@ -91,7 +93,7 @@ class FlutterZxing {
         (await NetworkAssetBundle(Uri.parse(url)).load(url))
             .buffer
             .asUint8List();
-    imglib.Image? image = imglib.decodeImage(imageBytes);
+    final imglib.Image? image = imglib.decodeImage(imageBytes);
     if (image == null) {
       return null;
     }
@@ -113,9 +115,9 @@ class FlutterZxing {
 
   static List<CodeResult> readBarcodes(Uint8List bytes, int format, int width,
       int height, int cropWidth, int cropHeight) {
-    final result = bindings.readBarcodes(
+    final CodeResults result = bindings.readBarcodes(
         bytes.allocatePointer(), format, width, height, cropWidth, cropHeight);
-    List<CodeResult> results = [];
+    final List<CodeResult> results = <CodeResult>[];
     for (int i = 0; i < result.count; i++) {
       results.add(result.results.elementAt(i).ref);
     }
@@ -124,24 +126,31 @@ class FlutterZxing {
 
   static EncodeResult encodeBarcode(String contents, int width, int height,
       int format, int margin, int eccLevel) {
-    var result = bindings.encodeBarcode(contents.toNativeUtf8().cast<Char>(),
-        width, height, format, margin, eccLevel);
+    final EncodeResult result = bindings.encodeBarcode(
+        contents.toNativeUtf8().cast<Char>(),
+        width,
+        height,
+        format,
+        margin,
+        eccLevel);
     return result;
   }
 
   static Future<CodeResult> processCameraImage(CameraImage image,
       {int format = Format.Any, double cropPercent = 0.5}) async {
-    var isolateData = IsolateData(image, format, cropPercent);
-    CodeResult result = await _inference(isolateData);
+    final IsolateData isolateData = IsolateData(image, format, cropPercent);
+    final CodeResult result = await _inference(isolateData);
     return result;
   }
 
   /// Runs inference in another isolate
   static Future<CodeResult> _inference(IsolateData isolateData) async {
-    ReceivePort responsePort = ReceivePort();
+    final ReceivePort responsePort = ReceivePort();
     isolateUtils?.sendPort
         ?.send(isolateData..responsePort = responsePort.sendPort);
-    var results = await responsePort.first;
+    // TODO: fix below warning from lint
+    // ignore: always_specify_types
+    final results = await responsePort.first;
     return results;
   }
 
@@ -153,7 +162,7 @@ DynamicLibrary _openDynamicLibrary() {
   if (Platform.isAndroid) {
     return DynamicLibrary.open('libflutter_zxing.so');
   } else if (Platform.isWindows) {
-    return DynamicLibrary.open("flutter_zxing_windows_plugin.dll");
+    return DynamicLibrary.open('flutter_zxing_windows_plugin.dll');
   }
   return DynamicLibrary.process();
 }
@@ -163,8 +172,8 @@ DynamicLibrary dylib = _openDynamicLibrary();
 extension Uint8ListBlobConversion on Uint8List {
   /// Allocates a pointer filled with the Uint8List data.
   Pointer<Char> allocatePointer() {
-    final blob = calloc<Int8>(length);
-    final blobBytes = blob.asTypedList(length);
+    final Pointer<Int8> blob = calloc<Int8>(length);
+    final Int8List blobBytes = blob.asTypedList(length);
     blobBytes.setAll(0, this);
     return blob.cast<Char>();
   }
@@ -189,7 +198,7 @@ extension EncodeExt on EncodeResult {
 extension CodeFormat on Format {
   String get name => _formatNames[this] ?? 'Unknown';
 
-  static final writerFormats = [
+  static final List<int> writerFormats = <int>[
     Format.QRCode,
     Format.DataMatrix,
     Format.Aztec,
@@ -209,7 +218,7 @@ extension CodeFormat on Format {
   ];
 }
 
-final _formatNames = {
+final Map<int, String> _formatNames = <int, String>{
   Format.None: 'None',
   Format.Aztec: 'Aztec',
   Format.Codabar: 'CodaBar',

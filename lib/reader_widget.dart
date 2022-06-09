@@ -12,7 +12,7 @@ import 'isolate_utils.dart';
 
 class ReaderWidget extends StatefulWidget {
   const ReaderWidget({
-    Key? key,
+    super.key,
     required this.onScan,
     this.onControllerCreated,
     this.codeFormat = Format.Any,
@@ -24,7 +24,7 @@ class ReaderWidget extends StatefulWidget {
     this.scanDelay = const Duration(milliseconds: 1000), // 1000ms delay
     this.cropPercent = 0.5, // 50% of the screen
     this.resolution = ResolutionPreset.high,
-  }) : super(key: key);
+  });
 
   final Function(CodeResult) onScan;
   final Function(CameraController?)? onControllerCreated;
@@ -46,7 +46,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
     with TickerProviderStateMixin {
   List<CameraDescription>? cameras;
   CameraController? controller;
-  var _cameraOn = false;
+  bool _cameraOn = false;
 
   double _zoom = 1.0;
   double _scaleFactor = 1.0;
@@ -68,11 +68,11 @@ class _ReaderWidgetState extends State<ReaderWidget>
     initStateAsync();
   }
 
-  void initStateAsync() async {
+  Future<void> initStateAsync() async {
     // Spawn a new isolate
     await FlutterZxing.startCameraProcessing();
 
-    availableCameras().then((cameras) {
+    availableCameras().then((List<CameraDescription> cameras) {
       setState(() {
         this.cameras = cameras;
         if (cameras.isNotEmpty) {
@@ -81,7 +81,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
       });
     });
 
-    SystemChannels.lifecycle.setMessageHandler((message) async {
+    SystemChannels.lifecycle.setMessageHandler((String? message) async {
       debugPrint(message);
       final CameraController? cameraController = controller;
       if (cameraController == null || !cameraController.value.isInitialized) {
@@ -110,7 +110,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
     super.dispose();
   }
 
-  void onNewCameraSelected(CameraDescription cameraDescription) async {
+  Future<void> onNewCameraSelected(CameraDescription cameraDescription) async {
     if (controller != null) {
       await controller!.dispose();
     }
@@ -137,7 +137,9 @@ class _ReaderWidgetState extends State<ReaderWidget>
     }
 
     cameraController.addListener(() {
-      if (mounted) setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     });
 
     if (mounted) {
@@ -148,11 +150,11 @@ class _ReaderWidgetState extends State<ReaderWidget>
     widget.onControllerCreated?.call(cameraController);
   }
 
-  processCameraImage(CameraImage image) async {
+  Future<void> processCameraImage(CameraImage image) async {
     if (!_isProcessing) {
       _isProcessing = true;
       try {
-        CodeResult result = await FlutterZxing.processCameraImage(
+        final CodeResult result = await FlutterZxing.processCameraImage(
           image,
           format: widget.codeFormat,
           cropPercent: widget.cropPercent,
@@ -163,28 +165,30 @@ class _ReaderWidgetState extends State<ReaderWidget>
           }
           widget.onScan(result);
           setState(() {});
-          await Future.delayed(const Duration(seconds: 1));
+          await Future<void>.delayed(const Duration(seconds: 1));
         }
       } on FileSystemException catch (e) {
         debugPrint(e.message);
       } catch (e) {
         debugPrint(e.toString());
       }
-      await Future.delayed(widget.scanDelay);
+      await Future<void>.delayed(widget.scanDelay);
       _isProcessing = false;
     }
 
-    return null;
+    return;
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final cropSize = min(size.width, size.height) * widget.cropPercent;
+    final Size size = MediaQuery.of(context).size;
+    final double cropSize = min(size.width, size.height) * widget.cropPercent;
     return Stack(
-      children: [
+      children: <Widget>[
         // Camera preview
-        Center(child: _cameraPreviewWidget(cropSize)),
+        Center(
+          child: _cameraPreviewWidget(cropSize),
+        ),
       ],
     );
   }
@@ -192,23 +196,22 @@ class _ReaderWidgetState extends State<ReaderWidget>
   // Display the preview from the camera.
   Widget _cameraPreviewWidget(double cropSize) {
     final CameraController? cameraController = controller;
-    if (cameras != null && cameras?.isEmpty == true) {
+    if (cameras != null && (cameras?.isEmpty ?? false)) {
       return const Text('No cameras found');
     } else if (cameraController == null ||
         !cameraController.value.isInitialized ||
         !_cameraOn) {
       return const CircularProgressIndicator();
     } else {
-      final size = MediaQuery.of(context).size;
-      var cameraMaxSize = max(size.width, size.height);
+      final Size size = MediaQuery.of(context).size;
+      final double cameraMaxSize = max(size.width, size.height);
       return Stack(
-        children: [
+        children: <Widget>[
           SizedBox(
             width: cameraMaxSize,
             height: cameraMaxSize,
             child: ClipRRect(
               child: OverflowBox(
-                alignment: Alignment.center,
                 child: FittedBox(
                   fit: BoxFit.cover,
                   child: SizedBox(
@@ -237,10 +240,10 @@ class _ReaderWidgetState extends State<ReaderWidget>
             ),
           if (widget.allowPinchZoom)
             GestureDetector(
-              onScaleStart: (details) {
+              onScaleStart: (ScaleStartDetails details) {
                 _zoom = _scaleFactor;
               },
-              onScaleUpdate: (details) {
+              onScaleUpdate: (ScaleUpdateDetails details) {
                 _scaleFactor =
                     (_zoom * details.scale).clamp(_minZoomLevel, _maxZoomLevel);
                 cameraController.setZoomLevel(_scaleFactor);
@@ -253,14 +256,10 @@ class _ReaderWidgetState extends State<ReaderWidget>
               child: FloatingActionButton(
                 onPressed: () {
                   FlashMode mode = cameraController.value.flashMode;
-                  switch (mode) {
-                    case FlashMode.torch:
-                      mode = FlashMode.off;
-                      break;
-                    case FlashMode.off:
-                      mode = FlashMode.torch;
-                      break;
-                    default:
+                  if (mode == FlashMode.torch) {
+                    mode = FlashMode.off;
+                  } else {
+                    mode = FlashMode.torch;
                   }
                   cameraController.setFlashMode(mode);
                   setState(() {});
@@ -281,8 +280,10 @@ class _ReaderWidgetState extends State<ReaderWidget>
         return Icons.flash_on;
       case FlashMode.off:
         return Icons.flash_off;
-      default:
-        return Icons.flash_off;
+      case FlashMode.always:
+        return Icons.flash_on;
+      case FlashMode.auto:
+        return Icons.flash_auto;
     }
   }
 }
