@@ -48,6 +48,7 @@ Widget build(BuildContext context) {
 
 // Or use FlutterZxing
 // To read barcode from camera image directly
+await FlutterZxing.startCameraProcessing(); // Call this in initState
 cameraController?.startImageStream((image) async {
     CodeResult result = await FlutterZxing.processCameraImage(image);
     if (result.isValidBool) {
@@ -55,6 +56,7 @@ cameraController?.startImageStream((image) async {
     }
     return null;
 });
+FlutterZxing.stopCameraProcessing(); // Call this in dispose
 
 // To read barcode from XFile, String or url
 XFile xFile = XFile('Your image path');
