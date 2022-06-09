@@ -31,11 +31,9 @@ class FlutterZxing {
 
   static IsolateUtils? isolateUtils;
 
-  static bool logEnabled = false;
-
-  static void setLogEnabled(bool enabled) {
-    logEnabled = enabled;
-  }
+  /// Enables or disables the logging of the library
+  static void setLogEnabled(bool enabled) =>
+      bindings.setLogEnabled(enabled ? 1 : 0);
 
   /// Returns a version of the zxing library
   static String version() => bindings.version().cast<Utf8>().toDartString();
@@ -48,7 +46,7 @@ class FlutterZxing {
   }
 
   /// Stops reading barcode from the camera
-  static stopCameraProcessing() => isolateUtils?.stopReadingBarcode();
+  static void stopCameraProcessing() => isolateUtils?.stopReadingBarcode();
 
   /// Reads barcode from String image path
   static Future<CodeResult?> readImagePathString(
@@ -109,14 +107,14 @@ class FlutterZxing {
 
   static CodeResult readBarcode(Uint8List bytes, int format, int width,
       int height, int cropWidth, int cropHeight) {
-    return bindings.readBarcode(bytes.allocatePointer(), format, width, height,
-        cropWidth, cropHeight, _logEnabled);
+    return bindings.readBarcode(
+        bytes.allocatePointer(), format, width, height, cropWidth, cropHeight);
   }
 
   static List<CodeResult> readBarcodes(Uint8List bytes, int format, int width,
       int height, int cropWidth, int cropHeight) {
-    final result = bindings.readBarcodes(bytes.allocatePointer(), format, width,
-        height, cropWidth, cropHeight, _logEnabled);
+    final result = bindings.readBarcodes(
+        bytes.allocatePointer(), format, width, height, cropWidth, cropHeight);
     List<CodeResult> results = [];
     for (int i = 0; i < result.count; i++) {
       results.add(result.results.elementAt(i).ref);
@@ -127,7 +125,7 @@ class FlutterZxing {
   static EncodeResult encodeBarcode(String contents, int width, int height,
       int format, int margin, int eccLevel) {
     var result = bindings.encodeBarcode(contents.toNativeUtf8().cast<Char>(),
-        width, height, format, margin, eccLevel, _logEnabled);
+        width, height, format, margin, eccLevel);
     return result;
   }
 
@@ -145,10 +143,6 @@ class FlutterZxing {
         ?.send(isolateData..responsePort = responsePort.sendPort);
     var results = await responsePort.first;
     return results;
-  }
-
-  static int get _logEnabled {
-    return logEnabled ? 1 : 0;
   }
 
   static String formatName(int format) => _formatNames[format] ?? 'Unknown';

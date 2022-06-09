@@ -1,9 +1,11 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
 void main() {
+  FlutterZxing.setLogEnabled(kDebugMode);
   runApp(const MyApp());
 }
 
@@ -17,7 +19,6 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
-    FlutterZxing.setLogEnabled(true);
     return const MaterialApp(
       title: 'Flutter Zxing Example',
       home: DemoPage(),

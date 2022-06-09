@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:zxscanner/configs/constants.dart';
 import 'package:zxscanner/utils/db_service.dart';
 import 'package:zxscanner/utils/extensions.dart';
@@ -16,6 +18,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializePrefs();
   await DbService.instance.initializeApp();
+  FlutterZxing.setLogEnabled(kDebugMode);
   runApp(const MyApp());
 }
 

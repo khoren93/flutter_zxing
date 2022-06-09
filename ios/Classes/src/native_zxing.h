@@ -52,6 +52,13 @@ extern "C"
     };
 
     /**
+     * @brief Enables or disables the logging of the library.
+     * 
+     * @param enabled 
+     */
+    void setLogEnabled(int enabled);
+
+    /**
      * Returns the version of the zxing-cpp library.
      *
      * @return The version of the zxing-cpp library.
@@ -69,7 +76,7 @@ extern "C"
      * @param logEnabled Log enabled.
      * @return Barcode result.
      */
-    struct CodeResult readBarcode(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int logEnabled);
+    struct CodeResult readBarcode(char *bytes, int format, int width, int height, int cropWidth, int cropHeight);
 
     /**
      * @brief Reads barcodes from image.
@@ -82,7 +89,7 @@ extern "C"
      * @param logEnabled Log enabled.
      * @return Barcode results.
      */ 
-    struct CodeResults readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int logEnabled);
+    struct CodeResults readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight);
 
     /**
      * @brief Encode a string into a barcode
@@ -95,7 +102,7 @@ extern "C"
      * @param eccLevel The error correction level of the barcode. Used for Aztec, PDF417, and QRCode only, [0-8].
      * @return The barcode data
      */
-    struct EncodeResult encodeBarcode(char *contents, int width, int height, int format, int margin, int eccLevel, int logEnabled);
+    struct EncodeResult encodeBarcode(char *contents, int width, int height, int format, int margin, int eccLevel);
 
 #ifdef __cplusplus
 }

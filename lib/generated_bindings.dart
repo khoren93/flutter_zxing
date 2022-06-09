@@ -19,6 +19,22 @@ class GeneratedBindings {
           lookup)
       : _lookup = lookup;
 
+  /// @brief Enables or disables the logging of the library.
+  ///
+  /// @param enabled
+  void setLogEnabled(
+    int enabled,
+  ) {
+    return _setLogEnabled(
+      enabled,
+    );
+  }
+
+  late final _setLogEnabledPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int)>>('setLogEnabled');
+  late final _setLogEnabled =
+      _setLogEnabledPtr.asFunction<void Function(int)>();
+
   /// Returns the version of the zxing-cpp library.
   ///
   /// @return The version of the zxing-cpp library.
@@ -47,7 +63,6 @@ class GeneratedBindings {
     int height,
     int cropWidth,
     int cropHeight,
-    int logEnabled,
   ) {
     return _readBarcode(
       bytes,
@@ -56,17 +71,15 @@ class GeneratedBindings {
       height,
       cropWidth,
       cropHeight,
-      logEnabled,
     );
   }
 
   late final _readBarcodePtr = _lookup<
       ffi.NativeFunction<
           CodeResult Function(ffi.Pointer<ffi.Char>, ffi.Int, ffi.Int, ffi.Int,
-              ffi.Int, ffi.Int, ffi.Int)>>('readBarcode');
+              ffi.Int, ffi.Int)>>('readBarcode');
   late final _readBarcode = _readBarcodePtr.asFunction<
-      CodeResult Function(
-          ffi.Pointer<ffi.Char>, int, int, int, int, int, int)>();
+      CodeResult Function(ffi.Pointer<ffi.Char>, int, int, int, int, int)>();
 
   /// @brief Reads barcodes from image.
   /// @param bytes Image bytes.
@@ -84,7 +97,6 @@ class GeneratedBindings {
     int height,
     int cropWidth,
     int cropHeight,
-    int logEnabled,
   ) {
     return _readBarcodes(
       bytes,
@@ -93,17 +105,15 @@ class GeneratedBindings {
       height,
       cropWidth,
       cropHeight,
-      logEnabled,
     );
   }
 
   late final _readBarcodesPtr = _lookup<
       ffi.NativeFunction<
           CodeResults Function(ffi.Pointer<ffi.Char>, ffi.Int, ffi.Int, ffi.Int,
-              ffi.Int, ffi.Int, ffi.Int)>>('readBarcodes');
+              ffi.Int, ffi.Int)>>('readBarcodes');
   late final _readBarcodes = _readBarcodesPtr.asFunction<
-      CodeResults Function(
-          ffi.Pointer<ffi.Char>, int, int, int, int, int, int)>();
+      CodeResults Function(ffi.Pointer<ffi.Char>, int, int, int, int, int)>();
 
   /// @brief Encode a string into a barcode
   /// @param contents The string to encode
@@ -121,7 +131,6 @@ class GeneratedBindings {
     int format,
     int margin,
     int eccLevel,
-    int logEnabled,
   ) {
     return _encodeBarcode(
       contents,
@@ -130,17 +139,15 @@ class GeneratedBindings {
       format,
       margin,
       eccLevel,
-      logEnabled,
     );
   }
 
   late final _encodeBarcodePtr = _lookup<
       ffi.NativeFunction<
           EncodeResult Function(ffi.Pointer<ffi.Char>, ffi.Int, ffi.Int,
-              ffi.Int, ffi.Int, ffi.Int, ffi.Int)>>('encodeBarcode');
+              ffi.Int, ffi.Int, ffi.Int)>>('encodeBarcode');
   late final _encodeBarcode = _encodeBarcodePtr.asFunction<
-      EncodeResult Function(
-          ffi.Pointer<ffi.Char>, int, int, int, int, int, int)>();
+      EncodeResult Function(ffi.Pointer<ffi.Char>, int, int, int, int, int)>();
 }
 
 abstract class Format {

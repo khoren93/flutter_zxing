@@ -9,6 +9,14 @@ using namespace ZXing;
 
 extern "C"
 {
+    bool logEnabled = false;
+
+    FUNCTION_ATTRIBUTE
+    void setLogEnabled(int enabled)
+    {
+        logEnabled = enabled;
+    }
+
     FUNCTION_ATTRIBUTE
     char const *version()
     {
@@ -16,7 +24,7 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResult readBarcode(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int logEnabled)
+    struct CodeResult readBarcode(char *bytes, int format, int width, int height, int cropWidth, int cropHeight)
     {
         long long start = get_now();
 
@@ -55,7 +63,7 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResults readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int logEnabled)
+    struct CodeResults readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight)
     {
         long long start = get_now();
 
@@ -102,7 +110,7 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct EncodeResult encodeBarcode(char *contents, int width, int height, int format, int margin, int eccLevel, int logEnabled)
+    struct EncodeResult encodeBarcode(char *contents, int width, int height, int format, int margin, int eccLevel)
     {
         long long start = get_now();
 
