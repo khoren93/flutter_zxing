@@ -49,7 +49,7 @@ class _ScannerPageState extends State<ScannerPage> {
   }
 
   readCodeFromImage(XFile file) async {
-    final CodeResult? result = await readImagePath(file);
+    final CodeResult? result = await readBarcodeImagePath(file);
     if (result != null && result.isValidBool) {
       addCode(result);
     } else {

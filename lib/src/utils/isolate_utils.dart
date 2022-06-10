@@ -64,8 +64,14 @@ class IsolateUtils {
           final int cropSize =
               (min(image.width, image.height) * cropPercent).round();
 
-          final CodeResult result = readBarcode(bytes, isolateData.format,
-              image.width, image.height, cropSize, cropSize);
+          final CodeResult result = readBarcode(
+            bytes,
+            width: image.width,
+            height: image.height,
+            format: isolateData.format,
+            cropWidth: cropSize,
+            cropHeight: cropSize,
+          );
 
           isolateData.responsePort?.send(result);
         } catch (e) {
