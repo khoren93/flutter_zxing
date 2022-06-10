@@ -1,3 +1,8 @@
+## 0.4.0
+Breaking changes
+* removed `FlutterZxing` class, call all methods directly
+* added read multiple barcodes methods
+
 ## 0.3.2
 
 * fixed enabling/disabling of the logger
