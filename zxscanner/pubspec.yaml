@@ -41,8 +41,22 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   hive_generator:
+  icons_launcher: ^1.1.9 # flutter pub run icons_launcher:create
   mobx_codegen:
 
 
 flutter:
   uses-material-design: true
+
+flutter_icons:
+  android: true
+  ios: true
+  macos: false
+  windows: false
+  web: false
+  remove_alpha_ios: true
+  image_path: "assets/images/app_icon_border.png"
+  image_path_ios: 'assets/images/app_icon.png'
+  adaptive_icon_background: '#4C9BBA'
+  adaptive_icon_foreground: 'assets/images/app_icon_adaptive.png'
+  adaptive_icon_round: 'assets/images/app_icon_round.png'
