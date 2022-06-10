@@ -4,7 +4,9 @@ import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 
-import 'flutter_zxing.dart';
+import '../../generated_bindings.dart';
+import '../logic/zxing.dart';
+import 'image_converter.dart';
 
 // Inspired from https://github.com/am15h/object_detection_flutter
 
@@ -62,13 +64,8 @@ class IsolateUtils {
           final int cropSize =
               (min(image.width, image.height) * cropPercent).round();
 
-          final CodeResult result = FlutterZxing.readBarcode(
-              bytes,
-              isolateData.format,
-              image.width,
-              image.height,
-              cropSize,
-              cropSize);
+          final CodeResult result = readBarcode(bytes, isolateData.format,
+              image.width, image.height, cropSize, cropSize);
 
           isolateData.responsePort?.send(result);
         } catch (e) {

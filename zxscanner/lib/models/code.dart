@@ -1,7 +1,7 @@
 import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-part "code.g.dart";
+part 'code.g.dart';
 
 @HiveType(typeId: 0)
 class Code extends HiveObject {
@@ -22,5 +22,5 @@ class Code extends HiveObject {
     text = result.textString;
   }
 
-  String get formatName => FlutterZxing.formatName(format ?? 0);
+  String get formatName => barcodeFormatName(format ?? 0);
 }

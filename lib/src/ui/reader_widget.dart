@@ -6,9 +6,12 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_beep/flutter_beep.dart';
-import 'flutter_zxing.dart';
 
-import 'isolate_utils.dart';
+import '../../generated_bindings.dart';
+import '../logic/zxing.dart';
+import '../utils/extentions.dart';
+import '../utils/isolate_utils.dart';
+import 'scanner_overlay.dart';
 
 class ReaderWidget extends StatefulWidget {
   const ReaderWidget({
@@ -70,7 +73,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   Future<void> initStateAsync() async {
     // Spawn a new isolate
-    await FlutterZxing.startCameraProcessing();
+    await startCameraProcessing();
 
     availableCameras().then((List<CameraDescription> cameras) {
       setState(() {
@@ -105,7 +108,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   @override
   void dispose() {
-    FlutterZxing.stopCameraProcessing();
+    stopCameraProcessing();
     controller?.dispose();
     super.dispose();
   }
@@ -131,7 +134,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
       await cameraController.setFlashMode(FlashMode.off);
       _maxZoomLevel = await cameraController.getMaxZoomLevel();
       _minZoomLevel = await cameraController.getMinZoomLevel();
-      cameraController.startImageStream(processCameraImage);
+      cameraController.startImageStream(processImageStream);
     } on CameraException catch (e) {
       debugPrint('${e.code}: ${e.description}');
     }
@@ -150,11 +153,11 @@ class _ReaderWidgetState extends State<ReaderWidget>
     widget.onControllerCreated?.call(cameraController);
   }
 
-  Future<void> processCameraImage(CameraImage image) async {
+  Future<void> processImageStream(CameraImage image) async {
     if (!_isProcessing) {
       _isProcessing = true;
       try {
-        final CodeResult result = await FlutterZxing.processCameraImage(
+        final CodeResult result = await processCameraImage(
           image,
           format: widget.codeFormat,
           cropPercent: widget.cropPercent,

@@ -44,9 +44,7 @@ imglib.Image convertYUV420(CameraImage image) {
     for (int planeOffset = 0;
         planeOffset < image.height * image.width;
         planeOffset += image.width) {
-      // TODO: fix below warning from lint
-      // ignore: always_specify_types
-      final pixelColor = plane.bytes[planeOffset + x];
+      final int pixelColor = plane.bytes[planeOffset + x];
       // color: 0x FF  FF  FF  FF
       //           A   B   G   R
       // Calculate pixel color

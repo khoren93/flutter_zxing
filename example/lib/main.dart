@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
 void main() {
-  FlutterZxing.setLogEnabled(kDebugMode);
+  setZxingLogEnabled(kDebugMode);
   runApp(const MyApp());
 }
 

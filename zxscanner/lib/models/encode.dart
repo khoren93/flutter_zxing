@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-part "encode.g.dart";
+part 'encode.g.dart';
 
 @HiveType(typeId: 1)
 class Encode extends HiveObject {
@@ -32,5 +32,5 @@ class Encode extends HiveObject {
     length = result.length;
   }
 
-  String get formatName => FlutterZxing.formatName(format ?? 0);
+  String get formatName => barcodeFormatName(format ?? 0);
 }

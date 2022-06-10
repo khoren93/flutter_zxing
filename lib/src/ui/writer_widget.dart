@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as imglib;
 
-import 'flutter_zxing.dart';
+import '../../flutter_zxing.dart';
 
 class WriterWidget extends StatefulWidget {
   const WriterWidget({
@@ -79,7 +79,7 @@ class _WriterWidgetState extends State<WriterWidget>
                 items: _supportedFormats
                     .map((int format) => DropdownMenuItem<int>(
                           value: format,
-                          child: Text(FlutterZxing.formatName(format)),
+                          child: Text(barcodeFormatName(format)),
                         ))
                     .toList(),
                 onChanged: (int? format) {
@@ -187,8 +187,8 @@ class _WriterWidgetState extends State<WriterWidget>
       final int height = int.parse(_heightController.value.text);
       final int margin = int.parse(_marginController.value.text);
       final int ecc = int.parse(_eccController.value.text);
-      final EncodeResult result = FlutterZxing.encodeBarcode(
-          text, width, height, _codeFormat, margin, ecc);
+      final EncodeResult result =
+          encodeBarcode(text, width, height, _codeFormat, margin, ecc);
       String? error;
       if (result.isValidBool) {
         try {
