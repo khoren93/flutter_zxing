@@ -9,7 +9,7 @@ environment:
 
 dependencies:
   camera: ^0.9.7
-  ffi: ^1.2.1
+  ffi: ^2.0.0
   flutter:
     sdk: flutter
   flutter_beep: ^1.0.0

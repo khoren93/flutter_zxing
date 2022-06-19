@@ -199,17 +199,16 @@ class _ReaderWidgetState extends State<ReaderWidget>
   // Display the preview from the camera.
   Widget _cameraPreviewWidget(double cropSize) {
     final CameraController? cameraController = controller;
-    if (cameras != null && (cameras?.isEmpty ?? false)) {
-      return const Text('No cameras found');
-    } else if (cameraController == null ||
-        !cameraController.value.isInitialized ||
-        !_cameraOn) {
-      return const CircularProgressIndicator();
-    } else {
-      final Size size = MediaQuery.of(context).size;
-      final double cameraMaxSize = max(size.width, size.height);
-      return Stack(
-        children: <Widget>[
+    final bool isCameraReady = cameras != null &&
+        (cameras?.isNotEmpty ?? false) &&
+        _cameraOn &&
+        !(cameraController == null || !cameraController.value.isInitialized);
+    final Size size = MediaQuery.of(context).size;
+    final double cameraMaxSize = max(size.width, size.height);
+    return Stack(
+      children: <Widget>[
+        if (!isCameraReady) Container(color: Colors.black),
+        if (isCameraReady)
           SizedBox(
             width: cameraMaxSize,
             height: cameraMaxSize,
@@ -227,37 +226,38 @@ class _ReaderWidgetState extends State<ReaderWidget>
               ),
             ),
           ),
-          if (widget.showCroppingRect)
-            Container(
-              decoration: ShapeDecoration(
-                shape: widget.scannerOverlay ??
-                    ScannerOverlay(
-                      borderColor: Theme.of(context).primaryColor,
-                      overlayColor: Colors.black45,
-                      borderRadius: 1,
-                      borderLength: 16,
-                      borderWidth: 8,
-                      cutOutSize: cropSize,
-                    ),
-              ),
+        if (widget.showCroppingRect)
+          Container(
+            decoration: ShapeDecoration(
+              shape: widget.scannerOverlay ??
+                  ScannerOverlay(
+                    borderColor: Theme.of(context).primaryColor,
+                    overlayColor: Colors.black45,
+                    borderRadius: 1,
+                    borderLength: 16,
+                    borderWidth: 8,
+                    cutOutSize: cropSize,
+                  ),
             ),
-          if (widget.allowPinchZoom)
-            GestureDetector(
-              onScaleStart: (ScaleStartDetails details) {
-                _zoom = _scaleFactor;
-              },
-              onScaleUpdate: (ScaleUpdateDetails details) {
-                _scaleFactor =
-                    (_zoom * details.scale).clamp(_minZoomLevel, _maxZoomLevel);
-                cameraController.setZoomLevel(_scaleFactor);
-              },
-            ),
-          if (widget.showFlashlight)
-            Positioned(
-              bottom: 20,
-              left: 20,
-              child: FloatingActionButton(
-                onPressed: () {
+          ),
+        if (widget.allowPinchZoom)
+          GestureDetector(
+            onScaleStart: (ScaleStartDetails details) {
+              _zoom = _scaleFactor;
+            },
+            onScaleUpdate: (ScaleUpdateDetails details) {
+              _scaleFactor =
+                  (_zoom * details.scale).clamp(_minZoomLevel, _maxZoomLevel);
+              cameraController?.setZoomLevel(_scaleFactor);
+            },
+          ),
+        if (widget.showFlashlight)
+          Positioned(
+            bottom: 20,
+            left: 20,
+            child: FloatingActionButton(
+              onPressed: () {
+                if (cameraController != null) {
                   FlashMode mode = cameraController.value.flashMode;
                   if (mode == FlashMode.torch) {
                     mode = FlashMode.off;
@@ -266,18 +266,18 @@ class _ReaderWidgetState extends State<ReaderWidget>
                   }
                   cameraController.setFlashMode(mode);
                   setState(() {});
-                },
-                backgroundColor: Colors.black26,
-                child: Icon(_flashIcon(cameraController)),
-              ),
-            )
-        ],
-      );
-    }
+                }
+              },
+              backgroundColor: Colors.black26,
+              child: Icon(_flashIcon(cameraController)),
+            ),
+          )
+      ],
+    );
   }
 
-  IconData _flashIcon(CameraController cameraController) {
-    final FlashMode mode = cameraController.value.flashMode;
+  IconData _flashIcon(CameraController? cameraController) {
+    final FlashMode mode = cameraController?.value.flashMode ?? FlashMode.torch;
     switch (mode) {
       case FlashMode.torch:
         return Icons.flash_on;

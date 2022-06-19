@@ -52,6 +52,7 @@ extern "C"
             size_t size = (wcslen(resultText) + 1) * sizeof(wchar_t);
             code.text = new char[size];
             std::wcstombs(code.text, resultText, size);
+            platform_log("zxingRead: %ls", resultText);
         }
 
         int evalInMillis = static_cast<int>(get_now() - start);
@@ -98,6 +99,7 @@ extern "C"
                 
                 codes[i] = code;
                 i++;
+                platform_log("zxingRead: %s", code.text);
             }
         }
 
