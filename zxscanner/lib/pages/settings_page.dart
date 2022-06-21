@@ -46,16 +46,16 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                 ),
               ),
-              SettingTile(
-                context,
-                leading: FontAwesomeIcons.globe,
-                title: S.current.settingsLanguageTitle,
-                trailing: LanguageWidget(
-                  onChanged: (value) {
-                    setState(() {});
-                  },
-                ),
-              ),
+              // SettingTile(
+              //   context,
+              //   leading: FontAwesomeIcons.globe,
+              //   title: S.current.settingsLanguageTitle,
+              //   trailing: LanguageWidget(
+              //     onChanged: (value) {
+              //       setState(() {});
+              //     },
+              //   ),
+              // ),
             ],
           ),
         ),
