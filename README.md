@@ -6,9 +6,10 @@
 
 A barcode and QR code scanner based on [ZXing C++](https://github.com/nu-book/zxing-cpp) library natively in Flutter with Dart FFI.
 
+
 ## Demo Screenshots
 <pre>
-<img alt="04_trending_repository_screen" src="https://user-images.githubusercontent.com/11523360/167903986-dc69efca-4520-4494-9298-24ea7b3da941.jpg" width="240">&nbsp; <img alt="04_trending_repository_screen" src="https://user-images.githubusercontent.com/11523360/167904002-114d9844-964d-4b84-9ea0-8185ed1d2bb8.jpg" width="240">&nbsp; <img alt="04_trending_repository_screen" src="https://user-images.githubusercontent.com/11523360/167904024-809aa434-c0f5-4069-a223-da78fe48d671.jpg" width="240">&nbsp; 
+<img alt="01_scanner_screen" src="https://user-images.githubusercontent.com/11523360/174789425-b33861aa-dbe5-49c1-a84a-a02b514a5e0f.png" width="240">&nbsp; <img alt="02_creator_screen" src="https://user-images.githubusercontent.com/11523360/174789816-a2a4ab74-f5ef-41a1-98f3-e514447dff5a.png" width="240">&nbsp;
 </pre>
 
 ## Supported Barcode Formats
