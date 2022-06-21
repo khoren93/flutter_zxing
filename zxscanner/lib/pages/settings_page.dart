@@ -4,10 +4,10 @@ import 'package:zxscanner/configs/constants.dart';
 import 'package:zxscanner/generated/l10n.dart';
 import 'package:zxscanner/widgets/common_widgets.dart';
 
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+// import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../widgets/setting_tile.dart';
-import '../widgets/language_widget.dart';
+// import '../widgets/language_widget.dart';
 import '../widgets/theme_mode_switch.dart';
 import '../widgets/theme_selector.dart';
 
