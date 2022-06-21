@@ -24,13 +24,12 @@ A barcode and QR code scanner based on [ZXing C++](https://github.com/nu-book/zx
 |            | DataBar Expanded  |
 
 ## Features
-- Scan barcode from camera stream
-- Scan barcode from image path or url
+- Scan barcode from camera stream, image path or url
+- Scan multiple barcodes from camera stream, image path or url
 - Create barcode from text
 - Flashlight and pinch to zoom support
 
 ## Todo
-- Read multiple barcodes from camera or gallery
 - Return scanned barcode position and size
 - Write tests
 
