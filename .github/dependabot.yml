@@ -19,3 +19,9 @@ updates:
       interval: "weekly"
     reviewers:
       - "khoren93"
+  - package-ecosystem: "pub"
+    directory: "/zxscanner"
+    schedule:
+      interval: "weekly"
+    reviewers:
+      - "khoren93"
