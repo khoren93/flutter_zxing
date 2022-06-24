@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
-import 'package:zxscanner/models/models.dart';
-import 'package:zxscanner/utils/db_service.dart';
-import 'package:zxscanner/utils/extensions.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../models/models.dart';
+import '../utils/db_service.dart';
+import '../utils/extensions.dart';
+
 class ScannerPage extends StatefulWidget {
   const ScannerPage({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<ScannerPage> createState() => _ScannerPageState();
@@ -25,7 +26,7 @@ class _ScannerPageState extends State<ScannerPage> {
         title: const Text('Scanner'),
       ),
       body: ReaderWidget(
-        onScan: (result) async {
+        onScan: (CodeResult result) async {
           addCode(result);
         },
       ),
@@ -36,6 +37,7 @@ class _ScannerPageState extends State<ScannerPage> {
     );
   }
 
+  // ignore: always_declare_return_types
   pickImage() async {
     try {
       final XFile? file = await _picker.pickImage(source: ImageSource.gallery);
@@ -48,18 +50,20 @@ class _ScannerPageState extends State<ScannerPage> {
     }
   }
 
-  readCodeFromImage(XFile file) async {
+  Future<void> readCodeFromImage(XFile file) async {
     final CodeResult? result = await readBarcodeImagePath(file);
     if (result != null && result.isValidBool) {
       addCode(result);
     } else {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       context.showToast('No code found');
     }
   }
 
   void addCode(CodeResult result) {
-    Code code = Code.fromCodeResult(result);
+    final Code code = Code.fromCodeResult(result);
     DbService.instance.addCode(code);
     context.showToast('Code added:\n${code.text ?? ''}');
   }

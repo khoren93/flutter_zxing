@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 class SettingTile extends StatelessWidget {
   const SettingTile(
     this.context, {
-    Key? key,
+    super.key,
     this.leading,
     this.title,
     this.trailing,
     this.onTap,
-  }) : super(key: key);
+  });
 
   final BuildContext context;
   final IconData? leading;

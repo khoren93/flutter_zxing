@@ -26,13 +26,13 @@ class S {
   static const AppLocalizationDelegate delegate = AppLocalizationDelegate();
 
   static Future<S> load(Locale locale) {
-    final name = (locale.countryCode?.isEmpty ?? false)
+    final String name = (locale.countryCode?.isEmpty ?? false)
         ? locale.languageCode
         : locale.toString();
-    final localeName = Intl.canonicalizedLocale(name);
+    final String localeName = Intl.canonicalizedLocale(name);
     return initializeMessages(localeName).then((_) {
       Intl.defaultLocale = localeName;
-      final instance = S();
+      final S instance = S();
       S._current = instance;
 
       return instance;
@@ -40,7 +40,7 @@ class S {
   }
 
   static S of(BuildContext context) {
-    final instance = S.maybeOf(context);
+    final S? instance = S.maybeOf(context);
     assert(instance != null,
         'No instance of S present in the widget tree. Did you add S.delegate in localizationsDelegates?');
     return instance!;
@@ -56,7 +56,6 @@ class S {
       'Settings',
       name: 'settingsAppBarTitle',
       desc: '',
-      args: [],
     );
   }
 
@@ -66,7 +65,6 @@ class S {
       'Theme',
       name: 'settingsThemeModeTitle',
       desc: '',
-      args: [],
     );
   }
 
@@ -76,7 +74,6 @@ class S {
       'Language',
       name: 'settingsLanguageTitle',
       desc: '',
-      args: [],
     );
   }
 }
@@ -98,7 +95,7 @@ class AppLocalizationDelegate extends LocalizationsDelegate<S> {
   bool shouldReload(AppLocalizationDelegate old) => false;
 
   bool _isSupported(Locale locale) {
-    for (var supportedLocale in supportedLocales) {
+    for (Locale supportedLocale in supportedLocales) {
       if (supportedLocale.languageCode == locale.languageCode) {
         return true;
       }

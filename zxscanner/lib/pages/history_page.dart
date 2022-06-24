@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:zxscanner/models/code.dart';
-import 'package:zxscanner/utils/db_service.dart';
-import 'package:zxscanner/widgets/common_widgets.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../models/code.dart';
+import '../utils/db_service.dart';
+import '../widgets/common_widgets.dart';
+
 class HistoryPage extends StatefulWidget {
   const HistoryPage({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<HistoryPage> createState() => _HistoryPageState();
@@ -26,11 +27,11 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
-  _buildResultList() {
+  ValueListenableBuilder<Box<Code>> _buildResultList() {
     return ValueListenableBuilder<Box<Code>>(
         valueListenable: DbService.instance.getCodes().listenable(),
-        builder: (context, box, _) {
-          final results = box.values.toList().cast<Code>();
+        builder: (BuildContext context, Box<Code> box, _) {
+          final List<Code> results = box.values.toList().cast<Code>();
           return results.isEmpty
               ? const Center(
                   child: Text(
@@ -39,8 +40,8 @@ class _HistoryPageState extends State<HistoryPage> {
                 ))
               : ListView.builder(
                   itemCount: results.length,
-                  itemBuilder: (context, index) {
-                    final result = results[index];
+                  itemBuilder: (BuildContext context, int index) {
+                    final Code result = results[index];
                     return ContainerX(
                       child: Card(
                         child: ListTile(
@@ -48,7 +49,7 @@ class _HistoryPageState extends State<HistoryPage> {
                           subtitle: Text(result.formatName),
                           trailing: ButtonBar(
                             mainAxisSize: MainAxisSize.min,
-                            children: [
+                            children: <Widget>[
                               // Copy button
                               IconButton(
                                 icon: const Icon(FontAwesomeIcons.copy),

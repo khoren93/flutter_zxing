@@ -2,19 +2,19 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:zxscanner/configs/app_store.dart';
+import '../configs/app_store.dart';
 
 late SharedPreferences sharedPreferences;
 
 Future<void> initializePrefs() async {
   sharedPreferences = await SharedPreferences.getInstance();
-  final themeModeString = getPrefString(
+  final String themeModeString = getPrefString(
     themeModePref,
     defaultValue: appStore.themeMode.toString(),
   );
   await appStore.setThemeMode(
-    ThemeMode.values
-        .firstWhere((element) => element.toString() == themeModeString),
+    ThemeMode.values.firstWhere(
+        (ThemeMode element) => element.toString() == themeModeString),
   );
   await appStore.setColorSchemeIndex(
     getPrefInt(colorSchemeIndexPref, defaultValue: appStore.colorSchemeIndex),
@@ -34,27 +34,28 @@ Future<void> initializePrefs() async {
 Future<bool> setPrefValue(String key, dynamic value,
     {bool print = true}) async {
   if (value is String) {
-    return await sharedPreferences.setString(key, value);
+    return sharedPreferences.setString(key, value);
   } else if (value is int) {
-    return await sharedPreferences.setInt(key, value);
+    return sharedPreferences.setInt(key, value);
   } else if (value is bool) {
-    return await sharedPreferences.setBool(key, value);
+    return sharedPreferences.setBool(key, value);
   } else if (value is double) {
-    return await sharedPreferences.setDouble(key, value);
+    return sharedPreferences.setDouble(key, value);
   } else if (value is Map<String, dynamic>) {
-    return await sharedPreferences.setString(key, jsonEncode(value));
+    return sharedPreferences.setString(key, jsonEncode(value));
   } else if (value is List<String>) {
-    return await sharedPreferences.setStringList(key, value);
+    return sharedPreferences.setStringList(key, value);
   } else {
     throw ArgumentError(
-        'Invalid value ${value.runtimeType} - Must be a String, int, bool, double, Map<String, dynamic> or StringList');
+      'Invalid value ${value.runtimeType} - Must be a String, int, bool, double, Map<String, dynamic> or StringList',
+    );
   }
 }
 
 /// Returns List of Keys that matches with given Key
 List<String> getMatchingSharedPrefKeys(String key) {
-  List<String> keys = [];
-  sharedPreferences.getKeys().forEach((element) {
+  final List<String> keys = <String>[];
+  sharedPreferences.getKeys().forEach((String element) {
     if (element.contains(key)) {
       keys.add(element);
     }
@@ -88,13 +89,12 @@ Map<String, dynamic> getPrefJSON(String key,
   if (sharedPreferences.containsKey(key)) {
     return jsonDecode(sharedPreferences.getString(key) ?? '');
   } else {
-    return defaultValue ?? {};
+    return defaultValue ?? <String, dynamic>{};
   }
 }
 
 /// remove key from SharedPref
-Future<bool> removePrefKey(String key) async =>
-    await sharedPreferences.remove(key);
+Future<bool> removePrefKey(String key) async => sharedPreferences.remove(key);
 
 /// clear SharedPref
-Future<bool> clearSharedPref() async => await sharedPreferences.clear();
+Future<bool> clearSharedPref() async => sharedPreferences.clear();

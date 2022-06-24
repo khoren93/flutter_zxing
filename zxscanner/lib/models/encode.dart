@@ -7,6 +7,16 @@ part 'encode.g.dart';
 
 @HiveType(typeId: 1)
 class Encode extends HiveObject {
+
+  Encode();
+
+  Encode.fromEncodeResult(EncodeResult result, Uint8List? bytes) {
+    isValid = result.isValidBool;
+    format = result.format;
+    text = result.textString;
+    data = bytes;
+    length = result.length;
+  }
   @HiveField(0)
   bool? isValid;
 
@@ -21,16 +31,6 @@ class Encode extends HiveObject {
 
   @HiveField(4)
   int? length;
-
-  Encode();
-
-  Encode.fromEncodeResult(EncodeResult result, Uint8List? bytes) {
-    isValid = result.isValidBool;
-    format = result.format;
-    text = result.textString;
-    data = bytes;
-    length = result.length;
-  }
 
   String get formatName => barcodeFormatName(format ?? 0);
 }

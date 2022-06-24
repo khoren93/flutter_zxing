@@ -1,5 +1,6 @@
-import 'package:zxscanner/models/models.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+
+import '../models/models.dart';
 
 class DbService {
   DbService._privateConstructor();
@@ -17,44 +18,42 @@ class DbService {
 
   Box<Code> getCodes() => Hive.box<Code>('codes');
 
-  Future deleteCodes() async {
-    var items = getCodes();
+  Future<void> deleteCodes() async {
+    final Box<Code> items = getCodes();
     await items.deleteAll(items.keys);
-    return;
   }
 
-  Future addCode(Code value) async {
-    var items = getCodes();
+  Future<int> addCode(Code value) async {
+    final Box<Code> items = getCodes();
     if (!items.values.contains(value)) {
       return items.add(value);
     }
-    return;
+    return -1;
   }
 
   Future<void> deleteCode(Code value) async {
-    var items = getCodes();
+    final Box<Code> items = getCodes();
     await items.delete(value.key);
     return;
   }
 
   Box<Encode> getEncodes() => Hive.box<Encode>('encodes');
 
-  Future deleteEncodes() async {
-    var items = getEncodes();
+  Future<void> deleteEncodes() async {
+    final Box<Encode> items = getEncodes();
     await items.deleteAll(items.keys);
-    return;
   }
 
-  Future addEncode(Encode value) async {
-    var items = getEncodes();
+  Future<int> addEncode(Encode value) async {
+    final Box<Encode> items = getEncodes();
     if (!items.values.contains(value)) {
       return items.add(value);
     }
-    return;
+    return -1;
   }
 
   Future<void> deleteEncode(Encode value) async {
-    var items = getEncodes();
+    final Box<Encode> items = getEncodes();
     await items.delete(value.key);
     return;
   }

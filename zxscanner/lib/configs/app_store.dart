@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobx/mobx.dart';
-import 'package:zxscanner/utils/shared_pref.dart';
+import '../utils/shared_pref.dart';
 
 part 'app_store.g.dart';
 
@@ -8,11 +8,11 @@ AppStore appStore = AppStore();
 
 class AppStore = AppStoreBase with _$AppStore;
 
-const themeModePref = 'themeModePref';
-const colorSchemeIndexPref = 'colorSchemeIndexPref';
-const isSoundOnPref = 'isSoundOnPref';
-const isVibrationOnPref = 'isVibrationOnPref';
-const languagePref = 'languagePref';
+const String themeModePref = 'themeModePref';
+const String colorSchemeIndexPref = 'colorSchemeIndexPref';
+const String isSoundOnPref = 'isSoundOnPref';
+const String isVibrationOnPref = 'isVibrationOnPref';
+const String languagePref = 'languagePref';
 
 abstract class AppStoreBase with Store {
   @observable
