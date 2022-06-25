@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:zxscanner/configs/app_store.dart';
-import 'package:zxscanner/generated/l10n.dart';
-import 'package:zxscanner/utils/extensions.dart';
+import '../configs/app_store.dart';
+import '../generated/l10n.dart';
+import '../utils/extensions.dart';
 
 class LanguageWidget extends StatelessWidget {
-  const LanguageWidget({Key? key, required this.onChanged}) : super(key: key);
+  const LanguageWidget({super.key, required this.onChanged});
 
   final Function(Locale) onChanged;
 
@@ -12,19 +12,17 @@ class LanguageWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return DropdownButton<Locale>(
       value: appStore.selectedLanguage.parseLocale(),
-      isExpanded: false,
-      isDense: false,
       underline: const SizedBox(),
-      onChanged: (value) async {
+      onChanged: (Locale? value) async {
         if (value != null) {
           await S.load(value);
           appStore.setLanguage(value.toString());
           onChanged(value);
         }
       },
-      selectedItemBuilder: (context) {
+      selectedItemBuilder: (BuildContext context) {
         return S.delegate.supportedLocales
-            .map((e) => DropdownMenuItem<Locale>(
+            .map((Locale e) => DropdownMenuItem<Locale>(
                   value: e,
                   child: SizedBox(
                     width: 80,
@@ -38,7 +36,7 @@ class LanguageWidget extends StatelessWidget {
             .toList();
       },
       items: S.delegate.supportedLocales
-          .map((e) => DropdownMenuItem(
+          .map((Locale e) => DropdownMenuItem<Locale>(
                 value: e,
                 child: Text(e.countryCode?.toLangName() ?? ''),
               ))

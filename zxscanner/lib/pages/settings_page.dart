@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:zxscanner/configs/app_store.dart';
-import 'package:zxscanner/configs/constants.dart';
-import 'package:zxscanner/generated/l10n.dart';
-import 'package:zxscanner/widgets/common_widgets.dart';
+import '../configs/app_store.dart';
+import '../configs/constants.dart';
+import '../generated/l10n.dart';
+import '../widgets/common_widgets.dart';
 
 // import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -12,7 +12,7 @@ import '../widgets/theme_mode_switch.dart';
 import '../widgets/theme_selector.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({Key? key}) : super(key: key);
+  const SettingsPage({super.key});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -28,7 +28,7 @@ class _SettingsPageState extends State<SettingsPage> {
       body: SingleChildScrollView(
         child: ContainerX(
           child: Column(
-            children: [
+            children: <Widget>[
               const SizedBox(height: spaceDefault),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: spaceDefault),
@@ -40,7 +40,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 title: S.current.settingsThemeModeTitle,
                 trailing: ThemeModeSwitch(
                   themeMode: appStore.themeMode,
-                  onChanged: (mode) {
+                  onChanged: (ThemeMode mode) {
                     appStore.setThemeMode(mode);
                     setState(() {});
                   },

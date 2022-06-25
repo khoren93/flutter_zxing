@@ -3,16 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
-import 'package:zxscanner/configs/constants.dart';
-import 'package:zxscanner/utils/db_service.dart';
-import 'package:zxscanner/utils/extensions.dart';
-import 'package:zxscanner/utils/shared_pref.dart';
 
 import 'configs/app_store.dart';
 import 'configs/app_theme.dart';
+import 'configs/constants.dart';
 import 'generated/l10n.dart' as loc;
+import 'utils/db_service.dart';
+import 'utils/extensions.dart';
 import 'utils/router.dart';
 import 'utils/scroll_behavior.dart';
+import 'utils/shared_pref.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,14 +23,14 @@ void main() async {
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
-  final _appRouter = AppRouter();
+  final AppRouter _appRouter = AppRouter();
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +40,7 @@ class _MyAppState extends State<MyApp> {
         theme: AppTheme.flexLightTheme(),
         darkTheme: AppTheme.flexDarkTheme(),
         themeMode: appStore.themeMode,
-        localizationsDelegates: const [
+        localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
           loc.S.delegate,
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,

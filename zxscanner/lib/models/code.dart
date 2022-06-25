@@ -5,14 +5,6 @@ part 'code.g.dart';
 
 @HiveType(typeId: 0)
 class Code extends HiveObject {
-  @HiveField(0)
-  bool? isValid;
-
-  @HiveField(1)
-  int? format;
-
-  @HiveField(2)
-  String? text;
 
   Code();
 
@@ -21,6 +13,14 @@ class Code extends HiveObject {
     format = result.format;
     text = result.textString;
   }
+  @HiveField(0)
+  bool? isValid;
+
+  @HiveField(1)
+  int? format;
+
+  @HiveField(2)
+  String? text;
 
   String get formatName => barcodeFormatName(format ?? 0);
 }

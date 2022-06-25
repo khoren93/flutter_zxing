@@ -1,6 +1,6 @@
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
-import 'package:zxscanner/configs/app_store.dart';
+import '../configs/app_store.dart';
 
 // The width size of the scrolling button.
 const double _kWidthOfScrollItem = 71.6;
@@ -16,8 +16,8 @@ const double _kWidthOfScrollItem = 71.6;
 // The theme is controlled via the passed in ThemeController.
 class ThemeSelector extends StatefulWidget {
   const ThemeSelector({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<ThemeSelector> createState() => _ThemeSelectorState();
@@ -32,7 +32,6 @@ class _ThemeSelectorState extends State<ThemeSelector> {
     super.initState();
     schemeIndex = appStore.colorSchemeIndex;
     scrollController = ScrollController(
-      keepScrollOffset: true,
       initialScrollOffset: _kWidthOfScrollItem * schemeIndex,
     );
   }

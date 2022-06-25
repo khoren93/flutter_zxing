@@ -8,14 +8,12 @@ class AppTheme {
 
   static ThemeData flexLightTheme() => FlexThemeData.light(
         colors: FlexColor.schemesList[appStore.colorSchemeIndex].light,
-        tabBarStyle: FlexTabBarStyle.forAppBar,
         surfaceMode: FlexSurfaceMode.highScaffoldLevelSurface,
         blendLevel: 12,
       );
 
   static ThemeData flexDarkTheme() => FlexThemeData.dark(
         colors: FlexColor.schemesList[appStore.colorSchemeIndex].dark,
-        tabBarStyle: FlexTabBarStyle.forAppBar,
         surfaceMode: FlexSurfaceMode.highScaffoldLevelSurface,
         blendLevel: 6,
       );

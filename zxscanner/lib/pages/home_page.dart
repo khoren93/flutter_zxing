@@ -1,29 +1,30 @@
 import 'package:convex_bottom_bar/convex_bottom_bar.dart';
 import 'package:flutter/material.dart';
-import 'package:zxscanner/pages/barcodes_page.dart';
-import 'package:zxscanner/pages/help_page.dart';
-import 'package:zxscanner/pages/history_page.dart';
-import 'package:zxscanner/pages/scanner_page.dart';
-import 'package:zxscanner/pages/settings_page.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
+import 'barcodes_page.dart';
+import 'help_page.dart';
+import 'history_page.dart';
+import 'scanner_page.dart';
+import 'settings_page.dart';
+
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  var selectedIndex = 2;
+  int selectedIndex = 2;
 
-  final barcodesPage = const BarcodesPage();
-  final historyPage = const HistoryPage();
-  final scannerPage = const ScannerPage();
-  final helpPage = const HelpPage();
-  final settingsPage = const SettingsPage();
+  final BarcodesPage barcodesPage = const BarcodesPage();
+  final HistoryPage historyPage = const HistoryPage();
+  final ScannerPage scannerPage = const ScannerPage();
+  final HelpPage helpPage = const HelpPage();
+  final SettingsPage settingsPage = const SettingsPage();
 
-  dynamic pages() => [
+  dynamic pages() => <dynamic>[
         barcodesPage,
         historyPage,
         scannerPage,
@@ -31,17 +32,18 @@ class _HomePageState extends State<HomePage> {
         settingsPage,
       ];
 
-  dynamic tabItems() => [
-        const TabItem(icon: FontAwesomeIcons.barcode),
-        const TabItem(icon: FontAwesomeIcons.clockRotateLeft),
-        const TabItem(icon: Icons.qr_code_scanner),
-        const TabItem(icon: FontAwesomeIcons.circleQuestion),
-        const TabItem(icon: FontAwesomeIcons.gear),
+  dynamic tabItems() => <TabItem<IconData>>[
+        const TabItem<IconData>(icon: FontAwesomeIcons.barcode),
+        const TabItem<IconData>(icon: FontAwesomeIcons.clockRotateLeft),
+        const TabItem<IconData>(icon: Icons.qr_code_scanner),
+        const TabItem<IconData>(icon: FontAwesomeIcons.circleQuestion),
+        const TabItem<IconData>(icon: FontAwesomeIcons.gear),
       ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // ignore: avoid_dynamic_calls
       body: pages()[selectedIndex],
       bottomNavigationBar: ConvexAppBar(
         style: TabStyle.fixedCircle,
@@ -50,7 +52,7 @@ class _HomePageState extends State<HomePage> {
         activeColor: Theme.of(context).colorScheme.primary,
         items: tabItems(),
         initialActiveIndex: selectedIndex,
-        onTap: (index) {
+        onTap: (int index) {
           setState(() {
             selectedIndex = index;
           });

@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 extension LocaleParsing on String {
   Locale parseLocale() {
     assert(contains('_') == true);
-    var languageCode = split('_').first;
-    var countryCode = split('_').last;
+    final String languageCode = split('_').first;
+    final String countryCode = split('_').last;
     return Locale.fromSubtags(
         languageCode: languageCode, countryCode: countryCode);
   }

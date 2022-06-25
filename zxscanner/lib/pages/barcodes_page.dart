@@ -2,17 +2,18 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:zxscanner/models/models.dart';
-import 'package:zxscanner/utils/db_service.dart';
-import 'package:zxscanner/utils/router.dart';
-import 'package:zxscanner/widgets/common_widgets.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../models/models.dart';
+import '../utils/db_service.dart';
+import '../utils/router.dart';
+import '../widgets/common_widgets.dart';
+
 class BarcodesPage extends StatefulWidget {
   const BarcodesPage({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<BarcodesPage> createState() => _BarcodesPageState();
@@ -35,11 +36,11 @@ class _BarcodesPageState extends State<BarcodesPage> {
     );
   }
 
-  _buildResultList() {
+  ValueListenableBuilder<Box<Encode>> _buildResultList() {
     return ValueListenableBuilder<Box<Encode>>(
         valueListenable: DbService.instance.getEncodes().listenable(),
-        builder: (context, box, _) {
-          final results = box.values.toList().cast<Encode>();
+        builder: (BuildContext context, Box<Encode> box, _) {
+          final List<Encode> results = box.values.toList().cast<Encode>();
           return results.isEmpty
               ? const Center(
                   child: Text(
@@ -48,8 +49,8 @@ class _BarcodesPageState extends State<BarcodesPage> {
                 ))
               : ListView.builder(
                   itemCount: results.length,
-                  itemBuilder: (context, index) {
-                    final result = results[index];
+                  itemBuilder: (BuildContext context, int index) {
+                    final Encode result = results[index];
                     return ContainerX(
                       child: Card(
                         child: ListTile(
@@ -61,7 +62,7 @@ class _BarcodesPageState extends State<BarcodesPage> {
                           subtitle: Text(result.formatName),
                           trailing: ButtonBar(
                             mainAxisSize: MainAxisSize.min,
-                            children: [
+                            children: <Widget>[
                               // Copy button
                               IconButton(
                                 icon: const Icon(FontAwesomeIcons.copy),

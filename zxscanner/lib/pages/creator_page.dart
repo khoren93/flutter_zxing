@@ -3,21 +3,22 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
-import 'package:zxscanner/configs/constants.dart';
-import 'package:zxscanner/models/encode.dart';
-import 'package:zxscanner/utils/db_service.dart';
-import 'package:zxscanner/utils/extensions.dart';
-import 'package:zxscanner/widgets/common_widgets.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+
+import '../configs/constants.dart';
+import '../models/encode.dart';
+import '../utils/db_service.dart';
+import '../utils/extensions.dart';
+import '../widgets/common_widgets.dart';
 
 late Directory tempDir;
 String get tempPath => '${tempDir.path}/zxing.jpg';
 
 class CreatorPage extends StatefulWidget {
   const CreatorPage({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<CreatorPage> createState() => _CreatorPageState();
@@ -36,8 +37,8 @@ class _CreatorPageState extends State<CreatorPage> {
     initStateAsync();
   }
 
-  void initStateAsync() async {
-    getTemporaryDirectory().then((value) {
+  Future<void> initStateAsync() async {
+    getTemporaryDirectory().then((Directory value) {
       tempDir = value;
     });
   }
@@ -51,14 +52,14 @@ class _CreatorPageState extends State<CreatorPage> {
       body: SingleChildScrollView(
         child: ContainerX(
           child: Column(
-            children: [
+            children: <Widget>[
               WriterWidget(
-                onSuccess: (result, bytes) {
+                onSuccess: (EncodeResult result, Uint8List? bytes) {
                   setState(() {
                     encode = Encode.fromEncodeResult(result, bytes);
                   });
                 },
-                onError: (error) {
+                onError: (String error) {
                   setState(() {
                     encode = null;
                   });
@@ -75,23 +76,22 @@ class _CreatorPageState extends State<CreatorPage> {
 
   Column buildWriteResult() {
     return Column(
-      children: [
+      children: <Widget>[
         // Barcode image
         if (encode?.data != null) Image.memory(encode?.data ?? Uint8List(0)),
         const SizedBox(height: spaceLarge),
         // Share button
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
+          children: <Widget>[
             ElevatedButton(
               onPressed: () {
                 // Save image to device
-                final file = File(tempPath);
+                final File file = File(tempPath);
                 file.writeAsBytesSync(encode?.data ?? Uint8List(0));
-                final path = file.path;
+                final String path = file.path;
                 // Share image
-                Share.shareFiles([path]);
+                Share.shareFiles(<String>[path]);
               },
               child: const Text('Share'),
             ),
@@ -99,7 +99,9 @@ class _CreatorPageState extends State<CreatorPage> {
               onPressed: () async {
                 if (encode != null) {
                   await DbService.instance.addEncode(encode!);
-                  if (!mounted) return;
+                  if (!mounted) {
+                    return;
+                  }
                   Navigator.of(context).pop();
                 }
               },
