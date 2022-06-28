@@ -52,13 +52,13 @@ extern "C"
             size_t size = (wcslen(resultText) + 1) * sizeof(wchar_t);
             code.text = new char[size];
             std::wcstombs(code.text, resultText, size);
-            platform_log("zxingRead: %ls", resultText);
+            platform_log("zxingRead: %ls\n", resultText);
         }
 
         int evalInMillis = static_cast<int>(get_now() - start);
         if (logEnabled)
         {
-            platform_log("zxingRead: %d ms", evalInMillis);
+            platform_log("zxingRead: %d ms\n", evalInMillis);
         }
         return code;
     }
@@ -81,7 +81,7 @@ extern "C"
         }
         Results results = ReadBarcodes(image, hints);
 
-        auto *codes = new struct CodeResult [results.size()];
+        auto *codes = new struct CodeResult[results.size()];
         int i = 0;
         for (auto &result : results)
         {
@@ -96,17 +96,17 @@ extern "C"
                 size_t size = (wcslen(resultText) + 1) * sizeof(wchar_t);
                 code.text = new char[size];
                 std::wcstombs(code.text, resultText, size);
-                
+
                 codes[i] = code;
                 i++;
-                platform_log("zxingRead: %s", code.text);
+                platform_log("zxingRead: %s\n", code.text);
             }
         }
 
         int evalInMillis = static_cast<int>(get_now() - start);
         if (logEnabled)
         {
-            platform_log("zxingRead: %d ms", evalInMillis);
+            platform_log("zxingRead: %d ms\n", evalInMillis);
         }
         return {i, codes};
     }
@@ -138,7 +138,7 @@ extern "C"
         int evalInMillis = static_cast<int>(get_now() - start);
         if (logEnabled)
         {
-            platform_log("zxingEncode: %d ms", evalInMillis);
+            platform_log("zxingEncode: %d ms\n", evalInMillis);
         }
         return result;
     }

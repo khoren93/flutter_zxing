@@ -2,6 +2,7 @@ import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../flutter_zxing.dart';
 
@@ -27,7 +28,14 @@ extension EncodeExt on EncodeResult {
   String? get textString =>
       text == nullptr ? null : text.cast<Utf8>().toDartString();
   String get formatString => barcodeFormatName(format);
-  Uint32List get bytes => data.cast<Uint32>().asTypedList(length);
+  Uint32List get bytes {
+    final Pointer<Uint32> ptr = data.cast<Uint32>();
+    final Uint32List bytes = ptr.asTypedList(length);
+    // TODO: Crashes when trying to use 'bytes'. Only on iOS device. Need help to fix.
+    debugPrint(bytes.toString());
+    return bytes;
+  }
+
   String get errorMessage => error.cast<Utf8>().toDartString();
 }
 
