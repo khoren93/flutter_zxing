@@ -38,7 +38,7 @@ flutter_intl:
 dev_dependencies:
   build_runner: ^2.1.11
   flutter_lints: ^2.0.1
-  flutter_native_splash: ^2.2.3 # flutter pub run flutter_native_splash:create
+  flutter_native_splash: ^2.2.4 # flutter pub run flutter_native_splash:create
   flutter_test:
     sdk: flutter
   hive_generator:
