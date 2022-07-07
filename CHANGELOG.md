@@ -1,3 +1,7 @@
+## 0.6.0
+
+* updated zxing-cpp to v1.4.0
+
 ## 0.5.0
 
 * fixed Chinese support for iOS (thanks to [@aqiu202](https://github.com/aqiu202))
