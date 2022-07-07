@@ -1,24 +1,13 @@
 /*
 * Copyright 2016 Huy Cuong Nguyen
 * Copyright 2016 ZXing authors
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
 
 #include "QREncoder.h"
 
 #include "BitArray.h"
-#include "CharacterSetECI.h"
+#include "ECI.h"
 #include "GenericGF.h"
 #include "QREncodeResult.h"
 #include "QRErrorCorrectionLevel.h"
@@ -38,7 +27,7 @@ namespace ZXing::QRCode {
 static const CharacterSet DEFAULT_BYTE_MODE_ENCODING = CharacterSet::ISO8859_1;
 
 // The original table is defined in the table 5 of JISX0510:2004 (p.19).
-static const std::array<int, 16*6> ALPHANUMERIC_TABLE = {
+static const std::array<int, 16 * 6> ALPHANUMERIC_TABLE = {
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 0x00-0x0f
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 0x10-0x1f
 	36, -1, -1, -1, 37, 38, -1, -1, -1, -1, 39, 40, -1, 41, 42, 43,  // 0x20-0x2f
@@ -114,7 +103,7 @@ CodecMode ChooseMode(const std::wstring& content, CharacterSet encoding)
 */
 static void AppendECI(CharacterSet eci, BitArray& bits)
 {
-	int eciValue = CharacterSetECI::ValueForCharset(eci);
+	int eciValue = ToInt(ToECI(eci));
 	if (eciValue >= 0 && eciValue <= 999999) {
 		bits.appendBits(static_cast<int>(CodecMode::ECI), 4);
 		if (eciValue <= 127) {
@@ -294,7 +283,8 @@ void TerminateBits(int numDataBytes, BitArray& bits)
 {
 	int capacity = numDataBytes * 8;
 	if (bits.size() > capacity) {
-		throw std::invalid_argument("data bits cannot fit in the QR Code" + std::to_string(bits.size()) + " > " + std::to_string(capacity));
+		throw std::invalid_argument("data bits cannot fit in the QR Code" + std::to_string(bits.size()) + " > "
+									+ std::to_string(capacity));
 	}
 	for (int i = 0; i < 4 && bits.size() < capacity; ++i) {
 		bits.appendBit(false);
@@ -330,7 +320,8 @@ struct BlockPair
 * JISX0510:2004 (p.30)
 */
 ZXING_EXPORT_TEST_ONLY
-void GetNumDataBytesAndNumECBytesForBlockID(int numTotalBytes, int numDataBytes, int numRSBlocks, int blockID,  int& numDataBytesInBlock, int& numECBytesInBlock)
+void GetNumDataBytesAndNumECBytesForBlockID(int numTotalBytes, int numDataBytes, int numRSBlocks, int blockID,
+											int& numDataBytesInBlock, int& numECBytesInBlock)
 {
 	if (blockID >= numRSBlocks) {
 		throw std::invalid_argument("Block ID too large");
@@ -361,11 +352,9 @@ void GetNumDataBytesAndNumECBytesForBlockID(int numTotalBytes, int numDataBytes,
 		throw std::invalid_argument("RS blocks mismatch");
 	}
 	// 196 = (13 + 26) * 4 + (14 + 26) * 1
-	if (numTotalBytes !=
-		((numDataBytesInGroup1 + numEcBytesInGroup1) *
-			numRsBlocksInGroup1) +
-			((numDataBytesInGroup2 + numEcBytesInGroup2) *
-				numRsBlocksInGroup2)) {
+	if (numTotalBytes
+		!= ((numDataBytesInGroup1 + numEcBytesInGroup1) * numRsBlocksInGroup1)
+			   + ((numDataBytesInGroup2 + numEcBytesInGroup2) * numRsBlocksInGroup2)) {
 		throw std::invalid_argument("Total bytes mismatch");
 	}
 
@@ -387,8 +376,7 @@ void GenerateECBytes(const ByteArray& dataBytes, int numEcBytes, ByteArray& ecBy
 	ReedSolomonEncode(GenericGF::QRCodeField256(), message, numEcBytes);
 
 	ecBytes.resize(numEcBytes);
-	std::transform(message.end() - numEcBytes, message.end(), ecBytes.begin(),
-				   [](auto c) { return static_cast<uint8_t>(c); });
+	std::transform(message.end() - numEcBytes, message.end(), ecBytes.begin(), [](auto c) { return narrow_cast<uint8_t>(c); });
 }
 
 
@@ -447,7 +435,8 @@ BitArray InterleaveWithECBytes(const BitArray& bits, int numTotalBytes, int numD
 		}
 	}
 	if (numTotalBytes != output.sizeInBytes()) {  // Should be same.
-		throw std::invalid_argument("Interleaving error: " + std::to_string(numTotalBytes) + " and " + std::to_string(output.sizeInBytes()) + " differ.");
+		throw std::invalid_argument("Interleaving error: " + std::to_string(numTotalBytes) + " and " + std::to_string(output.sizeInBytes())
+									+ " differ.");
 	}
 	return output;
 }

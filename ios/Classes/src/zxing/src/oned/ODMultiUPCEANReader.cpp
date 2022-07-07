@@ -2,19 +2,8 @@
 * Copyright 2016 Nu-book Inc.
 * Copyright 2016 ZXing authors
 * Copyright 2020 Axel Waggershauser
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
 
 #include "ODMultiUPCEANReader.h"
 
@@ -27,26 +16,15 @@
 
 namespace ZXing::OneD {
 
-MultiUPCEANReader::MultiUPCEANReader(const DecodeHints& hints) : _hints(hints)
-{
-	_canReturnUPCA = _hints.formats().empty() || _hints.hasFormat(BarcodeFormat::UPCA);
-	if (_hints.formats().empty())
-		_hints.setFormats(BarcodeFormat::Any);
-}
-
-MultiUPCEANReader::~MultiUPCEANReader() = default;
-
 constexpr int CHAR_LEN = 4;
 
-constexpr auto END_PATTERN = FixedPattern<3, 3>{1, 1, 1};
-constexpr auto MID_PATTERN = FixedPattern<5, 5>{1, 1, 1, 1, 1};
-constexpr auto UPCE_END_PATTERN = FixedPattern<6, 6>{1, 1, 1, 1, 1, 1};
-constexpr auto EXT_START_PATTERN = FixedPattern<3, 4>{1, 1, 2};
+constexpr auto END_PATTERN           = FixedPattern<3, 3>{1, 1, 1};
+constexpr auto MID_PATTERN           = FixedPattern<5, 5>{1, 1, 1, 1, 1};
+constexpr auto UPCE_END_PATTERN      = FixedPattern<6, 6>{1, 1, 1, 1, 1, 1};
+constexpr auto EXT_START_PATTERN     = FixedPattern<3, 4>{1, 1, 2};
 constexpr auto EXT_SEPARATOR_PATTERN = FixedPattern<2, 2>{1, 1};
 
-static const int FIRST_DIGIT_ENCODINGS[] = {
-	0x00, 0x0B, 0x0D, 0x0E, 0x13, 0x19, 0x1C, 0x15, 0x16, 0x1A
-};
+static const int FIRST_DIGIT_ENCODINGS[] = {0x00, 0x0B, 0x0D, 0x0E, 0x13, 0x19, 0x1C, 0x15, 0x16, 0x1A};
 
 // The GS1 specification has the following to say about quiet zones
 // Type: EAN-13 | EAN-8 | UPC-A | UPC-E | EAN Add-on | UPC Add-on
@@ -69,10 +47,9 @@ static bool DecodeDigit(const PatternView& view, std::string& txt, int* lgPatter
 	static constexpr float MAX_AVG_VARIANCE = 0.48f;
 	static constexpr float MAX_INDIVIDUAL_VARIANCE = 0.7f;
 
-	int bestMatch = lgPattern ? RowReader::DecodeDigit(view, UPCEANCommon::L_AND_G_PATTERNS, MAX_AVG_VARIANCE,
-													   MAX_INDIVIDUAL_VARIANCE, false)
-							  : RowReader::DecodeDigit(view, UPCEANCommon::L_PATTERNS, MAX_AVG_VARIANCE,
-													   MAX_INDIVIDUAL_VARIANCE, false);
+	int bestMatch =
+		lgPattern ? RowReader::DecodeDigit(view, UPCEANCommon::L_AND_G_PATTERNS, MAX_AVG_VARIANCE, MAX_INDIVIDUAL_VARIANCE, false)
+				  : RowReader::DecodeDigit(view, UPCEANCommon::L_PATTERNS, MAX_AVG_VARIANCE, MAX_INDIVIDUAL_VARIANCE, false);
 	txt += '0' + (bestMatch % 10);
 	if (lgPattern)
 		AppendBit(*lgPattern, bestMatch >= 10);
@@ -284,7 +261,7 @@ Result MultiUPCEANReader::decodePattern(int rowNumber, PatternView& next, std::u
 
 	next = FindLeftGuard(next, minSize, END_PATTERN, QUIET_ZONE_LEFT);
 	if (!next.isValid())
-		return Result(DecodeStatus::NotFound);
+		return {};
 
 	PartialResult res;
 	auto begin = next;
@@ -292,15 +269,16 @@ Result MultiUPCEANReader::decodePattern(int rowNumber, PatternView& next, std::u
 	if (!(((_hints.hasFormat(BarcodeFormat::EAN13 | BarcodeFormat::UPCA)) && EAN13(res, begin)) ||
 		  (_hints.hasFormat(BarcodeFormat::EAN8) && EAN8(res, begin)) ||
 		  (_hints.hasFormat(BarcodeFormat::UPCE) && UPCE(res, begin))))
-		return Result(DecodeStatus::NotFound);
+		return {};
 
+	Error error;
 	if (!GTIN::IsCheckDigitValid(res.format == BarcodeFormat::UPCE ? UPCEANCommon::ConvertUPCEtoUPCA(res.txt) : res.txt))
-		return Result(DecodeStatus::ChecksumError);
+		error = ChecksumError();
 
 	// If UPC-A was a requested format and we detected a EAN-13 code with a leading '0', then we drop the '0' and call it
 	// a UPC-A code.
 	// TODO: this is questionable
-	if (_canReturnUPCA && res.format == BarcodeFormat::EAN13 && res.txt.front() == '0') {
+	if (_hints.hasFormat(BarcodeFormat::UPCA) && res.format == BarcodeFormat::EAN13 && res.txt.front() == '0') {
 		res.txt = res.txt.substr(1);
 		res.format = BarcodeFormat::UPCA;
 	}
@@ -308,29 +286,27 @@ Result MultiUPCEANReader::decodePattern(int rowNumber, PatternView& next, std::u
 	// Symbology identifier modifiers ISO/IEC 15420:2009 Annex B Table B.1
 	// ISO/IEC 15420:2009 (& GS1 General Specifications 5.1.3) states that the content for "]E0" should be 13 digits,
 	// i.e. converted to EAN-13 if UPC-A/E, but not doing this here to maintain backward compatibility
-	std::string symbologyIdentifier(res.format == BarcodeFormat::EAN8 ? "]E4" : "]E0");
+	SymbologyIdentifier symbologyIdentifier = {'E', res.format == BarcodeFormat::EAN8 ? '4' : '0'};
 
 	auto ext = res.end;
 	PartialResult addOnRes;
-	if (_hints.eanAddOnSymbol() != EanAddOnSymbol::Ignore && ext.skipSymbol() &&
-		ext.skipSingle(static_cast<int>(begin.sum() * 3.5)) && (AddOn(addOnRes, ext, 5) || AddOn(addOnRes, ext, 2))) {
-
+	if (_hints.eanAddOnSymbol() != EanAddOnSymbol::Ignore && ext.skipSymbol() && ext.skipSingle(static_cast<int>(begin.sum() * 3.5))
+		&& (AddOn(addOnRes, ext, 5) || AddOn(addOnRes, ext, 2))) {
 		// ISO/IEC 15420:2009 states that the content for "]E3" should be 15 or 18 digits, i.e. converted to EAN-13
 		// and extended with no separator, and that the content for "]E4" should be 8 digits, i.e. no add-on
 		//TODO: extend position in include extension
 		res.txt += " " + addOnRes.txt;
 
 		if (res.format != BarcodeFormat::EAN8) // Keeping EAN-8 with add-on as "]E4"
-			symbologyIdentifier = "]E3"; // Combined packet, EAN-13, UPC-A, UPC-E, with add-on
+			symbologyIdentifier.modifier = '3'; // Combined packet, EAN-13, UPC-A, UPC-E, with add-on
 	}
 
 	next = res.end;
 
 	if (_hints.eanAddOnSymbol() == EanAddOnSymbol::Require && !addOnRes.isValid())
-		return Result(DecodeStatus::NotFound);
+		return {};
 
-	return {
-		res.txt, rowNumber, begin.pixelsInFront(), res.end.pixelsTillEnd(), res.format, std::move(symbologyIdentifier)};
+	return Result(res.txt, rowNumber, begin.pixelsInFront(), res.end.pixelsTillEnd(), res.format, symbologyIdentifier, error);
 }
 
 } // namespace ZXing::OneD

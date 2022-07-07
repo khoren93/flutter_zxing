@@ -1,19 +1,9 @@
-#pragma once
 /*
 * Copyright 2020 Axel Waggershauser
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
+
+#pragma once
 
 #include "BinaryBitmap.h"
 #include "BitMatrix.h"
@@ -45,13 +35,13 @@ public:
 		for (const uint8_t* p = begin; p < end; p += stride) {
 			bool val = *p <= _threshold;
 			if (val != lastVal) {
-				res.push_back(static_cast<PatternRow::value_type>(p - lastPos) / stride);
+				res.push_back(narrow_cast<PatternRow::value_type>(p - lastPos) / stride);
 				lastVal = val;
 				lastPos = p;
 			}
 		}
 
-		res.push_back(static_cast<PatternRow::value_type>(end - lastPos) / stride);
+		res.push_back(narrow_cast<PatternRow::value_type>(end - lastPos) / stride);
 
 		if (*(end - stride) <= _threshold)
 			res.push_back(0); // last value is number of white pixels, here 0

@@ -1,19 +1,8 @@
 /*
 * Copyright 2016 Nu-book Inc.
 * Copyright 2016 ZXing authors
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
 
 #include "GTIN.h"
 
@@ -176,7 +165,7 @@ std::string LookupCountryIdentifier(const std::string& GTIN, const BarcodeFormat
 	const std::string::size_type size = space != std::string::npos ? space : GTIN.size();
 
 	if (size != 14 && size != 13 && size != 12 && size != 8)
-		return std::string();
+		return {};
 
 	// GTIN-14 leading packaging level indicator
 	const int first = size == 14 ? 1 : 0;
@@ -187,7 +176,7 @@ std::string LookupCountryIdentifier(const std::string& GTIN, const BarcodeFormat
 		// 0000000 Restricted Circulation Numbers; 0000001-0000099 unused to avoid collision with GTIN-8
 		int prefix = std::stoi(GTIN.substr(first, 7 - implicitZero));
 		if (prefix >= 0 && prefix <= 99)
-			return std::string();
+			return {};
 
 		// 00001-00009 US
 		prefix = std::stoi(GTIN.substr(first, 5 - implicitZero));
@@ -204,7 +193,7 @@ std::string LookupCountryIdentifier(const std::string& GTIN, const BarcodeFormat
 
 	// Special case EAN-8 for prefix < 100 (GS1 General Specifications Figure 1.4.3-1)
 	if (size == 8 && format == BarcodeFormat::EAN8 && prefix <= 99) // Restricted Circulation Numbers
-		return std::string();
+		return {};
 
 	const auto it = std::lower_bound(std::begin(COUNTRIES), std::end(COUNTRIES), CountryId{0, prefix, nullptr});
 
@@ -216,9 +205,9 @@ std::string EanAddOn(const Result& result)
 	if (!(BarcodeFormat::EAN13 | BarcodeFormat::UPCA | BarcodeFormat::UPCE | BarcodeFormat::EAN8)
 			.testFlag(result.format()))
 		return {};
-	auto txt = result.text();
-	auto pos = txt.find(L' ');
-	return pos != std::wstring::npos ? TextUtfEncoding::ToUtf8(txt.substr(pos + 1)) : std::string();
+	auto txt = result.bytes().asString();
+	auto pos = txt.find(' ');
+	return pos != std::string::npos ? std::string(txt.substr(pos + 1)) : std::string();
 }
 
 std::string IssueNr(const std::string& ean2AddOn)

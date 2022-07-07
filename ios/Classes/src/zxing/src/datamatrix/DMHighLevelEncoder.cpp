@@ -1,19 +1,8 @@
 /*
 * Copyright 2016 Huy Cuong Nguyen
 * Copyright 2016 ZXing authors
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
 
 #include "DMHighLevelEncoder.h"
 
@@ -21,7 +10,7 @@
 #include "CharacterSet.h"
 #include "DMEncoderContext.h"
 #include "TextEncoder.h"
-#include "ZXContainerAlgorithms.h"
+#include "ZXAlgorithms.h"
 
 #include <algorithm>
 #include <array>
@@ -127,7 +116,7 @@ static uint8_t Randomize253State(uint8_t ch, int codewordPosition)
 {
 	int pseudoRandom = ((149 * codewordPosition) % 253) + 1;
 	int tempVariable = ch + pseudoRandom;
-	return static_cast<uint8_t>(tempVariable <= 254 ? tempVariable : (tempVariable - 254));
+	return narrow_cast<uint8_t>(tempVariable <= 254 ? tempVariable : (tempVariable - 254));
 }
 
 static int FindMinimums(const std::array<int, 6>& intCharCounts, int min, std::array<int, 6>& mins)
@@ -168,7 +157,8 @@ static int LookAheadTest(const std::string& msg, size_t startpos, int currentMod
 		//step K
 		if ((startpos + charsProcessed) == msg.length()) {
 			int min = std::numeric_limits<int>::max();
-			std::transform(charCounts.begin(), charCounts.end(), intCharCounts.begin(), [](float x) { return static_cast<int>(std::ceil(x)); });
+			std::transform(charCounts.begin(), charCounts.end(), intCharCounts.begin(),
+						   [](float x) { return static_cast<int>(std::ceil(x)); });
 			min = FindMinimums(intCharCounts, min, mins);
 			int minCount = Reduce(mins);
 
@@ -260,7 +250,8 @@ static int LookAheadTest(const std::string& msg, size_t startpos, int currentMod
 
 		//step R
 		if (charsProcessed >= 4) {
-			std::transform(charCounts.begin(), charCounts.end(), intCharCounts.begin(), [](float x) { return static_cast<int>(std::ceil(x)); });
+			std::transform(charCounts.begin(), charCounts.end(), intCharCounts.begin(),
+						   [](float x) { return static_cast<int>(std::ceil(x)); });
 			FindMinimums(intCharCounts, std::numeric_limits<int>::max(), mins);
 			int minCount = Reduce(mins);
 
@@ -331,7 +322,7 @@ namespace ASCIIEncoder {
 	static int DetermineConsecutiveDigitCount(const std::string& msg, int startpos)
 	{
 		auto begin = msg.begin() + startpos;
-		return static_cast<int>(std::find_if_not(begin, msg.end(), IsDigit) - begin);
+		return narrow_cast<int>(std::find_if_not(begin, msg.end(), IsDigit) - begin);
 	}
 
 	static uint8_t EncodeASCIIDigits(int digit1, int digit2)
@@ -421,7 +412,8 @@ namespace C40Encoder {
 		return len;
 	}
 
-	static int BacktrackOneCharacter(EncoderContext& context, std::string& buffer, std::string& removed, int lastCharSize, std::function<int (int, std::string&)> encodeChar)
+	static int BacktrackOneCharacter(EncoderContext& context, std::string& buffer, std::string& removed, int lastCharSize,
+									 std::function<int(int, std::string&)> encodeChar)
 	{
 		buffer.resize(buffer.size() - lastCharSize);
 		context.setCurrentPos(context.currentPos() - 1);
@@ -436,8 +428,8 @@ namespace C40Encoder {
 		int c2 = sb.at(startPos + 1);
 		int c3 = sb.at(startPos + 2);
 		int v = (1600 * c1) + (40 * c2) + c3 + 1;
-		context.addCodeword(static_cast<uint8_t>(v / 256));
-		context.addCodeword(static_cast<uint8_t>(v % 256));
+		context.addCodeword(narrow_cast<uint8_t>(v / 256));
+		context.addCodeword(narrow_cast<uint8_t>(v % 256));
 	}
 
 	static void WriteNextTriplet(EncoderContext& context, std::string& buffer)
@@ -502,7 +494,7 @@ namespace C40Encoder {
 			int c = context.currentChar();
 			context.setCurrentPos(context.currentPos() + 1);
 			int lastCharSize = encodeChar(c, buffer);
-			int unwritten = static_cast<int>(buffer.length() / 3) * 2;
+			int unwritten = narrow_cast<int>(buffer.length() / 3) * 2;
 			int curCodewordCount = context.codewordCount() + unwritten;
 			auto symbolInfo = context.updateSymbolInfo(curCodewordCount);
 			int available = symbolInfo->dataCapacity() - curCodewordCount;
@@ -690,17 +682,17 @@ namespace EdifactEncoder {
 		int c4 = len >= 4 ? sb.at(startPos + 3) : 0;
 
 		int v = (c1 << 18) + (c2 << 12) + (c3 << 6) + c4;
-		int cw1 = (v >> 16) & 255;
-		int cw2 = (v >> 8) & 255;
-		int cw3 = v & 255;
+		uint8_t cw1 = (v >> 16) & 255;
+		uint8_t cw2 = (v >> 8) & 255;
+		uint8_t cw3 = v & 255;
 		ByteArray res;
 		res.reserve(3);
-		res.push_back(static_cast<uint8_t>(cw1));
+		res.push_back(cw1);
 		if (len >= 2) {
-			res.push_back(static_cast<uint8_t>(cw2));
+			res.push_back(cw2);
 		}
 		if (len >= 3) {
-			res.push_back(static_cast<uint8_t>(cw3));
+			res.push_back(cw3);
 		}
 		return res;
 	}

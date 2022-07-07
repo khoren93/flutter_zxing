@@ -2,19 +2,8 @@
 * Copyright 2016 Nu-book Inc.
 * Copyright 2016 ZXing authors
 * Copyright 2020 Axel Waggershauser
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
 
 #include "GridSampler.h"
 
@@ -33,7 +22,8 @@ DetectorResult SampleGrid(const BitMatrix& image, int width, int height, const P
 {
 #ifdef PRINT_DEBUG
 	LogMatrix log;
-	LogMatrixWriter lmw(log, image, 5, "grid.pnm");
+	static int i = 0;
+	LogMatrixWriter lmw(log, image, 5, "grid" + std::to_string(i++) + ".pnm");
 #endif
 	if (width <= 0 || height <= 0 || !mod2Pix.isValid())
 		return {};

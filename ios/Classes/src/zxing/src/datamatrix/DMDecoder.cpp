@@ -1,25 +1,14 @@
 /*
 * Copyright 2016 Nu-book Inc.
 * Copyright 2016 ZXing authors
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
 
 #include "DMDecoder.h"
 
 #include "BitMatrix.h"
 #include "BitSource.h"
-#include "CharacterSetECI.h"
+#include "CharacterSet.h"
 #include "DMBitLayout.h"
 #include "DMDataBlock.h"
 #include "DMVersion.h"
@@ -28,7 +17,7 @@
 #include "GenericGF.h"
 #include "ReedSolomonDecoder.h"
 #include "TextDecoder.h"
-#include "ZXContainerAlgorithms.h"
+#include "ZXAlgorithms.h"
 #include "ZXTestSupport.h"
 
 #include <algorithm>
@@ -50,18 +39,6 @@ namespace ZXing::DataMatrix {
 * @author Sean Owen
 */
 namespace DecodedBitStreamParser {
-
-enum Mode
-{
-	FORMAT_ERROR,
-	DONE, // reached end of code word sequence or a PAD codeword
-	ASCII_ENCODE,
-	C40_ENCODE,
-	TEXT_ENCODE,
-	ANSIX12_ENCODE,
-	EDIFACT_ENCODE,
-	BASE256_ENCODE
-};
 
 /**
 * See ISO 16022:2006, Annex C Table C.1
@@ -96,17 +73,6 @@ static const char TEXT_SHIFT3_SET_CHARS[] = {
 	'O',  'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '{', '|', '}', '~', 127
 };
 
-// Decoding state
-struct State
-{
-	CharacterSet encoding;
-	int symbologyIdModifier = 1; // ECC 200 (ISO 16022:2006 Annex N Table N.1)
-	struct StructuredAppendInfo sai;
-	bool readerInit = false;
-	bool firstCodeword = true;
-	int firstFNC1Position = 1;
-};
-
 struct Shift128
 {
 	bool set = false;
@@ -116,19 +82,19 @@ struct Shift128
 /**
 * See ISO 16022:2006, 5.4.1, Table 6
 */
-static int ParseECIValue(BitSource& bits)
+static ECI ParseECIValue(BitSource& bits)
 {
 	int firstByte = bits.readBits(8);
 	if (firstByte <= 127)
-		return firstByte - 1;
+		return ECI(firstByte - 1);
 
 	int secondByte = bits.readBits(8);
 	if (firstByte <= 191)
-		return (firstByte - 128) * 254 + 127 + secondByte - 1;
+		return ECI((firstByte - 128) * 254 + 127 + secondByte - 1);
 
 	int thirdByte = bits.readBits(8);
 
-	return (firstByte - 192) * 64516 + 16383 + (secondByte - 1) * 254 + thirdByte - 1;
+	return ECI((firstByte - 192) * 64516 + 16383 + (secondByte - 1) * 254 + thirdByte - 1);
 }
 
 /**
@@ -152,97 +118,6 @@ static void ParseStructuredAppend(BitSource& bits, StructuredAppendInfo& sai)
 	sai.id = std::to_string((fileId1 << 8) | fileId2);
 }
 
-/**
-* See ISO 16022:2006, 5.2.3 and Annex C, Table C.2
-*/
-static Mode DecodeAsciiSegment(BitSource& bits, std::string& result, std::string& resultTrailer,
-							   std::wstring& resultEncoded, State& state)
-{
-	Shift128 upperShift;
-
-	while (bits.available() >= 8) {
-		int oneByte = bits.readBits(8);
-		switch (oneByte) {
-		case 0:
-			return Mode::FORMAT_ERROR;
-		case 129: // Pad
-			return Mode::DONE;
-		case 230: // Latch to C40 encodation
-			return Mode::C40_ENCODE;
-		case 231: // Latch to Base 256 encodation
-			return Mode::BASE256_ENCODE;
-		case 232: // FNC1
-			if (bits.byteOffset() == state.firstFNC1Position || bits.byteOffset() == state.firstFNC1Position + 1) {
-				// As converting character set ECIs ourselves and ignoring/skipping non-character ECIs, not using
-				// modifiers that indicate ECI protocol (ISO 16022:2006 Annex N Table N.1, ISO 21471:2020 Annex G Table G.1)
-
-				// Only recognizing an FNC1 as first/second by codeword position (aka symbol character position), not
-				// by decoded character position, i.e. not recognizing a C40/Text encoded FNC1 (which requires a latch
-				// and a shift)
-				if (bits.byteOffset() == state.firstFNC1Position)
-					state.symbologyIdModifier = 2; // GS1
-				else {
-					state.symbologyIdModifier = 3; // AIM
-					// Note no AIM Application Indicator format defined, ISO 16022:2006 11.2
-				}
-			} else
-				result.push_back((char)29); // translate as ASCII 29 <GS>
-			break;
-		case 233: // Structured Append
-			if (state.firstCodeword) { // Must be first ISO 16022:2006 5.6.1
-				ParseStructuredAppend(bits, state.sai);
-				state.firstFNC1Position = 5;
-			} else
-				return Mode::FORMAT_ERROR;
-			break;
-		case 234: // Reader Programming
-			if (state.firstCodeword) // Must be first ISO 16022:2006 5.2.4.9
-				state.readerInit = true;
-			else
-				return Mode::FORMAT_ERROR;
-			break;
-		case 235: // Upper Shift (shift to Extended ASCII)
-			upperShift.set = true;
-			break;
-		case 236: // 05 Macro
-			result.append("[)>\x1E""05\x1D");
-			resultTrailer.insert(0, "\x1E\x04");
-			break;
-		case 237: // 06 Macro
-			result.append("[)>\x1E""06\x1D");
-			resultTrailer.insert(0, "\x1E\x04");
-			break;
-		case 238: // Latch to ANSI X12 encodation
-			return Mode::ANSIX12_ENCODE;
-		case 239: // Latch to Text encodation
-			return Mode::TEXT_ENCODE;
-		case 240: // Latch to EDIFACT encodation
-			return Mode::EDIFACT_ENCODE;
-		case 241: // ECI Character
-			state.encoding = CharacterSetECI::OnChangeAppendReset(ParseECIValue(bits), resultEncoded, result,
-																  state.encoding);
-			break;
-		default:
-			if (oneByte <= 128) { // ASCII data (ASCII value + 1)
-				result.push_back(upperShift(oneByte) - 1);
-			} else if (oneByte <= 229) { // 2-digit data 00-99 (Numeric Value + 130)
-				int value = oneByte - 130;
-				if (value < 10) // pad with '0' for single digit values
-					result.push_back('0');
-				result.append(std::to_string(value));
-			} else if (oneByte >= 242) { // Not to be used in ASCII encodation
-				// work around encoders that use unlatch to ASCII as last code word (ask upstream)
-				if (oneByte == 254 && bits.available() == 0)
-					break;
-				return Mode::FORMAT_ERROR;
-			}
-		}
-		state.firstCodeword = false;
-	}
-
-	return Mode::DONE;
-}
-
 std::optional<std::array<int, 3>> DecodeNextTriple(BitSource& bits)
 {
 	// Values are encoded in a 16-bit value as (1600 * C1) + (40 * C2) + C3 + 1
@@ -262,18 +137,20 @@ std::optional<std::array<int, 3>> DecodeNextTriple(BitSource& bits)
 	return {{a, b, c}};
 }
 
+enum class Mode {C40, TEXT};
+
 /**
 * See ISO 16022:2006, 5.2.5 and Annex C, Table C.1 (C40)
 * See ISO 16022:2006, 5.2.6 and Annex C, Table C.2 (Text)
 */
-static bool DecodeC40OrTextSegment(BitSource& bits, std::string& result, Mode mode)
+static void DecodeC40OrTextSegment(BitSource& bits, Content& result, Mode mode)
 {
 	// TODO(bbrown): The Upper Shift with C40 doesn't work in the 4 value scenario all the time
 	Shift128 upperShift;
 	int shift = 0;
 
-	const char* BASIC_SET_CHARS = mode == Mode::C40_ENCODE ? C40_BASIC_SET_CHARS : TEXT_BASIC_SET_CHARS;
-	const char* SHIFT_SET_CHARS = mode == Mode::C40_ENCODE ? C40_SHIFT2_SET_CHARS : TEXT_SHIFT2_SET_CHARS;
+	const char* BASIC_SET_CHARS = mode == Mode::C40 ? C40_BASIC_SET_CHARS : TEXT_BASIC_SET_CHARS;
+	const char* SHIFT_SET_CHARS = mode == Mode::C40 ? C40_SHIFT2_SET_CHARS : TEXT_SHIFT2_SET_CHARS;
 
 	while (auto triple = DecodeNextTriple(bits)) {
 		for (int cValue : *triple) {
@@ -284,7 +161,7 @@ static bool DecodeC40OrTextSegment(BitSource& bits, std::string& result, Mode mo
 				else if (cValue < 40) // Size(BASIC_SET_CHARS)
 					result.push_back(upperShift(BASIC_SET_CHARS[cValue]));
 				else
-					return false;
+					throw FormatError("invalid value in C40 or Text segment");
 				break;
 			case 1: result.push_back(upperShift(cValue)); break;
 			case 2:
@@ -293,35 +170,33 @@ static bool DecodeC40OrTextSegment(BitSource& bits, std::string& result, Mode mo
 				else if (cValue == 30) // Upper Shift
 					upperShift.set = true;
 				else
-					return false;
+					throw FormatError("invalid value in C40 or Text segment");
 				break;
 			case 3:
-				if (mode == Mode::C40_ENCODE)
+				if (mode == Mode::C40)
 					result.push_back(upperShift(cValue + 96));
 				else if (cValue < Size(TEXT_SHIFT3_SET_CHARS))
 					result.push_back(upperShift(TEXT_SHIFT3_SET_CHARS[cValue]));
 				else
-					return false;
+					throw FormatError("invalid value in C40 or Text segment");
 				break;
-			default: return false;
+			default: throw FormatError("invalid value in C40 or Text segment"); ;
 			}
 		}
 	}
-
-	return true;
 }
 
 /**
 * See ISO 16022:2006, 5.2.7
 */
-static bool DecodeAnsiX12Segment(BitSource& bits, std::string& result)
+static void DecodeAnsiX12Segment(BitSource& bits, Content& result)
 {
 	while (auto triple = DecodeNextTriple(bits)) {
 		for (int cValue : *triple) {
 			// X12 segment terminator <CR>, separator *, sub-element separator >, space
 			static const char segChars[4] = {'\r', '*', '>', ' '};
 			if (cValue < 0)
-				return false;
+				throw FormatError("invalid value in AnsiX12 segment");
 			else if (cValue < 4)
 				result.push_back(segChars[cValue]);
 			else if (cValue < 14) // 0 - 9
@@ -329,17 +204,15 @@ static bool DecodeAnsiX12Segment(BitSource& bits, std::string& result)
 			else if (cValue < 40) // A - Z
 				result.push_back((char)(cValue + 51));
 			else
-				return false;
+				throw FormatError("invalid value in AnsiX12 segment");
 		}
 	}
-
-	return true;
 }
 
 /**
 * See ISO 16022:2006, 5.2.8 and Annex C Table C.3
 */
-static bool DecodeEdifactSegment(BitSource& bits, std::string& result)
+static void DecodeEdifactSegment(BitSource& bits, Content& result)
 {
 	// If there are less than 3 bytes left then it will be encoded as ASCII
 	while (bits.available() >= 24) {
@@ -351,7 +224,7 @@ static bool DecodeEdifactSegment(BitSource& bits, std::string& result)
 				// Read rest of byte, which should be 0, and stop
 				if (bits.bitOffset())
 					bits.readBits(8 - bits.bitOffset());
-				return true;
+				return;
 			}
 
 			if ((edifactValue & 0x20) == 0) // no 1 in the leading (6th) bit
@@ -359,8 +232,6 @@ static bool DecodeEdifactSegment(BitSource& bits, std::string& result)
 			result.push_back(edifactValue);
 		}
 	}
-
-	return true;
 }
 
 /**
@@ -376,7 +247,7 @@ static int Unrandomize255State(int randomizedBase256Codeword, int base256Codewor
 /**
 * See ISO 16022:2006, 5.2.9 and Annex B, B.2
 */
-static bool DecodeBase256Segment(BitSource& bits, std::string& result)
+static void DecodeBase256Segment(BitSource& bits, Content& result)
 {
 	// Figure out how long the Base 256 Segment is.
 	int codewordPosition = 1 + bits.byteOffset(); // position is 1-indexed
@@ -391,71 +262,105 @@ static bool DecodeBase256Segment(BitSource& bits, std::string& result)
 
 	// We're seeing NegativeArraySizeException errors from users.
 	if (count < 0)
-		return false;
+		throw FormatError("invalid count in Base256 segment");
 
-	ByteArray bytes(count);
+	result.reserve(count);
 	for (int i = 0; i < count; i++) {
-		// Have seen this particular error in the wild, such as at
+		// readBits(8) may fail, have seen this particular error in the wild, such as at
 		// http://www.bcgen.com/demo/IDAutomationStreamingDataMatrix.aspx?MODE=3&D=Fred&PFMT=3&PT=F&X=0.3&O=0&LM=0.2
-		if (bits.available() < 8)
-			return false;
-
-		bytes[i] = (uint8_t)Unrandomize255State(bits.readBits(8), codewordPosition++);
+		result += narrow_cast<uint8_t>(Unrandomize255State(bits.readBits(8), codewordPosition++));
 	}
-
-	result.append(reinterpret_cast<const char*>(bytes.data()), bytes.size());
-
-	return true;
 }
 
 ZXING_EXPORT_TEST_ONLY
-DecoderResult Decode(ByteArray&& bytes, const std::string& characterSet, const bool isDMRE)
+DecoderResult Decode(ByteArray&& bytes, const bool isDMRE)
 {
 	BitSource bits(bytes);
-	std::string result;
-	result.reserve(100);
+	Content result;
+	Error error;
+	result.symbology = {'d', '1', 3}; // ECC 200 (ISO 16022:2006 Annex N Table N.1)
 	std::string resultTrailer;
-	std::wstring resultEncoded;
-	Mode mode = Mode::ASCII_ENCODE;
-	State state;
-	state.encoding = CharacterSetECI::InitEncoding(characterSet);
 
-	while (mode != Mode::FORMAT_ERROR && mode != Mode::DONE) {
-		if (mode == Mode::ASCII_ENCODE) {
-			mode = DecodeAsciiSegment(bits, result, resultTrailer, resultEncoded, state);
-			state.firstCodeword = false;
-			state.firstFNC1Position = -1; // Only recognize in first segment
-		} else {
-			bool decodeOK;
-			switch (mode) {
-			case C40_ENCODE: [[fallthrough]];
-			case TEXT_ENCODE: decodeOK = DecodeC40OrTextSegment(bits, result, mode); break;
-			case ANSIX12_ENCODE: decodeOK = DecodeAnsiX12Segment(bits, result); break;
-			case EDIFACT_ENCODE: decodeOK = DecodeEdifactSegment(bits, result); break;
-			case BASE256_ENCODE: decodeOK = DecodeBase256Segment(bits, result); break;
-			default: decodeOK = false; break;
+	struct StructuredAppendInfo sai;
+	bool readerInit = false;
+	bool firstCodeword = true;
+	bool done = false;
+	int firstFNC1Position = 1;
+	Shift128 upperShift;
+
+	// See ISO 16022:2006, 5.2.3 and Annex C, Table C.2
+	try {
+		while (!done && bits.available() >= 8) {
+			int oneByte = bits.readBits(8);
+			switch (oneByte) {
+			case 0: throw FormatError("invalid 0 code word");
+			case 129: done = true; break; // Pad -> we are done, ignore the rest of the bits
+			case 230: DecodeC40OrTextSegment(bits, result, Mode::C40); break;
+			case 231: DecodeBase256Segment(bits, result); break;
+			case 232: // FNC1
+				// Only recognizing an FNC1 as first/second by codeword position (aka symbol character position), not
+				// by decoded character position, i.e. not recognizing a C40/Text encoded FNC1 (which requires a latch
+				// and a shift)
+				if (bits.byteOffset() == firstFNC1Position)
+					result.symbology.modifier = '2'; // GS1
+				else if (bits.byteOffset() == firstFNC1Position + 1)
+					result.symbology.modifier = '3'; // AIM, note no AIM Application Indicator format defined, ISO 16022:2006 11.2
+				else
+					result.push_back((char)29); // translate as ASCII 29 <GS>
+				break;
+			case 233: // Structured Append
+				if (!firstCodeword) // Must be first ISO 16022:2006 5.6.1
+					throw FormatError("structured append tag must be first code word");
+				ParseStructuredAppend(bits, sai);
+				firstFNC1Position = 5;
+				break;
+			case 234: // Reader Programming
+				if (!firstCodeword) // Must be first ISO 16022:2006 5.2.4.9
+					throw FormatError("reader programming tag must be first code word");
+				readerInit = true;
+				break;
+			case 235: upperShift.set = true; break; // Upper Shift (shift to Extended ASCII)
+			case 236: // ISO 15434 format "05" Macro
+				result.append("[)>\x1E" "05\x1D");
+				resultTrailer.insert(0, "\x1E\x04");
+				break;
+			case 237: // ISO 15434 format "06" Macro
+				result.append("[)>\x1E" "06\x1D");
+				resultTrailer.insert(0, "\x1E\x04");
+				break;
+			case 238: DecodeAnsiX12Segment(bits, result); break;
+			case 239: DecodeC40OrTextSegment(bits, result, Mode::TEXT); break;
+			case 240: DecodeEdifactSegment(bits, result); break;
+			case 241: result.switchEncoding(ParseECIValue(bits)); break;
+			default:
+				if (oneByte <= 128) { // ASCII data (ASCII value + 1)
+					result.push_back(upperShift(oneByte) - 1);
+				} else if (oneByte <= 229) { // 2-digit data 00-99 (Numeric Value + 130)
+					int value = oneByte - 130;
+					if (value < 10) // pad with '0' for single digit values
+						result.push_back('0');
+					result.append(std::to_string(value));
+				} else if (oneByte >= 242) { // Not to be used in ASCII encodation
+					// work around encoders that use unlatch to ASCII as last code word (ask upstream)
+					if (oneByte == 254 && bits.available() == 0)
+						break;
+					throw FormatError("invalid code word");
+				}
 			}
-			mode = decodeOK ? Mode::ASCII_ENCODE : Mode::FORMAT_ERROR;
+			firstCodeword = false;
 		}
+	} catch (Error e) {
+		error = std::move(e);
 	}
 
-	if (mode == Mode::FORMAT_ERROR)
-		return DecodeStatus::FormatError;
+	result.append(resultTrailer);
+	result.applicationIndicator = result.symbology.modifier == '2' ? "GS1" : "";
+	result.symbology.modifier += isDMRE * 6;
 
-	if (state.readerInit && state.sai.index > -1) // Not allowed together ISO 16022:2006 5.2.4.9
-		return DecodeStatus::FormatError;
-
-	if (resultTrailer.length() > 0)
-		result.append(resultTrailer);
-
-	TextDecoder::Append(resultEncoded, reinterpret_cast<const uint8_t*>(result.data()), result.size(), state.encoding);
-
-	std::string symbologyIdentifier("]d" + std::to_string(state.symbologyIdModifier + (isDMRE ? 6 : 0)));
-
-	return DecoderResult(std::move(bytes), std::move(resultEncoded))
-			.setSymbologyIdentifier(std::move(symbologyIdentifier))
-			.setStructuredAppend(state.sai)
-			.setReaderInit(state.readerInit);
+	return DecoderResult(std::move(bytes), std::move(result))
+		.setError(std::move(error))
+		.setStructuredAppend(sai)
+		.setReaderInit(readerInit);
 }
 
 } // namespace DecodedBitStreamParser
@@ -466,7 +371,7 @@ DecoderResult Decode(ByteArray&& bytes, const std::string& characterSet, const b
 *
 * @param codewordBytes data and error correction codewords
 * @param numDataCodewords number of codewords that are data bytes
-* @throws ChecksumException if error correction fails
+* @return false if error correction fails
 */
 static bool
 CorrectErrors(ByteArray& codewordBytes, int numDataCodewords)
@@ -485,22 +390,22 @@ CorrectErrors(ByteArray& codewordBytes, int numDataCodewords)
 	return true;
 }
 
-static DecoderResult DoDecode(const BitMatrix& bits, const std::string& characterSet)
+static DecoderResult DoDecode(const BitMatrix& bits)
 {
 	// Construct a parser and read version, error-correction level
 	const Version* version = VersionForDimensionsOf(bits);
 	if (version == nullptr)
-		return DecodeStatus::FormatError;
+		return FormatError("Invalid matrix dimension");
 
 	// Read codewords
-	ByteArray codewords = CodewordsFromBitMatrix(bits);
+	ByteArray codewords = CodewordsFromBitMatrix(bits, *version);
 	if (codewords.empty())
-		return DecodeStatus::FormatError;
+		return FormatError("Invalid number of code words");
 
 	// Separate into data blocks
 	std::vector<DataBlock> dataBlocks = GetDataBlocks(codewords, *version);
 	if (dataBlocks.empty())
-		return DecodeStatus::FormatError;
+		return FormatError("Invalid number of data blocks");
 
 	// Count total number of data bytes
 	ByteArray resultBytes(TransformReduce(dataBlocks, 0, [](const auto& db) { return db.numDataCodewords; }));
@@ -512,7 +417,7 @@ static DecoderResult DoDecode(const BitMatrix& bits, const std::string& characte
 		ByteArray& codewordBytes = dataBlock.codewords;
 		int numDataCodewords = dataBlock.numDataCodewords;
 		if (!CorrectErrors(codewordBytes, numDataCodewords))
-			return DecodeStatus::ChecksumError;
+			return ChecksumError();
 
 		for (int i = 0; i < numDataCodewords; i++) {
 			// De-interlace data blocks.
@@ -521,7 +426,7 @@ static DecoderResult DoDecode(const BitMatrix& bits, const std::string& characte
 	}
 
 	// Decode the contents of that stream of bytes
-	return DecodedBitStreamParser::Decode(std::move(resultBytes), characterSet, version->isDMRE());
+	return DecodedBitStreamParser::Decode(std::move(resultBytes), version->isDMRE());
 }
 
 static BitMatrix FlippedL(const BitMatrix& bits)
@@ -533,16 +438,16 @@ static BitMatrix FlippedL(const BitMatrix& bits)
 	return res;
 }
 
-DecoderResult Decode(const BitMatrix& bits, const std::string& characterSet)
+DecoderResult Decode(const BitMatrix& bits)
 {
-	auto res = DoDecode(bits, characterSet);
+	auto res = DoDecode(bits);
 	if (res.isValid())
 		return res;
 
 	//TODO:
 	// * unify bit mirroring helper code with QRReader?
 	// * rectangular symbols with the a size of 8 x Y are not supported a.t.m.
-	if (auto mirroredRes = DoDecode(FlippedL(bits), characterSet); mirroredRes.isValid()) {
+	if (auto mirroredRes = DoDecode(FlippedL(bits)); mirroredRes.isValid()) {
 		mirroredRes.setIsMirrored(true);
 		return mirroredRes;
 	}

@@ -2,19 +2,8 @@
 * Copyright 2016 Nu-book Inc.
 * Copyright 2016 ZXing authors
 * Copyright 2020 Axel Waggershauser
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
 
 #include "ODReader.h"
 
@@ -35,11 +24,7 @@
 
 namespace ZXing::OneD {
 
-Reader::Reader(const DecodeHints& hints) :
-	_tryHarder(hints.tryHarder()),
-	_tryRotate(hints.tryRotate()),
-	_isPure(hints.isPure()),
-	_minLineCount(hints.minLineCount())
+Reader::Reader(const DecodeHints& hints) : ZXing::Reader(hints)
 {
 	_readers.reserve(8);
 
@@ -51,9 +36,9 @@ Reader::Reader(const DecodeHints& hints) :
 	if (formats.testFlag(BarcodeFormat::Code39))
 		_readers.emplace_back(new Code39Reader(hints));
 	if (formats.testFlag(BarcodeFormat::Code93))
-		_readers.emplace_back(new Code93Reader());
+		_readers.emplace_back(new Code93Reader(hints));
 	if (formats.testFlag(BarcodeFormat::Code128))
-		_readers.emplace_back(new Code128Reader());
+		_readers.emplace_back(new Code128Reader(hints));
 	if (formats.testFlag(BarcodeFormat::ITF))
 		_readers.emplace_back(new ITFReader(hints));
 	if (formats.testFlag(BarcodeFormat::Codabar))
@@ -76,7 +61,7 @@ Reader::~Reader() = default;
 * image if "trying harder".
 */
 static Results DoDecode(const std::vector<std::unique_ptr<RowReader>>& readers, const BinaryBitmap& image,
-						bool tryHarder, bool rotate, bool isPure, int maxSymbols, int minLineCount)
+						bool tryHarder, bool rotate, bool isPure, int maxSymbols, int minLineCount, bool returnErrors)
 {
 	Results res;
 
@@ -108,6 +93,7 @@ static Results DoDecode(const std::vector<std::unique_ptr<RowReader>>& readers, 
 		int rowStepsAboveOrBelow = (i + 1) / 2;
 		bool isAbove = (i & 0x01) == 0; // i.e. is x even?
 		int rowNumber = middle + rowStep * (isAbove ? rowStepsAboveOrBelow : -rowStepsAboveOrBelow);
+		bool isCheckRow = false;
 		if (rowNumber < 0 || rowNumber >= height) {
 			// Oops, if we run off the top or bottom, stop
 			break;
@@ -118,6 +104,7 @@ static Results DoDecode(const std::vector<std::unique_ptr<RowReader>>& readers, 
 			--i;
 			rowNumber = checkRows.back();
 			checkRows.pop_back();
+			isCheckRow = true;
 			if (rowNumber < 0 || rowNumber >= height)
 				continue;
 		}
@@ -147,7 +134,7 @@ static Results DoDecode(const std::vector<std::unique_ptr<RowReader>>& readers, 
 				PatternView next(bars);
 				do {
 					Result result = readers[r]->decodePattern(rowNumber, next, decodingState[r]);
-					if (result.isValid()) {
+					if (result.isValid() || (returnErrors && result.error())) {
 						result.incrementLineCount();
 						if (upsideDown) {
 							// update position (flip horizontally).
@@ -167,7 +154,7 @@ static Results DoDecode(const std::vector<std::unique_ptr<RowReader>>& readers, 
 
 						// check if we know this code already
 						for (auto& other : res) {
-							if (other == result) {
+							if (result == other) {
 								// merge the position information
 								auto dTop = maxAbsComponent(other.position().topLeft() - result.position().topLeft());
 								auto dBot = maxAbsComponent(other.position().bottomLeft() - result.position().topLeft());
@@ -183,12 +170,12 @@ static Results DoDecode(const std::vector<std::unique_ptr<RowReader>>& readers, 
 								other.setPosition(points);
 								other.incrementLineCount();
 								// clear the result, so we don't insert it again below
-								result = Result(DecodeStatus::NotFound);
+								result = Result();
 								break;
 							}
 						}
 
-						if (result.isValid())
+						if (result.format() != BarcodeFormat::None)
 							res.push_back(std::move(result));
 
 						if (maxSymbols && Reduce(res, 0, [&](int s, const Result& r) {
@@ -199,7 +186,7 @@ static Results DoDecode(const std::vector<std::unique_ptr<RowReader>>& readers, 
 
 						// if we found a valid code but have a minLineCount > 1, add additional check rows above and
 						// below the current one
-						if (checkRows.empty() && minLineCount > 1 && rowStep > 1) {
+						if (!isCheckRow && minLineCount > 1 && rowStep > 1) {
 							checkRows = {rowNumber - 1, rowNumber + 1};
 							if (rowStep > 2)
 								checkRows.insert(checkRows.end(), {rowNumber - 2, rowNumber + 2});
@@ -222,10 +209,10 @@ out:
 	for (auto a = res.begin(); a != res.end(); ++a)
 		for (auto b = std::next(a); b != res.end(); ++b)
 			if (HaveIntersectingBoundingBoxes(a->position(), b->position()))
-				*(a->lineCount() < b->lineCount() ? a : b) = Result(DecodeStatus::NotFound);
+				*(a->lineCount() < b->lineCount() ? a : b) = Result();
 
 	//TODO: C++20 res.erase_if()
-	it = std::remove_if(res.begin(), res.end(), [](auto&& r) { return r.status() == DecodeStatus::NotFound; });
+	it = std::remove_if(res.begin(), res.end(), [](auto&& r) { return r.format() == BarcodeFormat::None; });
 	res.erase(it, res.end());
 
 	return res;
@@ -234,19 +221,22 @@ out:
 Result
 Reader::decode(const BinaryBitmap& image) const
 {
-	auto result = DoDecode(_readers, image, _tryHarder, false, _isPure, 1, _minLineCount);
+	auto result =
+		DoDecode(_readers, image, _hints.tryHarder(), false, _hints.isPure(), 1, _hints.minLineCount(), _hints.returnErrors());
 
-	if (result.empty() && _tryRotate)
-		result = DoDecode(_readers, image, _tryHarder, true, _isPure, 1, _minLineCount);
+	if (result.empty() && _hints.tryRotate())
+		result = DoDecode(_readers, image, _hints.tryHarder(), true, _hints.isPure(), 1, _hints.minLineCount(), _hints.returnErrors());
 
-	return result.empty() ? Result(DecodeStatus::NotFound) : result.front();
+	return FirstOrDefault(std::move(result));
 }
 
 Results Reader::decode(const BinaryBitmap& image, int maxSymbols) const
 {
-	auto resH = DoDecode(_readers, image, _tryHarder, false, _isPure, maxSymbols, _minLineCount);
-	if ((!maxSymbols || Size(resH) < maxSymbols) && _tryRotate) {
-		auto resV = DoDecode(_readers, image, _tryHarder, true, _isPure, maxSymbols - Size(resH), _minLineCount);
+	auto resH = DoDecode(_readers, image, _hints.tryHarder(), false, _hints.isPure(), maxSymbols, _hints.minLineCount(),
+						 _hints.returnErrors());
+	if ((!maxSymbols || Size(resH) < maxSymbols) && _hints.tryRotate()) {
+		auto resV = DoDecode(_readers, image, _hints.tryHarder(), true, _hints.isPure(), maxSymbols - Size(resH),
+							 _hints.minLineCount(), _hints.returnErrors());
 		resH.insert(resH.end(), resV.begin(), resV.end());
 	}
 	return resH;

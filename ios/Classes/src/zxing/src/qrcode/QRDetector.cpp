@@ -2,29 +2,20 @@
 * Copyright 2016 Nu-book Inc.
 * Copyright 2016 ZXing authors
 * Copyright 2020 Axel Waggershauser
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
 
 #include "QRDetector.h"
 
+#include "BitArray.h"
 #include "BitMatrix.h"
 #include "BitMatrixCursor.h"
 #include "ConcentricFinder.h"
-#include "DetectorResult.h"
 #include "GridSampler.h"
 #include "LogMatrix.h"
 #include "Pattern.h"
+#include "QRFormatInformation.h"
+#include "QRVersion.h"
 #include "Quadrilateral.h"
 #include "RegressionLine.h"
 
@@ -40,11 +31,9 @@
 
 namespace ZXing::QRCode {
 
-constexpr auto PATTERN    = FixedPattern<5, 7>{1, 1, 3, 1, 1};
-constexpr int MIN_MODULES = 1 * 4 + 17; // version 1
-constexpr int MAX_MODULES = 40 * 4 + 17; // version 40
+constexpr auto PATTERN = FixedPattern<5, 7>{1, 1, 3, 1, 1};
 
-static auto FindFinderPatterns(const BitMatrix& image, bool tryHarder)
+std::vector<ConcentricPattern> FindFinderPatterns(const BitMatrix& image, bool tryHarder)
 {
 	constexpr int MIN_SKIP         = 3;           // 1 pixel/module times 3 modules/center
 	constexpr int MAX_MODULES_FAST = 20 * 4 + 17; // support up to version 20 for mobile clients
@@ -93,7 +82,7 @@ static auto FindFinderPatterns(const BitMatrix& image, bool tryHarder)
  * @param patterns list of ConcentricPattern objects, i.e. found finder pattern squares
  * @return list of plausible finder pattern sets, sorted by decreasing plausibility
  */
-static FinderPatternSets GenerateFinderPatternSets(std::vector<ConcentricPattern>&& patterns)
+FinderPatternSets GenerateFinderPatternSets(FinderPatterns& patterns)
 {
 	std::sort(patterns.begin(), patterns.end(), [](const auto& a, const auto& b) { return a.size < b.size; });
 
@@ -121,22 +110,30 @@ static FinderPatternSets GenerateFinderPatternSets(std::vector<ConcentricPattern
 				// Orders the three points in an order [A,B,C] such that AB is less than AC
 				// and BC is less than AC, and the angle between BC and BA is less than 180 degrees.
 
-				auto distAB = squaredDistance(a, b);
-				auto distBC = squaredDistance(b, c);
-				auto distAC = squaredDistance(a, c);
+				auto distAB2 = squaredDistance(a, b);
+				auto distBC2 = squaredDistance(b, c);
+				auto distAC2 = squaredDistance(a, c);
 
-				if (distBC >= distAB && distBC >= distAC) {
+				if (distBC2 >= distAB2 && distBC2 >= distAC2) {
 					std::swap(a, b);
-					std::swap(distBC, distAC);
-				} else if (distAB >= distAC && distAB >= distBC) {
+					std::swap(distBC2, distAC2);
+				} else if (distAB2 >= distAC2 && distAB2 >= distBC2) {
 					std::swap(b, c);
-					std::swap(distAB, distAC);
+					std::swap(distAB2, distAC2);
 				}
 
+				auto distAB = std::sqrt(distAB2);
+				auto distBC = std::sqrt(distBC2);
+
 				// Estimate the module count and ignore this set if it can not result in a valid decoding
-				if (auto moduleCount =
-						(std::sqrt(distAB) + std::sqrt(distBC)) / (2 * (a->size + b->size + c->size) / (3 * 7.f)) + 7;
+				if (auto moduleCount = (distAB + distBC) / (2 * (a->size + b->size + c->size) / (3 * 7.f)) + 7;
 					moduleCount < 21 * 0.9 || moduleCount > 177 * 1.05)
+					continue;
+
+				// Make sure the angle between AB and BC does not deviate from 90° by more than 45°
+				auto alpha = std::acos((distAB2 + distBC2 - distAC2) / (2 * distAB * distBC)) / 3.1415 * 180;
+//				printf("alpha: %.1f\n", alpha);
+				if (std::isnan(alpha) || std::abs(90 - alpha) > 45)
 					continue;
 
 				// a^2 + b^2 = c^2 (Pythagorean theorem), and a = b (isosceles triangle).
@@ -144,7 +141,7 @@ static FinderPatternSets GenerateFinderPatternSets(std::vector<ConcentricPattern
 				// we need to check both two equal sides separately.
 				// The value of |c^2 - 2 * b^2| + |c^2 - 2 * a^2| increases as dissimilarity
 				// from isosceles right triangle.
-				double d = std::abs(distAC - 2 * distAB) + std::abs(distAC - 2 * distBC);
+				double d = (std::abs(distAC2 - 2 * distAB2) + std::abs(distAC2 - 2 * distBC2)) / distAC2;
 
 				// Use cross product to figure out whether A and C are correct or flipped.
 				// This asks whether BC x BA has a positive z component, which is the arrangement
@@ -205,7 +202,7 @@ static DimensionEstimate EstimateDimension(const BitMatrix& image, PointF a, Poi
 
 	auto moduleSize = (ms_a + ms_b) / 2;
 
-	int dimension = std::lround(distance(a, b) / moduleSize) + 7;
+	int dimension = narrow_cast<int>(std::lround(distance(a, b) / moduleSize) + 7);
 	int error     = 1 - (dimension % 4);
 
 	return {dimension + error, moduleSize, std::abs(error)};
@@ -258,7 +255,7 @@ static double EstimateTilt(const FinderPatternSet& fp)
 	return double(max) / min;
 }
 
-DetectorResult SampleAtFinderPatternSet(const BitMatrix& image, const FinderPatternSet& fp)
+DetectorResult SampleQR(const BitMatrix& image, const FinderPatternSet& fp)
 {
 	auto top  = EstimateDimension(image, fp.tl, fp.tr);
 	auto left = EstimateDimension(image, fp.tl, fp.bl);
@@ -303,8 +300,7 @@ DetectorResult SampleAtFinderPatternSet(const BitMatrix& image, const FinderPatt
 				// if we did not land on a black pixel or the concentric pattern finder fails,
 				// leave the intersection of the lines as the best guess
 				if (image.get(brCoR)) {
-					if (auto brCP =
-							LocateConcentricPattern<true>(image, FixedPattern<3, 3>{1, 1, 1}, brCoR, moduleSize * 3))
+					if (auto brCP = LocateConcentricPattern<true>(image, FixedPattern<3, 3>{1, 1, 1}, brCoR, moduleSize * 3))
 						return sample(*brCP, quad[2] - PointF(3, 3));
 				}
 			}
@@ -326,13 +322,16 @@ DetectorResult SampleAtFinderPatternSet(const BitMatrix& image, const FinderPatt
 * around it. This is a specialized method that works exceptionally fast in this special
 * case.
 */
-static DetectorResult DetectPure(const BitMatrix& image)
+DetectorResult DetectPureQR(const BitMatrix& image)
 {
 	using Pattern = std::array<PatternView::value_type, PATTERN.size()>;
 
 #ifdef PRINT_DEBUG
 	SaveAsPBM(image, "weg.pbm");
 #endif
+
+	constexpr int MIN_MODULES = Version::DimensionOfVersion(1, false);
+	constexpr int MAX_MODULES = Version::DimensionOfVersion(40, false);
 
 	int left, top, width, height;
 	if (!image.findBoundingBox(left, top, width, height, MIN_MODULES) || std::abs(width - height) > 1)
@@ -371,30 +370,100 @@ static DetectorResult DetectPure(const BitMatrix& image)
 			{{left, top}, {right, top}, {right, bottom}, {left, bottom}}};
 }
 
-FinderPatternSets FindFinderPatternSets(const BitMatrix& image, bool tryHarder)
+DetectorResult DetectPureMQR(const BitMatrix& image)
 {
-	return GenerateFinderPatternSets(FindFinderPatterns(image, tryHarder));
-}
+	using Pattern = std::array<PatternView::value_type, PATTERN.size()>;
 
-DetectorResult Detect(const BitMatrix& image, bool tryHarder, bool isPure)
-{
-#ifdef PRINT_DEBUG
-	LogMatrixWriter lmw(log, image, 5, "qr-log.pnm");
-#endif
+	constexpr int MIN_MODULES = Version::DimensionOfVersion(1, true);
+	constexpr int MAX_MODULES = Version::DimensionOfVersion(4, true);
 
-	if (isPure)
-		return DetectPure(image);
+	int left, top, width, height;
+	if (!image.findBoundingBox(left, top, width, height, MIN_MODULES) || std::abs(width - height) > 1)
+		return {};
+	int right  = left + width - 1;
+	int bottom = top + height - 1;
 
-	auto sets = GenerateFinderPatternSets(FindFinderPatterns(image, tryHarder));
+	// allow corners be moved one pixel inside to accommodate for possible aliasing artifacts
+	auto diagonal = BitMatrixCursorI(image, {left, top}, {1, 1}).readPatternFromBlack<Pattern>(1);
+	if (!IsPattern(diagonal, PATTERN))
+		return {};
 
-	if (sets.empty())
+	auto fpWidth = Reduce(diagonal);
+	float moduleSize = float(fpWidth) / 7;
+	auto dimension = width / moduleSize;
+
+	if (dimension < MIN_MODULES || dimension > MAX_MODULES ||
+		!image.isIn(PointF{left + moduleSize / 2 + (dimension - 1) * moduleSize,
+						   top + moduleSize / 2 + (dimension - 1) * moduleSize}))
 		return {};
 
 #ifdef PRINT_DEBUG
-	printf("size of sets: %d\n", Size(sets));
+	LogMatrix log;
+	LogMatrixWriter lmw(log, image, 5, "grid2.pnm");
+	for (int y = 0; y < dimension; y++)
+		for (int x = 0; x < dimension; x++)
+			log(PointF(left + (x + .5f) * moduleSize, top + (y + .5f) * moduleSize));
 #endif
 
-	return SampleAtFinderPatternSet(image, sets[0]);
+	// Now just read off the bits (this is a crop + subsample)
+	return {Deflate(image, dimension, dimension, top + moduleSize / 2, left + moduleSize / 2, moduleSize),
+			{{left, top}, {right, top}, {right, bottom}, {left, bottom}}};
+}
+
+DetectorResult SampleMQR(const BitMatrix& image, const ConcentricPattern& fp)
+{
+	auto fpQuad = FindConcentricPatternCorners(image, fp, fp.size, 2);
+	if (!fpQuad)
+		return {};
+
+	auto srcQuad = Rectangle(7, 7, 0.5);
+
+	constexpr PointI FORMAT_INFO_COORDS[] = {{0, 8}, {1, 8}, {2, 8}, {3, 8}, {4, 8}, {5, 8}, {6, 8}, {7, 8}, {8, 8},
+											 {8, 7}, {8, 6}, {8, 5}, {8, 4}, {8, 3}, {8, 2}, {8, 1}, {8, 0}};
+
+	FormatInformation bestFI;
+	PerspectiveTransform bestPT;
+
+	for (int i = 0; i < 4; ++i) {
+		auto mod2Pix = PerspectiveTransform(srcQuad, RotatedCorners(*fpQuad, i));
+
+		auto check = [&](int i, bool checkOne) {
+			auto p = mod2Pix(centered(FORMAT_INFO_COORDS[i]));
+			return image.isIn(p) && (!checkOne || image.get(p));
+		};
+
+		// check that we see both innermost timing pattern modules
+		if (!check(0, true) || !check(8, false) || !check(16, true))
+			continue;
+
+		int formatInfoBits = 0;
+		for (int i = 1; i <= 15; ++i)
+			AppendBit(formatInfoBits, image.get(mod2Pix(centered(FORMAT_INFO_COORDS[i]))));
+
+		auto fi = FormatInformation::DecodeMQR(formatInfoBits);
+		if (fi.hammingDistance < bestFI.hammingDistance) {
+			bestFI = fi;
+			bestPT = mod2Pix;
+		}
+	}
+
+	if (!bestFI.isValid())
+		return {};
+
+	const int dim = Version::DimensionOfVersion(bestFI.microVersion, true);
+
+	// check that we are in fact not looking at a corner of a non-micro QRCode symbol
+	// we accept at most 1/3rd black pixels in the quite zone (in a QRCode symbol we expect about 1/2).
+	int blackPixels = 0;
+	for (int i = 0; i < dim; ++i) {
+		auto px = bestPT(centered(PointI{i, dim}));
+		auto py = bestPT(centered(PointI{dim, i}));
+		blackPixels += (image.isIn(px) && image.get(px)) + (image.isIn(py) && image.get(py));
+	}
+	if (blackPixels > 2 * dim / 3)
+		return {};
+
+	return SampleGrid(image, dim, dim, bestPT);
 }
 
 } // namespace ZXing::QRCode

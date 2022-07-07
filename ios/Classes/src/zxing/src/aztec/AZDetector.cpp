@@ -1,19 +1,8 @@
 /*
 * Copyright 2016 Nu-book Inc.
 * Copyright 2016 ZXing authors
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
 
 #include "AZDetector.h"
 
@@ -25,6 +14,7 @@
 #include "ReedSolomonDecoder.h"
 #include "ResultPoint.h"
 #include "WhiteRectDetector.h"
+#include "ZXAlgorithms.h"
 
 #include <array>
 #include <utility>
@@ -34,7 +24,7 @@ namespace ZXing::Aztec {
 template <typename T, typename = typename std::enable_if<std::is_floating_point<T>::value>::type>
 static int RoundToNearest(T x)
 {
-	return static_cast<int>(std::lround(x));
+	return narrow_cast<int>(std::lround(x));
 }
 
 static const int EXPECTED_CORNER_BITS[] = {
@@ -154,7 +144,7 @@ static bool GetCorrectedParameterData(int64_t parameterData, bool compact, int& 
 * Extracts the number of data layers and data blocks from the layer around the bull's eye.
 *
 * @param bullsEyeCorners the array of bull's eye corners
-* @throws NotFoundException in case of too many errors or invalid parameters
+* @return false in case of too many errors or invalid parameters
 */
 static bool ExtractParameters(const BitMatrix& image, const std::array<ResultPoint, 4>& bullsEyeCorners, bool compact,
 							  int nbCenterLayers, int& nbLayers, int& nbDataBlocks, bool& readerInit, int& shift)
@@ -340,21 +330,21 @@ static PointI GetFirstDifferent(const BitMatrix& image, const PointI& init, bool
 */
 static void ExpandSquare(std::array<ResultPoint, 4>& cornerPoints, float oldSide, float newSide)
 {
-	float ratio = newSide / (2 * oldSide);
-	float dx = cornerPoints[0].x() - cornerPoints[2].x();
-	float dy = cornerPoints[0].y() - cornerPoints[2].y();
-	float centerx = (cornerPoints[0].x() + cornerPoints[2].x()) / 2.0f;
-	float centery = (cornerPoints[0].y() + cornerPoints[2].y()) / 2.0f;
+	double ratio = newSide / (2.0 * oldSide);
+	double dx = cornerPoints[0].x() - cornerPoints[2].x();
+	double dy = cornerPoints[0].y() - cornerPoints[2].y();
+	double centerx = (cornerPoints[0].x() + cornerPoints[2].x()) / 2.0f;
+	double centery = (cornerPoints[0].y() + cornerPoints[2].y()) / 2.0f;
 
-	cornerPoints[0] = ResultPoint(centerx + ratio * dx, centery + ratio * dy);
-	cornerPoints[2] = ResultPoint(centerx - ratio * dx, centery - ratio * dy);
+	cornerPoints[0] = PointF(centerx + ratio * dx, centery + ratio * dy);
+	cornerPoints[2] = PointF(centerx - ratio * dx, centery - ratio * dy);
 
 	dx = cornerPoints[1].x() - cornerPoints[3].x();
 	dy = cornerPoints[1].y() - cornerPoints[3].y();
 	centerx = (cornerPoints[1].x() + cornerPoints[3].x()) / 2.0f;
 	centery = (cornerPoints[1].y() + cornerPoints[3].y()) / 2.0f;
-	cornerPoints[1] = ResultPoint(centerx + ratio * dx, centery + ratio * dy);
-	cornerPoints[3] = ResultPoint(centerx - ratio * dx, centery - ratio * dy);
+	cornerPoints[1] = PointF(centerx + ratio * dx, centery + ratio * dy);
+	cornerPoints[3] = PointF(centerx - ratio * dx, centery - ratio * dy);
 }
 
 
@@ -365,7 +355,7 @@ static void ExpandSquare(std::array<ResultPoint, 4>& cornerPoints, float oldSide
 *
 * @param pCenter Center point
 * @return The corners of the bull-eye
-* @throws NotFoundException If no valid bull-eye can be found
+* @return false If no valid bull-eye can be found
 */
 static bool GetBullsEyeCorners(const BitMatrix& image, const PointI& pCenter, std::array<ResultPoint, 4>& result, bool& compact, int& nbCenterLayers)
 {
@@ -507,23 +497,19 @@ DetectorResult Detect(const BitMatrix& image, bool isMirror, bool isPure)
 	std::array<ResultPoint, 4> bullsEyeCorners;
 	bool compact = false;
 	int nbCenterLayers = 0;
-	if (!GetBullsEyeCorners(image, pCenter, bullsEyeCorners, compact, nbCenterLayers)) {
+	if (!GetBullsEyeCorners(image, pCenter, bullsEyeCorners, compact, nbCenterLayers))
 		return {};
-	}
 
-	if (isMirror) {
+	if (isMirror)
 		std::swap(bullsEyeCorners[0], bullsEyeCorners[2]);
-	}
 
 	// 3. Get the size of the matrix and other parameters from the bull's eye
 	int nbLayers = 0;
 	int nbDataBlocks = 0;
 	bool readerInit = false;
 	int shift = 0;
-	if (!ExtractParameters(image, bullsEyeCorners, compact, nbCenterLayers, nbLayers, nbDataBlocks, readerInit,
-						   shift)) {
+	if (!ExtractParameters(image, bullsEyeCorners, compact, nbCenterLayers, nbLayers, nbDataBlocks, readerInit, shift))
 		return {};
-	}
 
 	// 4. Sample the grid
 	return {SampleGrid(image, bullsEyeCorners[(shift + 0) % 4], bullsEyeCorners[(shift + 1) % 4],

@@ -1,25 +1,15 @@
 /*
 * Copyright 2016 Nu-book Inc.
 * Copyright 2016 ZXing authors
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
 
 #include "ODCode39Reader.h"
 
 #include "DecodeHints.h"
+#include "DecoderResult.h"
 #include "Result.h"
-#include "ZXContainerAlgorithms.h"
+#include "ZXAlgorithms.h"
 
 #include <array>
 
@@ -85,17 +75,10 @@ DecodeExtendedCode39AndCode93(std::string& encoded, const char ctrl[4])
 	return true;
 }
 
-
-Code39Reader::Code39Reader(const DecodeHints& hints) :
-	_extendedMode(hints.tryCode39ExtendedMode()),
-	_validateCheckSum(hints.validateCode39CheckSum())
-{
-}
-
 Result Code39Reader::decodePattern(int rowNumber, PatternView& next, std::unique_ptr<RowReader::DecodingState>&) const
 {
 	// minimal number of characters that must be present (including start, stop and checksum characters)
-	int minCharCount = _validateCheckSum ? 4 : 3;
+	int minCharCount = _hints.validateCode39CheckSum() ? 4 : 3;
 	auto isStartOrStopSymbol = [](char c) { return c == '*'; };
 
 	// provide the indices with the narrow bars/spaces which have to be equally wide
@@ -105,10 +88,10 @@ Result Code39Reader::decodePattern(int rowNumber, PatternView& next, std::unique
 
 	next = FindLeftGuard(next, minCharCount * CHAR_LEN, START_PATTERN, QUIET_ZONE_SCALE * 12);
 	if (!next.isValid())
-		return Result(DecodeStatus::NotFound);
+		return {};
 
 	if (!isStartOrStopSymbol(DecodeNarrowWidePattern(next, CHARACTER_ENCODINGS, ALPHABET))) // read off the start pattern
-		return Result(DecodeStatus::NotFound);
+		return {};
 
 	int xStart = next.pixelsInFront();
 	int maxInterCharacterSpace = next.sum() / 2; // spec actually says 1 narrow space, width/2 is about 4
@@ -119,38 +102,37 @@ Result Code39Reader::decodePattern(int rowNumber, PatternView& next, std::unique
 	do {
 		// check remaining input width and inter-character space
 		if (!next.skipSymbol() || !next.skipSingle(maxInterCharacterSpace))
-			return Result(DecodeStatus::NotFound);
+			return {};
 
 		txt += DecodeNarrowWidePattern(next, CHARACTER_ENCODINGS, ALPHABET);
 		if (txt.back() == 0)
-			return Result(DecodeStatus::NotFound);
+			return {};
 	} while (!isStartOrStopSymbol(txt.back()));
 
 	txt.pop_back(); // remove asterisk
 
 	// check txt length and whitespace after the last char. See also FindStartPattern.
 	if (Size(txt) < minCharCount - 2 || !next.hasQuietZoneAfter(QUIET_ZONE_SCALE))
-		return Result(DecodeStatus::NotFound);
+		return {};
 
-	if (_validateCheckSum) {
+	Error error;
+	if (_hints.validateCode39CheckSum()) {
 		auto checkDigit = txt.back();
 		txt.pop_back();
 		int checksum = TransformReduce(txt, 0, [](char c) { return IndexOf(ALPHABET, c); });
 		if (checkDigit != ALPHABET[checksum % 43])
-			return Result(DecodeStatus::ChecksumError);
+			error = ChecksumError();
 	}
 
-	if (_extendedMode && !DecodeExtendedCode39AndCode93(txt, "$%/+"))
-		return Result(DecodeStatus::FormatError);
+	if (!error && _hints.tryCode39ExtendedMode() && !DecodeExtendedCode39AndCode93(txt, "$%/+"))
+		error = FormatError("Decoding extended Code39/Code93 failed");
 
 	// Symbology identifier modifiers ISO/IEC 16388:2007 Annex C Table C.1
-	static const int symbologyModifiers[4] = { 0, 3 /*checksum*/, 4 /*extended*/, 7 /*checksum,extended*/ };
-	int symbologyIdModifier = symbologyModifiers[(int)_extendedMode * 2 + (int)_validateCheckSum];
-
-	std::string symbologyIdentifier("]A" + std::to_string(symbologyIdModifier));
+	constexpr const char symbologyModifiers[4] = { '0', '3' /*checksum*/, '4' /*extended*/, '7' /*checksum,extended*/ };
+	SymbologyIdentifier symbologyIdentifier = {'A', symbologyModifiers[(int)_hints.tryCode39ExtendedMode() * 2 + (int)_hints.validateCode39CheckSum()]};
 
 	int xStop = next.pixelsTillEnd();
-	return Result(txt, rowNumber, xStart, xStop, BarcodeFormat::Code39, std::move(symbologyIdentifier));
+	return Result(std::move(txt), rowNumber, xStart, xStop, BarcodeFormat::Code39, symbologyIdentifier, error);
 }
 
 } // namespace ZXing::OneD

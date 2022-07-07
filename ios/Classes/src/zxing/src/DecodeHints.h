@@ -1,21 +1,11 @@
-#pragma once
 /*
 * Copyright 2016 Nu-book Inc.
 * Copyright 2016 ZXing authors
 * Copyright 2020 Axel Waggershauser
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
+
+#pragma once
 
 #include "BarcodeFormat.h"
 
@@ -34,8 +24,8 @@ namespace ZXing {
  */
 enum class Binarizer : unsigned char // needs to unsigned for the bitfield below to work, uint8_t fails as well
 {
-	LocalAverage,    ///< T = average of neighboring pixels for 2D and GlobalHistogram for 1D (HybridBinarizer)
-	GlobalHistogram, ///< T = valley between the 2 largest peaks in the histogram (per line in 1D case)
+	LocalAverage,    ///< T = average of neighboring pixels for matrix and GlobalHistogram for linear (HybridBinarizer)
+	GlobalHistogram, ///< T = valley between the 2 largest peaks in the histogram (per line in linear case)
 	FixedThreshold,  ///< T = 127
 	BoolCast,        ///< T = 0, fastest possible
 };
@@ -49,36 +39,45 @@ enum class EanAddOnSymbol : unsigned char // see above
 
 class DecodeHints
 {
-	bool _tryHarder : 1;
-	bool _tryRotate : 1;
-	bool _tryDownscale : 1;
-	bool _isPure : 1;
-	bool _tryCode39ExtendedMode : 1;
-	bool _validateCode39CheckSum : 1;
-	bool _validateITFCheckSum : 1;
-	bool _returnCodabarStartEnd : 1;
-	Binarizer _binarizer : 2;
+	bool _tryHarder                : 1;
+	bool _tryRotate                : 1;
+	bool _tryDownscale             : 1;
+	bool _isPure                   : 1;
+	bool _tryCode39ExtendedMode    : 1;
+	bool _validateCode39CheckSum   : 1;
+	bool _validateITFCheckSum      : 1;
+	bool _returnCodabarStartEnd    : 1;
+	bool _returnErrors             : 1;
 	EanAddOnSymbol _eanAddOnSymbol : 2;
+	Binarizer _binarizer           : 2;
 
-	std::string _characterSet;
-	std::vector<int> _allowedLengths;
-	BarcodeFormats _formats = BarcodeFormat::None;
+	uint8_t _minLineCount        = 2;
+	uint8_t _maxNumberOfSymbols  = 0xff;
+	uint8_t _downscaleFactor     = 3;
 	uint16_t _downscaleThreshold = 500;
-	uint8_t _downscaleFactor = 3;
-	uint8_t _minLineCount = 2;
-	uint8_t _maxNumberOfSymbols = 0xff;
+	BarcodeFormats _formats      = BarcodeFormat::None;
+	std::string _characterSet;
 
 public:
-	// bitfields don't get default initialized to 0.
+	// bitfields don't get default initialized to 0 before c++20
 	DecodeHints()
-		: _tryHarder(1), _tryRotate(1), _tryDownscale(1), _isPure(0), _tryCode39ExtendedMode(0),
-		  _validateCode39CheckSum(0), _validateITFCheckSum(0), _returnCodabarStartEnd(0),
-		  _binarizer(Binarizer::LocalAverage), _eanAddOnSymbol(EanAddOnSymbol::Ignore)
+		: _tryHarder(1),
+		  _tryRotate(1),
+		  _tryDownscale(1),
+		  _isPure(0),
+		  _tryCode39ExtendedMode(0),
+		  _validateCode39CheckSum(0),
+		  _validateITFCheckSum(0),
+		  _returnCodabarStartEnd(0),
+		  _returnErrors(0),
+		  _eanAddOnSymbol(EanAddOnSymbol::Ignore),
+		  _binarizer(Binarizer::LocalAverage)
 	{}
 
 #define ZX_PROPERTY(TYPE, GETTER, SETTER) \
 	TYPE GETTER() const noexcept { return _##GETTER; } \
-	DecodeHints& SETTER(TYPE v) { return _##GETTER = std::move(v), *this; }
+	DecodeHints& SETTER(TYPE v)& { return _##GETTER = std::move(v), *this; } \
+	DecodeHints&& SETTER(TYPE v)&& { return _##GETTER = std::move(v), std::move(*this); }
 
 	/// Specify a set of BarcodeFormats that should be searched for, the default is all supported formats.
 	ZX_PROPERTY(BarcodeFormats, formats, setFormats)
@@ -106,17 +105,14 @@ public:
 	// WARNING: this API is experimental and may change/disappear
 	ZX_PROPERTY(uint8_t, downscaleFactor, setDownscaleFactor)
 
-	/// The number of scan lines in a 1D barcode that have to be equal to accept the result, default is 2
+	/// The number of scan lines in a linear barcode that have to be equal to accept the result, default is 2
 	ZX_PROPERTY(uint8_t, minLineCount, setMinLineCount)
 
 	/// The maximum number of symbols (barcodes) to detect / look for in the image with ReadBarcodes
 	ZX_PROPERTY(uint8_t, maxNumberOfSymbols, setMaxNumberOfSymbols)
 
-	/// Specifies what character encoding to use when decoding, where applicable.
+	/// Specifies fallback character set to use instead of auto-detecting it (when applicable)
 	ZX_PROPERTY(std::string, characterSet, setCharacterSet)
-
-	/// Allowed lengths of encoded data -- reject anything else..
-	ZX_PROPERTY(std::vector<int>, allowedLengths, setAllowedLengths)
 
 	/// If true, the Code-39 reader will try to read extended mode.
 	ZX_PROPERTY(bool, tryCode39ExtendedMode, setTryCode39ExtendedMode)
@@ -127,29 +123,31 @@ public:
 	/// Assume ITF codes employ a GS1 check digit and validate it.
 	ZX_PROPERTY(bool, validateITFCheckSum, setValidateITFCheckSum)
 
-	/**
-	* If true, return the start and end digits in a Codabar barcode instead of stripping them. They
-	* are alpha, whereas the rest are numeric. By default, they are stripped, but this causes them
-	* to not be.
-	*/
+	/// If true, return the start and end chars in a Codabar barcode instead of stripping them.
 	ZX_PROPERTY(bool, returnCodabarStartEnd, setReturnCodabarStartEnd)
+
+	/// If true, return the barcodes with errors as well (e.g. checksum errors, see @Result::error())
+	ZX_PROPERTY(bool, returnErrors, setReturnErrors)
 
 	/// Specify whether to ignore, read or require EAN-2/5 add-on symbols while scanning EAN/UPC codes
 	ZX_PROPERTY(EanAddOnSymbol, eanAddOnSymbol, setEanAddOnSymbol)
 
 #undef ZX_PROPERTY
-#undef ZX_PROPERTY_DEPRECATED
 
 	/// NOTE: used to affect FNC1 handling for Code 128 (aka GS1-128) but behavior now based on position of FNC1.
 	[[deprecated]] bool assumeGS1() const noexcept { return true; }
 	[[deprecated]] DecodeHints& setAssumeGS1(bool v [[maybe_unused]]) { return *this; }
 
+	/// NOTE: has not been in effect since at least 1.2 and no one noticed.
+	[[deprecated]] std::vector<int> allowedLengths() const noexcept { return {}; }
+	[[deprecated]] DecodeHints& setAllowedLengths(const std::vector<int> v [[maybe_unused]]) { return *this; }
+
 	/// NOTE: use validateCode39CheckSum
 	[[deprecated]] bool assumeCode39CheckDigit() const noexcept { return validateCode39CheckSum(); }
-	[[deprecated]] DecodeHints& setAssumeCode39CheckDigit(bool v) { return setValidateCode39CheckSum(v); }
+	[[deprecated]] DecodeHints& setAssumeCode39CheckDigit(bool v) & { return setValidateCode39CheckSum(v); }
 
-	bool hasFormat(BarcodeFormats f) const noexcept { return _formats.testFlags(f); }
-	bool hasNoFormat() const noexcept { return _formats.empty(); }
+	bool hasFormat(BarcodeFormats f) const noexcept { return _formats.testFlags(f) || _formats.empty(); }
+	[[deprecated]] bool hasNoFormat() const noexcept { return _formats.empty(); }
 };
 
 } // ZXing

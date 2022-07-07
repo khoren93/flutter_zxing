@@ -1,20 +1,10 @@
-#pragma once
 /*
 * Copyright 2016 Nu-book Inc.
 * Copyright 2016 ZXing authors
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
+
+#pragma once
 
 #include "Matrix.h"
 #include "Point.h"
@@ -81,14 +71,19 @@ public:
 
 	BitMatrix(int width, int height) : _width(width), _height(height), _rowSize(width), _bits(width * height, UNSET_V) {}
 #else
-	BitMatrix(int width, int height) : _width(width), _height(height), _rowSize((width + 31) / 32), _bits(((width + 31) / 32) * _height, 0) {}
+	BitMatrix(int width, int height)
+		: _width(width), _height(height), _rowSize((width + 31) / 32), _bits(((width + 31) / 32) * _height, 0)
+	{}
 #endif
 
 	explicit BitMatrix(int dimension) : BitMatrix(dimension, dimension) {} // Construct a square matrix.
 
-	BitMatrix(BitMatrix&& other) noexcept : _width(other._width), _height(other._height), _rowSize(other._rowSize), _bits(std::move(other._bits)) {}
+	BitMatrix(BitMatrix&& other) noexcept
+		: _width(other._width), _height(other._height), _rowSize(other._rowSize), _bits(std::move(other._bits))
+	{}
 
-	BitMatrix& operator=(BitMatrix&& other) noexcept {
+	BitMatrix& operator=(BitMatrix&& other) noexcept
+	{
 		_width = other._width;
 		_height = other._height;
 		_rowSize = other._rowSize;
@@ -96,13 +91,11 @@ public:
 		return *this;
 	}
 
-	BitMatrix copy() const {
-		return *this;
-	}
+	BitMatrix copy() const { return *this; }
 
 #ifdef ZX_FAST_BIT_STORAGE
 	// experimental iterator based access
-	template<typename iterator>
+	template <typename iterator>
 	struct Row
 	{
 		iterator _begin, _end;
@@ -111,6 +104,19 @@ public:
 	};
 	Row<data_t*> row(int y) { return {_bits.data() + y * _width, _bits.data() + (y + 1) * _width}; }
 	Row<const data_t*> row(int y) const { return {_bits.data() + y * _width, _bits.data() + (y + 1) * _width}; }
+
+	struct ColIter
+	{
+		const data_t* pos;
+		int stride;
+
+		data_t operator*() const { return *pos; }
+		data_t operator[](int i) const { return *(pos + i * stride); }
+		ColIter& operator++() { return pos += stride, *this; }
+		bool operator<(const ColIter& rhs) const { return pos < rhs.pos; }
+	};
+	Row<ColIter> col(int x) const { return {{_bits.data() + x, _width}, {_bits.data() + x + _height * _width, _width}}; }
+
 #endif
 
 	/**
@@ -120,7 +126,8 @@ public:
 	* @param y The vertical component (i.e. which row)
 	* @return value of given bit in matrix
 	*/
-	bool get(int x, int y) const {
+	bool get(int x, int y) const
+	{
 #ifdef ZX_FAST_BIT_STORAGE
 		return isSet(get(y * _width + x));
 #else
@@ -134,7 +141,8 @@ public:
 	* @param x The horizontal component (i.e. which column)
 	* @param y The vertical component (i.e. which row)
 	*/
-	void set(int x, int y) {
+	void set(int x, int y)
+	{
 #ifdef ZX_FAST_BIT_STORAGE
 		get(y * _width + x) = SET_V;
 #else
@@ -142,7 +150,8 @@ public:
 #endif
 	}
 
-	void unset(int x, int y) {
+	void unset(int x, int y)
+	{
 #ifdef ZX_FAST_BIT_STORAGE
 		get(y * _width + x) = UNSET_V;
 #else
@@ -150,7 +159,8 @@ public:
 #endif
 	}
 
-	void set(int x, int y, bool val) {
+	void set(int x, int y, bool val)
+	{
 #ifdef ZX_FAST_BIT_STORAGE
 		get(y * _width + x) = val ? SET_V : UNSET_V;
 #else
@@ -164,7 +174,8 @@ public:
 	* @param x The horizontal component (i.e. which column)
 	* @param y The vertical component (i.e. which row)
 	*/
-	void flip(int x, int y) {
+	void flip(int x, int y)
+	{
 #ifdef ZX_FAST_BIT_STORAGE
 		auto& v =get(y * _width + x);
 		v = !v;
@@ -173,7 +184,8 @@ public:
 #endif
 	}
 
-	void flipAll() {
+	void flipAll()
+	{
 		for (auto& i : _bits) {
 			i = ~i;
 		}
@@ -182,9 +194,7 @@ public:
 	/**
 	* Clears all bits (sets to false).
 	*/
-	void clear() {
-		std::fill(_bits.begin(), _bits.end(), 0);
-	}
+	void clear() { std::fill(_bits.begin(), _bits.end(), 0); }
 
 	/**
 	* <p>Sets a square region of the bit matrix to true.</p>
@@ -235,33 +245,25 @@ public:
 	bool getBottomRightOnBit(int &right, int& bottom) const;
 
 #ifdef ZX_FAST_BIT_STORAGE
-	void getPatternRow(int r, std::vector<uint16_t>& p_row) const;
+	void getPatternRow(int r, std::vector<uint16_t>& p_row, bool transpose = false) const;
 #endif
 
 	/**
 	* @return The width of the matrix
 	*/
-	int width() const {
-		return _width;
-	}
+	int width() const { return _width; }
 
 	/**
 	* @return The height of the matrix
 	*/
-	int height() const {
-		return _height;
-	}
+	int height() const { return _height; }
 
 	/**
 	* @return The row size of the matrix. That is the number of 32-bits blocks that one row takes.
 	*/
-	int rowSize() const {
-		return _rowSize;
-	}
+	int rowSize() const { return _rowSize; }
 
-	bool empty() const {
-		return _bits.empty();
-	}
+	bool empty() const { return _bits.empty(); }
 
 	friend bool operator==(const BitMatrix& a, const BitMatrix& b)
 	{

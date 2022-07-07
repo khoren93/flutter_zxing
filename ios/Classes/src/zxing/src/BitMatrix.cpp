@@ -1,19 +1,8 @@
 /*
 * Copyright 2016 Nu-book Inc.
 * Copyright 2016 ZXing authors
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
 
 #include "BitMatrix.h"
 
@@ -207,9 +196,9 @@ BitMatrix::getBottomRightOnBit(int& right, int& bottom) const
 constexpr BitMatrix::data_t BitMatrix::SET_V;
 constexpr BitMatrix::data_t BitMatrix::UNSET_V;
 
-void BitMatrix::getPatternRow(int r, PatternRow& p_row) const
+template<typename I>
+void GetPatternRow(BitMatrix::Row<I> b_row, int row_size, PatternRow& p_row)
 {
-	auto b_row = row(r);
 #if 0
 	p_row.reserve(64);
 	p_row.clear();
@@ -227,11 +216,11 @@ void BitMatrix::getPatternRow(int r, PatternRow& p_row) const
 	if (BitMatrix::isSet(*lastPos))
 		p_row.push_back(0); // last value is number of white pixels, here 0
 #else
-	p_row.resize(width() + 2);
+	p_row.resize(row_size + 2);
 	std::fill(p_row.begin(), p_row.end(), 0);
 
-	auto* bitPos = b_row.begin();
-	auto* intPos = p_row.data();
+	auto bitPos = b_row.begin();
+	auto intPos = p_row.data();
 
 	intPos += BitMatrix::isSet(*bitPos); // first value is number of white pixels, here 0
 
@@ -246,6 +235,14 @@ void BitMatrix::getPatternRow(int r, PatternRow& p_row) const
 
 	p_row.resize(intPos - p_row.data() + 1);
 #endif
+}
+
+void BitMatrix::getPatternRow(int r, PatternRow& p_row, bool transpose) const
+{
+	if (transpose)
+		GetPatternRow(col(r), height(), p_row);
+	else
+		GetPatternRow(row(r), width(), p_row);
 }
 #endif
 

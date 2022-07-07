@@ -1,19 +1,8 @@
 /*
 * Copyright 2016 Nu-book Inc.
 * Copyright 2016 ZXing authors
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
 
 #include "DMReader.h"
 
@@ -29,34 +18,38 @@
 
 namespace ZXing::DataMatrix {
 
-Reader::Reader(const DecodeHints& hints)
-	: _tryRotate(hints.tryRotate()), _tryHarder(hints.tryHarder()), _isPure(hints.isPure()),
-	  _characterSet(hints.characterSet())
+Result Reader::decode(const BinaryBitmap& image) const
 {
+#ifdef __cpp_impl_coroutine
+	return FirstOrDefault(decode(image, 1));
+#else
+	auto binImg = image.getBitMatrix();
+	if (binImg == nullptr)
+		return {};
+
+	auto detectorResult = Detect(*binImg, _hints.tryHarder(), _hints.tryRotate(), _hints.isPure());
+	if (!detectorResult.isValid())
+		return {};
+
+	return Result(Decode(detectorResult.bits()), std::move(detectorResult).position(), BarcodeFormat::DataMatrix);
+#endif
 }
 
-/**
-* Locates and decodes a Data Matrix code in an image.
-*
-* @return a string representing the content encoded by the Data Matrix code
-* @throws NotFoundException if a Data Matrix code cannot be found
-* @throws FormatException if a Data Matrix code cannot be decoded
-* @throws ChecksumException if error correction fails
-*/
-Result
-Reader::decode(const BinaryBitmap& image) const
+#ifdef __cpp_impl_coroutine
+Results Reader::decode(const BinaryBitmap& image, int maxSymbols) const
 {
 	auto binImg = image.getBitMatrix();
-	if (binImg == nullptr) {
-		return Result(DecodeStatus::NotFound);
+	if (binImg == nullptr)
+		return {};
+
+	Results results;
+	for (auto&& res : Detect(*binImg, maxSymbols > 1, _hints.tryRotate(), _hints.isPure())) {
+		results.push_back(Result(Decode(res.bits()), std::move(res).position(), BarcodeFormat::DataMatrix));
+		if (maxSymbols > 0 && Size(results) >= maxSymbols)
+			break;
 	}
 
-	auto detectorResult = Detect(*binImg, _tryHarder, _tryRotate, _isPure);
-	if (!detectorResult.isValid())
-		return Result(DecodeStatus::NotFound);
-
-	return Result(Decode(detectorResult.bits(), _characterSet),
-				  std::move(detectorResult).position(), BarcodeFormat::DataMatrix);
+	return results;
 }
-
+#endif
 } // namespace ZXing::DataMatrix

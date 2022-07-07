@@ -2,7 +2,7 @@
 project="flutter_zxing"
 
 # Define the versions to download
-zxing_version="1.3.0"
+zxing_version="1.4.0"
 
 # Define the paths to the directories where the files will be installed
 projectPath="../../$project"

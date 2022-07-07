@@ -1,18 +1,7 @@
 /*
 * Copyright 2019 Axel Waggershauser
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
 
 #include "ReadBarcode.h"
 
@@ -132,13 +121,12 @@ Result ReadBarcode(const ImageView& _iv, const DecodeHints& hints)
 	if (hints.maxNumberOfSymbols() == 1) {
 		// HACK: use the maxNumberOfSymbols value as a switch to ReadBarcodes to enable the downscaling
 		// see python and android wrapper
-		auto ress = ReadBarcodes(_iv, DecodeHints(hints).setMaxNumberOfSymbols(1));
-		return ress.empty() ? Result(DecodeStatus::NotFound) : ress.front();
+		return FirstOrDefault(ReadBarcodes(_iv, hints));
 	} else {
 		LumImage lum;
 		ImageView iv = SetupLumImageView(_iv, lum, hints);
 
-		return MultiFormatReader(hints).read(*CreateBitmap(hints.binarizer(), iv));
+		return MultiFormatReader(hints).read(*CreateBitmap(hints.binarizer(), iv)).setCharacterSet(hints.characterSet());
 	}
 }
 
@@ -162,13 +150,16 @@ Results ReadBarcodes(const ImageView& _iv, const DecodeHints& hints)
 			if (iv.width() != _iv.width())
 				r.setPosition(Scale(r.position(), _iv.width() / iv.width()));
 			if (!Contains(results, r)) {
-				results.push_back(std::move(r));
+				results.push_back(std::move(r)); // TODO: keep the one with no error instead of the first found
 				--maxSymbols;
 			}
 		}
 		if (maxSymbols <= 0)
 			break;
 	}
+
+	for (auto& res : results)
+		res.setCharacterSet(hints.characterSet());
 
 	return results;
 }

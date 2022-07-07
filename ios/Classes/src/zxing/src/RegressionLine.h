@@ -1,19 +1,9 @@
-#pragma once
 /*
 * Copyright 2020 Axel Waggershauser
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
+
+#pragma once
 
 #include "Point.h"
 
@@ -21,6 +11,10 @@
 #include <cmath>
 #include <numeric>
 #include <vector>
+
+#ifdef PRINT_DEBUG
+#include <cstdio>
+#endif
 
 namespace ZXing {
 
@@ -33,12 +27,12 @@ protected:
 
 	friend PointF intersect(const RegressionLine& l1, const RegressionLine& l2);
 
-	bool evaluate(const std::vector<PointF>& ps)
+	template<typename T> bool evaluate(const PointT<T>* begin, const PointT<T>* end)
 	{
-		auto mean = std::accumulate(ps.begin(), ps.end(), PointF()) / ps.size();
+		auto mean = std::accumulate(begin, end, PointF()) / std::distance(begin, end);
 		PointF::value_t sumXX = 0, sumYY = 0, sumXY = 0;
-		for (auto& p : ps) {
-			auto d = p - mean;
+		for (auto p = begin; p != end; ++p) {
+			auto d = *p - mean;
 			sumXX += d.x * d.x;
 			sumYY += d.y * d.y;
 			sumXY += d.x * d.y;
@@ -60,14 +54,29 @@ protected:
 		return dot(_directionInward, normal()) > 0.5f; // angle between original and new direction is at most 60 degree
 	}
 
+	template <typename T> bool evaluate(const std::vector<PointT<T>>& points) { return evaluate(&points.front(), &points.back() + 1); }
+
+	template <typename T> static auto distance(PointT<T> a, PointT<T> b) { return ZXing::distance(a, b); }
+
 public:
 	RegressionLine() { _points.reserve(16); } // arbitrary but plausible start size (tiny performance improvement)
+
+	template<typename T> RegressionLine(PointT<T> a, PointT<T> b)
+	{
+		evaluate(std::vector{a, b});
+	}
+
+	template<typename T> RegressionLine(const PointT<T>* b, const PointT<T>* e)
+	{
+		evaluate(b, e);
+	}
 
 	const auto& points() const { return _points; }
 	int length() const { return _points.size() >= 2 ? int(distance(_points.front(), _points.back())) : 0; }
 	bool isValid() const { return !std::isnan(a); }
 	PointF normal() const { return isValid() ? PointF(a, b) : _directionInward; }
 	auto signedDistance(PointF p) const { return dot(normal(), p) - c; }
+	template <typename T> auto distance(PointT<T> p) const { return std::abs(signedDistance(PointF(p))); }
 	PointF project(PointF p) const { return p - signedDistance(p) * normal(); }
 
 	void reset()

@@ -1,19 +1,9 @@
-#pragma once
 /*
 * Copyright 2019 Axel Waggershauser
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
+
+#pragma once
 
 #include <algorithm>
 #include <cstdint>
@@ -67,8 +57,12 @@ public:
 	 * @param pixStride  optional pixel stride in bytes, default is calculated from format
 	 */
 	ImageView(const uint8_t* data, int width, int height, ImageFormat format, int rowStride = 0, int pixStride = 0)
-		: _data(data), _format(format), _width(width), _height(height),
-		  _pixStride(pixStride ? pixStride : PixStride(format)), _rowStride(rowStride ? rowStride : width * _pixStride)
+		: _data(data),
+		  _format(format),
+		  _width(width),
+		  _height(height),
+		  _pixStride(pixStride ? pixStride : PixStride(format)),
+		  _rowStride(rowStride ? rowStride : width * _pixStride)
 	{}
 
 	int width() const { return _width; }
@@ -91,7 +85,7 @@ public:
 	ImageView rotated(int degree) const
 	{
 		switch ((degree + 360) % 360) {
-		case 90: return {data(0, _height - 1), _height, _width, _format, _pixStride, -_rowStride};
+		case 90:  return {data(0, _height - 1), _height, _width, _format, _pixStride, -_rowStride};
 		case 180: return {data(_width - 1, _height - 1), _width, _height, _format, -_rowStride, -_pixStride};
 		case 270: return {data(_width - 1, 0), _height, _width, _format, -_pixStride, _rowStride};
 		}

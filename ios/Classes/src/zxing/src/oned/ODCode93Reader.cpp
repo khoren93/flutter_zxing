@@ -2,24 +2,13 @@
 * Copyright 2016 Nu-book Inc.
 * Copyright 2016 ZXing authors
 * Copyright 2020 Axel Waggershauser
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
 */
+// SPDX-License-Identifier: Apache-2.0
 
 #include "ODCode93Reader.h"
 
 #include "Result.h"
-#include "ZXContainerAlgorithms.h"
+#include "ZXAlgorithms.h"
 
 #include <array>
 #include <string>
@@ -98,7 +87,7 @@ Result Code93Reader::decodePattern(int rowNumber, PatternView& next, std::unique
 
 	next = FindLeftGuard<CHAR_LEN>(next, minCharCount * CHAR_LEN, IsStartGuard);
 	if (!next.isValid())
-		return Result(DecodeStatus::NotFound);
+		return {};
 
 	int xStart = next.pixelsInFront();
 
@@ -108,37 +97,38 @@ Result Code93Reader::decodePattern(int rowNumber, PatternView& next, std::unique
 	do {
 		// check remaining input width
 		if (!next.skipSymbol())
-			return Result(DecodeStatus::NotFound);
+			return {};
 
 		txt += LookupBitPattern(OneToFourBitPattern<CHAR_LEN, CHAR_SUM>(next), CHARACTER_ENCODINGS, ALPHABET);
 		if (txt.back() == 0)
-			return Result(DecodeStatus::NotFound);
+			return {};
 	} while (txt.back() != '*');
 
 	txt.pop_back(); // remove asterisk
 
 	if (Size(txt) < minCharCount - 2)
-		return Result(DecodeStatus::NotFound);
+		return {};
 
 	// check termination bar (is present and not wider than about 2 modules) and quiet zone
 	next = next.subView(0, CHAR_LEN + 1);
 	if (!next.isValid() || next[CHAR_LEN] > next.sum(CHAR_LEN) / 4 || !next.hasQuietZoneAfter(QUIET_ZONE_SCALE))
-		return Result(DecodeStatus::NotFound);
+		return {};
 
+	Error error;
 	if (!CheckChecksums(txt))
-		return Result(DecodeStatus::ChecksumError);
+		error = ChecksumError();
 
 	// Remove checksum digits
 	txt.resize(txt.size() - 2);
 
-	if (!DecodeExtendedCode39AndCode93(txt, "abcd"))
-		return Result(DecodeStatus::FormatError);
+	if (!error && !DecodeExtendedCode39AndCode93(txt, "abcd"))
+		error = FormatError("Decoding extended Code39/Code93 failed");
 
 	// Symbology identifier ISO/IEC 15424:2008 4.4.10 no modifiers
-	std::string symbologyIdentifier("]G0");
+	SymbologyIdentifier symbologyIdentifier = {'G', '0'};
 
 	int xStop = next.pixelsTillEnd();
-	return Result(txt, rowNumber, xStart, xStop, BarcodeFormat::Code93, std::move(symbologyIdentifier));
+	return Result(txt, rowNumber, xStart, xStop, BarcodeFormat::Code93, symbologyIdentifier, error);
 }
 
 } // namespace ZXing::OneD
