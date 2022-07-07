@@ -1,0 +1,5 @@
+Barcode and QR code scanner that supports more than 15 types of codes.
+- Scan barcode from camera stream
+- Scan barcode from image path
+- Create barcode from text
+- Flashlight and pinch to zoom support

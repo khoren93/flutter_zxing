@@ -1,6 +1,6 @@
 name: zxscanner
 description: A barcode scanner application.
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+4
 
@@ -37,14 +37,16 @@ flutter_intl:
 
 dev_dependencies:
   build_runner: ^2.1.11
+  # espresso: ^0.2.0+2
   flutter_lints: ^2.0.1
   flutter_native_splash: ^2.2.4 # flutter pub run flutter_native_splash:create
   flutter_test:
     sdk: flutter
   hive_generator:
   icons_launcher: ^1.1.9 # flutter pub run icons_launcher:create
+  # integration_test:
+  #   sdk: flutter
   mobx_codegen:
-
 
 flutter:
   uses-material-design: true
@@ -54,8 +56,8 @@ flutter_native_splash:
   color_dark: "#131d25"
   image: assets/images/app_logo.png
   info_plist_files:
-    - 'ios/Runner/Info-Debug.plist'
-    - 'ios/Runner/Info-Release.plist'
+    - "ios/Runner/Info-Debug.plist"
+    - "ios/Runner/Info-Release.plist"
 
 flutter_icons:
   android: true
@@ -65,7 +67,7 @@ flutter_icons:
   web: false
   remove_alpha_ios: true
   image_path: "assets/images/app_icon_border.png"
-  image_path_ios: 'assets/images/app_icon.png'
-  adaptive_icon_background: '#4C9BBA'
-  adaptive_icon_foreground: 'assets/images/app_icon_adaptive.png'
-  adaptive_icon_round: 'assets/images/app_icon_round.png'
+  image_path_ios: "assets/images/app_icon.png"
+  adaptive_icon_background: "#4C9BBA"
+  adaptive_icon_foreground: "assets/images/app_icon_adaptive.png"
+  adaptive_icon_round: "assets/images/app_icon_round.png"

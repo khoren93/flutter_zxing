@@ -12,7 +12,6 @@ dependencies:
   ffi: ^2.0.0
   flutter:
     sdk: flutter
-  flutter_beep: ^1.0.0
   image: ^3.2.0
 
 dev_dependencies:

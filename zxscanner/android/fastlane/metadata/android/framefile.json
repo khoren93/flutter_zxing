@@ -1,0 +1,35 @@
+{
+  "device_frame_version": "latest",
+  "default": {
+    "title": {
+      "color": "#545454"
+    },
+    "background": "./background.jpg",
+    "padding": 30,
+    "show_complete_frame": false,
+    "stack_title" : true,
+    "title_below_image": false,
+    "frame": "BLACK"
+  },
+
+  "data": [
+    {
+      "filter": "01_scanner_screen",
+      "keyword": {
+        "color": "#BF382A"
+      }
+    },
+    {
+      "filter": "02_creator_screen",
+      "keyword": {
+        "color": "#26AD5E"
+      }
+    },
+    {
+      "filter": "03_help_screen",
+      "keyword": {
+        "color": "#394C82"
+      }
+    }
+  ]
+}

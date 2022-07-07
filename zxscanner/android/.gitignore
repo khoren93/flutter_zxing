@@ -11,3 +11,8 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+/fastlane/report.xml
+/fastlane/private
+/fastlane/**/*.png
+fastlane/metadata/android/screenshots.html

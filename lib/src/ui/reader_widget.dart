@@ -5,7 +5,7 @@ import 'dart:math';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_beep/flutter_beep.dart';
+// import 'package:flutter_beep/flutter_beep.dart';
 
 import '../../generated_bindings.dart';
 import '../logic/zxing.dart';
@@ -19,7 +19,6 @@ class ReaderWidget extends StatefulWidget {
     required this.onScan,
     this.onControllerCreated,
     this.codeFormat = Format.Any,
-    this.beep = true,
     this.showCroppingRect = true,
     this.scannerOverlay,
     this.showFlashlight = true,
@@ -32,7 +31,6 @@ class ReaderWidget extends StatefulWidget {
   final Function(CodeResult) onScan;
   final Function(CameraController?)? onControllerCreated;
   final int codeFormat;
-  final bool beep;
   final bool showCroppingRect;
   final ScannerOverlay? scannerOverlay;
   final bool showFlashlight;
@@ -163,9 +161,6 @@ class _ReaderWidgetState extends State<ReaderWidget>
           cropPercent: widget.cropPercent,
         );
         if (result.isValidBool) {
-          if (widget.beep) {
-            FlutterBeep.beep();
-          }
           widget.onScan(result);
           setState(() {});
           await Future<void>.delayed(const Duration(seconds: 1));

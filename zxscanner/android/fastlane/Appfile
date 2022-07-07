@@ -1,0 +1,2 @@
+json_key_file("fastlane/private/pc-api-8902372433309418312-948-1346a3d81bee.json") # Path to the json secret file - Follow https://docs.fastlane.tools/actions/supply/#setup to get one
+package_name("com.markosyan.zxscanner") # e.g. com.krausefx.app
