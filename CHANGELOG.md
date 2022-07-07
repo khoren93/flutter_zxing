@@ -1,3 +1,7 @@
+## 0.5.0
+
+* fixed Chinese support for iOS (thanks to [@aqiu202](https://github.com/aqiu202))
+
 ## 0.4.0
 Breaking changes
 * removed `FlutterZxing` class, call all methods directly
