@@ -38,7 +38,7 @@ extern "C"
     struct CodeResults
     {
         int count;
-        struct CodeResult* results;
+        struct CodeResult *results;
     };
 
     struct EncodeResult
@@ -53,8 +53,8 @@ extern "C"
 
     /**
      * @brief Enables or disables the logging of the library.
-     * 
-     * @param enabled 
+     *
+     * @param enabled
      */
     void setLogEnabled(int enabled);
 
@@ -88,7 +88,7 @@ extern "C"
      * @param cropHeight Crop height.
      * @param logEnabled Log enabled.
      * @return Barcode results.
-     */ 
+     */
     struct CodeResults readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight);
 
     /**

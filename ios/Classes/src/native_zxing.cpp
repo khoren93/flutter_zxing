@@ -5,16 +5,18 @@
 #include "BitMatrix.h"
 #include "native_zxing.h"
 
+#include <locale>
+#include <codecvt>
+#include <stdarg.h>
+
 using namespace ZXing;
 
 extern "C"
 {
-    bool logEnabled = false;
-
     FUNCTION_ATTRIBUTE
     void setLogEnabled(int enabled)
     {
-        logEnabled = enabled;
+        setLoggingEnabled(enabled);
     }
 
     FUNCTION_ATTRIBUTE
@@ -48,18 +50,16 @@ extern "C"
 
             code.format = Format(static_cast<int>(result.format()));
 
-            const wchar_t *resultText = result.text().c_str();
-            size_t size = (wcslen(resultText) + 1) * sizeof(wchar_t);
-            code.text = new char[size];
-            std::wcstombs(code.text, resultText, size);
-            platform_log("zxingRead: %ls\n", resultText);
+            std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+            std::string text = converter.to_bytes(result.text());
+            code.text = new char[text.length() + 1];
+            strcpy(code.text, text.c_str());
+
+            platform_log("Result: %s\n", code.text);
         }
 
         int evalInMillis = static_cast<int>(get_now() - start);
-        if (logEnabled)
-        {
-            platform_log("zxingRead: %d ms\n", evalInMillis);
-        }
+        platform_log("Read Barcode in: %d ms\n", evalInMillis);
         return code;
     }
 
@@ -92,22 +92,19 @@ extern "C"
 
                 code.format = Format(static_cast<int>(result.format()));
 
-                const wchar_t *resultText = result.text().c_str();
-                size_t size = (wcslen(resultText) + 1) * sizeof(wchar_t);
-                code.text = new char[size];
-                std::wcstombs(code.text, resultText, size);
+                std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+                std::string text = converter.to_bytes(result.text());
+                code.text = new char[text.length() + 1];
+                strcpy(code.text, text.c_str());
 
                 codes[i] = code;
                 i++;
-                platform_log("zxingRead: %s\n", code.text);
+                platform_log("Result: %s\n", code.text);
             }
         }
 
         int evalInMillis = static_cast<int>(get_now() - start);
-        if (logEnabled)
-        {
-            platform_log("zxingRead: %d ms\n", evalInMillis);
-        }
+        platform_log("Read Barcode in: %d ms\n", evalInMillis);
         return {i, codes};
     }
 
@@ -127,19 +124,13 @@ extern "C"
         }
         catch (const std::exception &e)
         {
-            if (logEnabled)
-            {
-                platform_log("Can't encode text: %s\nError: %s\n", contents, e.what());
-            }
+            platform_log("Can't encode text: %s\nError: %s\n", contents, e.what());
             result.error = new char[strlen(e.what()) + 1];
             strcpy(result.error, e.what());
         }
 
         int evalInMillis = static_cast<int>(get_now() - start);
-        if (logEnabled)
-        {
-            platform_log("zxingEncode: %d ms\n", evalInMillis);
-        }
+        platform_log("Encode Barcode in: %d ms\n", evalInMillis);
         return result;
     }
 }
