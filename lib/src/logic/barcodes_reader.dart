@@ -6,12 +6,16 @@ Future<List<CodeResult>> readBarcodesImagePathString(
   int format = Format.Any,
   int cropWidth = 0,
   int cropHeight = 0,
+  bool tryHarder = false,
+  bool tryRotate = true,
 }) =>
     readBarcodesImagePath(
       XFile(path),
       format: format,
       cropWidth: cropWidth,
       cropHeight: cropHeight,
+      tryHarder: tryHarder,
+      tryRotate: tryRotate,
     );
 
 /// Reads barcodes from XFile image path
@@ -20,6 +24,8 @@ Future<List<CodeResult>> readBarcodesImagePath(
   int format = Format.Any,
   int cropWidth = 0,
   int cropHeight = 0,
+  bool tryHarder = false,
+  bool tryRotate = true,
 }) async {
   final Uint8List imageBytes = await path.readAsBytes();
   final imglib.Image? image = imglib.decodeImage(imageBytes);
@@ -33,6 +39,8 @@ Future<List<CodeResult>> readBarcodesImagePath(
     format: format,
     cropWidth: cropWidth,
     cropHeight: cropHeight,
+    tryHarder: tryHarder,
+    tryRotate: tryRotate,
   );
 }
 
@@ -42,6 +50,8 @@ Future<List<CodeResult>> readBarcodesImageUrl(
   int format = Format.Any,
   int cropWidth = 0,
   int cropHeight = 0,
+  bool tryHarder = false,
+  bool tryRotate = true,
 }) async {
   final Uint8List imageBytes =
       (await NetworkAssetBundle(Uri.parse(url)).load(url)).buffer.asUint8List();
@@ -56,6 +66,8 @@ Future<List<CodeResult>> readBarcodesImageUrl(
     format: format,
     cropWidth: cropWidth,
     cropHeight: cropHeight,
+    tryHarder: tryHarder,
+    tryRotate: tryRotate,
   );
 }
 
@@ -67,9 +79,19 @@ List<CodeResult> readBarcodes(
   int format = Format.Any,
   int cropWidth = 0,
   int cropHeight = 0,
+  bool tryHarder = false,
+  bool tryRotate = true,
 }) {
   final CodeResults result = bindings.readBarcodes(
-      bytes.allocatePointer(), format, width, height, cropWidth, cropHeight);
+    bytes.allocatePointer(),
+    format,
+    width,
+    height,
+    cropWidth,
+    cropHeight,
+    tryHarder ? 1 : 0,
+    tryRotate ? 1 : 0,
+  );
   final List<CodeResult> results = <CodeResult>[];
   for (int i = 0; i < result.count; i++) {
     results.add(result.results.elementAt(i).ref);

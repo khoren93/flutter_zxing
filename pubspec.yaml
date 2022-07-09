@@ -36,5 +36,9 @@ ffigen:
   headers:
     entry-points:
       - "ios/Classes/src/native_zxing.h"
+  functions:
+    exclude:
+      - resultToCodeResult
+
 
 # flutter pub publish --dry-run

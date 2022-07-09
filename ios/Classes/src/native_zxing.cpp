@@ -14,9 +14,9 @@ using namespace ZXing;
 extern "C"
 {
     FUNCTION_ATTRIBUTE
-    void setLogEnabled(int enabled)
+    void setLogEnabled(int enable)
     {
-        setLoggingEnabled(enabled);
+        setLoggingEnabled(enable);
     }
 
     FUNCTION_ATTRIBUTE
@@ -26,7 +26,7 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResult readBarcode(char *bytes, int format, int width, int height, int cropWidth, int cropHeight)
+    struct CodeResult readBarcode(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate)
     {
         long long start = get_now();
 
@@ -39,7 +39,7 @@ extern "C"
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
         }
-        DecodeHints hints = DecodeHints().setTryHarder(false).setTryRotate(true).setFormats(BarcodeFormat(format));
+        DecodeHints hints = DecodeHints().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format));
         Result result = ReadBarcode(image, hints);
 
         struct CodeResult code = {false, nullptr};
@@ -54,7 +54,7 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResults readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight)
+    struct CodeResults readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate)
     {
         long long start = get_now();
 
@@ -67,7 +67,7 @@ extern "C"
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
         }
-        DecodeHints hints = DecodeHints().setTryHarder(false).setTryRotate(true).setFormats(BarcodeFormat(format));
+        DecodeHints hints = DecodeHints().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format));
         Results results = ReadBarcodes(image, hints);
 
         auto *codes = new struct CodeResult[results.size()];

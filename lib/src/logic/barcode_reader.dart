@@ -6,12 +6,16 @@ Future<CodeResult?> readBarcodeImagePathString(
   int format = Format.Any,
   int cropWidth = 0,
   int cropHeight = 0,
+  bool tryHarder = false,
+  bool tryRotate = true,
 }) =>
     readBarcodeImagePath(
       XFile(path),
       format: format,
       cropWidth: cropWidth,
       cropHeight: cropHeight,
+      tryHarder: tryHarder,
+      tryRotate: tryRotate,
     );
 
 /// Reads barcode from XFile image path
@@ -20,6 +24,8 @@ Future<CodeResult?> readBarcodeImagePath(
   int format = Format.Any,
   int cropWidth = 0,
   int cropHeight = 0,
+  bool tryHarder = false,
+  bool tryRotate = true,
 }) async {
   final Uint8List imageBytes = await path.readAsBytes();
   final imglib.Image? image = imglib.decodeImage(imageBytes);
@@ -33,6 +39,8 @@ Future<CodeResult?> readBarcodeImagePath(
     format: format,
     cropWidth: cropWidth,
     cropHeight: cropHeight,
+    tryHarder: tryHarder,
+    tryRotate: tryRotate,
   );
 }
 
@@ -42,6 +50,8 @@ Future<CodeResult?> readBarcodeImageUrl(
   int format = Format.Any,
   int cropWidth = 0,
   int cropHeight = 0,
+  bool tryHarder = false,
+  bool tryRotate = true,
 }) async {
   final Uint8List imageBytes =
       (await NetworkAssetBundle(Uri.parse(url)).load(url)).buffer.asUint8List();
@@ -56,6 +66,8 @@ Future<CodeResult?> readBarcodeImageUrl(
     format: format,
     cropWidth: cropWidth,
     cropHeight: cropHeight,
+    tryHarder: tryHarder,
+    tryRotate: tryRotate,
   );
 }
 
@@ -67,6 +79,8 @@ CodeResult readBarcode(
   int format = Format.Any,
   int cropWidth = 0,
   int cropHeight = 0,
+  bool tryHarder = false,
+  bool tryRotate = true,
 }) =>
     bindings.readBarcode(
       bytes.allocatePointer(),
@@ -75,4 +89,6 @@ CodeResult readBarcode(
       height,
       cropWidth,
       cropHeight,
+      tryHarder ? 1 : 0,
+      tryRotate ? 1 : 0,
     );
