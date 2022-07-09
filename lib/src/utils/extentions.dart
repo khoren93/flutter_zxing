@@ -21,6 +21,7 @@ extension CodeExt on CodeResult {
   String? get textString =>
       text == nullptr ? null : text.cast<Utf8>().toDartString();
   String get formatString => barcodeFormatName(format);
+  Pos get position => pos.ref;
 }
 
 extension EncodeExt on EncodeResult {

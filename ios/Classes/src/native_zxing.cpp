@@ -34,28 +34,18 @@ extern "C"
         auto *data = new uint8_t[length];
         memcpy(data, bytes, length);
 
-        BarcodeFormats formats = BarcodeFormat(format);
-        DecodeHints hints = DecodeHints().setTryHarder(false).setTryRotate(true).setFormats(formats);
         ImageView image{data, width, height, ImageFormat::Lum};
         if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
         }
+        DecodeHints hints = DecodeHints().setTryHarder(false).setTryRotate(true).setFormats(BarcodeFormat(format));
         Result result = ReadBarcode(image, hints);
 
         struct CodeResult code = {false, nullptr};
         if (result.isValid())
         {
-            code.isValid = result.isValid();
-
-            code.format = Format(static_cast<int>(result.format()));
-
-            std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-            std::string text = converter.to_bytes(result.text());
-            code.text = new char[text.length() + 1];
-            strcpy(code.text, text.c_str());
-
-            platform_log("Result: %s\n", code.text);
+            resultToCodeResult(&code, result);
         }
 
         int evalInMillis = static_cast<int>(get_now() - start);
@@ -72,13 +62,12 @@ extern "C"
         auto *data = new uint8_t[length];
         memcpy(data, bytes, length);
 
-        BarcodeFormats formats = BarcodeFormat(format);
-        DecodeHints hints = DecodeHints().setTryHarder(false).setTryRotate(true).setFormats(formats);
         ImageView image{data, width, height, ImageFormat::Lum};
         if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
         }
+        DecodeHints hints = DecodeHints().setTryHarder(false).setTryRotate(true).setFormats(BarcodeFormat(format));
         Results results = ReadBarcodes(image, hints);
 
         auto *codes = new struct CodeResult[results.size()];
@@ -88,18 +77,9 @@ extern "C"
             struct CodeResult code = {false, nullptr};
             if (result.isValid())
             {
-                code.isValid = result.isValid();
-
-                code.format = Format(static_cast<int>(result.format()));
-
-                std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-                std::string text = converter.to_bytes(result.text());
-                code.text = new char[text.length() + 1];
-                strcpy(code.text, text.c_str());
-
+                resultToCodeResult(&code, result);
                 codes[i] = code;
                 i++;
-                platform_log("Result: %s\n", code.text);
             }
         }
 
@@ -132,5 +112,26 @@ extern "C"
         int evalInMillis = static_cast<int>(get_now() - start);
         platform_log("Encode Barcode in: %d ms\n", evalInMillis);
         return result;
+    }
+
+    FUNCTION_ATTRIBUTE
+    void resultToCodeResult(struct CodeResult *code, Result result)
+    {
+        code->isValid = result.isValid();
+
+        code->format = Format(static_cast<int>(result.format()));
+
+        std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+        std::string text = converter.to_bytes(result.text());
+        code->text = new char[text.length() + 1];
+        strcpy(code->text, text.c_str());
+
+        auto p = result.position();
+        auto tl = p.topLeft();
+        auto tr = p.topRight();
+        auto bl = p.bottomLeft();
+        auto br = p.bottomRight();
+        code->pos = new Pos{tl.x, tl.y, tr.x, tr.y, bl.x, bl.y, br.x, br.y};
+        platform_log("Result: %s\n", code->text);
     }
 }

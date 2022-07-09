@@ -158,7 +158,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
         final CodeResult result = await processCameraImage(
           image,
           format: widget.codeFormat,
-          cropPercent: widget.cropPercent,
+          cropPercent: widget.showCroppingRect ? widget.cropPercent : 0,
         );
         if (result.isValidBool) {
           widget.onScan(result);

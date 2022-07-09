@@ -206,6 +206,32 @@ abstract class Format {
   static const int Any = 65535;
 }
 
+class Pos extends ffi.Struct {
+  @ffi.Int()
+  external int topLeftX;
+
+  @ffi.Int()
+  external int topLeftY;
+
+  @ffi.Int()
+  external int topRightX;
+
+  @ffi.Int()
+  external int topRightY;
+
+  @ffi.Int()
+  external int bottomLeftX;
+
+  @ffi.Int()
+  external int bottomLeftY;
+
+  @ffi.Int()
+  external int bottomRightX;
+
+  @ffi.Int()
+  external int bottomRightY;
+}
+
 class CodeResult extends ffi.Struct {
   @ffi.Int()
   external int isValid;
@@ -214,6 +240,8 @@ class CodeResult extends ffi.Struct {
 
   @ffi.Int32()
   external int format;
+
+  external ffi.Pointer<Pos> pos;
 }
 
 class CodeResults extends ffi.Struct {

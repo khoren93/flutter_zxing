@@ -4,6 +4,7 @@
         "__config": "cpp",
         "__nullptr": "cpp",
         "codecvt": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "array": "cpp"
     }
 }

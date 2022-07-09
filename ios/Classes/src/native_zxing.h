@@ -28,11 +28,24 @@ extern "C"
         Any = OneDCodes | TwoDCodes,
     };
 
+    struct Pos
+    {
+        int topLeftX;
+        int topLeftY;
+        int topRightX;
+        int topRightY;
+        int bottomLeftX;
+        int bottomLeftY;
+        int bottomRightX;
+        int bottomRightY;
+    };
+
     struct CodeResult
     {
         int isValid;
         char *text;
         enum Format format;
+        struct Pos *pos;
     };
 
     struct CodeResults
@@ -103,6 +116,8 @@ extern "C"
      * @return The barcode data
      */
     struct EncodeResult encodeBarcode(char *contents, int width, int height, int format, int margin, int eccLevel);
+
+    void resultToCodeResult(struct CodeResult *code, ZXing::Result result);
 
 #ifdef __cplusplus
 }
