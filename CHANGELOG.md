@@ -1,3 +1,8 @@
+## 0.7.0
+
+* added barcode result point detection
+* added tryHarder and tryRotate arguments to the readers
+
 ## 0.6.0
 
 * updated zxing-cpp to v1.4.0
