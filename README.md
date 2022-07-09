@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/khoren93/flutter_zxing/blob/main/zxscanner/assets/images/app_logo.png" alt="ZXScanner logo" height="80" >
+  <img src="https://user-images.githubusercontent.com/11523360/178121826-bf8c0662-8b22-41cf-8a5d-dde02519e16e.png" alt="ZXScanner logo" height="80" >
 </p>
 
 # flutter_zxing
