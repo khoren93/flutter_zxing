@@ -2,6 +2,12 @@
   <img src="https://user-images.githubusercontent.com/11523360/178121826-bf8c0662-8b22-41cf-8a5d-dde02519e16e.png" alt="ZXScanner logo" height="80" >
 </p>
 
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=com.markosyan.zxscanner">
+    <img alt="Download on the Google Play" title="Google Play" src="https://user-images.githubusercontent.com/11523360/178162318-533a29de-750f-4d4b-b117-f3d01c2c9340.png" height="50">
+  </a>
+</p>
+
 # flutter_zxing
 
 A barcode and QR code scanner based on [ZXing C++](https://github.com/nu-book/zxing-cpp) library natively in Flutter with Dart FFI.
