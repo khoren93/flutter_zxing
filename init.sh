@@ -25,11 +25,6 @@ mkdir -p "$zxingPath"
 # copy zxing
 cp -R "zxing-cpp-$zxing_version/core/" "$zxingPath"
 
-# remove unneeded zxing files
-rm -R "$zxingPath/CMakeLists.txt"
-rm -R "$zxingPath/ZXingConfig.cmake.in"
-rm -R "$zxingPath/ZXVersion.h.in"
-
 # print success message for zxing
 echo "ZXing $zxing_version has been successfully installed"
 
