@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/11523360/178121826-bf8c0662-8b22-41cf-8a5d-dde02519e16e.png" alt="ZXScanner logo" height="80" >
+  <img src="https://user-images.githubusercontent.com/11523360/178162663-57ec28ac-7075-43ab-ac31-35058298c73e.png" alt="ZXScanner logo" height="100" >
 </p>
 
 <p align="center">
