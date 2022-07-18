@@ -8,7 +8,7 @@ environment:
   flutter: ">=2.5.0"
 
 dependencies:
-  camera: ^0.9.7
+  camera: ">=0.9.7 <0.11.0"
   ffi: ^2.0.0
   flutter:
     sdk: flutter
