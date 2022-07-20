@@ -1,3 +1,7 @@
+## 0.7.1
+
+* updated dependencies to the latest version
+
 ## 0.7.0
 
 * added barcode result point detection
