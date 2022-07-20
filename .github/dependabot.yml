@@ -16,12 +16,12 @@ updates:
   - package-ecosystem: "pub"
     directory: "/example"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     reviewers:
       - "khoren93"
   - package-ecosystem: "pub"
     directory: "/zxscanner"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     reviewers:
       - "khoren93"
