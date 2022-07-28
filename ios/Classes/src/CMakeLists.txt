@@ -11,7 +11,7 @@ add_library(
 
 set (BUILD_WRITERS ON)
 
-add_subdirectory(ZXing)
+add_subdirectory(zxing)
 
 find_library(log-lib log)
 target_link_libraries(flutter_zxing ZXing ${log-lib})
