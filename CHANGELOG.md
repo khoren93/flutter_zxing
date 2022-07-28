@@ -1,3 +1,7 @@
+## 0.7.2
+
+* fixed case sensitive folder name issue in CMakeLists.txt (thanks to [@softkot](https://github.com/softkot))
+
 ## 0.7.1
 
 * updated dependencies to the latest version
