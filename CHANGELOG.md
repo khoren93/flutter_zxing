@@ -1,3 +1,7 @@
+## 0.7.4
+
+* updated readme
+
 ## 0.7.3
 
 * encodeBarcode method now uses the named parameters instead of positional parameters
