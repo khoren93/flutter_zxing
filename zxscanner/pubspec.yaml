@@ -43,7 +43,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   hive_generator:
-  icons_launcher: ^2.0.3 # flutter pub run icons_launcher:create
+  icons_launcher: ^2.0.4 # flutter pub run icons_launcher:create
   # integration_test:
   #   sdk: flutter
   mobx_codegen:

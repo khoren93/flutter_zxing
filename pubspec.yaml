@@ -38,7 +38,7 @@ ffigen:
       - "ios/Classes/src/native_zxing.h"
   functions:
     exclude:
-      - resultToCodeResult
+      - 'resultToCodeResult'
 
 
 # flutter pub publish --dry-run

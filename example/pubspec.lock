@@ -42,7 +42,7 @@ packages:
       name: camera_avfoundation
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.9.8+3"
+    version: "0.9.8+4"
   camera_platform_interface:
     dependency: transitive
     description:

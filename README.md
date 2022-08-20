@@ -56,27 +56,27 @@ Widget build(BuildContext context) {
     ),
 );
 
-// Or use FlutterZxing
+// Or use flutter_zxing plugin methods 
 // To read barcode from camera image directly
-await FlutterZxing.startCameraProcessing(); // Call this in initState
+await startCameraProcessing(); // Call this in initState
 cameraController?.startImageStream((image) async {
-    CodeResult result = await FlutterZxing.processCameraImage(image);
+    CodeResult result = await processCameraImage(image);
     if (result.isValidBool) {
         debugPrint(result.textString);
     }
     return null;
 });
-FlutterZxing.stopCameraProcessing(); // Call this in dispose
+stopCameraProcessing(); // Call this in dispose
 
 // To read barcode from XFile, String or url
 XFile xFile = XFile('Your image path');
-CodeResult? resultFromXFile = await FlutterZxing.readImagePath(xFile);
+CodeResult? resultFromXFile = await readImagePath(xFile);
 
 String path = 'Your image path';
-CodeResult? resultFromPath = await FlutterZxing.readImagePathString(path);
+CodeResult? resultFromPath = await readImagePathString(path);
 
 String url = 'Your image url';
-CodeResult? resultFromUrl = await FlutterZxing.readImageUrl(url);
+CodeResult? resultFromUrl = await readImageUrl(url);
 ```
 
 ### To create barcode:
@@ -101,8 +101,14 @@ Widget build(BuildContext context) {
 );
 
 // Or use FlutterZxing to create barcode directly
-final text = 'Text to encode';
-final result = FlutterZxing.encodeBarcode(text, 300, 300, Format.QRCode, 10, 0);
+final result = encodeBarcode(
+    'Text to encode',
+    format: Format.QRCode,
+    width: 300,
+    height: 300,
+    margin: 10,
+    eccLevel: 0,
+);
 if (result.isValidBool) {
     final img = imglib.Image.fromBytes(width, height, result.bytes);
     final encodedBytes = Uint8List.fromList(imglib.encodeJpg(img));
