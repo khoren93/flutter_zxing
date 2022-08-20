@@ -68,15 +68,18 @@ cameraController?.startImageStream((image) async {
 });
 stopCameraProcessing(); // Call this in dispose
 
-// To read barcode from XFile, String or url
+// To read barcode from XFile, String, url or Uint8List bytes
 XFile xFile = XFile('Your image path');
-CodeResult? resultFromXFile = await readImagePath(xFile);
+CodeResult? resultFromXFile = await readBarcodeImagePath(xFile);
 
-String path = 'Your image path';
-CodeResult? resultFromPath = await readImagePathString(path);
+String path = 'Your local image path';
+CodeResult? resultFromPath = await readBarcodeImagePathString(path);
 
-String url = 'Your image url';
-CodeResult? resultFromUrl = await readImageUrl(url);
+String url = 'Your remote image url';
+CodeResult? resultFromUrl = await readBarcodeImageUrl(url);
+
+Uint8List bytes = Uint8List.fromList(yourImageBytes);
+CodeResult? resultFromBytes = await readBarcode(bytes);
 ```
 
 ### To create barcode:
