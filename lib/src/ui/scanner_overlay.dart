@@ -30,14 +30,14 @@ class ScannerOverlay extends ShapeBorder {
 
   @override
   Path getOuterPath(Rect rect, {TextDirection? textDirection}) {
-    Path _getLeftTopPath(Rect rect) {
+    Path getLeftTopPath(Rect rect) {
       return Path()
         ..moveTo(rect.left, rect.bottom)
         ..lineTo(rect.left, rect.top)
         ..lineTo(rect.right, rect.top);
     }
 
-    return _getLeftTopPath(rect)
+    return getLeftTopPath(rect)
       ..lineTo(
         rect.right,
         rect.bottom,
