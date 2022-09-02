@@ -42,7 +42,7 @@ packages:
       name: camera_avfoundation
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.9.8+4"
+    version: "0.9.8+5"
   camera_platform_interface:
     dependency: transitive
     description:
@@ -197,7 +197,7 @@ packages:
       name: image_picker_ios
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.8.5+6"
+    version: "0.8.6"
   image_picker_platform_interface:
     dependency: transitive
     description:
@@ -345,4 +345,4 @@ packages:
     version: "6.1.0"
 sdks:
   dart: ">=2.17.0 <3.0.0"
-  flutter: ">=2.8.0"
+  flutter: ">=2.10.0"
