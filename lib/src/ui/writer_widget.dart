@@ -14,6 +14,7 @@ class WriterWidget extends StatefulWidget {
     this.height = 120,
     this.margin = 0,
     this.eccLevel = 0,
+    this.messages = const Messages(),
     this.onSuccess,
     this.onError,
   });
@@ -24,6 +25,7 @@ class WriterWidget extends StatefulWidget {
   final int height;
   final int margin;
   final int eccLevel;
+  final Messages messages;
   final Function(EncodeResult result, Uint8List? bytes)? onSuccess;
   final Function(String error)? onError;
 
@@ -69,6 +71,7 @@ class _WriterWidgetState extends State<WriterWidget>
 
   @override
   Widget build(BuildContext context) {
+    final Messages m = widget.messages;
     return SingleChildScrollView(
       child: Form(
         key: _formKey,
@@ -91,13 +94,13 @@ class _WriterWidgetState extends State<WriterWidget>
                 decoration: InputDecoration(
                   border: const OutlineInputBorder(),
                   filled: true,
-                  labelText: 'Enter barcode text here',
+                  labelText: m.textLabel,
                   counterText:
                       '${_textController.value.text.length} / $_maxTextLength',
                 ),
                 validator: (String? value) {
                   if (value?.isEmpty ?? false) {
-                    return 'Please enter some text';
+                    return m.invalidText;
                   }
                   return null;
                 },
@@ -125,13 +128,13 @@ class _WriterWidgetState extends State<WriterWidget>
                     child: TextFormField(
                       controller: _widthController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Width',
+                      decoration: InputDecoration(
+                        labelText: m.widthLabel,
                       ),
                       validator: (String? value) {
                         final int? width = int.tryParse(value ?? '');
                         if (width == null) {
-                          return 'Invalid number';
+                          return m.invalidWidth;
                         }
                         return null;
                       },
@@ -142,13 +145,13 @@ class _WriterWidgetState extends State<WriterWidget>
                     child: TextFormField(
                       controller: _heightController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Height',
+                      decoration: InputDecoration(
+                        labelText: m.heightLabel,
                       ),
                       validator: (String? value) {
                         final int? width = int.tryParse(value ?? '');
                         if (width == null) {
-                          return 'Invalid number';
+                          return m.invalidHeight;
                         }
                         return null;
                       },
@@ -163,13 +166,13 @@ class _WriterWidgetState extends State<WriterWidget>
                     child: TextFormField(
                       controller: _marginController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Margin',
+                      decoration: InputDecoration(
+                        labelText: m.marginLabel,
                       ),
                       validator: (String? value) {
                         final int? width = int.tryParse(value ?? '');
                         if (width == null) {
-                          return 'Invalid number';
+                          return m.invalidMargin;
                         }
                         return null;
                       },
@@ -180,13 +183,13 @@ class _WriterWidgetState extends State<WriterWidget>
                     child: TextFormField(
                       controller: _eccController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'ECC Level',
+                      decoration: InputDecoration(
+                        labelText: m.eccLevelLabel,
                       ),
                       validator: (String? value) {
                         final int? width = int.tryParse(value ?? '');
                         if (width == null) {
-                          return 'Invalid number';
+                          return m.invalidEccLevel;
                         }
                         return null;
                       },
@@ -198,7 +201,7 @@ class _WriterWidgetState extends State<WriterWidget>
               // Write button
               ElevatedButton(
                 onPressed: createBarcode,
-                child: const Text('Create'),
+                child: Text(m.createButton),
               ),
               const SizedBox(height: 10),
             ],

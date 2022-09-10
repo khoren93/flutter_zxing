@@ -5,3 +5,4 @@ export 'src/ui/scanner_overlay.dart';
 export 'src/ui/writer_widget.dart';
 export 'src/utils/extentions.dart';
 export 'src/utils/image_converter.dart';
+export 'src/utils/messages.dart';

@@ -59,6 +59,9 @@ class _DemoPageState extends State<DemoPage> {
             ListView(
               children: [
                 WriterWidget(
+                  messages: const Messages(
+                    createButton: 'Create Code',
+                  ),
                   onSuccess: (result, bytes) {
                     setState(() {
                       createdCodeBytes = bytes;
