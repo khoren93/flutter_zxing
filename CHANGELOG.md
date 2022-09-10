@@ -1,3 +1,8 @@
+## 0.8.0
+
+* added ability to set localization messages for `writer_widget`
+* fixed bug where iOS crashes when creating a new barcode
+
 ## 0.7.4
 
 * updated readme
@@ -28,7 +33,9 @@
 * fixed Chinese support for iOS (thanks to [@aqiu202](https://github.com/aqiu202))
 
 ## 0.4.0
+
 Breaking changes
+
 * removed `FlutterZxing` class, call all methods directly
 * added read multiple barcodes methods
 
