@@ -10,6 +10,7 @@
 #include <stdarg.h>
 
 using namespace ZXing;
+using namespace std;
 
 extern "C"
 {
@@ -97,12 +98,12 @@ extern "C"
         try
         {
             auto writer = MultiFormatWriter(BarcodeFormat(format)).setMargin(margin).setEccLevel(eccLevel).setEncoding(CharacterSet::UTF8);
-            auto bitMatrix = writer.encode(TextUtfEncoding::FromUtf8(std::string(contents)), width, height);
-            result.data = ToMatrix<uint32_t>(bitMatrix).data();
+            auto bitMatrix = writer.encode(TextUtfEncoding::FromUtf8(string(contents)), width, height);
+            result.data = ToMatrix<int8_t>(bitMatrix).data();
             result.length = bitMatrix.width() * bitMatrix.height();
             result.isValid = true;
         }
-        catch (const std::exception &e)
+        catch (const exception &e)
         {
             platform_log("Can't encode text: %s\nError: %s\n", contents, e.what());
             result.error = new char[strlen(e.what()) + 1];
@@ -121,8 +122,8 @@ extern "C"
 
         code->format = Format(static_cast<int>(result.format()));
 
-        std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-        std::string text = converter.to_bytes(result.text());
+        wstring_convert<codecvt_utf8<wchar_t>> converter;
+        string text = converter.to_bytes(result.text());
         code->text = new char[text.length() + 1];
         strcpy(code->text, text.c_str());
 

@@ -8,12 +8,24 @@ import '../../flutter_zxing.dart';
 class WriterWidget extends StatefulWidget {
   const WriterWidget({
     super.key,
+    this.text = '',
+    this.format = Format.QRCode,
+    this.width = 120,
+    this.height = 120,
+    this.margin = 0,
+    this.eccLevel = 0,
     this.onSuccess,
     this.onError,
   });
 
-  final Function(EncodeResult, Uint8List?)? onSuccess;
-  final Function(String)? onError;
+  final String text;
+  final int format;
+  final int width;
+  final int height;
+  final int margin;
+  final int eccLevel;
+  final Function(EncodeResult result, Uint8List? bytes)? onSuccess;
+  final Function(String error)? onError;
 
   @override
   State<WriterWidget> createState() => _WriterWidgetState();
@@ -23,19 +35,37 @@ class _WriterWidgetState extends State<WriterWidget>
     with TickerProviderStateMixin {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _textController = TextEditingController();
-  final TextEditingController _widthController =
-      TextEditingController(text: '300');
-  final TextEditingController _heightController =
-      TextEditingController(text: '300');
-  final TextEditingController _marginController =
-      TextEditingController(text: '10');
-  final TextEditingController _eccController = TextEditingController(text: '0');
+  final TextEditingController _widthController = TextEditingController();
+  final TextEditingController _heightController = TextEditingController();
+  final TextEditingController _marginController = TextEditingController();
+  final TextEditingController _eccController = TextEditingController();
 
   bool isAndroid() => Theme.of(context).platform == TargetPlatform.android;
 
   final int _maxTextLength = 2000;
   final List<int> _supportedFormats = CodeFormat.writerFormats;
   int _codeFormat = Format.QRCode;
+
+  @override
+  void initState() {
+    _textController.text = widget.text;
+    _widthController.text = widget.width.toString();
+    _heightController.text = widget.height.toString();
+    _marginController.text = widget.margin.toString();
+    _eccController.text = widget.eccLevel.toString();
+    _codeFormat = widget.format;
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _widthController.dispose();
+    _heightController.dispose();
+    _marginController.dispose();
+    _eccController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

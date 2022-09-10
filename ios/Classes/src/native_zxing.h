@@ -77,7 +77,7 @@ extern "C"
         int isValid;              ///< Whether the barcode was successfully encoded
         char *text;               ///< The encoded text
         enum Format format;       ///< The format of the barcode
-        const unsigned int *data; ///< The encoded data
+        const signed char *data; ///< The encoded data
         int length;               ///< The length of the encoded data
         char *error;              ///< The error message
     };

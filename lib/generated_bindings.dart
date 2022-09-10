@@ -295,7 +295,7 @@ class EncodeResult extends ffi.Struct {
   external int format;
 
   /// < The encoded data
-  external ffi.Pointer<ffi.UnsignedInt> data;
+  external ffi.Pointer<ffi.SignedChar> data;
 
   /// < The length of the encoded data
   @ffi.Int()
