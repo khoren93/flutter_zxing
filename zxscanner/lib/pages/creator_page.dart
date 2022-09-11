@@ -84,17 +84,28 @@ class _CreatorPageState extends State<CreatorPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: <Widget>[
-            ElevatedButton(
-              onPressed: () {
-                // Save image to device
-                final File file = File(tempPath);
-                file.writeAsBytesSync(encode?.data ?? Uint8List(0));
-                final String path = file.path;
-                // Share image
-                Share.shareFiles(<String>[path]);
-              },
-              child: const Text('Share'),
-            ),
+            Builder(builder: (BuildContext context) {
+              return ElevatedButton(
+                onPressed: () {
+                  // Save image to device
+                  final File file = File(tempPath);
+                  file.writeAsBytesSync(encode?.data ?? Uint8List(0));
+                  final String path = file.path;
+
+                  // Share image
+                  final RenderBox? box =
+                      context.findRenderObject() as RenderBox?;
+                  if (box != null) {
+                    Share.shareFiles(
+                      <String>[path],
+                      sharePositionOrigin:
+                          box.localToGlobal(Offset.zero) & box.size,
+                    );
+                  }
+                },
+                child: const Text('Share'),
+              );
+            }),
             ElevatedButton(
               onPressed: () async {
                 if (encode != null) {

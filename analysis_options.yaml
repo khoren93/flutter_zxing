@@ -26,10 +26,6 @@ analyzer:
     # Turned off until null-safe rollout is complete.
     unnecessary_null_comparison: warning
   exclude:
-    - "zxscanner/**"
-    - "bin/cache/**"
-      # Ignore protoc generated files
-    - "dev/conductor/lib/proto/*"
     - "lib/generated_bindings.dart"
     
 linter:
