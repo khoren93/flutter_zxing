@@ -3,6 +3,10 @@
 </p>
 
 <p align="center">
+  <a href="https://apps.apple.com/am/app/zxscanner/id1629106248">
+    <img alt="Download on the App Store" title="App Store" src="https://user-images.githubusercontent.com/11523360/178162313-182568ae-c9a2-48bd-9a51-883562788d9e.png" height="50">
+  </a>
+  
   <a href="https://play.google.com/store/apps/details?id=com.markosyan.zxscanner">
     <img alt="Download on the Google Play" title="Google Play" src="https://user-images.githubusercontent.com/11523360/178162318-533a29de-750f-4d4b-b117-f3d01c2c9340.png" height="50">
   </a>
