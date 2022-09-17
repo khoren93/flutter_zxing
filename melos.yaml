@@ -1,0 +1,6 @@
+name: flutter_zxing
+
+packages:
+  - example/**
+  - zxscanner/**
+  - '*'

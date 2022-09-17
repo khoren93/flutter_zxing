@@ -24,8 +24,11 @@ jobs:
           channel: "stable"
           cache: true
 
+      # Setup the melos environment.
+      - uses: bluefireteam/melos-action@v1
+
       - name: Install dependencies
-        run: flutter pub get
+        run: melos bootstrap
 
       - name: Verify formatting
         run: flutter format .
