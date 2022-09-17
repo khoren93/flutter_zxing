@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1
+
+* bug fixes
+  
 ## 0.8.0
 
 * added ability to set localization messages for `writer_widget`
