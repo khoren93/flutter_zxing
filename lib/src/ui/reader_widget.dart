@@ -4,13 +4,12 @@ import 'dart:math';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+
 // import 'package:flutter_beep/flutter_beep.dart';
 
 import '../../generated_bindings.dart';
 import '../logic/zxing.dart';
 import '../utils/extentions.dart';
-import '../utils/isolate_utils.dart';
 import 'scanner_overlay.dart';
 
 class ReaderWidget extends StatefulWidget {
@@ -24,8 +23,10 @@ class ReaderWidget extends StatefulWidget {
     this.showFlashlight = true,
     this.allowPinchZoom = true,
     this.scanDelay = const Duration(milliseconds: 1000), // 1000ms delay
+    this.scanDelaySuccess = const Duration(milliseconds: 1000), // 1000ms delay
     this.cropPercent = 0.5, // 50% of the screen
     this.resolution = ResolutionPreset.high,
+    this.loading = const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
   });
 
   final Function(CodeResult) onScan;
@@ -38,14 +39,15 @@ class ReaderWidget extends StatefulWidget {
   final Duration scanDelay;
   final double cropPercent;
   final ResolutionPreset resolution;
+  final Duration scanDelaySuccess;
+  final Widget loading;
 
   @override
   State<ReaderWidget> createState() => _ReaderWidgetState();
 }
 
-class _ReaderWidgetState extends State<ReaderWidget>
-    with TickerProviderStateMixin {
-  List<CameraDescription>? cameras;
+class _ReaderWidgetState extends State<ReaderWidget> with TickerProviderStateMixin, WidgetsBindingObserver {
+  List<CameraDescription> cameras = <CameraDescription>[];
   CameraController? controller;
   bool _cameraOn = false;
 
@@ -59,13 +61,10 @@ class _ReaderWidgetState extends State<ReaderWidget>
   // true when code detecting is ongoing
   bool _isProcessing = false;
 
-  /// Instance of [IsolateUtils]
-  IsolateUtils? isolateUtils;
-
   @override
   void initState() {
     super.initState();
-
+    WidgetsBinding.instance.addObserver(this);
     initStateAsync();
   }
 
@@ -81,38 +80,50 @@ class _ReaderWidgetState extends State<ReaderWidget>
         }
       });
     });
+  }
 
-    SystemChannels.lifecycle.setMessageHandler((String? message) async {
-      debugPrint(message);
-      final CameraController? cameraController = controller;
-      if (cameraController == null || !cameraController.value.isInitialized) {
-        return;
-      }
-      if (mounted) {
-        if (message == AppLifecycleState.paused.toString()) {
-          await cameraController.stopImageStream();
-          await cameraController.dispose();
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        if (cameras.isNotEmpty && !_cameraOn) {
+          onNewCameraSelected(cameras.first);
+        }
+
+        break;
+      case AppLifecycleState.inactive:
+        break;
+      case AppLifecycleState.paused:
+        controller?.stopImageStream().then((_) => controller?.dispose());
+        setState(() {
           _cameraOn = false;
-          setState(() {});
-        }
-        if (message == AppLifecycleState.resumed.toString()) {
-          _cameraOn = true;
-          onNewCameraSelected(cameraController.description);
-        }
-      }
-      return null;
-    });
+        });
+        break;
+      case AppLifecycleState.detached:
+        break;
+    }
   }
 
   @override
   void dispose() {
     stopCameraProcessing();
+    controller?.removeListener(rebuildOnMount);
     controller?.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void rebuildOnMount() {
+    if (mounted) {
+      setState(() {
+        _cameraOn = true;
+      });
+    }
   }
 
   Future<void> onNewCameraSelected(CameraDescription cameraDescription) async {
     if (controller != null) {
+      controller?.removeListener(rebuildOnMount);
       await controller!.dispose();
     }
 
@@ -120,35 +131,24 @@ class _ReaderWidgetState extends State<ReaderWidget>
       cameraDescription,
       widget.resolution,
       enableAudio: false,
-      imageFormatGroup:
-          isAndroid() ? ImageFormatGroup.yuv420 : ImageFormatGroup.bgra8888,
+      imageFormatGroup: isAndroid() ? ImageFormatGroup.yuv420 : ImageFormatGroup.bgra8888,
     );
-    final CameraController? cameraController = controller;
-    if (cameraController == null) {
+    if (controller == null) {
       return;
     }
     try {
-      await cameraController.initialize();
-      await cameraController.setFlashMode(FlashMode.off);
-      _maxZoomLevel = await cameraController.getMaxZoomLevel();
-      _minZoomLevel = await cameraController.getMinZoomLevel();
-      cameraController.startImageStream(processImageStream);
+      await controller!.initialize();
+      await controller!.setFlashMode(FlashMode.off);
+      _maxZoomLevel = await controller!.getMaxZoomLevel();
+      _minZoomLevel = await controller!.getMinZoomLevel();
+      controller!.startImageStream(processImageStream);
     } on CameraException catch (e) {
       debugPrint('${e.code}: ${e.description}');
     }
 
-    cameraController.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
-
-    if (mounted) {
-      _cameraOn = true;
-      setState(() {});
-    }
-
-    widget.onControllerCreated?.call(cameraController);
+    controller!.addListener(rebuildOnMount);
+    rebuildOnMount();
+    widget.onControllerCreated?.call(controller);
   }
 
   Future<void> processImageStream(CameraImage image) async {
@@ -163,7 +163,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
         if (result.isValidBool) {
           widget.onScan(result);
           setState(() {});
-          await Future<void>.delayed(const Duration(seconds: 1));
+          await Future<void>.delayed(widget.scanDelaySuccess);
         }
       } on FileSystemException catch (e) {
         debugPrint(e.message);
@@ -179,30 +179,13 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   @override
   Widget build(BuildContext context) {
+    final bool isCameraReady = cameras.isNotEmpty && _cameraOn && controller != null && controller!.value.isInitialized;
     final Size size = MediaQuery.of(context).size;
+    final double cameraMaxSize = max(size.width, size.height);
     final double cropSize = min(size.width, size.height) * widget.cropPercent;
     return Stack(
       children: <Widget>[
-        // Camera preview
-        Center(
-          child: _cameraPreviewWidget(cropSize),
-        ),
-      ],
-    );
-  }
-
-  // Display the preview from the camera.
-  Widget _cameraPreviewWidget(double cropSize) {
-    final CameraController? cameraController = controller;
-    final bool isCameraReady = cameras != null &&
-        (cameras?.isNotEmpty ?? false) &&
-        _cameraOn &&
-        !(cameraController == null || !cameraController.value.isInitialized);
-    final Size size = MediaQuery.of(context).size;
-    final double cameraMaxSize = max(size.width, size.height);
-    return Stack(
-      children: <Widget>[
-        if (!isCameraReady) Container(color: Colors.black),
+        if (!isCameraReady) widget.loading,
         if (isCameraReady)
           SizedBox(
             width: cameraMaxSize,
@@ -214,7 +197,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
                   child: SizedBox(
                     width: cameraMaxSize,
                     child: CameraPreview(
-                      cameraController,
+                      controller!,
                     ),
                   ),
                 ),
@@ -241,9 +224,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
               _zoom = _scaleFactor;
             },
             onScaleUpdate: (ScaleUpdateDetails details) {
-              _scaleFactor =
-                  (_zoom * details.scale).clamp(_minZoomLevel, _maxZoomLevel);
-              cameraController?.setZoomLevel(_scaleFactor);
+              _scaleFactor = (_zoom * details.scale).clamp(_minZoomLevel, _maxZoomLevel);
+              controller?.setZoomLevel(_scaleFactor);
             },
           ),
         if (widget.showFlashlight)
@@ -251,37 +233,41 @@ class _ReaderWidgetState extends State<ReaderWidget>
             bottom: 20,
             left: 20,
             child: FloatingActionButton(
-              onPressed: () {
-                if (cameraController != null) {
-                  FlashMode mode = cameraController.value.flashMode;
-                  if (mode == FlashMode.torch) {
-                    mode = FlashMode.off;
-                  } else {
-                    mode = FlashMode.torch;
+                onPressed: () {
+                  if (controller != null) {
+                    FlashMode mode = controller!.value.flashMode;
+                    if (mode == FlashMode.torch) {
+                      mode = FlashMode.off;
+                    } else {
+                      mode = FlashMode.torch;
+                    }
+                    controller!.setFlashMode(mode);
+                    setState(() {});
                   }
-                  cameraController.setFlashMode(mode);
-                  setState(() {});
-                }
-              },
-              backgroundColor: Colors.black26,
-              child: Icon(_flashIcon(cameraController)),
-            ),
-          )
+                },
+                backgroundColor: Colors.black26,
+                child: _FlashIcon(flashMode: controller!.value.flashMode)),
+          ),
       ],
     );
   }
+}
 
-  IconData _flashIcon(CameraController? cameraController) {
-    final FlashMode mode = cameraController?.value.flashMode ?? FlashMode.torch;
-    switch (mode) {
+class _FlashIcon extends StatelessWidget {
+  const _FlashIcon({required this.flashMode});
+  final FlashMode flashMode;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (flashMode) {
       case FlashMode.torch:
-        return Icons.flash_on;
+        return const Icon(Icons.flash_on);
       case FlashMode.off:
-        return Icons.flash_off;
+        return const Icon(Icons.flash_off);
       case FlashMode.always:
-        return Icons.flash_on;
+        return const Icon(Icons.flash_on);
       case FlashMode.auto:
-        return Icons.flash_auto;
+        return const Icon(Icons.flash_auto);
     }
   }
 }
