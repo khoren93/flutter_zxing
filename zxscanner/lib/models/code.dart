@@ -5,7 +5,6 @@ part 'code.g.dart';
 
 @HiveType(typeId: 0)
 class Code extends HiveObject {
-
   Code();
 
   Code.fromCodeResult(CodeResult result) {

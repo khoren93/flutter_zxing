@@ -26,7 +26,8 @@ class ReaderWidget extends StatefulWidget {
     this.scanDelaySuccess = const Duration(milliseconds: 1000), // 1000ms delay
     this.cropPercent = 0.5, // 50% of the screen
     this.resolution = ResolutionPreset.high,
-    this.loading = const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
+    this.loading =
+        const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
   });
 
   final Function(CodeResult) onScan;
@@ -46,7 +47,8 @@ class ReaderWidget extends StatefulWidget {
   State<ReaderWidget> createState() => _ReaderWidgetState();
 }
 
-class _ReaderWidgetState extends State<ReaderWidget> with TickerProviderStateMixin, WidgetsBindingObserver {
+class _ReaderWidgetState extends State<ReaderWidget>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   List<CameraDescription> cameras = <CameraDescription>[];
   CameraController? controller;
   bool _cameraOn = false;
@@ -89,7 +91,6 @@ class _ReaderWidgetState extends State<ReaderWidget> with TickerProviderStateMix
         if (cameras.isNotEmpty && !_cameraOn) {
           onNewCameraSelected(cameras.first);
         }
-
         break;
       case AppLifecycleState.inactive:
         break;
@@ -131,7 +132,8 @@ class _ReaderWidgetState extends State<ReaderWidget> with TickerProviderStateMix
       cameraDescription,
       widget.resolution,
       enableAudio: false,
-      imageFormatGroup: isAndroid() ? ImageFormatGroup.yuv420 : ImageFormatGroup.bgra8888,
+      imageFormatGroup:
+          isAndroid() ? ImageFormatGroup.yuv420 : ImageFormatGroup.bgra8888,
     );
     if (controller == null) {
       return;
@@ -144,6 +146,8 @@ class _ReaderWidgetState extends State<ReaderWidget> with TickerProviderStateMix
       controller!.startImageStream(processImageStream);
     } on CameraException catch (e) {
       debugPrint('${e.code}: ${e.description}');
+    } catch (e) {
+      debugPrint('Error: $e');
     }
 
     controller!.addListener(rebuildOnMount);
@@ -179,7 +183,10 @@ class _ReaderWidgetState extends State<ReaderWidget> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
-    final bool isCameraReady = cameras.isNotEmpty && _cameraOn && controller != null && controller!.value.isInitialized;
+    final bool isCameraReady = cameras.isNotEmpty &&
+        _cameraOn &&
+        controller != null &&
+        controller!.value.isInitialized;
     final Size size = MediaQuery.of(context).size;
     final double cameraMaxSize = max(size.width, size.height);
     final double cropSize = min(size.width, size.height) * widget.cropPercent;
@@ -224,29 +231,29 @@ class _ReaderWidgetState extends State<ReaderWidget> with TickerProviderStateMix
               _zoom = _scaleFactor;
             },
             onScaleUpdate: (ScaleUpdateDetails details) {
-              _scaleFactor = (_zoom * details.scale).clamp(_minZoomLevel, _maxZoomLevel);
+              _scaleFactor =
+                  (_zoom * details.scale).clamp(_minZoomLevel, _maxZoomLevel);
               controller?.setZoomLevel(_scaleFactor);
             },
           ),
-        if (widget.showFlashlight)
+        if (widget.showFlashlight && isCameraReady)
           Positioned(
             bottom: 20,
             left: 20,
             child: FloatingActionButton(
                 onPressed: () {
-                  if (controller != null) {
-                    FlashMode mode = controller!.value.flashMode;
-                    if (mode == FlashMode.torch) {
-                      mode = FlashMode.off;
-                    } else {
-                      mode = FlashMode.torch;
-                    }
-                    controller!.setFlashMode(mode);
-                    setState(() {});
+                  FlashMode mode = controller!.value.flashMode;
+                  if (mode == FlashMode.torch) {
+                    mode = FlashMode.off;
+                  } else {
+                    mode = FlashMode.torch;
                   }
+                  controller?.setFlashMode(mode);
+                  setState(() {});
                 },
                 backgroundColor: Colors.black26,
-                child: _FlashIcon(flashMode: controller!.value.flashMode)),
+                child: _FlashIcon(
+                    flashMode: controller?.value.flashMode ?? FlashMode.off)),
           ),
       ],
     );

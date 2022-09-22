@@ -7,7 +7,6 @@ part 'encode.g.dart';
 
 @HiveType(typeId: 1)
 class Encode extends HiveObject {
-
   Encode();
 
   Encode.fromEncodeResult(EncodeResult result, Uint8List? bytes) {
