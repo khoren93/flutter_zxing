@@ -321,7 +321,7 @@ packages:
       name: flutter_zxing
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.8.2"
+    version: "0.8.3"
   font_awesome_flutter:
     dependency: "direct main"
     description:
