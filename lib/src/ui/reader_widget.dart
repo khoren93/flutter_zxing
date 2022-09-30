@@ -86,6 +86,11 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final CameraController? cameraController = controller;
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+
     switch (state) {
       case AppLifecycleState.resumed:
         if (cameras.isNotEmpty && !_cameraOn) {
@@ -93,9 +98,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
         }
         break;
       case AppLifecycleState.inactive:
-        break;
       case AppLifecycleState.paused:
-        controller?.stopImageStream().then((_) => controller?.dispose());
+        controller?.dispose();
         setState(() {
           _cameraOn = false;
         });
