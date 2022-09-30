@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.3
+
+* bug fixes
+
 ## 0.8.2
 
 * bug fixes
