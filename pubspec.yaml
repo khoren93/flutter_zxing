@@ -15,7 +15,7 @@ dependencies:
   image: ^3.2.0
 
 dev_dependencies:
-  ffigen: ^6.0.0 # dart run ffigen
+  ffigen: ">=6.0.0 <8.0.0" # dart run ffigen
   flutter_lints: ^2.0.1
   flutter_test:
     sdk: flutter
