@@ -263,6 +263,13 @@ class CodeResult extends ffi.Struct {
   /// < The decoded text
   external ffi.Pointer<ffi.Char> text;
 
+  /// < The bytes is the raw / standard content without any modifications like character set conversions
+  external ffi.Pointer<ffi.UnsignedChar> bytes;
+
+  /// < The length of the bytes
+  @ffi.Int()
+  external int length;
+
   /// < The format of the barcode
   @ffi.Int32()
   external int format;

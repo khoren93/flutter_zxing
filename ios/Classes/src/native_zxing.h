@@ -53,10 +53,12 @@ extern "C"
      */
     struct CodeResult
     {
-        int isValid;        ///< Whether the barcode was successfully decoded
-        char *text;         ///< The decoded text
-        enum Format format; ///< The format of the barcode
-        struct Pos *pos;    ///< The position of the barcode within the image
+        int isValid;                ///< Whether the barcode was successfully decoded
+        char *text;                 ///< The decoded text
+        const unsigned char *bytes; ///< The bytes is the raw / standard content without any modifications like character set conversions
+        int length;                 ///< The length of the bytes
+        enum Format format;         ///< The format of the barcode
+        struct Pos *pos;            ///< The position of the barcode within the image
     };
 
     /**

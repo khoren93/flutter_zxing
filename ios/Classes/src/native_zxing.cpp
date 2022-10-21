@@ -122,6 +122,9 @@ extern "C"
 
         code->format = Format(static_cast<int>(result.format()));
 
+        code->bytes = result.bytes().data();
+        code->length = result.bytes().size();
+
         wstring_convert<codecvt_utf8<wchar_t>> converter;
         string text = converter.to_bytes(result.text());
         code->text = new char[text.length() + 1];

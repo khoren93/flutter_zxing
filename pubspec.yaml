@@ -12,11 +12,11 @@ dependencies:
   ffi: ^2.0.0
   flutter:
     sdk: flutter
-  image: ^3.2.0
+  image: ^3.0.0
 
 dev_dependencies:
-  ffigen: ^6.0.0 # dart run ffigen
-  flutter_lints: ^2.0.1
+  ffigen: ^7.0.0 # dart run ffigen
+  flutter_lints: ^2.0.0
   flutter_test:
     sdk: flutter
 

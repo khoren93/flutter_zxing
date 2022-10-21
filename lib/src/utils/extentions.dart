@@ -19,6 +19,8 @@ extension CodeExt on CodeResult {
   bool get isValidBool => isValid == 1;
   String? get textString =>
       text == nullptr ? null : text.cast<Utf8>().toDartString();
+  Uint8List get rawBytes =>
+      Uint8List.fromList(bytes.cast<Int8>().asTypedList(length));
   String get formatString => barcodeFormatName(format);
   Pos get position => pos.ref;
 }
@@ -28,7 +30,8 @@ extension EncodeExt on EncodeResult {
   String? get textString =>
       text == nullptr ? null : text.cast<Utf8>().toDartString();
   String get formatString => barcodeFormatName(format);
-  Uint32List get bytes => Uint32List.fromList(data.cast<Int8>().asTypedList(length));
+  Uint32List get bytes =>
+      Uint32List.fromList(data.cast<Int8>().asTypedList(length));
   String get errorMessage => error.cast<Utf8>().toDartString();
 }
 
