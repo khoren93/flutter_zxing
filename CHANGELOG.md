@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.4
+
+* added 'bytes' parameter content without any modifications to the scan result
+
 ## 0.8.3
 
 * bug fixes
