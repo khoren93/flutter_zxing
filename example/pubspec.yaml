@@ -12,7 +12,7 @@ dependencies:
   flutter_zxing:
     path: ../
   font_awesome_flutter: ^10.2.1
-  image: ^3.2.0
+  image: ^3.2.2
   image_picker: ^0.8.5
 
 dev_dependencies:
