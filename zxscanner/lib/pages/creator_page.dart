@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -96,8 +97,8 @@ class _CreatorPageState extends State<CreatorPage> {
                   final RenderBox? box =
                       context.findRenderObject() as RenderBox?;
                   if (box != null) {
-                    Share.shareFiles(
-                      <String>[path],
+                    Share.shareXFiles(
+                      <XFile>[XFile(path)],
                       sharePositionOrigin:
                           box.localToGlobal(Offset.zero) & box.size,
                     );

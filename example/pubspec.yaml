@@ -13,7 +13,7 @@ dependencies:
     path: ../
   font_awesome_flutter: ^10.2.1
   image: ^3.2.2
-  image_picker: ^0.8.5
+  image_picker: ^0.8.6
 
 dev_dependencies:
   flutter_lints: ^2.0.1
