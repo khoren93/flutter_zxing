@@ -11,7 +11,7 @@ dependencies:
     sdk: flutter
   flutter_zxing:
     path: ../
-  font_awesome_flutter: ^10.2.1
+  font_awesome_flutter: ^10.3.0
   image: ^3.2.2
   image_picker: ^0.8.6
 

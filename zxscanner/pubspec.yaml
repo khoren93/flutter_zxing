@@ -10,7 +10,7 @@ environment:
 dependencies:
   convex_bottom_bar: ^3.1.0
   cupertino_icons: ^1.0.5
-  flex_color_scheme: ^6.0.1
+  flex_color_scheme: ^6.1.1
   flutter:
     sdk: flutter
   flutter_localizations:
@@ -19,7 +19,7 @@ dependencies:
   flutter_mobx: ^2.0.6
   flutter_zxing: ">=0.8.0 <1.0.0"
     # path: ../
-  font_awesome_flutter: ^10.2.1
+  font_awesome_flutter: ^10.3.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   image: ^3.2.2
@@ -29,7 +29,7 @@ dependencies:
   path_provider: ^2.0.11
   share_plus: ^6.3.0
   shared_preferences: ^2.0.15
-  url_launcher: ^6.1.6
+  url_launcher: ^6.1.7
 
 flutter_intl:
   main_locale: en_US
