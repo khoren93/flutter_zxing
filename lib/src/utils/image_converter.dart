@@ -57,3 +57,11 @@ imglib.Image convertYUV420(CameraImage image) {
 
   return img;
 }
+
+Uint8List invertImage(Uint8List bytes) {
+  final Uint8List invertedBytes = Uint8List.fromList(bytes);
+  for (int i = 0; i < invertedBytes.length; i++) {
+    invertedBytes[i] = 255 - invertedBytes[i];
+  }
+  return invertedBytes;
+}

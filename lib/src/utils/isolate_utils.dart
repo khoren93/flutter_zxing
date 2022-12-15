@@ -16,10 +16,14 @@ class IsolateData {
     this.cameraImage,
     this.format,
     this.cropPercent,
+    this.tryHarder,
+    this.tryInverted,
   );
   CameraImage cameraImage;
   int format;
   double cropPercent;
+  bool tryHarder;
+  bool tryInverted;
 
   SendPort? responsePort;
 }
@@ -63,15 +67,32 @@ class IsolateUtils {
           final Uint8List bytes = await convertImage(image);
           final int cropSize =
               (min(image.width, image.height) * cropPercent).round();
+          final bool tryHarder = isolateData.tryHarder;
+          final bool tryInverted = isolateData.tryInverted;
 
-          final CodeResult result = readBarcode(
+          CodeResult result = readBarcode(
             bytes,
             width: image.width,
             height: image.height,
             format: isolateData.format,
             cropWidth: cropSize,
             cropHeight: cropSize,
+            tryHarder: tryHarder,
           );
+
+          if (result.isValid == 0 && tryInverted) {
+            // try to invert the image and read again
+            final Uint8List invertedBytes = invertImage(bytes);
+            result = readBarcode(
+              invertedBytes,
+              width: image.width,
+              height: image.height,
+              format: isolateData.format,
+              cropWidth: cropSize,
+              cropHeight: cropSize,
+              tryHarder: tryHarder,
+            );
+          }
 
           isolateData.responsePort?.send(result);
         } catch (e) {

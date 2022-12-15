@@ -11,9 +11,15 @@ Future<void> startCameraProcessing() async {
 /// Stops reading barcode from the camera
 void stopCameraProcessing() => isolateUtils?.stopReadingBarcode();
 
-Future<CodeResult> processCameraImage(CameraImage image,
-    {int format = Format.Any, double cropPercent = 0.5}) async {
-  final IsolateData isolateData = IsolateData(image, format, cropPercent);
+Future<CodeResult> processCameraImage(
+  CameraImage image, {
+  int format = Format.Any,
+  double cropPercent = 0.5,
+  bool tryHarder = false,
+  bool tryInverted = false,
+}) async {
+  final IsolateData isolateData =
+      IsolateData(image, format, cropPercent, tryHarder, tryInverted);
   final CodeResult result = await _inference(isolateData);
   return result;
 }

@@ -55,6 +55,7 @@ class _DemoPageState extends State<DemoPage> {
               onScan: (value) {
                 showMessage(context, 'Scanned: ${value.textString ?? ''}');
               },
+              tryInverted: true,
             ),
             ListView(
               children: [

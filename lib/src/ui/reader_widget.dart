@@ -18,6 +18,8 @@ class ReaderWidget extends StatefulWidget {
     required this.onScan,
     this.onControllerCreated,
     this.codeFormat = Format.Any,
+    this.tryHarder = false,
+    this.tryInverted = false,
     this.showCroppingRect = true,
     this.scannerOverlay,
     this.showFlashlight = true,
@@ -33,6 +35,8 @@ class ReaderWidget extends StatefulWidget {
   final Function(CodeResult) onScan;
   final Function(CameraController?)? onControllerCreated;
   final int codeFormat;
+  final bool tryHarder;
+  final bool tryInverted;
   final bool showCroppingRect;
   final ScannerOverlay? scannerOverlay;
   final bool showFlashlight;
@@ -167,6 +171,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
           image,
           format: widget.codeFormat,
           cropPercent: widget.showCroppingRect ? widget.cropPercent : 0,
+          tryHarder: widget.tryHarder,
+          tryInverted: widget.tryInverted,
         );
         if (result.isValidBool) {
           widget.onScan(result);
