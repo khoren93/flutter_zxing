@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.5
+
+* added 'tryInverted' and 'tryHarder' parameters to the `ReaderWidget`
+
 ## 0.8.4
 
 * added 'bytes' parameter content without any modifications to the scan result
