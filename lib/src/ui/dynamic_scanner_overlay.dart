@@ -11,7 +11,8 @@ class DynamicScannerOverlay extends ScannerOverlay {
     super.borderRadius,
     super.borderLength,
     this.cutOutSize = 0.5
-  });
+  }) : assert(cutOutSize >= 0 && cutOutSize <= 1,
+  'The cut out size must be between 0 and 1');
 
   @override
   final double cutOutSize;
