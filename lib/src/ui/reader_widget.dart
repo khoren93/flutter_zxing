@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import '../../generated_bindings.dart';
 import '../logic/zxing.dart';
 import '../utils/extentions.dart';
+import 'fixed_scanner_overlay.dart';
 import 'scanner_overlay.dart';
 
 class ReaderWidget extends StatefulWidget {
@@ -225,7 +226,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
           Container(
             decoration: ShapeDecoration(
               shape: widget.scannerOverlay ??
-                  ScannerOverlay(
+                  FixedScannerOverlay(
                     borderColor: Theme.of(context).primaryColor,
                     overlayColor: Colors.black45,
                     borderRadius: 1,
