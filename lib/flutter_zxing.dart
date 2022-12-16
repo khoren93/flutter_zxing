@@ -1,5 +1,7 @@
 export 'generated_bindings.dart';
 export 'src/logic/zxing.dart';
+export 'src/ui/dynamic_scanner_overlay.dart';
+export 'src/ui/fixed_scanner_overlay.dart';
 export 'src/ui/reader_widget.dart';
 export 'src/ui/scanner_overlay.dart';
 export 'src/ui/writer_widget.dart';
