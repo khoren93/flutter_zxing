@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0
+
+Breaking changes
+
+* fixed compilation errors on web
+* added 'Params' class for using one parameters instead of many
+* use 'zx' prefix for all functions
+
 ## 0.8.5
 
 * added 'tryInverted' and 'tryHarder' parameters to the `ReaderWidget`
