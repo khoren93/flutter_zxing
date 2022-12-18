@@ -1,3 +1,4 @@
+// Contains the messages used in the app
 class Messages {
   const Messages({
     this.createButton = 'Create',

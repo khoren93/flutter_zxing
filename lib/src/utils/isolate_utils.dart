@@ -1,11 +1,10 @@
 import 'dart:isolate';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 
-import '../../generated_bindings.dart';
 import '../logic/zxing.dart';
+import '../models/models.dart';
 import 'image_converter.dart';
 
 // Inspired from https://github.com/am15h/object_detection_flutter
@@ -14,16 +13,10 @@ import 'image_converter.dart';
 class IsolateData {
   IsolateData(
     this.cameraImage,
-    this.format,
-    this.cropPercent,
-    this.tryHarder,
-    this.tryInverted,
+    this.params,
   );
   CameraImage cameraImage;
-  int format;
-  double cropPercent;
-  bool tryHarder;
-  bool tryInverted;
+  Params params;
 
   SendPort? responsePort;
 }
@@ -63,34 +56,23 @@ class IsolateUtils {
       if (isolateData != null) {
         try {
           final CameraImage image = isolateData.cameraImage;
-          final double cropPercent = isolateData.cropPercent;
           final Uint8List bytes = await convertImage(image);
-          final int cropSize =
-              (min(image.width, image.height) * cropPercent).round();
-          final bool tryHarder = isolateData.tryHarder;
-          final bool tryInverted = isolateData.tryInverted;
 
-          CodeResult result = readBarcode(
+          Code result = zxingReadBarcode(
             bytes,
             width: image.width,
             height: image.height,
-            format: isolateData.format,
-            cropWidth: cropSize,
-            cropHeight: cropSize,
-            tryHarder: tryHarder,
+            params: isolateData.params,
           );
 
-          if (result.isValid == 0 && tryInverted) {
+          if (!result.isValid && isolateData.params.tryInverted) {
             // try to invert the image and read again
             final Uint8List invertedBytes = invertImage(bytes);
-            result = readBarcode(
+            result = zxingReadBarcode(
               invertedBytes,
               width: image.width,
               height: image.height,
-              format: isolateData.format,
-              cropWidth: cropSize,
-              cropHeight: cropSize,
-              tryHarder: tryHarder,
+              params: isolateData.params,
             );
           }
 

@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
 
-import '../../flutter_zxing.dart';
+import 'scanner_overlay.dart';
 
 class FixedScannerOverlay extends ScannerOverlay {
-
-  const FixedScannerOverlay({
-    super.borderColor,
-    super.borderWidth,
-    super.overlayColor,
-    super.borderRadius,
-    super.borderLength,
-    this.cutOutSize = 250
-  }) : assert(borderLength <= cutOutSize / 2 + borderWidth * 2,
-  "Border can't be larger than ${cutOutSize / 2 + borderWidth * 2}");
+  const FixedScannerOverlay(
+      {super.borderColor,
+      super.borderWidth,
+      super.overlayColor,
+      super.borderRadius,
+      super.borderLength,
+      this.cutOutSize = 250})
+      : assert(borderLength <= cutOutSize / 2 + borderWidth * 2,
+            "Border can't be larger than ${cutOutSize / 2 + borderWidth * 2}");
 
   @override
   final double cutOutSize;
-
 
   @override
   void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
@@ -25,11 +23,11 @@ class FixedScannerOverlay extends ScannerOverlay {
     final double height = rect.height;
     final double borderOffset = borderWidth / 2;
     final double newBorderLength =
-    borderLength > cutOutSize / 2 + borderWidth * 2
-        ? borderWidthSize / 2
-        : borderLength;
+        borderLength > cutOutSize / 2 + borderWidth * 2
+            ? borderWidthSize / 2
+            : borderLength;
     final double newCutOutSize =
-    cutOutSize < width ? cutOutSize : width - borderOffset;
+        cutOutSize < width ? cutOutSize : width - borderOffset;
 
     final Paint backgroundPaint = Paint()
       ..color = overlayColor
@@ -61,7 +59,7 @@ class FixedScannerOverlay extends ScannerOverlay {
         rect,
         backgroundPaint,
       )
-    // Draw top right corner
+      // Draw top right corner
       ..drawRRect(
         RRect.fromLTRBAndCorners(
           cutOutRect.right - newBorderLength,
@@ -72,7 +70,7 @@ class FixedScannerOverlay extends ScannerOverlay {
         ),
         borderPaint,
       )
-    // Draw top left corner
+      // Draw top left corner
       ..drawRRect(
         RRect.fromLTRBAndCorners(
           cutOutRect.left,
@@ -83,7 +81,7 @@ class FixedScannerOverlay extends ScannerOverlay {
         ),
         borderPaint,
       )
-    // Draw bottom right corner
+      // Draw bottom right corner
       ..drawRRect(
         RRect.fromLTRBAndCorners(
           cutOutRect.right - newBorderLength,
@@ -94,7 +92,7 @@ class FixedScannerOverlay extends ScannerOverlay {
         ),
         borderPaint,
       )
-    // Draw bottom left corner
+      // Draw bottom left corner
       ..drawRRect(
         RRect.fromLTRBAndCorners(
           cutOutRect.left,

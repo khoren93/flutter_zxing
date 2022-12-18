@@ -94,7 +94,7 @@ extern "C"
     {
         long long start = get_now();
 
-        struct EncodeResult result = {0, contents, Format(format), nullptr, 0, nullptr};
+        struct EncodeResult result = {0, contents, format, nullptr, 0, nullptr};
         try
         {
             auto writer = MultiFormatWriter(BarcodeFormat(format)).setMargin(margin).setEccLevel(eccLevel).setEncoding(CharacterSet::UTF8);
@@ -120,7 +120,7 @@ extern "C"
     {
         code->isValid = result.isValid();
 
-        code->format = Format(static_cast<int>(result.format()));
+        code->format = static_cast<int>(result.format());
 
         code->bytes = result.bytes().data();
         code->length = result.bytes().size();

@@ -3,80 +3,42 @@ import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
-import '../../flutter_zxing.dart';
-
-extension Uint8ListBlobConversion on Uint8List {
-  /// Allocates a pointer filled with the Uint8List data.
-  Pointer<Char> allocatePointer() {
-    final Pointer<Int8> blob = calloc<Int8>(length);
-    final Int8List blobBytes = blob.asTypedList(length);
-    blobBytes.setAll(0, this);
-    return blob.cast<Char>();
-  }
-}
+import '../../zxing_mobile.dart';
 
 extension CodeExt on CodeResult {
-  bool get isValidBool => isValid == 1;
-  String? get textString =>
-      text == nullptr ? null : text.cast<Utf8>().toDartString();
-  Uint8List get rawBytes =>
-      Uint8List.fromList(bytes.cast<Int8>().asTypedList(length));
-  String get formatString => barcodeFormatName(format);
-  Pos get position => pos.ref;
+  Code toCode() => Code(
+        isValid == 1,
+        text == nullptr ? null : text.cast<Utf8>().toDartString(),
+        bytes == nullptr
+            ? null
+            : Uint8List.fromList(bytes.cast<Int8>().asTypedList(length)),
+        format,
+        pos == nullptr ? null : pos.ref.toPosition(),
+      );
 }
 
 extension EncodeExt on EncodeResult {
-  bool get isValidBool => isValid == 1;
-  String? get textString =>
-      text == nullptr ? null : text.cast<Utf8>().toDartString();
-  String get formatString => barcodeFormatName(format);
-  Uint32List get bytes =>
-      Uint32List.fromList(data.cast<Int8>().asTypedList(length));
-  String get errorMessage => error.cast<Utf8>().toDartString();
+  Encode toEncode() => Encode(
+        isValid == 1,
+        format,
+        text == nullptr ? null : text.cast<Utf8>().toDartString(),
+        data == nullptr
+            ? null
+            : Uint32List.fromList(data.cast<Int8>().asTypedList(length)),
+        length,
+        error == nullptr ? null : error.cast<Utf8>().toDartString(),
+      );
 }
 
-extension CodeFormat on Format {
-  String get name => formatNames[this] ?? 'Unknown';
-
-  static final List<int> writerFormats = <int>[
-    Format.QRCode,
-    Format.DataMatrix,
-    Format.Aztec,
-    Format.PDF417,
-    Format.Codabar,
-    Format.Code39,
-    Format.Code93,
-    Format.Code128,
-    Format.EAN8,
-    Format.EAN13,
-    Format.ITF,
-    Format.UPCA,
-    Format.UPCE,
-    // Format.DataBar,
-    // Format.DataBarExpanded,
-    // Format.MaxiCode,
-  ];
+extension PoeExt on Pos {
+  Position toPosition() => Position(
+        topLeftX,
+        topLeftY,
+        topRightX,
+        topRightY,
+        bottomLeftX,
+        bottomLeftY,
+        bottomRightX,
+        bottomRightY,
+      );
 }
-
-final Map<int, String> formatNames = <int, String>{
-  Format.None: 'None',
-  Format.Aztec: 'Aztec',
-  Format.Codabar: 'CodaBar',
-  Format.Code39: 'Code39',
-  Format.Code93: 'Code93',
-  Format.Code128: 'Code128',
-  Format.DataBar: 'DataBar',
-  Format.DataBarExpanded: 'DataBarExpanded',
-  Format.DataMatrix: 'DataMatrix',
-  Format.EAN8: 'EAN8',
-  Format.EAN13: 'EAN13',
-  Format.ITF: 'ITF',
-  Format.MaxiCode: 'MaxiCode',
-  Format.PDF417: 'PDF417',
-  Format.QRCode: 'QR Code',
-  Format.UPCA: 'UPCA',
-  Format.UPCE: 'UPCE',
-  Format.OneDCodes: 'OneD',
-  Format.TwoDCodes: 'TwoD',
-  Format.Any: 'Any',
-};

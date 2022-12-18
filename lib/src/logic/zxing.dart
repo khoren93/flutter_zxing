@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:image/image.dart' as imglib;
 
 import '../../generated_bindings.dart';
+import '../models/models.dart';
 import '../utils/extentions.dart';
 import '../utils/isolate_utils.dart';
 
@@ -27,4 +28,14 @@ void setZxingLogEnabled(bool enabled) =>
     bindings.setLogEnabled(enabled ? 1 : 0);
 
 /// Returns a readable barcode format name
-String barcodeFormatName(int format) => formatNames[format] ?? 'Unknown';
+String zxingBarcodeFormatName(int format) => formatNames[format] ?? 'Unknown';
+
+extension Uint8ListBlobConversion on Uint8List {
+  /// Allocates a pointer filled with the Uint8List data.
+  Pointer<Char> allocatePointer() {
+    final Pointer<Int8> blob = calloc<Int8>(length);
+    final Int8List blobBytes = blob.asTypedList(length);
+    blobBytes.setAll(0, this);
+    return blob.cast<Char>();
+  }
+}

@@ -4,35 +4,6 @@ extern "C"
 #endif
 
     /**
-     * @brief Format Enumerates barcode formats known to this package.
-     *
-     */
-    enum Format
-    {
-        None = 0,                   ///< Used as a return value if no valid barcode has been detected
-        Aztec = (1 << 0),           ///< Aztec (2D)
-        Codabar = (1 << 1),         ///< Codabar (1D)
-        Code39 = (1 << 2),          ///< Code39 (1D)
-        Code93 = (1 << 3),          ///< Code93 (1D)
-        Code128 = (1 << 4),         ///< Code128 (1D)
-        DataBar = (1 << 5),         ///< GS1 DataBar, formerly known as RSS 14
-        DataBarExpanded = (1 << 6), ///< GS1 DataBar Expanded, formerly known as RSS EXPANDED
-        DataMatrix = (1 << 7),      ///< DataMatrix (2D)
-        EAN8 = (1 << 8),            ///< EAN-8 (1D)
-        EAN13 = (1 << 9),           ///< EAN-13 (1D)
-        ITF = (1 << 10),            ///< ITF (Interleaved Two of Five) (1D)
-        MaxiCode = (1 << 11),       ///< MaxiCode (2D)
-        PDF417 = (1 << 12),         ///< PDF417 (1D) or (2D)
-        QRCode = (1 << 13),         ///< QR Code (2D)
-        UPCA = (1 << 14),           ///< UPC-A (1D)
-        UPCE = (1 << 15),           ///< UPC-E (1D)
-
-        OneDCodes = Codabar | Code39 | Code93 | Code128 | EAN8 | EAN13 | ITF | DataBar | DataBarExpanded | UPCA | UPCE,
-        TwoDCodes = Aztec | DataMatrix | MaxiCode | PDF417 | QRCode,
-        Any = OneDCodes | TwoDCodes,
-    };
-
-    /**
      * @brief Pos is a position of a barcode in a image.
      *
      */
@@ -57,7 +28,7 @@ extern "C"
         char *text;                 ///< The decoded text
         const unsigned char *bytes; ///< The bytes is the raw / standard content without any modifications like character set conversions
         int length;                 ///< The length of the bytes
-        enum Format format;         ///< The format of the barcode
+        int format;                 ///< The format of the barcode
         struct Pos *pos;            ///< The position of the barcode within the image
     };
 
@@ -78,8 +49,8 @@ extern "C"
     {
         int isValid;              ///< Whether the barcode was successfully encoded
         char *text;               ///< The encoded text
-        enum Format format;       ///< The format of the barcode
-        const signed char *data; ///< The encoded data
+        int format;               ///< The format of the barcode
+        const signed char *data;  ///< The encoded data
         int length;               ///< The length of the encoded data
         char *error;              ///< The error message
     };

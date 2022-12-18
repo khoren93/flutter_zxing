@@ -3,29 +3,25 @@ part of 'zxing.dart';
 IsolateUtils? isolateUtils;
 
 /// Starts reading barcode from the camera
-Future<void> startCameraProcessing() async {
+Future<void> zxingStartCameraProcessing() async {
   isolateUtils = IsolateUtils();
   await isolateUtils?.startReadingBarcode();
 }
 
 /// Stops reading barcode from the camera
-void stopCameraProcessing() => isolateUtils?.stopReadingBarcode();
+void zxingStopCameraProcessing() => isolateUtils?.stopReadingBarcode();
 
-Future<CodeResult> processCameraImage(
+Future<Code> zxingProcessCameraImage(
   CameraImage image, {
-  int format = Format.Any,
-  double cropPercent = 0.5,
-  bool tryHarder = false,
-  bool tryInverted = false,
+  Params? params,
 }) async {
-  final IsolateData isolateData =
-      IsolateData(image, format, cropPercent, tryHarder, tryInverted);
-  final CodeResult result = await _inference(isolateData);
+  final IsolateData isolateData = IsolateData(image, params ?? Params());
+  final Code result = await _inference(isolateData);
   return result;
 }
 
 /// Runs inference in another isolate
-Future<CodeResult> _inference(IsolateData isolateData) async {
+Future<Code> _inference(IsolateData isolateData) async {
   final ReceivePort responsePort = ReceivePort();
   isolateUtils?.sendPort
       ?.send(isolateData..responsePort = responsePort.sendPort);

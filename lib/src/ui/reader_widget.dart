@@ -7,18 +7,14 @@ import 'package:flutter/material.dart';
 
 // import 'package:flutter_beep/flutter_beep.dart';
 
-import '../../generated_bindings.dart';
-import '../logic/zxing.dart';
-import '../utils/extentions.dart';
-import 'fixed_scanner_overlay.dart';
-import 'scanner_overlay.dart';
+import '../../flutter_zxing.dart';
 
 class ReaderWidget extends StatefulWidget {
   const ReaderWidget({
     super.key,
     required this.onScan,
     this.onControllerCreated,
-    this.codeFormat = Format.Any,
+    this.codeFormat = Format.any,
     this.tryHarder = false,
     this.tryInverted = false,
     this.showCroppingRect = true,
@@ -33,7 +29,7 @@ class ReaderWidget extends StatefulWidget {
         const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
   });
 
-  final Function(CodeResult) onScan;
+  final Function(Code) onScan;
   final Function(CameraController?)? onControllerCreated;
   final int codeFormat;
   final bool tryHarder;
@@ -77,7 +73,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   Future<void> initStateAsync() async {
     // Spawn a new isolate
-    await startCameraProcessing();
+    await zx.startCameraProcessing();
 
     availableCameras().then((List<CameraDescription> cameras) {
       setState(() {
@@ -116,7 +112,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   @override
   void dispose() {
-    stopCameraProcessing();
+    zx.stopCameraProcessing();
     controller?.removeListener(rebuildOnMount);
     controller?.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -168,14 +164,22 @@ class _ReaderWidgetState extends State<ReaderWidget>
     if (!_isProcessing) {
       _isProcessing = true;
       try {
-        final CodeResult result = await processCameraImage(
-          image,
+        final double cropPercent =
+            widget.showCroppingRect ? widget.cropPercent : 0;
+        final int cropSize =
+            (min(image.width, image.height) * cropPercent).round();
+        final Params params = Params(
           format: widget.codeFormat,
-          cropPercent: widget.showCroppingRect ? widget.cropPercent : 0,
+          cropWidth: cropSize,
+          cropHeight: cropSize,
           tryHarder: widget.tryHarder,
           tryInverted: widget.tryInverted,
         );
-        if (result.isValidBool) {
+        final Code result = await zx.processCameraImage(
+          image,
+          params: params,
+        );
+        if (result.isValid) {
           widget.onScan(result);
           setState(() {});
           await Future<void>.delayed(widget.scanDelaySuccess);

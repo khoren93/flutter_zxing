@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../../flutter_zxing.dart';
+import 'scanner_overlay.dart';
 
 class DynamicScannerOverlay extends ScannerOverlay {
-
-  const DynamicScannerOverlay({
-    super.borderColor,
-    super.borderWidth,
-    super.overlayColor,
-    super.borderRadius,
-    super.borderLength,
-    this.cutOutSize = 0.5
-  }) : assert(cutOutSize >= 0 && cutOutSize <= 1,
-  'The cut out size must be between 0 and 1');
+  const DynamicScannerOverlay(
+      {super.borderColor,
+      super.borderWidth,
+      super.overlayColor,
+      super.borderRadius,
+      super.borderLength,
+      this.cutOutSize = 0.5})
+      : assert(cutOutSize >= 0 && cutOutSize <= 1,
+            'The cut out size must be between 0 and 1');
 
   @override
   final double cutOutSize;
@@ -55,7 +54,7 @@ class DynamicScannerOverlay extends ScannerOverlay {
         rect,
         backgroundPaint,
       )
-    // Draw top right corner
+      // Draw top right corner
       ..drawRRect(
         RRect.fromLTRBAndCorners(
           cutOutRect.right - newBorderLength,
@@ -66,7 +65,7 @@ class DynamicScannerOverlay extends ScannerOverlay {
         ),
         borderPaint,
       )
-    // Draw top left corner
+      // Draw top left corner
       ..drawRRect(
         RRect.fromLTRBAndCorners(
           cutOutRect.left,
@@ -77,7 +76,7 @@ class DynamicScannerOverlay extends ScannerOverlay {
         ),
         borderPaint,
       )
-    // Draw bottom right corner
+      // Draw bottom right corner
       ..drawRRect(
         RRect.fromLTRBAndCorners(
           cutOutRect.right - newBorderLength,
@@ -88,7 +87,7 @@ class DynamicScannerOverlay extends ScannerOverlay {
         ),
         borderPaint,
       )
-    // Draw bottom left corner
+      // Draw bottom left corner
       ..drawRRect(
         RRect.fromLTRBAndCorners(
           cutOutRect.left,

@@ -1,25 +1,24 @@
 import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
-import 'src/models/models.dart';
 
-import 'zxing_cross.dart'
-    if (dart.library.io) 'zxing_mobile.dart'
-    if (dart.library.html) 'zxing_web.dart';
+import 'flutter_zxing.dart';
 
-export 'src/models/models.dart';
-export 'src/ui/ui.dart';
+Zxing getZxing() => ZxingWeb();
 
-final Zxing zx = Zxing();
+class ZxingWeb implements Zxing {
+  ZxingWeb();
 
-abstract class Zxing {
-  /// factory constructor to return the correct implementation.
-  factory Zxing() => getZxing();
+  @override
+  String version() => 'Unsupported';
 
-  String version() => '';
+  @override
   void setLogEnabled(bool enabled) {}
-  String barcodeFormatName(int format) => '';
 
+  @override
+  String barcodeFormatName(int format) => 'Unsupported';
+
+  @override
   Encode encodeBarcode(
     String contents, {
     int format = Format.qrCode,
@@ -27,69 +26,79 @@ abstract class Zxing {
     int height = 300,
     int margin = 0,
     int eccLevel = 0,
-  });
+  }) =>
+      throw UnimplementedError();
 
-  /// Starts reading barcode from the camera
-  Future<void> startCameraProcessing();
+  @override
+  Future<void> startCameraProcessing() => throw UnimplementedError();
 
-  /// Stops reading barcode from the camera
-  void stopCameraProcessing();
+  @override
+  void stopCameraProcessing() => throw UnimplementedError();
 
-  /// Reads barcode from the camera
+  @override
   Future<Code> processCameraImage(
     CameraImage image, {
     Params? params,
-  });
+  }) =>
+      throw UnimplementedError();
 
-  /// Reads barcode from String image path
+  @override
   Future<Code?> readBarcodeImagePathString(
     String path, {
     Params? params,
-  });
+  }) =>
+      throw UnimplementedError();
 
-  /// Reads barcode from XFile image path
+  @override
   Future<Code?> readBarcodeImagePath(
     XFile path, {
     Params? params,
-  });
+  }) =>
+      throw UnimplementedError();
 
-  /// Reads barcode from image url
+  @override
   Future<Code?> readBarcodeImageUrl(
     String url, {
     Params? params,
-  });
+  }) =>
+      throw UnimplementedError();
 
-// Reads barcode from Uint8List image bytes
+  @override
   Code readBarcode(
     Uint8List bytes, {
     required int width,
     required int height,
     Params? params,
-  });
+  }) =>
+      throw UnimplementedError();
 
-  /// Reads barcodes from String image path
+  @override
   Future<List<Code>> readBarcodesImagePathString(
     String path, {
     Params? params,
-  });
+  }) =>
+      throw UnimplementedError();
 
-  /// Reads barcodes from XFile image path
+  @override
   Future<List<Code>> readBarcodesImagePath(
     XFile path, {
     Params? params,
-  });
+  }) =>
+      throw UnimplementedError();
 
-  /// Reads barcodes from image url
+  @override
   Future<List<Code>> readBarcodesImageUrl(
     String url, {
     Params? params,
-  });
+  }) =>
+      throw UnimplementedError();
 
-  /// Reads barcodes from Uint8List image bytes
+  @override
   List<Code> readBarcodes(
     Uint8List bytes, {
     required int width,
     required int height,
     Params? params,
-  });
+  }) =>
+      throw UnimplementedError();
 }

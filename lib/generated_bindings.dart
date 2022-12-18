@@ -162,63 +162,6 @@ class GeneratedBindings {
       EncodeResult Function(ffi.Pointer<ffi.Char>, int, int, int, int, int)>();
 }
 
-/// @brief Format Enumerates barcode formats known to this package.
-abstract class Format {
-  /// < Used as a return value if no valid barcode has been detected
-  static const int None = 0;
-
-  /// < Aztec (2D)
-  static const int Aztec = 1;
-
-  /// < Codabar (1D)
-  static const int Codabar = 2;
-
-  /// < Code39 (1D)
-  static const int Code39 = 4;
-
-  /// < Code93 (1D)
-  static const int Code93 = 8;
-
-  /// < Code128 (1D)
-  static const int Code128 = 16;
-
-  /// < GS1 DataBar, formerly known as RSS 14
-  static const int DataBar = 32;
-
-  /// < GS1 DataBar Expanded, formerly known as RSS EXPANDED
-  static const int DataBarExpanded = 64;
-
-  /// < DataMatrix (2D)
-  static const int DataMatrix = 128;
-
-  /// < EAN-8 (1D)
-  static const int EAN8 = 256;
-
-  /// < EAN-13 (1D)
-  static const int EAN13 = 512;
-
-  /// < ITF (Interleaved Two of Five) (1D)
-  static const int ITF = 1024;
-
-  /// < MaxiCode (2D)
-  static const int MaxiCode = 2048;
-
-  /// < PDF417 (1D) or (2D)
-  static const int PDF417 = 4096;
-
-  /// < QR Code (2D)
-  static const int QRCode = 8192;
-
-  /// < UPC-A (1D)
-  static const int UPCA = 16384;
-
-  /// < UPC-E (1D)
-  static const int UPCE = 32768;
-  static const int OneDCodes = 51070;
-  static const int TwoDCodes = 14465;
-  static const int Any = 65535;
-}
-
 /// @brief Pos is a position of a barcode in a image.
 class Pos extends ffi.Struct {
   /// < x coordinate of top left corner of barcode
@@ -271,7 +214,7 @@ class CodeResult extends ffi.Struct {
   external int length;
 
   /// < The format of the barcode
-  @ffi.Int32()
+  @ffi.Int()
   external int format;
 
   /// < The position of the barcode within the image
@@ -298,7 +241,7 @@ class EncodeResult extends ffi.Struct {
   external ffi.Pointer<ffi.Char> text;
 
   /// < The format of the barcode
-  @ffi.Int32()
+  @ffi.Int()
   external int format;
 
   /// < The encoded data

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
 void main() {
-  setZxingLogEnabled(kDebugMode);
+  zx.setLogEnabled(kDebugMode);
   runApp(const MyApp());
 }
 
@@ -51,31 +51,47 @@ class _DemoPageState extends State<DemoPage> {
         body: TabBarView(
           physics: const NeverScrollableScrollPhysics(),
           children: [
-            ReaderWidget(
-              onScan: (value) {
-                showMessage(context, 'Scanned: ${value.textString ?? ''}');
-              },
-              tryInverted: true,
-            ),
-            ListView(
-              children: [
-                WriterWidget(
-                  messages: const Messages(
-                    createButton: 'Create Code',
-                  ),
-                  onSuccess: (result, bytes) {
-                    setState(() {
-                      createdCodeBytes = bytes;
-                    });
-                  },
-                  onError: (error) {
-                    showMessage(context, 'Error: $error');
-                  },
+            if (kIsWeb)
+              Center(
+                child: Text(
+                  'Web is not supported yet.',
+                  style: Theme.of(context).textTheme.headline6,
                 ),
-                if (createdCodeBytes != null)
-                  Image.memory(createdCodeBytes ?? Uint8List(0), height: 200),
-              ],
-            ),
+              )
+            else
+              ReaderWidget(
+                onScan: (value) {
+                  showMessage(context, 'Scanned: ${value.text ?? ''}');
+                },
+                tryInverted: true,
+              ),
+            if (kIsWeb)
+              Center(
+                child: Text(
+                  'Web is not supported yet.',
+                  style: Theme.of(context).textTheme.headline6,
+                ),
+              )
+            else
+              ListView(
+                children: [
+                  WriterWidget(
+                    messages: const Messages(
+                      createButton: 'Create Code',
+                    ),
+                    onSuccess: (result, bytes) {
+                      setState(() {
+                        createdCodeBytes = bytes;
+                      });
+                    },
+                    onError: (error) {
+                      showMessage(context, 'Error: $error');
+                    },
+                  ),
+                  if (createdCodeBytes != null)
+                    Image.memory(createdCodeBytes ?? Uint8List(0), height: 200),
+                ],
+              ),
           ],
         ),
       ),

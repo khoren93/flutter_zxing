@@ -9,7 +9,7 @@ class WriterWidget extends StatefulWidget {
   const WriterWidget({
     super.key,
     this.text = '',
-    this.format = Format.QRCode,
+    this.format = Format.qrCode,
     this.width = 120,
     this.height = 120,
     this.margin = 0,
@@ -26,7 +26,7 @@ class WriterWidget extends StatefulWidget {
   final int margin;
   final int eccLevel;
   final Messages messages;
-  final Function(EncodeResult result, Uint8List? bytes)? onSuccess;
+  final Function(Encode result, Uint8List? bytes)? onSuccess;
   final Function(String error)? onError;
 
   @override
@@ -46,7 +46,7 @@ class _WriterWidgetState extends State<WriterWidget>
 
   final int _maxTextLength = 2000;
   final List<int> _supportedFormats = CodeFormat.writerFormats;
-  int _codeFormat = Format.QRCode;
+  int _codeFormat = Format.qrCode;
 
   @override
   void initState() {
@@ -112,12 +112,12 @@ class _WriterWidgetState extends State<WriterWidget>
                 items: _supportedFormats
                     .map((int format) => DropdownMenuItem<int>(
                           value: format,
-                          child: Text(barcodeFormatName(format)),
+                          child: Text(zx.barcodeFormatName(format)),
                         ))
                     .toList(),
                 onChanged: (int? format) {
                   setState(() {
-                    _codeFormat = format ?? Format.QRCode;
+                    _codeFormat = format ?? Format.qrCode;
                   });
                 },
               ),
@@ -220,7 +220,7 @@ class _WriterWidgetState extends State<WriterWidget>
       final int height = int.parse(_heightController.value.text);
       final int margin = int.parse(_marginController.value.text);
       final int ecc = int.parse(_eccController.value.text);
-      final EncodeResult result = encodeBarcode(
+      final Encode result = zx.encodeBarcode(
         text,
         format: _codeFormat,
         width: width,
@@ -229,12 +229,12 @@ class _WriterWidgetState extends State<WriterWidget>
         eccLevel: ecc,
       );
       String? error;
-      if (result.isValidBool) {
+      if (result.isValid && result.data != null) {
         try {
           final imglib.Image img = imglib.Image.fromBytes(
             width,
             height,
-            result.bytes,
+            result.data!,
           );
           final Uint8List encodedBytes = Uint8List.fromList(
             imglib.encodeJpg(img),
@@ -244,7 +244,7 @@ class _WriterWidgetState extends State<WriterWidget>
           error = e.toString();
         }
       } else {
-        error = result.errorMessage;
+        error = result.error;
       }
       if (error != null) {
         widget.onError?.call(error);
