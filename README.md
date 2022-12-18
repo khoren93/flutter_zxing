@@ -16,8 +16,8 @@
 
 A barcode and QR code scanner based on [ZXing C++](https://github.com/nu-book/zxing-cpp) library natively in Flutter with Dart FFI.
 
-
 ## Demo Screenshots
+
 <pre>
 <img alt="01_scanner_screen" src="https://user-images.githubusercontent.com/11523360/174789425-b33861aa-dbe5-49c1-a84a-a02b514a5e0f.png" width="240">&nbsp; <img alt="02_creator_screen" src="https://user-images.githubusercontent.com/11523360/174789816-a2a4ab74-f5ef-41a1-98f3-e514447dff5a.png" width="240">&nbsp;
 </pre>
@@ -34,6 +34,7 @@ A barcode and QR code scanner based on [ZXing C++](https://github.com/nu-book/zx
 |            | DataBar Expanded  |
 
 ## Features
+
 - Scan barcode from camera stream, image path or url
 - Scan multiple barcodes from camera stream, image path or url
 - Create barcode from text
@@ -41,10 +42,13 @@ A barcode and QR code scanner based on [ZXing C++](https://github.com/nu-book/zx
 - Flashlight and pinch to zoom support
 
 ## Todo
+
 - Write tests
 
 ## Getting Started
-### To read barcode:
+
+### To read barcode
+
 ```dart
 import 'package:flutter_zxing/flutter_zxing.dart';
 
@@ -62,31 +66,34 @@ Widget build(BuildContext context) {
 
 // Or use flutter_zxing plugin methods 
 // To read barcode from camera image directly
-await startCameraProcessing(); // Call this in initState
+await zx.startCameraProcessing(); // Call this in initState
+
 cameraController?.startImageStream((image) async {
-    CodeResult result = await processCameraImage(image);
-    if (result.isValidBool) {
-        debugPrint(result.textString);
+    Code result = await zx.processCameraImage(image);
+    if (result.isValid) {
+        debugPrint(result.text);
     }
     return null;
 });
-stopCameraProcessing(); // Call this in dispose
+
+zx.stopCameraProcessing(); // Call this in dispose
 
 // To read barcode from XFile, String, url or Uint8List bytes
 XFile xFile = XFile('Your image path');
-CodeResult? resultFromXFile = await readBarcodeImagePath(xFile);
+Code? resultFromXFile = await zx.readBarcodeImagePath(xFile);
 
 String path = 'Your local image path';
-CodeResult? resultFromPath = await readBarcodeImagePathString(path);
+Code? resultFromPath = await zx.readBarcodeImagePathString(path);
 
 String url = 'Your remote image url';
-CodeResult? resultFromUrl = await readBarcodeImageUrl(url);
+Code? resultFromUrl = await zx.readBarcodeImageUrl(url);
 
 Uint8List bytes = Uint8List.fromList(yourImageBytes);
-CodeResult? resultFromBytes = await readBarcode(bytes);
+Code? resultFromBytes = await zx.readBarcode(bytes);
 ```
 
-### To create barcode:
+### To create barcode
+
 ```dart
 import 'package:flutter_zxing/flutter_zxing.dart';
 import 'dart:typed_data';
@@ -108,7 +115,7 @@ Widget build(BuildContext context) {
 );
 
 // Or use FlutterZxing to create barcode directly
-final result = encodeBarcode(
+final result = zx.encodeBarcode(
     'Text to encode',
     format: Format.QRCode,
     width: 300,
@@ -116,7 +123,7 @@ final result = encodeBarcode(
     margin: 10,
     eccLevel: 0,
 );
-if (result.isValidBool) {
+if (result.isValid) {
     final img = imglib.Image.fromBytes(width, height, result.bytes);
     final encodedBytes = Uint8List.fromList(imglib.encodeJpg(img));
     // use encodedBytes as you wish

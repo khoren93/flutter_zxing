@@ -1,4 +1,4 @@
-import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing/flutter_zxing.dart' as zxing;
 import 'package:hive_flutter/hive_flutter.dart';
 
 part 'code.g.dart';
@@ -7,10 +7,10 @@ part 'code.g.dart';
 class Code extends HiveObject {
   Code();
 
-  Code.fromCodeResult(CodeResult result) {
-    isValid = result.isValidBool;
+  Code.fromCodeResult(zxing.Code result) {
+    isValid = result.isValid;
     format = result.format;
-    text = result.textString;
+    text = result.text;
   }
   @HiveField(0)
   bool? isValid;
@@ -21,5 +21,5 @@ class Code extends HiveObject {
   @HiveField(2)
   String? text;
 
-  String get formatName => barcodeFormatName(format ?? 0);
+  String get formatName => zxing.zx.barcodeFormatName(format ?? 0);
 }

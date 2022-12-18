@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../configs/constants.dart';
-import '../models/encode.dart';
+import '../models/encode.dart' as model;
 import '../utils/db_service.dart';
 import '../utils/extensions.dart';
 import '../widgets/common_widgets.dart';
@@ -28,7 +28,7 @@ class _CreatorPageState extends State<CreatorPage> {
   bool isAndroid() => Theme.of(context).platform == TargetPlatform.android;
 
   // Write result
-  Encode? encode;
+  model.Encode? encode;
 
   @override
   void initState() {
@@ -54,9 +54,9 @@ class _CreatorPageState extends State<CreatorPage> {
           child: Column(
             children: <Widget>[
               WriterWidget(
-                onSuccess: (EncodeResult result, Uint8List? bytes) {
+                onSuccess: (Encode result, Uint8List? bytes) {
                   setState(() {
-                    encode = Encode.fromEncodeResult(result, bytes);
+                    encode = model.Encode.fromEncodeResult(result, bytes);
                   });
                 },
                 onError: (String error) {

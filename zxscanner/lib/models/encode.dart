@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing/flutter_zxing.dart' as zxing;
 import 'package:hive_flutter/hive_flutter.dart';
 
 part 'encode.g.dart';
@@ -9,10 +9,10 @@ part 'encode.g.dart';
 class Encode extends HiveObject {
   Encode();
 
-  Encode.fromEncodeResult(EncodeResult result, Uint8List? bytes) {
-    isValid = result.isValidBool;
+  Encode.fromEncodeResult(zxing.Encode result, Uint8List? bytes) {
+    isValid = result.isValid;
     format = result.format;
-    text = result.textString;
+    text = result.text;
     data = bytes;
     length = result.length;
   }
@@ -31,5 +31,5 @@ class Encode extends HiveObject {
   @HiveField(4)
   int? length;
 
-  String get formatName => barcodeFormatName(format ?? 0);
+  String get formatName => zxing.zx.barcodeFormatName(format ?? 0);
 }

@@ -18,7 +18,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializePrefs();
   await DbService.instance.initializeApp();
-  setZxingLogEnabled(kDebugMode);
+  zx.setLogEnabled(kDebugMode);
   runApp(const MyApp());
 }
 

@@ -3,7 +3,7 @@ import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../models/models.dart';
+import '../models/models.dart' as model;
 import '../utils/db_service.dart';
 import '../utils/extensions.dart';
 
@@ -26,7 +26,7 @@ class _ScannerPageState extends State<ScannerPage> {
         title: const Text('Scanner'),
       ),
       body: ReaderWidget(
-        onScan: (CodeResult result) async {
+        onScan: (Code result) async {
           addCode(result);
         },
       ),
@@ -51,8 +51,8 @@ class _ScannerPageState extends State<ScannerPage> {
   }
 
   Future<void> readCodeFromImage(XFile file) async {
-    final CodeResult? result = await readBarcodeImagePath(file);
-    if (result != null && result.isValidBool) {
+    final Code? result = await zx.readBarcodeImagePath(file);
+    if (result != null && result.isValid) {
       addCode(result);
     } else {
       if (!mounted) {
@@ -62,8 +62,8 @@ class _ScannerPageState extends State<ScannerPage> {
     }
   }
 
-  void addCode(CodeResult result) {
-    final Code code = Code.fromCodeResult(result);
+  void addCode(Code result) {
+    final model.Code code = model.Code.fromCodeResult(result);
     DbService.instance.addCode(code);
     context.showToast('Code added:\n${code.text ?? ''}');
   }
