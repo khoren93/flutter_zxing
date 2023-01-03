@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1
+
+* fixed memory leaks
+
 ## 0.9.0
 
 Breaking changes
