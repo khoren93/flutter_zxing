@@ -5,6 +5,7 @@
         "__nullptr": "cpp",
         "codecvt": "cpp",
         "cmath": "cpp",
-        "array": "cpp"
+        "array": "cpp",
+        "new": "cpp"
     }
 }

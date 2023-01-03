@@ -49,6 +49,9 @@ extern "C"
             resultToCodeResult(&code, result);
         }
 
+        delete[] data;
+        delete[] bytes;
+
         int evalInMillis = static_cast<int>(get_now() - start);
         platform_log("Read Barcode in: %d ms\n", evalInMillis);
         return code;
@@ -83,6 +86,9 @@ extern "C"
                 i++;
             }
         }
+
+        delete[] data;
+        delete[] bytes;
 
         int evalInMillis = static_cast<int>(get_now() - start);
         platform_log("Read Barcode in: %d ms\n", evalInMillis);

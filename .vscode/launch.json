@@ -16,6 +16,20 @@
             "type": "dart"
         },
         {
+            "name": "example (profile mode)",
+            "cwd": "example",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "example (release mode)",
+            "cwd": "example",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
             "name": "ZXScanner",
             "cwd": "zxscanner",
             "request": "launch",
