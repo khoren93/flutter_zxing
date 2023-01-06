@@ -4,7 +4,7 @@ import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:image_picker/image_picker.dart';
 
 void main() {
-  zx.setLogEnabled(kDebugMode);
+  zx.setLogEnabled(!kDebugMode);
   runApp(const MyApp());
 }
 

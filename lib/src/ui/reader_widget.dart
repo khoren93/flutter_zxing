@@ -5,10 +5,9 @@ import 'dart:math';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
-// import 'package:flutter_beep/flutter_beep.dart';
-
 import '../../flutter_zxing.dart';
 
+/// Widget to scan a code from the camera stream
 class ReaderWidget extends StatefulWidget {
   const ReaderWidget({
     super.key,
@@ -18,7 +17,7 @@ class ReaderWidget extends StatefulWidget {
     this.codeFormat = Format.any,
     this.tryHarder = false,
     this.tryInverted = false,
-    this.showCroppingRect = true,
+    this.showScannerOverlay = true,
     this.scannerOverlay,
     this.showFlashlight = true,
     this.allowPinchZoom = true,
@@ -30,20 +29,49 @@ class ReaderWidget extends StatefulWidget {
         const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
   });
 
+  /// Called when a code is detected
   final Function(Code) onScan;
+
+  /// Called when a code is not detected
   final Function()? onScanFailure;
+
+  /// Called when the camera controller is created
   final Function(CameraController?)? onControllerCreated;
+
+  /// Code format to scan
   final int codeFormat;
+
+  /// Try harder to detect a code
   final bool tryHarder;
+
+  /// Try to detect inverted code
   final bool tryInverted;
-  final bool showCroppingRect;
+
+  /// Show cropping rect
+  final bool showScannerOverlay;
+
+  /// Custom scanner overlay
   final ScannerOverlay? scannerOverlay;
+
+  /// Show flashlight button
   final bool showFlashlight;
+
+  /// Allow pinch zoom
   final bool allowPinchZoom;
+
+  /// Delay between scans when no code is detected
   final Duration scanDelay;
+
+  /// Crop percent of the screen
   final double cropPercent;
+
+  /// Camera resolution
   final ResolutionPreset resolution;
+
+  /// Delay between scans when a code is detected
   final Duration scanDelaySuccess;
+
+  /// Loading widget while camera is initializing. Default is a black screen
   final Widget loading;
 
   @override
@@ -130,34 +158,37 @@ class _ReaderWidgetState extends State<ReaderWidget>
   }
 
   Future<void> onNewCameraSelected(CameraDescription cameraDescription) async {
-    if (controller != null) {
-      controller?.removeListener(rebuildOnMount);
-      await controller!.dispose();
+    final CameraController? oldController = controller;
+    if (oldController != null) {
+      // controller?.removeListener(rebuildOnMount);
+      controller = null;
+      await oldController.dispose();
     }
 
-    controller = CameraController(
+    final CameraController cameraController = CameraController(
       cameraDescription,
       widget.resolution,
       enableAudio: false,
       imageFormatGroup:
           isAndroid() ? ImageFormatGroup.yuv420 : ImageFormatGroup.bgra8888,
     );
-    if (controller == null) {
-      return;
-    }
+    controller = cameraController;
+    cameraController.addListener(rebuildOnMount);
     try {
-      await controller!.initialize();
-      await controller!.setFlashMode(FlashMode.off);
-      _maxZoomLevel = await controller!.getMaxZoomLevel();
-      _minZoomLevel = await controller!.getMinZoomLevel();
-      controller!.startImageStream(processImageStream);
+      await cameraController.initialize();
+      await cameraController.setFlashMode(FlashMode.off);
+      cameraController
+          .getMaxZoomLevel()
+          .then((double value) => _maxZoomLevel = value);
+      cameraController
+          .getMinZoomLevel()
+          .then((double value) => _minZoomLevel = value);
+      cameraController.startImageStream(processImageStream);
     } on CameraException catch (e) {
       debugPrint('${e.code}: ${e.description}');
     } catch (e) {
       debugPrint('Error: $e');
     }
-
-    controller!.addListener(rebuildOnMount);
     rebuildOnMount();
     widget.onControllerCreated?.call(controller);
   }
@@ -167,7 +198,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
       _isProcessing = true;
       try {
         final double cropPercent =
-            widget.showCroppingRect ? widget.cropPercent : 0;
+            widget.showScannerOverlay ? widget.cropPercent : 0;
         final int cropSize =
             (min(image.width, image.height) * cropPercent).round();
         final Params params = Params(
@@ -230,7 +261,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
               ),
             ),
           ),
-        if (widget.showCroppingRect)
+        if (widget.showScannerOverlay)
           Container(
             decoration: ShapeDecoration(
               shape: widget.scannerOverlay ??

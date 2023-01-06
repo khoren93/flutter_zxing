@@ -5,6 +5,7 @@ import 'package:image/image.dart' as imglib;
 
 import '../../flutter_zxing.dart';
 
+/// Widget to create a code from a text and barcode format
 class WriterWidget extends StatefulWidget {
   const WriterWidget({
     super.key,
