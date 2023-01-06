@@ -13,9 +13,9 @@ void zxingStopCameraProcessing() => isolateUtils?.stopReadingBarcode();
 
 Future<Code> zxingProcessCameraImage(
   CameraImage image, {
-  Params? params,
+  DecodeParams? params,
 }) async {
-  final IsolateData isolateData = IsolateData(image, params ?? Params());
+  final IsolateData isolateData = IsolateData(image, params ?? DecodeParams());
   final Code result = await _inference(isolateData);
   return result;
 }

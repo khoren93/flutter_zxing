@@ -16,7 +16,7 @@ class IsolateData {
     this.params,
   );
   CameraImage cameraImage;
-  Params params;
+  DecodeParams params;
 
   SendPort? responsePort;
 }

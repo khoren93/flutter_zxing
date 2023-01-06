@@ -203,7 +203,7 @@ class ScanFromGalleryWidget extends StatelessWidget {
     if (file != null) {
       final Code? result = await zx.readBarcodeImagePath(
         file,
-        params: Params(tryInverted: true),
+        params: DecodeParams(tryInverted: true),
       );
       if (result != null && result.isValid) {
         onScan?.call(result);

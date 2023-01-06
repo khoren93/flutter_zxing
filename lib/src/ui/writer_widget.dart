@@ -222,12 +222,14 @@ class _WriterWidgetState extends State<WriterWidget>
       final int margin = int.parse(_marginController.value.text);
       final int ecc = int.parse(_eccController.value.text);
       final Encode result = zx.encodeBarcode(
-        text,
-        format: _codeFormat,
-        width: width,
-        height: height,
-        margin: margin,
-        eccLevel: ecc,
+        contents: text,
+        params: EncodeParams(
+          format: _codeFormat,
+          width: width,
+          height: height,
+          margin: margin,
+          eccLevel: ecc,
+        ),
       );
       String? error;
       if (result.isValid && result.data != null) {

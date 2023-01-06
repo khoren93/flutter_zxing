@@ -20,13 +20,10 @@ abstract class Zxing {
   void setLogEnabled(bool enabled) {}
   String barcodeFormatName(int format) => '';
 
-  Encode encodeBarcode(
-    String contents, {
-    int format = Format.qrCode,
-    int width = 300,
-    int height = 300,
-    int margin = 0,
-    int eccLevel = 0,
+  /// Creates barcode from the given contents
+  Encode encodeBarcode({
+    required String contents,
+    required EncodeParams params,
   });
 
   /// Starts reading barcode from the camera
@@ -38,25 +35,25 @@ abstract class Zxing {
   /// Reads barcode from the camera
   Future<Code> processCameraImage(
     CameraImage image, {
-    Params? params,
+    DecodeParams? params,
   });
 
   /// Reads barcode from String image path
   Future<Code?> readBarcodeImagePathString(
     String path, {
-    Params? params,
+    DecodeParams? params,
   });
 
   /// Reads barcode from XFile image path
   Future<Code?> readBarcodeImagePath(
     XFile path, {
-    Params? params,
+    DecodeParams? params,
   });
 
   /// Reads barcode from image url
   Future<Code?> readBarcodeImageUrl(
     String url, {
-    Params? params,
+    DecodeParams? params,
   });
 
 // Reads barcode from Uint8List image bytes
@@ -64,25 +61,25 @@ abstract class Zxing {
     Uint8List bytes, {
     required int width,
     required int height,
-    Params? params,
+    DecodeParams? params,
   });
 
   /// Reads barcodes from String image path
   Future<List<Code>> readBarcodesImagePathString(
     String path, {
-    Params? params,
+    DecodeParams? params,
   });
 
   /// Reads barcodes from XFile image path
   Future<List<Code>> readBarcodesImagePath(
     XFile path, {
-    Params? params,
+    DecodeParams? params,
   });
 
   /// Reads barcodes from image url
   Future<List<Code>> readBarcodesImageUrl(
     String url, {
-    Params? params,
+    DecodeParams? params,
   });
 
   /// Reads barcodes from Uint8List image bytes
@@ -90,6 +87,6 @@ abstract class Zxing {
     Uint8List bytes, {
     required int width,
     required int height,
-    Params? params,
+    DecodeParams? params,
   });
 }

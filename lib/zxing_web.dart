@@ -19,13 +19,9 @@ class ZxingWeb implements Zxing {
   String barcodeFormatName(int format) => 'Unsupported';
 
   @override
-  Encode encodeBarcode(
-    String contents, {
-    int format = Format.qrCode,
-    int width = 300,
-    int height = 300,
-    int margin = 0,
-    int eccLevel = 0,
+  Encode encodeBarcode({
+    required String contents,
+    required EncodeParams params,
   }) =>
       throw UnimplementedError();
 
@@ -38,28 +34,28 @@ class ZxingWeb implements Zxing {
   @override
   Future<Code> processCameraImage(
     CameraImage image, {
-    Params? params,
+    DecodeParams? params,
   }) =>
       throw UnimplementedError();
 
   @override
   Future<Code?> readBarcodeImagePathString(
     String path, {
-    Params? params,
+    DecodeParams? params,
   }) =>
       throw UnimplementedError();
 
   @override
   Future<Code?> readBarcodeImagePath(
     XFile path, {
-    Params? params,
+    DecodeParams? params,
   }) =>
       throw UnimplementedError();
 
   @override
   Future<Code?> readBarcodeImageUrl(
     String url, {
-    Params? params,
+    DecodeParams? params,
   }) =>
       throw UnimplementedError();
 
@@ -68,28 +64,28 @@ class ZxingWeb implements Zxing {
     Uint8List bytes, {
     required int width,
     required int height,
-    Params? params,
+    DecodeParams? params,
   }) =>
       throw UnimplementedError();
 
   @override
   Future<List<Code>> readBarcodesImagePathString(
     String path, {
-    Params? params,
+    DecodeParams? params,
   }) =>
       throw UnimplementedError();
 
   @override
   Future<List<Code>> readBarcodesImagePath(
     XFile path, {
-    Params? params,
+    DecodeParams? params,
   }) =>
       throw UnimplementedError();
 
   @override
   Future<List<Code>> readBarcodesImageUrl(
     String url, {
-    Params? params,
+    DecodeParams? params,
   }) =>
       throw UnimplementedError();
 
@@ -98,7 +94,7 @@ class ZxingWeb implements Zxing {
     Uint8List bytes, {
     required int width,
     required int height,
-    Params? params,
+    DecodeParams? params,
   }) =>
       throw UnimplementedError();
 }

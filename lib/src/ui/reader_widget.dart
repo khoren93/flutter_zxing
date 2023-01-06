@@ -201,7 +201,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
             widget.showScannerOverlay ? widget.cropPercent : 0;
         final int cropSize =
             (min(image.width, image.height) * cropPercent).round();
-        final Params params = Params(
+        final DecodeParams params = DecodeParams(
           format: widget.codeFormat,
           cropWidth: cropSize,
           cropHeight: cropSize,
