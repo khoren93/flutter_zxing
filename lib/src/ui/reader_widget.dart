@@ -13,6 +13,7 @@ class ReaderWidget extends StatefulWidget {
   const ReaderWidget({
     super.key,
     required this.onScan,
+    this.onScanFailure,
     this.onControllerCreated,
     this.codeFormat = Format.any,
     this.tryHarder = false,
@@ -30,6 +31,7 @@ class ReaderWidget extends StatefulWidget {
   });
 
   final Function(Code) onScan;
+  final Function()? onScanFailure;
   final Function(CameraController?)? onControllerCreated;
   final int codeFormat;
   final bool tryHarder;
@@ -183,6 +185,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
           widget.onScan(result);
           setState(() {});
           await Future<void>.delayed(widget.scanDelaySuccess);
+        } else {
+          widget.onScanFailure?.call();
         }
       } on FileSystemException catch (e) {
         debugPrint(e.message);

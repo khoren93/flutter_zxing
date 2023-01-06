@@ -58,23 +58,12 @@ class IsolateUtils {
           final CameraImage image = isolateData.cameraImage;
           final Uint8List bytes = await convertImage(image);
 
-          Code result = zxingReadBarcode(
+          final Code result = zxingReadBarcode(
             bytes,
             width: image.width,
             height: image.height,
             params: isolateData.params,
           );
-
-          if (!result.isValid && isolateData.params.tryInverted) {
-            // try to invert the image and read again
-            final Uint8List invertedBytes = invertImage(bytes);
-            result = zxingReadBarcode(
-              invertedBytes,
-              width: image.width,
-              height: image.height,
-              params: isolateData.params,
-            );
-          }
 
           isolateData.responsePort?.send(result);
         } catch (e) {

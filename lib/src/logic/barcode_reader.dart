@@ -53,7 +53,22 @@ Code zxingReadBarcode(
   required int width,
   required int height,
   Params? params,
-}) =>
+}) {
+  Code result = _readBarcode(bytes, width, height, params);
+  if (!result.isValid && params != null && params.tryInverted == true) {
+    // try to invert the image and read again
+    final Uint8List invertedBytes = invertImage(bytes);
+    result = _readBarcode(invertedBytes, width, height, params);
+  }
+  return result;
+}
+
+Code _readBarcode(
+  Uint8List bytes,
+  int width,
+  int height,
+  Params? params,
+) =>
     bindings
         .readBarcode(
           bytes.allocatePointer(),

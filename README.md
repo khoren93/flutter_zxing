@@ -118,8 +118,8 @@ Widget build(BuildContext context) {
 final result = zx.encodeBarcode(
     'Text to encode',
     format: Format.QRCode,
-    width: 300,
-    height: 300,
+    width: 120,
+    height: 120,
     margin: 10,
     eccLevel: 0,
 );

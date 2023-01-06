@@ -12,6 +12,7 @@ import 'package:image/image.dart' as imglib;
 import '../../generated_bindings.dart';
 import '../models/models.dart';
 import '../utils/extentions.dart';
+import '../utils/image_converter.dart';
 import '../utils/isolate_utils.dart';
 
 part 'barcode_encoder.dart';

@@ -54,6 +54,21 @@ List<Code> zxingReadBarcodes(
   required int height,
   Params? params,
 }) {
+  List<Code> results = _readBarcodes(bytes, width, height, params);
+  if (results.isEmpty && params != null && params.tryInverted == true) {
+    // try to invert the image and read again
+    final Uint8List invertedBytes = invertImage(bytes);
+    results = _readBarcodes(invertedBytes, width, height, params);
+  }
+  return results;
+}
+
+List<Code> _readBarcodes(
+  Uint8List bytes,
+  int width,
+  int height,
+  Params? params,
+) {
   final CodeResults result = bindings.readBarcodes(
     bytes.allocatePointer(),
     params?.format ?? Format.any,
