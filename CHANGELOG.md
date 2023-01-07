@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0
+
+* added `EncodeParams`
+* replaced `int` type with `EccLevel` enum for error correction level
+* added `ratio`, `maxTextLength`, and `isSupportedEccLevel` to Format for encoding barcodes
+* renamed `Params` to `DecodeParams`
+* fixed issue where images were being inverted when using `zx` methods
+
 ## 0.9.1
 
 * fixed memory leaks
