@@ -29,7 +29,7 @@ void setZxingLogEnabled(bool enabled) =>
     bindings.setLogEnabled(enabled ? 1 : 0);
 
 /// Returns a readable barcode format name
-String zxingBarcodeFormatName(int format) => formatNames[format] ?? 'Unknown';
+String zxingBarcodeFormatName(int format) => barcodeNames[format] ?? 'Unknown';
 
 extension Uint8ListBlobConversion on Uint8List {
   /// Allocates a pointer filled with the Uint8List data.

@@ -9,10 +9,9 @@ import '../../flutter_zxing.dart';
 class WriterWidget extends StatefulWidget {
   const WriterWidget({
     super.key,
-    this.text = '',
+    this.text,
     this.format = Format.qrCode,
-    this.width = 120,
-    this.height = 120,
+    this.height = 120, // Width is calculated from height and format ratio
     this.margin = 0,
     this.eccLevel = EccLevel.low,
     this.messages = const Messages(),
@@ -20,9 +19,8 @@ class WriterWidget extends StatefulWidget {
     this.onError,
   });
 
-  final String text;
+  final String? text;
   final int format;
-  final int width;
   final int height;
   final int margin;
   final EccLevel eccLevel;
@@ -44,8 +42,7 @@ class _WriterWidgetState extends State<WriterWidget>
 
   bool isAndroid() => Theme.of(context).platform == TargetPlatform.android;
 
-  final int _maxTextLength = 2000;
-  final List<int> _supportedFormats = CodeFormat.writerFormats;
+  final List<int> _supportedFormats = CodeFormat.supportedEncodeFormats;
 
   int _codeFormat = Format.qrCode;
   EccLevel _eccLevel = EccLevel.low;
@@ -60,12 +57,13 @@ class _WriterWidgetState extends State<WriterWidget>
 
   @override
   void initState() {
-    _textController.text = widget.text;
-    _widthController.text = widget.width.toString();
+    _codeFormat = widget.format;
+    _eccLevel = widget.eccLevel;
+    _textController.text = widget.text ?? _codeFormat.demoText;
+    _widthController.text =
+        (widget.height * _codeFormat.ratio).round().toString();
     _heightController.text = widget.height.toString();
     _marginController.text = widget.margin.toString();
-    _eccLevel = widget.eccLevel;
-    _codeFormat = widget.format;
     super.initState();
   }
 
@@ -95,7 +93,7 @@ class _WriterWidgetState extends State<WriterWidget>
                 controller: _textController,
                 keyboardType: TextInputType.multiline,
                 maxLines: null,
-                maxLength: _maxTextLength,
+                maxLength: _codeFormat.maxTextLength,
                 onChanged: (String value) {
                   setState(() {});
                 },
@@ -104,7 +102,7 @@ class _WriterWidgetState extends State<WriterWidget>
                   filled: true,
                   labelText: messages.textLabel,
                   counterText:
-                      '${_textController.value.text.length} / $_maxTextLength',
+                      '${_textController.value.text.length} / ${_codeFormat.maxTextLength}',
                 ),
                 validator: (String? value) {
                   if (value?.isEmpty ?? false) {
@@ -134,6 +132,12 @@ class _WriterWidgetState extends State<WriterWidget>
                       onChanged: (int? format) {
                         setState(() {
                           _codeFormat = format ?? Format.qrCode;
+                          _textController.text = _codeFormat.demoText;
+                          _heightController.text = widget.height.toString();
+                          _widthController.text =
+                              (widget.height * _codeFormat.ratio)
+                                  .round()
+                                  .toString();
                         });
                       },
                     ),
@@ -182,6 +186,15 @@ class _WriterWidgetState extends State<WriterWidget>
                         }
                         return null;
                       },
+                      onChanged: (String value) {
+                        // use format ratio to calculate height
+                        final int? width = int.tryParse(value);
+                        if (width != null) {
+                          final int height =
+                              (width / _codeFormat.ratio).round();
+                          _heightController.text = height.toString();
+                        }
+                      },
                     ),
                   ),
                   // const SizedBox(width: 8),
@@ -198,6 +211,15 @@ class _WriterWidgetState extends State<WriterWidget>
                           return messages.invalidHeight;
                         }
                         return null;
+                      },
+                      onChanged: (String value) {
+                        // use format ratio to calculate width
+                        final int? height = int.tryParse(value);
+                        if (height != null) {
+                          final int width =
+                              (height * _codeFormat.ratio).round();
+                          _widthController.text = width.toString();
+                        }
                       },
                     ),
                   ),
@@ -219,7 +241,6 @@ class _WriterWidgetState extends State<WriterWidget>
                   ),
                 ],
               ),
-
               const SizedBox(height: 20),
               // Write button
               ElevatedButton(
