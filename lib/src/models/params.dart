@@ -39,7 +39,7 @@ class EncodeParams {
     this.width = 120,
     this.height = 120,
     this.margin = 0,
-    this.eccLevel = 0,
+    this.eccLevel = EccLevel.low,
   });
 
   // The barcode format to be generated. The default is QRCode.
@@ -54,6 +54,25 @@ class EncodeParams {
   // Used for all formats, sets the minimum number of quiet zone pixels
   int margin;
 
-  // Used for Aztec, PDF417, and QRCode only, [0-8]
-  int eccLevel;
+  // The error correction level determines how much damage the QR code can withstand while still being readable.
+  // Used for Aztec, PDF417, and QRCode only
+  EccLevel eccLevel;
+}
+
+enum EccLevel {
+  low, // Low error correction level. Can withstand up to 7% damage.
+  medium, // Medium error correction level. Can withstand up to 15% damage.
+  quartile, // Quartile error correction level. Can withstand up to 25% damage.
+  high, // High error correction level. Can withstand up to 30% damage.
+}
+
+extension EccLevelExtension on EccLevel {
+  static const Map<EccLevel, int> _valuesMap = <EccLevel, int>{
+    EccLevel.low: 2,
+    EccLevel.medium: 4,
+    EccLevel.quartile: 6,
+    EccLevel.high: 8,
+  };
+
+  int get value => _valuesMap[this] ?? 0;
 }

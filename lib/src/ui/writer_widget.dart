@@ -14,7 +14,7 @@ class WriterWidget extends StatefulWidget {
     this.width = 120,
     this.height = 120,
     this.margin = 0,
-    this.eccLevel = 0,
+    this.eccLevel = EccLevel.low,
     this.messages = const Messages(),
     this.onSuccess,
     this.onError,
@@ -25,7 +25,7 @@ class WriterWidget extends StatefulWidget {
   final int width;
   final int height;
   final int margin;
-  final int eccLevel;
+  final EccLevel eccLevel;
   final Messages messages;
   final Function(Encode result, Uint8List? bytes)? onSuccess;
   final Function(String error)? onError;
@@ -41,13 +41,22 @@ class _WriterWidgetState extends State<WriterWidget>
   final TextEditingController _widthController = TextEditingController();
   final TextEditingController _heightController = TextEditingController();
   final TextEditingController _marginController = TextEditingController();
-  final TextEditingController _eccController = TextEditingController();
 
   bool isAndroid() => Theme.of(context).platform == TargetPlatform.android;
 
   final int _maxTextLength = 2000;
   final List<int> _supportedFormats = CodeFormat.writerFormats;
+
   int _codeFormat = Format.qrCode;
+  EccLevel _eccLevel = EccLevel.low;
+
+  Messages get messages => widget.messages;
+  Map<EccLevel, String> get _eccTitlesMap => <EccLevel, String>{
+        EccLevel.low: messages.lowEccLevel,
+        EccLevel.medium: messages.mediumEccLevel,
+        EccLevel.quartile: messages.quartileEccLevel,
+        EccLevel.high: messages.highEccLevel,
+      };
 
   @override
   void initState() {
@@ -55,7 +64,7 @@ class _WriterWidgetState extends State<WriterWidget>
     _widthController.text = widget.width.toString();
     _heightController.text = widget.height.toString();
     _marginController.text = widget.margin.toString();
-    _eccController.text = widget.eccLevel.toString();
+    _eccLevel = widget.eccLevel;
     _codeFormat = widget.format;
     super.initState();
   }
@@ -66,13 +75,11 @@ class _WriterWidgetState extends State<WriterWidget>
     _widthController.dispose();
     _heightController.dispose();
     _marginController.dispose();
-    _eccController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final Messages m = widget.messages;
     return SingleChildScrollView(
       child: Form(
         key: _formKey,
@@ -95,32 +102,68 @@ class _WriterWidgetState extends State<WriterWidget>
                 decoration: InputDecoration(
                   border: const OutlineInputBorder(),
                   filled: true,
-                  labelText: m.textLabel,
+                  labelText: messages.textLabel,
                   counterText:
                       '${_textController.value.text.length} / $_maxTextLength',
                 ),
                 validator: (String? value) {
                   if (value?.isEmpty ?? false) {
-                    return m.invalidText;
+                    return messages.invalidText;
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 20),
               // Format DropDown button
-              DropdownButtonFormField<int>(
-                value: _codeFormat,
-                items: _supportedFormats
-                    .map((int format) => DropdownMenuItem<int>(
-                          value: format,
-                          child: Text(zx.barcodeFormatName(format)),
-                        ))
-                    .toList(),
-                onChanged: (int? format) {
-                  setState(() {
-                    _codeFormat = format ?? Format.qrCode;
-                  });
-                },
+              Row(
+                children: <Widget>[
+                  Flexible(
+                    child: DropdownButtonFormField<int>(
+                      value: _codeFormat,
+                      decoration: InputDecoration(
+                        border: const OutlineInputBorder(),
+                        filled: true,
+                        labelText: messages.formatLabel,
+                      ),
+                      items: _supportedFormats
+                          .map((int format) => DropdownMenuItem<int>(
+                                value: format,
+                                child: Text(zx.barcodeFormatName(format)),
+                              ))
+                          .toList(),
+                      onChanged: (int? format) {
+                        setState(() {
+                          _codeFormat = format ?? Format.qrCode;
+                        });
+                      },
+                    ),
+                  ),
+                  if (_codeFormat.isSupportedEccLevel) ...<Widget>[
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: DropdownButtonFormField<EccLevel>(
+                        value: _eccLevel,
+                        decoration: InputDecoration(
+                          border: const OutlineInputBorder(),
+                          filled: true,
+                          labelText: messages.eccLevelLabel,
+                        ),
+                        items: _eccTitlesMap.entries
+                            .map((MapEntry<EccLevel, String> entry) =>
+                                DropdownMenuItem<EccLevel>(
+                                  value: entry.key,
+                                  child: Text(entry.value),
+                                ))
+                            .toList(),
+                        onChanged: (EccLevel? ecc) {
+                          setState(() {
+                            _eccLevel = ecc ?? EccLevel.low;
+                          });
+                        },
+                      ),
+                    ),
+                  ]
+                ],
               ),
               const SizedBox(height: 20),
               Row(
@@ -130,67 +173,45 @@ class _WriterWidgetState extends State<WriterWidget>
                       controller: _widthController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        labelText: m.widthLabel,
+                        labelText: messages.widthLabel,
                       ),
                       validator: (String? value) {
                         final int? width = int.tryParse(value ?? '');
                         if (width == null) {
-                          return m.invalidWidth;
+                          return messages.invalidWidth;
                         }
                         return null;
                       },
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  // const SizedBox(width: 8),
                   Flexible(
                     child: TextFormField(
                       controller: _heightController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        labelText: m.heightLabel,
+                        labelText: messages.heightLabel,
                       ),
                       validator: (String? value) {
                         final int? width = int.tryParse(value ?? '');
                         if (width == null) {
-                          return m.invalidHeight;
+                          return messages.invalidHeight;
                         }
                         return null;
                       },
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: <Widget>[
                   Flexible(
                     child: TextFormField(
                       controller: _marginController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        labelText: m.marginLabel,
+                        labelText: messages.marginLabel,
                       ),
                       validator: (String? value) {
                         final int? width = int.tryParse(value ?? '');
                         if (width == null) {
-                          return m.invalidMargin;
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: TextFormField(
-                      controller: _eccController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: m.eccLevelLabel,
-                      ),
-                      validator: (String? value) {
-                        final int? width = int.tryParse(value ?? '');
-                        if (width == null) {
-                          return m.invalidEccLevel;
+                          return messages.invalidMargin;
                         }
                         return null;
                       },
@@ -198,11 +219,12 @@ class _WriterWidgetState extends State<WriterWidget>
                   ),
                 ],
               ),
+
               const SizedBox(height: 20),
               // Write button
               ElevatedButton(
                 onPressed: createBarcode,
-                child: Text(m.createButton),
+                child: Text(messages.createButton),
               ),
               const SizedBox(height: 10),
             ],
@@ -220,7 +242,7 @@ class _WriterWidgetState extends State<WriterWidget>
       final int width = int.parse(_widthController.value.text);
       final int height = int.parse(_heightController.value.text);
       final int margin = int.parse(_marginController.value.text);
-      final int ecc = int.parse(_eccController.value.text);
+      final EccLevel ecc = _eccLevel;
       final Encode result = zx.encodeBarcode(
         contents: text,
         params: EncodeParams(

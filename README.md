@@ -122,7 +122,7 @@ final Encode result = zx.encodeBarcode(
         width: 120,
         height: 120,
         margin: 10,
-        eccLevel: 0,
+        eccLevel: EccLevel.low,
     ),
 );
 if (result.isValid) {

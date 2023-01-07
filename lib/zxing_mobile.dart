@@ -30,14 +30,7 @@ class ZxingMobile implements Zxing {
     required String contents,
     required EncodeParams params,
   }) =>
-      zxingEncodeBarcode(
-        contents,
-        format: params.format,
-        width: params.width,
-        height: params.height,
-        margin: params.margin,
-        eccLevel: params.eccLevel,
-      );
+      zxingEncodeBarcode(contents: contents, params: params);
 
   @override
   Future<void> startCameraProcessing() => zxingStartCameraProcessing();
@@ -50,40 +43,28 @@ class ZxingMobile implements Zxing {
     CameraImage image, {
     DecodeParams? params,
   }) =>
-      zxingProcessCameraImage(
-        image,
-        params: params,
-      );
+      zxingProcessCameraImage(image, params: params);
 
   @override
   Future<Code?> readBarcodeImagePathString(
     String path, {
     DecodeParams? params,
   }) =>
-      zxingReadBarcodeImagePathString(
-        path,
-        params: params,
-      );
+      zxingReadBarcodeImagePathString(path, params: params);
 
   @override
   Future<Code?> readBarcodeImagePath(
     XFile path, {
     DecodeParams? params,
   }) =>
-      zxingReadBarcodeImagePath(
-        path,
-        params: params,
-      );
+      zxingReadBarcodeImagePath(path, params: params);
 
   @override
   Future<Code?> readBarcodeImageUrl(
     String url, {
     DecodeParams? params,
   }) =>
-      zxingReadBarcodeImageUrl(
-        url,
-        params: params,
-      );
+      zxingReadBarcodeImageUrl(url, params: params);
 
   @override
   Code readBarcode(
@@ -92,42 +73,28 @@ class ZxingMobile implements Zxing {
     required int height,
     DecodeParams? params,
   }) =>
-      zxingReadBarcode(
-        bytes,
-        width: width,
-        height: height,
-        params: params,
-      );
+      zxingReadBarcode(bytes, width: width, height: height, params: params);
 
   @override
   Future<List<Code>> readBarcodesImagePathString(
     String path, {
     DecodeParams? params,
   }) =>
-      zxingReadBarcodesImagePathString(
-        path,
-        params: params,
-      );
+      zxingReadBarcodesImagePathString(path, params: params);
 
   @override
   Future<List<Code>> readBarcodesImagePath(
     XFile path, {
     DecodeParams? params,
   }) =>
-      zxingReadBarcodesImagePath(
-        path,
-        params: params,
-      );
+      zxingReadBarcodesImagePath(path, params: params);
 
   @override
   Future<List<Code>> readBarcodesImageUrl(
     String url, {
     DecodeParams? params,
   }) =>
-      zxingReadBarcodesImageUrl(
-        url,
-        params: params,
-      );
+      zxingReadBarcodesImageUrl(url, params: params);
 
   @override
   List<Code> readBarcodes(
@@ -136,10 +103,5 @@ class ZxingMobile implements Zxing {
     required int height,
     DecodeParams? params,
   }) =>
-      zxingReadBarcodes(
-        bytes,
-        width: width,
-        height: height,
-        params: params,
-      );
+      zxingReadBarcodes(bytes, width: width, height: height, params: params);
 }

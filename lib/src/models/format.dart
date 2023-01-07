@@ -35,6 +35,14 @@ abstract class Format {
   static const int any = oneDCodes | twoDCodes;
 }
 
+extension EccSupportedExtension on int {
+  bool get isSupportedEccLevel => eccSupported.contains(this);
+
+  static final List<int> eccSupported = <int>[
+    Format.qrCode,
+  ];
+}
+
 extension CodeFormat on Format {
   String get name => formatNames[this] ?? 'Unknown';
 
