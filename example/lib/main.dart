@@ -62,14 +62,16 @@ class _DemoPageState extends State<DemoPage> {
           children: [
             if (kIsWeb)
               const UnsupportedPlatformWidget()
-            else 
-            if (!isCameraSupported)
+            else if (!isCameraSupported)
               const Center(
-
-                
                 child: Text('Camera not supported on this platform'),
-              ) else
-             if (result != null)
+              )
+            else if (result != null)
+              ScanResultWidget(
+                result: result?.text,
+                onScanAgain: () => setState(() => result = null),
+              )
+            else if (result != null)
               ScanResultWidget(
                 result: result?.text,
                 onScanAgain: () => setState(() => result = null),
