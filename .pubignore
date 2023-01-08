@@ -29,5 +29,8 @@
 build/
 
 # iOS and MacOS src folders
-ios/Classes/src/
-macos/Classes/src/
+!ios/Classes/src/
+!macos/Classes/src/
+
+/src/zxing/
+!/src/zxing/core/
