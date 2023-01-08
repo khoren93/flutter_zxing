@@ -43,6 +43,8 @@ class _DemoPageState extends State<DemoPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isCameraSupported = defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.android;
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -60,7 +62,14 @@ class _DemoPageState extends State<DemoPage> {
           children: [
             if (kIsWeb)
               const UnsupportedPlatformWidget()
-            else if (result != null)
+            else 
+            if (!isCameraSupported)
+              const Center(
+
+                
+                child: Text('Camera not supported on this platform'),
+              ) else
+             if (result != null)
               ScanResultWidget(
                 result: result?.text,
                 onScanAgain: () => setState(() => result = null),

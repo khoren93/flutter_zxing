@@ -29,3 +29,7 @@
 build/
 
 download/
+
+# iOS and MacOS src folders
+ios/Classes/src/
+macos/Classes/src/

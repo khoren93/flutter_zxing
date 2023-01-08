@@ -24,10 +24,15 @@ flutter:
   plugin:
     platforms:
       android:
-        package: com.markosyan.flutter_zxing
-        pluginClass: FlutterZxingPlugin
+        ffiPlugin: true
       ios:
-        pluginClass: FlutterZxingPlugin
+        ffiPlugin: true
+      linux:
+        ffiPlugin: true
+      macos:
+        ffiPlugin: true
+      windows:
+        ffiPlugin: true
 
 ffigen:
   name: GeneratedBindings
