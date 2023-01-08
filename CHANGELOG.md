@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0-beta.1
+
+* Updated zxing-cpp to v2.0.0
+* Added support for macOS, Linux, and Windows
+* Added support for micro QR codes
+* Zxing-cpp is now included as a submodule instead of a deep copy
+
 ## 0.10.0
 
 * added `EncodeParams`
