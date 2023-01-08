@@ -29,7 +29,6 @@
 build/
 
 # Ignore Example and ZXScanner folders
-example/
 zxscanner/
 
 src/zxing/*
