@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0-beta.2
+
+* minor improvements
+
 ## 1.0.0-beta.1
 
 * Updated zxing-cpp to v2.0.0
