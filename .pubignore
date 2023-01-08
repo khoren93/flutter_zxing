@@ -28,9 +28,9 @@
 .packages
 build/
 
-# iOS and MacOS src folders
-!ios/Classes/src/
-!macos/Classes/src/
+# Ignore Example and ZXScanner folders
+example/
+zxscanner/
 
-/src/zxing/
-!/src/zxing/core/
+src/zxing/*
+!src/zxing/core/
