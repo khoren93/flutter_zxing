@@ -36,8 +36,8 @@ class DecodeParams {
 class EncodeParams {
   EncodeParams({
     this.format = Format.qrCode,
-    this.width = 120,
-    this.height = 120,
+    this.width = 100,
+    this.height = 100,
     this.margin = 0,
     this.eccLevel = EccLevel.low,
   });
