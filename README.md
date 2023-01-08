@@ -14,7 +14,7 @@
 
 # flutter_zxing
 
-A barcode and QR code scanner based on [ZXing C++](https://github.com/nu-book/zxing-cpp) library natively in Flutter with Dart FFI.
+Flutter ZXing is a Flutter plugin for scanning and generating QR codes using the ZXing (Zebra Crossing) barcode scanning library. The plugin is implemented using the Dart FFI (Foreign Function Interface) and the ZXing-CPP library, and allows you to easily integrate barcode scanning and generation functionality into your Flutter apps.
 
 ## Demo Screenshots
 
@@ -22,28 +22,40 @@ A barcode and QR code scanner based on [ZXing C++](https://github.com/nu-book/zx
 <img alt="01_scanner_screen" src="https://user-images.githubusercontent.com/11523360/174789425-b33861aa-dbe5-49c1-a84a-a02b514a5e0f.png" width="240">&nbsp; <img alt="02_creator_screen" src="https://user-images.githubusercontent.com/11523360/174789816-a2a4ab74-f5ef-41a1-98f3-e514447dff5a.png" width="240">&nbsp;
 </pre>
 
-## Supported Barcode Formats
-
-| 1D product | 1D industrial     | 2D
-| ---------- | ----------------- | --------------
-| UPC-A      | Code 39           | QR Code
-| UPC-E      | Code 93           | DataMatrix
-| EAN-8      | Code 128          | Aztec
-| EAN-13     | Codabar           | PDF417
-| DataBar    | ITF               | MaxiCode (beta)
-|            | DataBar Expanded  |
-
 ## Features
 
-- Scan barcode from camera stream, image path or url
-- Scan multiple barcodes from camera stream, image path or url
-- Create barcode from text
-- Return scanned barcode position points
-- Flashlight and pinch to zoom support
+- Scan QR codes and barcodes from the camera stream (on mobile platforms only), image file or URL
+- Scan multiple barcodes at once from the camera stream (on mobile platforms only), image file or URL 
+- Generate QR codes with customizable content and size
+- Return the position points of the scanned barcode
+- Customizable scanner frame size and color, and ability to enable or disable features like torch and pinch to zoom
 
-## Todo
+## Supported Formats
 
-- Write tests
+| Linear product | Linear industrial | Matrix             |
+|----------------|-------------------|--------------------|
+| UPC-A          | Code 39           | QR Code            |
+| UPC-E          | Code 93           | Micro QR Code      |
+| EAN-8          | Code 128          | Aztec              |
+| EAN-13         | Codabar           | DataMatrix         |
+| DataBar        | DataBar Expanded  | PDF417             |
+|                | ITF               | MaxiCode (partial) |
+
+## Supported platforms
+
+Flutter ZXing supports the following platforms:
+
+- Android (minimum API level 21)
+- iOS (minimum iOS 11.0)
+- MacOS (minimum osx 10.15) (beta)
+- Linux (beta)
+- Windows (beta)
+
+Note that flutter_zxing relies on the Dart FFI (Foreign Function Interface) feature, which is currently only available for the mobile and desktop platforms. As a result, the plugin is not currently supported on the web platform.
+
+In addition, flutter_zxing uses the camera plugin to access the device's camera for scanning barcodes. This plugin is only supported on mobile platforms, and is not available for desktop platforms. Therefore, some features of flutter_zxing, such as scanning barcodes using the camera, are not available on desktop platforms.
+
+
 
 ## Getting Started
 
