@@ -148,7 +148,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.10.0"
+    version: "1.0.0-beta.1"
   font_awesome_flutter:
     dependency: "direct main"
     description:
@@ -359,4 +359,4 @@ packages:
     version: "6.1.0"
 sdks:
   dart: ">=2.18.0 <3.0.0"
-  flutter: ">=3.0.0"
+  flutter: ">=3.3.0"

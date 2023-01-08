@@ -23,7 +23,7 @@ extern "C"
     FUNCTION_ATTRIBUTE
     char const *version()
     {
-        return "1.4.0";
+        return "2.0.0";
     }
 
     FUNCTION_ATTRIBUTE
