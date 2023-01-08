@@ -19,8 +19,9 @@ abstract class Format {
   static const int qrCode = 1 << 13; // QR Code (2D)
   static const int upca = 1 << 14; // UPC-A (1D)
   static const int upce = 1 << 15; // UPC-E (1D)
+  static const int microQRCode = 1 << 16; // Micro QR Code
 
-  static const int oneDCodes = codabar |
+  static const int linearCodes = codabar |
       code39 |
       code93 |
       code128 |
@@ -31,8 +32,9 @@ abstract class Format {
       dataBarExpanded |
       upca |
       upce;
-  static const int twoDCodes = aztec | dataMatrix | maxiCode | pdf417 | qrCode;
-  static const int any = oneDCodes | twoDCodes;
+  static const int matrixCodes =
+      aztec | dataMatrix | maxiCode | pdf417 | qrCode | microQRCode;
+  static const int any = linearCodes | matrixCodes;
 }
 
 extension CodeFormat on int {
@@ -50,6 +52,7 @@ extension CodeFormat on int {
 
   static final List<int> supportedEncodeFormats = <int>[
     Format.qrCode,
+    // Format.microQRCode,
     Format.dataMatrix,
     Format.aztec,
     // Format.pdf417,
@@ -86,8 +89,9 @@ final Map<int, String> barcodeNames = <int, String>{
   Format.qrCode: 'QR Code',
   Format.upca: 'UPCA',
   Format.upce: 'UPCE',
-  Format.oneDCodes: 'OneD',
-  Format.twoDCodes: 'TwoD',
+  Format.microQRCode: 'Micro QR Code',
+  Format.linearCodes: 'OneD',
+  Format.matrixCodes: 'TwoD',
   Format.any: 'Any',
 };
 
@@ -108,6 +112,7 @@ final Map<int, double> barcodeRatios = <int, double>{
   Format.qrCode: 3.0 / 3.0, // recommended ratio: 3:3 (square)
   Format.upca: 3.0 / 1.0, // recommended ratio: 3:1
   Format.upce: 1.0 / 1.0, // recommended ratio: 1:1 (square)
+  Format.microQRCode: 3.0 / 3.0, // recommended ratio: 3:3 (square)
 };
 
 final Map<int, String> barcodeDemoText = <int, String>{
@@ -127,6 +132,7 @@ final Map<int, String> barcodeDemoText = <int, String>{
   Format.qrCode: 'This is a QR Code',
   Format.upca: '72527273070',
   Format.upce: '0123456',
+  Format.microQRCode: 'This is a Micro QR Code',
 };
 
 final Map<int, int> barcodeMaxTextLengths = <int, int>{
@@ -146,4 +152,5 @@ final Map<int, int> barcodeMaxTextLengths = <int, int>{
   Format.qrCode: 4296,
   Format.upca: 12,
   Format.upce: 8,
+  Format.microQRCode: 4296,
 };

@@ -69,6 +69,7 @@ class _DemoPageState extends State<DemoPage> {
             else if (result != null)
               ScanResultWidget(
                 result: result?.text,
+                format: result?.format?.name,
                 onScanAgain: () => setState(() => result = null),
               )
             else if (result != null)
@@ -159,28 +160,38 @@ class ScanResultWidget extends StatelessWidget {
   const ScanResultWidget({
     Key? key,
     this.result,
+    this.format,
     this.onScanAgain,
   }) : super(key: key);
 
   final String? result;
+  final String? format;
   final Function()? onScanAgain;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            result ?? '',
-            style: Theme.of(context).textTheme.headline6,
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: onScanAgain,
-            child: const Text('Scan Again'),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              format ?? '',
+              style: Theme.of(context).textTheme.headline5,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              result ?? '',
+              style: Theme.of(context).textTheme.headline6,
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: onScanAgain,
+              child: const Text('Scan Again'),
+            ),
+          ],
+        ),
       ),
     );
   }
