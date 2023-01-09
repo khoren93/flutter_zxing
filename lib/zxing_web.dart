@@ -39,6 +39,13 @@ class ZxingWeb implements Zxing {
       throw UnimplementedError();
 
   @override
+  Future<List<Code>> processCameraImageMulti(
+    CameraImage image, {
+    DecodeParams? params,
+  }) =>
+      throw UnimplementedError();
+
+  @override
   Future<Code?> readBarcodeImagePathString(
     String path, {
     DecodeParams? params,

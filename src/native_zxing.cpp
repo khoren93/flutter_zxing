@@ -51,6 +51,8 @@ extern "C"
 
         int evalInMillis = static_cast<int>(get_now() - start);
         code.duration = evalInMillis;
+        code.pos->imageWidth = width;
+        code.pos->imageHeight = height;
         platform_log("Read Barcode in: %d ms\n", code.duration);
         return code;
     }
@@ -82,14 +84,13 @@ extern "C"
             struct CodeResult code;
             resultToCodeResult(&code, result);
             code.duration = evalInMillis;
+            code.pos->imageWidth = width;
+            code.pos->imageHeight = height;
             codes[i] = code;
             i++;
         }
-
         delete[] data;
         delete[] bytes;
-
-        
         return {i, codes};
     }
 

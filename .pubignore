@@ -28,8 +28,10 @@
 .packages
 build/
 
-# Ignore Example and ZXScanner folders
+# Ignore ZXScanner folders
 zxscanner/
 
+# Ignore ZXing-CPP unneeded files 
 src/zxing/*
+!src/zxing/CMakeLists.txt
 !src/zxing/core/

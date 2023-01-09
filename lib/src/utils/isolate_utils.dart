@@ -57,14 +57,18 @@ class IsolateUtils {
         try {
           final CameraImage image = isolateData.cameraImage;
           final Uint8List bytes = await convertImage(image);
+          final int width = image.width;
+          final int height = image.height;
+          final DecodeParams params = isolateData.params;
 
-          final Code result = zxingReadBarcode(
-            bytes,
-            width: image.width,
-            height: image.height,
-            params: isolateData.params,
-          );
-
+          dynamic result;
+          if (params.isMultiScan) {
+            result = zxingReadBarcodes(bytes,
+                width: width, height: height, params: params);
+          } else {
+            result = zxingReadBarcode(bytes,
+                width: width, height: height, params: params);
+          }
           isolateData.responsePort?.send(result);
         } catch (e) {
           isolateData.responsePort?.send(e);

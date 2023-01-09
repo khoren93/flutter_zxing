@@ -12,6 +12,7 @@ class DecodeParams {
     this.tryRotate = true,
     this.tryInverted = false,
     this.maxSize = 512,
+    this.isMultiScan = false,
   });
 
   // Specify a set of BarcodeFormats that should be searched for, the default is all supported formats.
@@ -34,6 +35,9 @@ class DecodeParams {
 
   // Resize the image to a smaller size before scanning to improve performance
   int maxSize;
+
+  // Whether to scan multiple barcodes
+  bool isMultiScan;
 }
 
 // Represents the parameters for encoding a barcode

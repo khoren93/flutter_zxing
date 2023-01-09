@@ -25,7 +25,7 @@ Flutter ZXing is a Flutter plugin for scanning and generating QR codes using the
 ## Features
 
 - Scan QR codes and barcodes from the camera stream (on mobile platforms only), image file or URL
-- Scan multiple barcodes at once from the camera stream (on mobile platforms only), image file or URL 
+- Scan multiple barcodes at once from the camera stream (on mobile platforms only), image file or URL
 - Generate QR codes with customizable content and size
 - Return the position points of the scanned barcode
 - Customizable scanner frame size and color, and ability to enable or disable features like torch and pinch to zoom

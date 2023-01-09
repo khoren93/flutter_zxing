@@ -1,6 +1,8 @@
 /// Represents the position of a barcode in an image.
 class Position {
   Position(
+    this.imageWidth,
+    this.imageHeight,
     this.topLeftX,
     this.topLeftY,
     this.topRightX,
@@ -10,6 +12,9 @@ class Position {
     this.bottomRightX,
     this.bottomRightY,
   );
+
+  int imageWidth; // width of the image
+  int imageHeight; // height of the image
 
   int topLeftX; // x coordinate of top left corner of barcode
   int topLeftY; // y coordinate of top left corner of barcode

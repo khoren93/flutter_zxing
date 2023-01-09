@@ -11,9 +11,12 @@ import '../../flutter_zxing.dart';
 class ReaderWidget extends StatefulWidget {
   const ReaderWidget({
     super.key,
-    required this.onScan,
+    this.onScan,
     this.onScanFailure,
+    this.onMultiScan,
+    this.onMultiScanFailure,
     this.onControllerCreated,
+    this.isMultiScan = false,
     this.codeFormat = Format.any,
     this.tryHarder = false,
     this.tryInverted = false,
@@ -30,13 +33,22 @@ class ReaderWidget extends StatefulWidget {
   });
 
   /// Called when a code is detected
-  final Function(Code) onScan;
+  final Function(Code)? onScan;
 
   /// Called when a code is not detected
   final Function(Code)? onScanFailure;
 
+  /// Called when a code is detected
+  final Function(List<Code>)? onMultiScan;
+
+  /// Called when a code is not detected
+  final Function(List<Code>)? onMultiScanFailure;
+
   /// Called when the camera controller is created
   final Function(CameraController?)? onControllerCreated;
+
+  /// Allow multiple scans
+  final bool isMultiScan;
 
   /// Code format to scan
   final int codeFormat;
@@ -207,17 +219,32 @@ class _ReaderWidgetState extends State<ReaderWidget>
           cropHeight: cropSize,
           tryHarder: widget.tryHarder,
           tryInverted: widget.tryInverted,
+          isMultiScan: widget.isMultiScan,
         );
-        final Code result = await zx.processCameraImage(
-          image,
-          params: params,
-        );
-        if (result.isValid) {
-          widget.onScan(result);
-          setState(() {});
-          await Future<void>.delayed(widget.scanDelaySuccess);
+        if (widget.isMultiScan) {
+          final List<Code> results = await zx.processCameraImageMulti(
+            image,
+            params: params,
+          );
+          if (results.isNotEmpty) {
+            widget.onMultiScan?.call(results);
+            await Future<void>.delayed(widget.scanDelaySuccess);
+            setState(() {});
+          } else {
+            widget.onMultiScanFailure?.call(results);
+          }
         } else {
-          widget.onScanFailure?.call(result);
+          final Code result = await zx.processCameraImage(
+            image,
+            params: params,
+          );
+          if (result.isValid) {
+            widget.onScan?.call(result);
+            setState(() {});
+            await Future<void>.delayed(widget.scanDelaySuccess);
+          } else {
+            widget.onScanFailure?.call(result);
+          }
         }
       } on FileSystemException catch (e) {
         debugPrint(e.message);

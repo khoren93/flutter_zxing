@@ -9,6 +9,8 @@ extern "C"
      */
     struct Pos
     {
+        int imageWidth;   ///< The width of the image
+        int imageHeight;  ///< The height of the image
         int topLeftX;     ///< x coordinate of top left corner of barcode
         int topLeftY;     ///< y coordinate of top left corner of barcode
         int topRightX;    ///< x coordinate of top right corner of barcode
@@ -115,7 +117,7 @@ extern "C"
     struct EncodeResult encodeBarcode(char *contents, int width, int height, int format, int margin, int eccLevel);
 
     // Private functions
-    void resultToCodeResult(struct CodeResult *code, ZXing::Result result);
+    // void resultToCodeResult(struct CodeResult *code, ZXing::Result result);
 
 #ifdef __cplusplus
 }

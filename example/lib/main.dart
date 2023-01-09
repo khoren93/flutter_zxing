@@ -1,10 +1,12 @@
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:image_picker/image_picker.dart';
 
 void main() {
-  zx.setLogEnabled(kDebugMode);
+  zx.setLogEnabled(false);
   runApp(const MyApp());
 }
 
@@ -36,6 +38,7 @@ class _DemoPageState extends State<DemoPage> {
   Uint8List? createdCodeBytes;
 
   Code? result;
+  List<Code> multiResult = [];
 
   bool showDebugInfo = true;
   int successScans = 0;
@@ -77,8 +80,26 @@ class _DemoPageState extends State<DemoPage> {
                   ReaderWidget(
                     onScan: _onScanSuccess,
                     onScanFailure: _onScanFailure,
-                    tryInverted: true,
+                    onMultiScan: _onMultiScanSuccess,
+                    onMultiScanFailure: _onMultiScanFailure,
+                    isMultiScan: true,
+                    // showScannerOverlay: false,
+                    // scanDelay: const Duration(milliseconds: 0),
+                    // tryInverted: true,
                   ),
+                  // show multi results as rectangles
+                  // if (multiResult.isNotEmpty)
+                  //   Positioned.fill(
+                  //     child: CustomPaint(
+                  //       painter: MultiScanPainter(
+                  //         codes: multiResult,
+                  //         size: Size(
+                  //           MediaQuery.of(context).size.width,
+                  //           MediaQuery.of(context).size.height,
+                  //         ),
+                  //       ),
+                  //     ),
+                  //   ),
                   ScanFromGalleryWidget(
                     onScan: _onScanSuccess,
                     onScanFailure: _onScanFailure,
@@ -135,6 +156,23 @@ class _DemoPageState extends State<DemoPage> {
     });
     if (code?.error?.isNotEmpty == true) {
       _showMessage(context, 'Error: ${code?.error}');
+    }
+  }
+
+  _onMultiScanSuccess(List<Code> codes) {
+    setState(() {
+      successScans++;
+      multiResult = codes;
+    });
+  }
+
+  _onMultiScanFailure(List<Code> codes) {
+    setState(() {
+      failedScans++;
+      multiResult = codes;
+    });
+    if (result?.error?.isNotEmpty == true) {
+      _showMessage(context, 'Error: ${codes.first.error}');
     }
   }
 
@@ -286,9 +324,7 @@ class DebugInfoWidget extends StatelessWidget {
 }
 
 class UnsupportedPlatformWidget extends StatelessWidget {
-  const UnsupportedPlatformWidget({
-    Key? key,
-  }) : super(key: key);
+  const UnsupportedPlatformWidget({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -298,5 +334,67 @@ class UnsupportedPlatformWidget extends StatelessWidget {
         style: Theme.of(context).textTheme.headline6,
       ),
     );
+  }
+}
+
+class MultiResultWidget extends StatelessWidget {
+  const MultiResultWidget({
+    super.key,
+    this.results = const [],
+  });
+
+  final List<Code> results;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container();
+  }
+}
+
+class MultiScanPainter extends CustomPainter {
+  MultiScanPainter({
+    required this.codes,
+    required this.size,
+    // required this.scale,
+    // required this.offset,
+  });
+
+  final List<Code> codes;
+  final Size size;
+  final double scale = 1;
+  final Offset offset = Offset.zero;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = Colors.green
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    for (final Code code in codes) {
+      final position = code.position;
+      if (position == null) {
+        continue;
+      }
+      // position to points
+      final List<Offset> points = positionToPoints(position);
+      // debugPrint('w: ${position.imageWidth} h: ${position.imageHeight}');
+      // print(points);
+      canvas.drawPoints(PointMode.polygon, points, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(MultiScanPainter oldDelegate) {
+    return true;
+  }
+
+  List<Offset> positionToPoints(Position pos) {
+    return [
+      Offset(pos.topLeftX.toDouble(), pos.topLeftY.toDouble()),
+      Offset(pos.topRightX.toDouble(), pos.topRightY.toDouble()),
+      Offset(pos.bottomRightX.toDouble(), pos.bottomRightY.toDouble()),
+      Offset(pos.bottomLeftX.toDouble(), pos.bottomLeftY.toDouble()),
+    ];
   }
 }

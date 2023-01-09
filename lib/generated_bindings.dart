@@ -175,6 +175,14 @@ class GeneratedBindings {
 
 /// @brief Pos is a position of a barcode in a image.
 class Pos extends ffi.Struct {
+  /// < The width of the image
+  @ffi.Int()
+  external int imageWidth;
+
+  /// < The height of the image
+  @ffi.Int()
+  external int imageHeight;
+
   /// < x coordinate of top left corner of barcode
   @ffi.Int()
   external int topLeftX;

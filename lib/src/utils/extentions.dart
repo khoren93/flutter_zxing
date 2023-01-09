@@ -8,18 +8,18 @@ import '../../zxing_mobile.dart';
 extension CodeExt on CodeResult {
   Code toCode() {
     return Code(
-        text == nullptr ? null : text.cast<Utf8>().toDartString(),
-        isValid == 1,
-        error == nullptr ? null : error.cast<Utf8>().toDartString(),
-        bytes == nullptr
-            ? null
-            : Uint8List.fromList(bytes.cast<Int8>().asTypedList(length)),
-        format,
-        pos == nullptr ? null : pos.ref.toPosition(),
-        isInverted == 1,
-        isMirrored == 1,
-        duration,
-      );
+      text == nullptr ? null : text.cast<Utf8>().toDartString(),
+      isValid == 1,
+      error == nullptr ? null : error.cast<Utf8>().toDartString(),
+      bytes == nullptr
+          ? null
+          : Uint8List.fromList(bytes.cast<Int8>().asTypedList(length)),
+      format,
+      pos == nullptr ? null : pos.ref.toPosition(),
+      isInverted == 1,
+      isMirrored == 1,
+      duration,
+    );
   }
 }
 
@@ -38,6 +38,8 @@ extension EncodeExt on EncodeResult {
 
 extension PoeExt on Pos {
   Position toPosition() => Position(
+        imageWidth,
+        imageHeight,
         topLeftX,
         topLeftY,
         topRightX,
