@@ -1,8 +1,16 @@
 # Changelog
 
+## 1.0.0-beta.3
+
+* Added the following properties to Code:
+  * isInverted
+  * isMirrored
+  * duration
+* Implemented image resizing before decoding
+
 ## 1.0.0-beta.2
 
-* minor improvements
+* Minor improvements
 
 ## 1.0.0-beta.1
 
