@@ -74,6 +74,7 @@ class GeneratedBindings {
     int cropHeight,
     int tryHarder,
     int tryRotate,
+    int tryInvert,
   ) {
     return _readBarcode(
       bytes,
@@ -84,16 +85,17 @@ class GeneratedBindings {
       cropHeight,
       tryHarder,
       tryRotate,
+      tryInvert,
     );
   }
 
   late final _readBarcodePtr = _lookup<
       ffi.NativeFunction<
           CodeResult Function(ffi.Pointer<ffi.Char>, ffi.Int, ffi.Int, ffi.Int,
-              ffi.Int, ffi.Int, ffi.Int, ffi.Int)>>('readBarcode');
+              ffi.Int, ffi.Int, ffi.Int, ffi.Int, ffi.Int)>>('readBarcode');
   late final _readBarcode = _readBarcodePtr.asFunction<
       CodeResult Function(
-          ffi.Pointer<ffi.Char>, int, int, int, int, int, int, int)>();
+          ffi.Pointer<ffi.Char>, int, int, int, int, int, int, int, int)>();
 
   /// @brief Read barcodes from image bytes.
   /// @param bytes Image bytes.
@@ -114,6 +116,7 @@ class GeneratedBindings {
     int cropHeight,
     int tryHarder,
     int tryRotate,
+    int tryInvert,
   ) {
     return _readBarcodes(
       bytes,
@@ -124,16 +127,17 @@ class GeneratedBindings {
       cropHeight,
       tryHarder,
       tryRotate,
+      tryInvert,
     );
   }
 
   late final _readBarcodesPtr = _lookup<
       ffi.NativeFunction<
           CodeResults Function(ffi.Pointer<ffi.Char>, ffi.Int, ffi.Int, ffi.Int,
-              ffi.Int, ffi.Int, ffi.Int, ffi.Int)>>('readBarcodes');
+              ffi.Int, ffi.Int, ffi.Int, ffi.Int, ffi.Int)>>('readBarcodes');
   late final _readBarcodes = _readBarcodesPtr.asFunction<
       CodeResults Function(
-          ffi.Pointer<ffi.Char>, int, int, int, int, int, int, int)>();
+          ffi.Pointer<ffi.Char>, int, int, int, int, int, int, int, int)>();
 
   /// @brief Encode a string into a barcode
   /// @param contents The string to encode
@@ -206,12 +210,15 @@ class Pos extends ffi.Struct {
 
 /// @brief The CodeResult class encapsulates the result of decoding a barcode within an image.
 class CodeResult extends ffi.Struct {
+  /// < The decoded text
+  external ffi.Pointer<ffi.Char> text;
+
   /// < Whether the barcode was successfully decoded
   @ffi.Int()
   external int isValid;
 
-  /// < The decoded text
-  external ffi.Pointer<ffi.Char> text;
+  /// < The error message
+  external ffi.Pointer<ffi.Char> error;
 
   /// < The bytes is the raw / standard content without any modifications like character set conversions
   external ffi.Pointer<ffi.UnsignedChar> bytes;
@@ -226,6 +233,18 @@ class CodeResult extends ffi.Struct {
 
   /// < The position of the barcode within the image
   external ffi.Pointer<Pos> pos;
+
+  /// < Whether the barcode was inverted
+  @ffi.Int()
+  external int isInverted;
+
+  /// < Whether the barcode was mirrored
+  @ffi.Int()
+  external int isMirrored;
+
+  /// < The duration of the decoding in milliseconds
+  @ffi.Int()
+  external int duration;
 }
 
 /// @brief The CodeResults class encapsulates the result of decoding multiple barcodes within an image.

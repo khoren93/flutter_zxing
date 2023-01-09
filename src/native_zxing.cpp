@@ -27,7 +27,7 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResult readBarcode(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate)
+    struct CodeResult readBarcode(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert)
     {
         long long start = get_now();
 
@@ -40,25 +40,23 @@ extern "C"
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
         }
-        DecodeHints hints = DecodeHints().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format));
+        DecodeHints hints = DecodeHints().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format)).setTryInvert(tryInvert);
         Result result = ReadBarcode(image, hints);
 
-        struct CodeResult code = {false, nullptr};
-        if (result.isValid())
-        {
-            resultToCodeResult(&code, result);
-        }
+        struct CodeResult code;
+        resultToCodeResult(&code, result);
 
         delete[] data;
         delete[] bytes;
 
         int evalInMillis = static_cast<int>(get_now() - start);
-        platform_log("Read Barcode in: %d ms\n", evalInMillis);
+        code.duration = evalInMillis;
+        platform_log("Read Barcode in: %d ms\n", code.duration);
         return code;
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResults readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate)
+    struct CodeResults readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert)
     {
         long long start = get_now();
 
@@ -71,27 +69,27 @@ extern "C"
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
         }
-        DecodeHints hints = DecodeHints().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format));
+        DecodeHints hints = DecodeHints().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format)).setTryInvert(tryInvert);
         Results results = ReadBarcodes(image, hints);
+
+        int evalInMillis = static_cast<int>(get_now() - start);
+        platform_log("Read Barcode in: %d ms\n", evalInMillis);
 
         auto *codes = new struct CodeResult[results.size()];
         int i = 0;
         for (auto &result : results)
         {
-            struct CodeResult code = {false, nullptr};
-            if (result.isValid())
-            {
-                resultToCodeResult(&code, result);
-                codes[i] = code;
-                i++;
-            }
+            struct CodeResult code;
+            resultToCodeResult(&code, result);
+            code.duration = evalInMillis;
+            codes[i] = code;
+            i++;
         }
 
         delete[] data;
         delete[] bytes;
 
-        int evalInMillis = static_cast<int>(get_now() - start);
-        platform_log("Read Barcode in: %d ms\n", evalInMillis);
+        
         return {i, codes};
     }
 
@@ -124,16 +122,20 @@ extern "C"
     FUNCTION_ATTRIBUTE
     void resultToCodeResult(struct CodeResult *code, Result result)
     {
+        string text = result.text();
+        code->text = new char[text.length() + 1];
+        strcpy(code->text, text.c_str());
+
         code->isValid = result.isValid();
+
+        string error = result.error().msg();
+        code->error = new char[error.length() + 1];
+        strcpy(code->error, error.c_str());
 
         code->format = static_cast<int>(result.format());
 
         code->bytes = result.bytes().data();
         code->length = result.bytes().size();
-
-        string text = result.text();
-        code->text = new char[text.length() + 1];
-        strcpy(code->text, text.c_str());
 
         auto p = result.position();
         auto tl = p.topLeft();
@@ -141,6 +143,8 @@ extern "C"
         auto bl = p.bottomLeft();
         auto br = p.bottomRight();
         code->pos = new Pos{tl.x, tl.y, tr.x, tr.y, bl.x, bl.y, br.x, br.y};
-        platform_log("Result: %s\n", code->text);
+
+        code->isInverted = result.isInverted();
+        code->isMirrored = result.isMirrored();
     }
 }

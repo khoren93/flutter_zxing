@@ -24,12 +24,16 @@ extern "C"
      */
     struct CodeResult
     {
-        int isValid;                ///< Whether the barcode was successfully decoded
         char *text;                 ///< The decoded text
+        int isValid;                ///< Whether the barcode was successfully decoded
+        char *error;                ///< The error message
         const unsigned char *bytes; ///< The bytes is the raw / standard content without any modifications like character set conversions
         int length;                 ///< The length of the bytes
         int format;                 ///< The format of the barcode
         struct Pos *pos;            ///< The position of the barcode within the image
+        int isInverted;             ///< Whether the barcode was inverted
+        int isMirrored;             ///< Whether the barcode was mirrored
+        int duration;               ///< The duration of the decoding in milliseconds
     };
 
     /**
@@ -82,7 +86,7 @@ extern "C"
      * @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
      * @return The barcode result.
      */
-    struct CodeResult readBarcode(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate);
+    struct CodeResult readBarcode(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert);
 
     /**
      * @brief Read barcodes from image bytes.
@@ -96,7 +100,7 @@ extern "C"
      * @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
      * @return The barcode results.
      */
-    struct CodeResults readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate);
+    struct CodeResults readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert);
 
     /**
      * @brief Encode a string into a barcode
@@ -111,7 +115,6 @@ extern "C"
     struct EncodeResult encodeBarcode(char *contents, int width, int height, int format, int margin, int eccLevel);
 
     // Private functions
-
     void resultToCodeResult(struct CodeResult *code, ZXing::Result result);
 
 #ifdef __cplusplus

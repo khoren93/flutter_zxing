@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
@@ -64,4 +65,16 @@ Uint8List invertImage(Uint8List bytes) {
     invertedBytes[i] = 255 - invertedBytes[i];
   }
   return invertedBytes;
+}
+
+imglib.Image resizeToMaxSize(imglib.Image image, int? maxSize) {
+  if (maxSize == null) {
+    return image;
+  }
+  if (image.width > maxSize || image.height > maxSize) {
+    final double scaleFactor = maxSize / max(image.width, image.height);
+    image =
+        imglib.copyResize(image, width: (image.width * scaleFactor).toInt());
+  }
+  return image;
 }

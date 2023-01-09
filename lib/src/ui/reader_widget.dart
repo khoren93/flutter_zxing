@@ -33,7 +33,7 @@ class ReaderWidget extends StatefulWidget {
   final Function(Code) onScan;
 
   /// Called when a code is not detected
-  final Function()? onScanFailure;
+  final Function(Code)? onScanFailure;
 
   /// Called when the camera controller is created
   final Function(CameraController?)? onControllerCreated;
@@ -217,7 +217,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
           setState(() {});
           await Future<void>.delayed(widget.scanDelaySuccess);
         } else {
-          widget.onScanFailure?.call();
+          widget.onScanFailure?.call(result);
         }
       } on FileSystemException catch (e) {
         debugPrint(e.message);

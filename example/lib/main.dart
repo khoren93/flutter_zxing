@@ -4,7 +4,7 @@ import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:image_picker/image_picker.dart';
 
 void main() {
-  zx.setLogEnabled(!kDebugMode);
+  zx.setLogEnabled(kDebugMode);
   runApp(const MyApp());
 }
 
@@ -66,15 +66,9 @@ class _DemoPageState extends State<DemoPage> {
               const Center(
                 child: Text('Camera not supported on this platform'),
               )
-            else if (result != null)
+            else if (result != null && result?.isValid == true)
               ScanResultWidget(
-                result: result?.text,
-                format: result?.format?.name,
-                onScanAgain: () => setState(() => result = null),
-              )
-            else if (result != null)
-              ScanResultWidget(
-                result: result?.text,
+                result: result,
                 onScanAgain: () => setState(() => result = null),
               )
             else
@@ -82,7 +76,7 @@ class _DemoPageState extends State<DemoPage> {
                 children: [
                   ReaderWidget(
                     onScan: _onScanSuccess,
-                    onScanFailure: () => _onScanFailure(null),
+                    onScanFailure: _onScanFailure,
                     tryInverted: true,
                   ),
                   ScanFromGalleryWidget(
@@ -93,6 +87,8 @@ class _DemoPageState extends State<DemoPage> {
                     DebugInfoWidget(
                       successScans: successScans,
                       failedScans: failedScans,
+                      error: result?.error,
+                      duration: result?.duration ?? 0,
                       onReset: _onReset,
                     ),
                 ],
@@ -125,19 +121,20 @@ class _DemoPageState extends State<DemoPage> {
     );
   }
 
-  _onScanSuccess(value) {
+  _onScanSuccess(Code? code) {
     setState(() {
       successScans++;
-      result = value;
+      result = code;
     });
   }
 
-  _onScanFailure(String? error) {
+  _onScanFailure(Code? code) {
     setState(() {
       failedScans++;
+      result = code;
     });
-    if (error != null) {
-      _showMessage(context, error);
+    if (code?.error?.isNotEmpty == true) {
+      _showMessage(context, 'Error: ${code?.error}');
     }
   }
 
@@ -160,12 +157,10 @@ class ScanResultWidget extends StatelessWidget {
   const ScanResultWidget({
     Key? key,
     this.result,
-    this.format,
     this.onScanAgain,
   }) : super(key: key);
 
-  final String? result;
-  final String? format;
+  final Code? result;
   final Function()? onScanAgain;
 
   @override
@@ -177,15 +172,20 @@ class ScanResultWidget extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              format ?? '',
+              result?.format?.name ?? '',
               style: Theme.of(context).textTheme.headline5,
             ),
             const SizedBox(height: 20),
             Text(
-              result ?? '',
+              result?.text ?? '',
               style: Theme.of(context).textTheme.headline6,
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
+            Text(
+              'Inverted: ${result?.isInverted}\t\tMirrored: ${result?.isMirrored}',
+              style: Theme.of(context).textTheme.bodyText2,
+            ),
+            const SizedBox(height: 40),
             ElevatedButton(
               onPressed: onScanAgain,
               child: const Text('Scan Again'),
@@ -204,8 +204,8 @@ class ScanFromGalleryWidget extends StatelessWidget {
     this.onScanFailure,
   }) : super(key: key);
 
-  final Function(Code?)? onScan;
-  final Function(String)? onScanFailure;
+  final Function(Code)? onScan;
+  final Function(Code?)? onScanFailure;
 
   @override
   Widget build(BuildContext context) {
@@ -230,7 +230,8 @@ class ScanFromGalleryWidget extends StatelessWidget {
       if (result != null && result.isValid) {
         onScan?.call(result);
       } else {
-        onScanFailure?.call('Failed to read barcode from image');
+        result?.error = 'No barcode found';
+        onScanFailure?.call(result);
       }
     }
   }
@@ -241,18 +242,22 @@ class DebugInfoWidget extends StatelessWidget {
     Key? key,
     required this.successScans,
     required this.failedScans,
+    this.error,
+    this.duration = 0,
     this.onReset,
   }) : super(key: key);
 
   final int successScans;
   final int failedScans;
+  final String? error;
+  final int duration;
 
   final Function()? onReset;
 
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment: Alignment.topCenter,
+      alignment: Alignment.topLeft,
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: ClipRRect(
@@ -264,8 +269,8 @@ class DebugInfoWidget extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Success: $successScans\nFailed: $failedScans',
-                  style: Theme.of(context).textTheme.headline6,
+                  'Success: $successScans\nFailed: $failedScans\nDuration: $duration ms',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
                 TextButton(
                   onPressed: onReset,
