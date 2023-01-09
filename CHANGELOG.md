@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0-beta.4
+
+* Fixed compilation issue on Android
+
 ## 1.0.0-beta.3
 
 * Added the following properties to Code:
