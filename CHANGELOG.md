@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0-beta.7
+
+* Resolved an issue with detecting and handling large images
+
 ## 1.0.0-beta.6
 
 * Fixed compilation issue on Android
