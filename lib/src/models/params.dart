@@ -11,7 +11,7 @@ class DecodeParams {
     this.tryHarder = false,
     this.tryRotate = true,
     this.tryInverted = false,
-    this.maxSize = 512,
+    this.maxSize = 768,
     this.isMultiScan = false,
   });
 
@@ -33,7 +33,7 @@ class DecodeParams {
   // Try to detect inverted code
   bool tryInverted;
 
-  // Resize the image to a smaller size before scanning to improve performance
+  // Resize the image to a smaller size before scanning to improve performance. Default is 768.
   int maxSize;
 
   // Whether to scan multiple barcodes

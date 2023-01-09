@@ -82,7 +82,7 @@ class _DemoPageState extends State<DemoPage> {
                     onScanFailure: _onScanFailure,
                     onMultiScan: _onMultiScanSuccess,
                     onMultiScanFailure: _onMultiScanFailure,
-                    isMultiScan: true,
+                    isMultiScan: false,
                     // showScannerOverlay: false,
                     // scanDelay: const Duration(milliseconds: 0),
                     // tryInverted: true,

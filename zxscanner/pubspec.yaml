@@ -17,7 +17,7 @@ dependencies:
     sdk: flutter
   flutter_markdown: ^0.6.13
   flutter_mobx: ^2.0.6
-  flutter_zxing: 1.0.0-beta.4
+  flutter_zxing: #1.0.0-beta.6
   font_awesome_flutter: ^10.3.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0
