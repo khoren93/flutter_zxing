@@ -33,5 +33,4 @@ zxscanner/
 
 # Ignore ZXing-CPP unneeded files 
 src/zxing/*
-!src/zxing/CMakeLists.txt
 !src/zxing/core/
