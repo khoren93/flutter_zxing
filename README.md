@@ -14,7 +14,7 @@
 
 # flutter_zxing
 
-Flutter ZXing is a Flutter plugin for scanning and generating QR codes using the ZXing (Zebra Crossing) barcode scanning library. The plugin is implemented using the Dart FFI (Foreign Function Interface) and the [zxing-cpp](https://github.com/nu-book/zxing-cpp) library, and allows you to easily integrate barcode scanning and generation functionality into your Flutter apps.
+Flutter ZXing is a Flutter plugin for scanning and generating QR codes using the ZXing (Zebra Crossing) barcode scanning library. The plugin is implemented using the Dart FFI (Foreign Function Interface) and the [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp) library, and allows you to easily integrate barcode scanning and generation functionality into your Flutter apps.
 
 ## Demo Screenshots
 
