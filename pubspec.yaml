@@ -33,4 +33,5 @@ flutter:
         ffiPlugin: true
       windows:
         ffiPlugin: true
+
 # flutter pub publish --dry-run
