@@ -39,7 +39,7 @@ class ZxingWeb implements Zxing {
       throw UnimplementedError();
 
   @override
-  Future<List<Code>> processCameraImageMulti(
+  Future<Codes> processCameraImageMulti(
     CameraImage image, {
     DecodeParams? params,
   }) =>
@@ -76,28 +76,28 @@ class ZxingWeb implements Zxing {
       throw UnimplementedError();
 
   @override
-  Future<List<Code>> readBarcodesImagePathString(
+  Future<Codes> readBarcodesImagePathString(
     String path, {
     DecodeParams? params,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<List<Code>> readBarcodesImagePath(
+  Future<Codes> readBarcodesImagePath(
     XFile path, {
     DecodeParams? params,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<List<Code>> readBarcodesImageUrl(
+  Future<Codes> readBarcodesImageUrl(
     String url, {
     DecodeParams? params,
   }) =>
       throw UnimplementedError();
 
   @override
-  List<Code> readBarcodes(
+  Codes readBarcodes(
     Uint8List bytes, {
     required int width,
     required int height,

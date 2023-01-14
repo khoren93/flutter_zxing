@@ -1,9 +1,12 @@
-import 'dart:ui';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
-import 'package:image_picker/image_picker.dart';
+
+import 'widgets/debug_info_widget.dart';
+import 'widgets/scan_from_gallery_widget.dart';
+import 'widgets/scan_mode_dropdown.dart';
+import 'widgets/scan_result_widget.dart';
+import 'widgets/unsupported_platform_widget.dart';
 
 void main() {
   zx.setLogEnabled(false);
@@ -38,7 +41,10 @@ class _DemoPageState extends State<DemoPage> {
   Uint8List? createdCodeBytes;
 
   Code? result;
-  List<Code> multiResult = [];
+  Codes? multiResult;
+
+  // Currently code positions works incorrect on Android in Portrait mode
+  bool isMultiScan = false;
 
   bool showDebugInfo = true;
   int successScans = 0;
@@ -52,8 +58,7 @@ class _DemoPageState extends State<DemoPage> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Flutter Zxing Example'),
-          bottom: const TabBar(
+          title: const TabBar(
             tabs: [
               Tab(text: 'Scan Code'),
               Tab(text: 'Create Code'),
@@ -82,34 +87,33 @@ class _DemoPageState extends State<DemoPage> {
                     onScanFailure: _onScanFailure,
                     onMultiScan: _onMultiScanSuccess,
                     onMultiScanFailure: _onMultiScanFailure,
-                    isMultiScan: false,
-                    // showScannerOverlay: false,
-                    // scanDelay: const Duration(milliseconds: 0),
-                    // tryInverted: true,
+                    isMultiScan: isMultiScan,
+                    scanDelay: isMultiScan
+                        ? Duration.zero
+                        : const Duration(milliseconds: 500),
+                    tryInverted: true,
                   ),
-                  // show multi results as rectangles
-                  // if (multiResult.isNotEmpty)
-                  //   Positioned.fill(
-                  //     child: CustomPaint(
-                  //       painter: MultiScanPainter(
-                  //         codes: multiResult,
-                  //         size: Size(
-                  //           MediaQuery.of(context).size.width,
-                  //           MediaQuery.of(context).size.height,
-                  //         ),
-                  //       ),
-                  //     ),
-                  //   ),
                   ScanFromGalleryWidget(
                     onScan: _onScanSuccess,
                     onScanFailure: _onScanFailure,
+                  ),
+                  // Change single/multi scan mode dropdown button
+                  ScanModeDropdown(
+                    isMultiScan: isMultiScan,
+                    onChanged: (value) {
+                      setState(() {
+                        isMultiScan = value;
+                      });
+                    },
                   ),
                   if (showDebugInfo)
                     DebugInfoWidget(
                       successScans: successScans,
                       failedScans: failedScans,
-                      error: result?.error,
-                      duration: result?.duration ?? 0,
+                      error: isMultiScan ? multiResult?.error : result?.error,
+                      duration: isMultiScan
+                          ? multiResult?.duration ?? 0
+                          : result?.duration ?? 0,
                       onReset: _onReset,
                     ),
                 ],
@@ -133,7 +137,7 @@ class _DemoPageState extends State<DemoPage> {
                     },
                   ),
                   if (createdCodeBytes != null)
-                    Image.memory(createdCodeBytes ?? Uint8List(0), height: 200),
+                    Image.memory(createdCodeBytes ?? Uint8List(0), height: 400),
                 ],
               ),
           ],
@@ -159,20 +163,20 @@ class _DemoPageState extends State<DemoPage> {
     }
   }
 
-  _onMultiScanSuccess(List<Code> codes) {
+  _onMultiScanSuccess(Codes codes) {
     setState(() {
       successScans++;
       multiResult = codes;
     });
   }
 
-  _onMultiScanFailure(List<Code> codes) {
+  _onMultiScanFailure(Codes result) {
     setState(() {
       failedScans++;
-      multiResult = codes;
+      multiResult = result;
     });
-    if (result?.error?.isNotEmpty == true) {
-      _showMessage(context, 'Error: ${codes.first.error}');
+    if (result.codes.isNotEmpty == true) {
+      _showMessage(context, 'Error: ${result.codes.first.error}');
     }
   }
 
@@ -188,213 +192,5 @@ class _DemoPageState extends State<DemoPage> {
       successScans = 0;
       failedScans = 0;
     });
-  }
-}
-
-class ScanResultWidget extends StatelessWidget {
-  const ScanResultWidget({
-    Key? key,
-    this.result,
-    this.onScanAgain,
-  }) : super(key: key);
-
-  final Code? result;
-  final Function()? onScanAgain;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              result?.format?.name ?? '',
-              style: Theme.of(context).textTheme.headline5,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              result?.text ?? '',
-              style: Theme.of(context).textTheme.headline6,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Inverted: ${result?.isInverted}\t\tMirrored: ${result?.isMirrored}',
-              style: Theme.of(context).textTheme.bodyText2,
-            ),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: onScanAgain,
-              child: const Text('Scan Again'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class ScanFromGalleryWidget extends StatelessWidget {
-  const ScanFromGalleryWidget({
-    Key? key,
-    this.onScan,
-    this.onScanFailure,
-  }) : super(key: key);
-
-  final Function(Code)? onScan;
-  final Function(Code?)? onScanFailure;
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      bottom: 20,
-      right: 20,
-      child: FloatingActionButton(
-        onPressed: _onFromGalleryButtonTapped,
-        child: const Icon(Icons.image),
-      ),
-    );
-  }
-
-  void _onFromGalleryButtonTapped() async {
-    final XFile? file =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (file != null) {
-      final Code? result = await zx.readBarcodeImagePath(
-        file,
-        params: DecodeParams(tryInverted: true),
-      );
-      if (result != null && result.isValid) {
-        onScan?.call(result);
-      } else {
-        result?.error = 'No barcode found';
-        onScanFailure?.call(result);
-      }
-    }
-  }
-}
-
-class DebugInfoWidget extends StatelessWidget {
-  const DebugInfoWidget({
-    Key? key,
-    required this.successScans,
-    required this.failedScans,
-    this.error,
-    this.duration = 0,
-    this.onReset,
-  }) : super(key: key);
-
-  final int successScans;
-  final int failedScans;
-  final String? error;
-  final int duration;
-
-  final Function()? onReset;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.topLeft,
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            color: Colors.white.withOpacity(0.7),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Success: $successScans\nFailed: $failedScans\nDuration: $duration ms',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                TextButton(
-                  onPressed: onReset,
-                  child: const Text('Reset'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class UnsupportedPlatformWidget extends StatelessWidget {
-  const UnsupportedPlatformWidget({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        'This platform is not supported yet.',
-        style: Theme.of(context).textTheme.headline6,
-      ),
-    );
-  }
-}
-
-class MultiResultWidget extends StatelessWidget {
-  const MultiResultWidget({
-    super.key,
-    this.results = const [],
-  });
-
-  final List<Code> results;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container();
-  }
-}
-
-class MultiScanPainter extends CustomPainter {
-  MultiScanPainter({
-    required this.codes,
-    required this.size,
-    // required this.scale,
-    // required this.offset,
-  });
-
-  final List<Code> codes;
-  final Size size;
-  final double scale = 1;
-  final Offset offset = Offset.zero;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint paint = Paint()
-      ..color = Colors.green
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
-    for (final Code code in codes) {
-      final position = code.position;
-      if (position == null) {
-        continue;
-      }
-      // position to points
-      final List<Offset> points = positionToPoints(position);
-      // debugPrint('w: ${position.imageWidth} h: ${position.imageHeight}');
-      // print(points);
-      canvas.drawPoints(PointMode.polygon, points, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(MultiScanPainter oldDelegate) {
-    return true;
-  }
-
-  List<Offset> positionToPoints(Position pos) {
-    return [
-      Offset(pos.topLeftX.toDouble(), pos.topLeftY.toDouble()),
-      Offset(pos.topRightX.toDouble(), pos.topRightY.toDouble()),
-      Offset(pos.bottomRightX.toDouble(), pos.bottomRightY.toDouble()),
-      Offset(pos.bottomLeftX.toDouble(), pos.bottomLeftY.toDouble()),
-    ];
   }
 }

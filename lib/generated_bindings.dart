@@ -263,6 +263,10 @@ class CodeResults extends ffi.Struct {
 
   /// < The results of the barcode decoding
   external ffi.Pointer<CodeResult> results;
+
+  /// < The duration of the decoding in milliseconds
+  @ffi.Int()
+  external int duration;
 }
 
 /// @brief EncodeResult encapsulates the result of encoding a barcode.

@@ -45,6 +45,7 @@ extern "C"
     {
         int count;                  ///< The number of barcodes detected
         struct CodeResult *results; ///< The results of the barcode decoding
+        int duration;               ///< The duration of the decoding in milliseconds
     };
 
     /**

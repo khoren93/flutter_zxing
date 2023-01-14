@@ -38,8 +38,8 @@ abstract class Zxing {
     DecodeParams? params,
   });
 
-/// Reads barcodes from the camera
-  Future<List<Code>> processCameraImageMulti(
+  /// Reads barcodes from the camera
+  Future<Codes> processCameraImageMulti(
     CameraImage image, {
     DecodeParams? params,
   });
@@ -71,25 +71,25 @@ abstract class Zxing {
   });
 
   /// Reads barcodes from String image path
-  Future<List<Code>> readBarcodesImagePathString(
+  Future<Codes> readBarcodesImagePathString(
     String path, {
     DecodeParams? params,
   });
 
   /// Reads barcodes from XFile image path
-  Future<List<Code>> readBarcodesImagePath(
+  Future<Codes> readBarcodesImagePath(
     XFile path, {
     DecodeParams? params,
   });
 
   /// Reads barcodes from image url
-  Future<List<Code>> readBarcodesImageUrl(
+  Future<Codes> readBarcodesImageUrl(
     String url, {
     DecodeParams? params,
   });
 
   /// Reads barcodes from Uint8List image bytes
-  List<Code> readBarcodes(
+  Codes readBarcodes(
     Uint8List bytes, {
     required int width,
     required int height,

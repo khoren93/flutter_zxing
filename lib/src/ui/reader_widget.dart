@@ -24,8 +24,8 @@ class ReaderWidget extends StatefulWidget {
     this.scannerOverlay,
     this.showFlashlight = true,
     this.allowPinchZoom = true,
-    this.scanDelay = const Duration(milliseconds: 1000), // 1000ms delay
-    this.scanDelaySuccess = const Duration(milliseconds: 1000), // 1000ms delay
+    this.scanDelay = const Duration(milliseconds: 1000),
+    this.scanDelaySuccess = const Duration(milliseconds: 1000),
     this.cropPercent = 0.5, // 50% of the screen
     this.resolution = ResolutionPreset.high,
     this.loading =
@@ -39,10 +39,10 @@ class ReaderWidget extends StatefulWidget {
   final Function(Code)? onScanFailure;
 
   /// Called when a code is detected
-  final Function(List<Code>)? onMultiScan;
+  final Function(Codes)? onMultiScan;
 
   /// Called when a code is not detected
-  final Function(List<Code>)? onMultiScanFailure;
+  final Function(Codes)? onMultiScanFailure;
 
   /// Called when the camera controller is created
   final Function(CameraController?)? onControllerCreated;
@@ -74,13 +74,13 @@ class ReaderWidget extends StatefulWidget {
   /// Delay between scans when no code is detected
   final Duration scanDelay;
 
-  /// Crop percent of the screen
+  /// Crop percent of the screen, will be ignored if isMultiScan is true
   final double cropPercent;
 
   /// Camera resolution
   final ResolutionPreset resolution;
 
-  /// Delay between scans when a code is detected
+  /// Delay between scans when a code is detected, will be ignored if isMultiScan is true
   final Duration scanDelaySuccess;
 
   /// Loading widget while camera is initializing. Default is a black screen
@@ -105,6 +105,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   // true when code detecting is ongoing
   bool _isProcessing = false;
+
+  Codes results = Codes(<Code>[], 0);
 
   @override
   void initState() {
@@ -209,8 +211,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
     if (!_isProcessing) {
       _isProcessing = true;
       try {
-        final double cropPercent =
-            widget.showScannerOverlay ? widget.cropPercent : 0;
+        final double cropPercent = widget.isMultiScan ? 0 : widget.cropPercent;
         final int cropSize =
             (min(image.width, image.height) * cropPercent).round();
         final DecodeParams params = DecodeParams(
@@ -222,16 +223,20 @@ class _ReaderWidgetState extends State<ReaderWidget>
           isMultiScan: widget.isMultiScan,
         );
         if (widget.isMultiScan) {
-          final List<Code> results = await zx.processCameraImageMulti(
+          final Codes result = await zx.processCameraImageMulti(
             image,
             params: params,
           );
-          if (results.isNotEmpty) {
-            widget.onMultiScan?.call(results);
-            await Future<void>.delayed(widget.scanDelaySuccess);
+          if (result.codes.isNotEmpty) {
+            results = result;
+            widget.onMultiScan?.call(result);
             setState(() {});
+            if (!widget.isMultiScan) {
+              await Future<void>.delayed(widget.scanDelaySuccess);
+            }
           } else {
-            widget.onMultiScanFailure?.call(results);
+            results = Codes(<Code>[], 0);
+            widget.onMultiScanFailure?.call(result);
           }
         } else {
           final Code result = await zx.processCameraImage(
@@ -282,13 +287,21 @@ class _ReaderWidgetState extends State<ReaderWidget>
                     width: cameraMaxSize,
                     child: CameraPreview(
                       controller!,
+                      child: widget.showScannerOverlay &&
+                              widget.isMultiScan &&
+                              results.codes.isNotEmpty
+                          ? MultiResultOverlay(
+                              results: results.codes,
+                              onCodeTap: widget.onScan,
+                            )
+                          : null,
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        if (widget.showScannerOverlay)
+        if (widget.showScannerOverlay && !widget.isMultiScan)
           Container(
             decoration: ShapeDecoration(
               shape: widget.scannerOverlay ??

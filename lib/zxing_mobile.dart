@@ -46,11 +46,11 @@ class ZxingMobile implements Zxing {
       await zxingProcessCameraImage(image, params: params) as Code;
 
   @override
-  Future<List<Code>> processCameraImageMulti(
+  Future<Codes> processCameraImageMulti(
     CameraImage image, {
     DecodeParams? params,
   }) async =>
-      await zxingProcessCameraImage(image, params: params) as List<Code>;
+      await zxingProcessCameraImage(image, params: params) as Codes;
 
   @override
   Future<Code?> readBarcodeImagePathString(
@@ -83,28 +83,28 @@ class ZxingMobile implements Zxing {
       zxingReadBarcode(bytes, width: width, height: height, params: params);
 
   @override
-  Future<List<Code>> readBarcodesImagePathString(
+  Future<Codes> readBarcodesImagePathString(
     String path, {
     DecodeParams? params,
   }) =>
       zxingReadBarcodesImagePathString(path, params: params);
 
   @override
-  Future<List<Code>> readBarcodesImagePath(
+  Future<Codes> readBarcodesImagePath(
     XFile path, {
     DecodeParams? params,
   }) =>
       zxingReadBarcodesImagePath(path, params: params);
 
   @override
-  Future<List<Code>> readBarcodesImageUrl(
+  Future<Codes> readBarcodesImageUrl(
     String url, {
     DecodeParams? params,
   }) =>
       zxingReadBarcodesImageUrl(url, params: params);
 
   @override
-  List<Code> readBarcodes(
+  Codes readBarcodes(
     Uint8List bytes, {
     required int width,
     required int height,

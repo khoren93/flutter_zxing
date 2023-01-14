@@ -1,7 +1,7 @@
 part of 'zxing.dart';
 
 /// Reads barcodes from String image path
-Future<List<Code>> zxingReadBarcodesImagePathString(
+Future<Codes> zxingReadBarcodesImagePathString(
   String path, {
   DecodeParams? params,
 }) =>
@@ -11,14 +11,14 @@ Future<List<Code>> zxingReadBarcodesImagePathString(
     );
 
 /// Reads barcodes from XFile image path
-Future<List<Code>> zxingReadBarcodesImagePath(
+Future<Codes> zxingReadBarcodesImagePath(
   XFile path, {
   DecodeParams? params,
 }) async {
   final Uint8List imageBytes = await path.readAsBytes();
   imglib.Image? image = imglib.decodeImage(imageBytes);
   if (image == null) {
-    return <Code>[];
+    return Codes(<Code>[], 0);
   }
   image = resizeToMaxSize(image, params?.maxSize);
   return zxingReadBarcodes(
@@ -30,7 +30,7 @@ Future<List<Code>> zxingReadBarcodesImagePath(
 }
 
 /// Reads barcodes from image url
-Future<List<Code>> zxingReadBarcodesImageUrl(
+Future<Codes> zxingReadBarcodesImageUrl(
   String url, {
   DecodeParams? params,
 }) async {
@@ -38,7 +38,7 @@ Future<List<Code>> zxingReadBarcodesImageUrl(
       (await NetworkAssetBundle(Uri.parse(url)).load(url)).buffer.asUint8List();
   imglib.Image? image = imglib.decodeImage(imageBytes);
   if (image == null) {
-    return <Code>[];
+    return Codes(<Code>[], 0);
   }
   image = resizeToMaxSize(image, params?.maxSize);
   return zxingReadBarcodes(
@@ -50,7 +50,7 @@ Future<List<Code>> zxingReadBarcodesImageUrl(
 }
 
 /// Reads barcodes from Uint8List image bytes
-List<Code> zxingReadBarcodes(
+Codes zxingReadBarcodes(
   Uint8List bytes, {
   required int width,
   required int height,
@@ -59,7 +59,7 @@ List<Code> zxingReadBarcodes(
   return _readBarcodes(bytes, width, height, params);
 }
 
-List<Code> _readBarcodes(
+Codes _readBarcodes(
   Uint8List bytes,
   int width,
   int height,
@@ -80,5 +80,5 @@ List<Code> _readBarcodes(
   for (int i = 0; i < result.count; i++) {
     results.add(result.results.elementAt(i).ref.toCode());
   }
-  return results;
+  return Codes(results, result.duration);
 }
