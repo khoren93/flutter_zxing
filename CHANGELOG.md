@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.0-beta.8
+
+* Implemented multi result drawing
+* `readBarcodes` now returns a `Codes` object instead of a `List<Code>` object
+
 ## 1.0.0-beta.7
 
 * Resolved an issue with detecting and handling large images
