@@ -61,6 +61,39 @@ This README file was mainly generated using ChatGPT, a tool that generates human
 
 ## Getting Started
 
+### Cloning the flutter_zxing project
+
+To clone the flutter_zxing project from Github which includes submodules, use the following command:
+
+```bash
+git clone --recursive https://github.com/khoren93/flutter_zxing.git
+```
+
+### Installing dependencies
+
+Use Melos to install the dependencies of the flutter_zxing project. Melos is a tool that helps you manage multiple Dart packages in a single repository. To install Melos, use the following command:
+
+```bash
+pub global activate melos
+```
+
+To install the dependencies of the flutter_zxing project, use the following command:
+
+```bash
+melos bootstrap
+```
+
+To allow the building on iOS and MacOS, you need to run the following command:
+
+```bash
+cd scripts
+sh update_ios_macos_src.sh
+```
+
+Now you can run the flutter_zxing example app on your device or emulator.
+
+## Usage
+
 ### To read barcode
 
 ```dart

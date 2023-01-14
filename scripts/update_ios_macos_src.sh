@@ -10,10 +10,13 @@ macosSrcPath="../macos/Classes/src"
 rm -rf $iosSrcPath
 rm -rf $macosSrcPath
 
+# create the source directories
+mkdir -p $iosSrcPath
+mkdir -p $macosSrcPath
+
 # Copy the source files
 rsync -av --exclude '*.txt' --exclude "zxing/" "$srcPath/" "$iosSrcPath/" 
 rsync -av "$zxingPath/" "$iosSrcPath/zxing/"
 
 rsync -av --exclude '*.txt' --exclude "zxing/" "$srcPath/" "$macosSrcPath/" 
 rsync -av "$zxingPath/" "$macosSrcPath/zxing/"
-

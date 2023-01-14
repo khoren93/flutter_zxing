@@ -318,10 +318,10 @@ packages:
   flutter_zxing:
     dependency: "direct main"
     description:
-      name: flutter_zxing
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "0.10.0"
+      path: ".."
+      relative: true
+    source: path
+    version: "1.0.0-beta.7"
   font_awesome_flutter:
     dependency: "direct main"
     description:
