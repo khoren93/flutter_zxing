@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0-beta.9
+
+* Corrected code position in Android when in portrait mode.
+
 ## 1.0.0-beta.8
 
 * Implemented multi result drawing
