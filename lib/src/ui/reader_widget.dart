@@ -293,6 +293,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
                           ? MultiResultOverlay(
                               results: results.codes,
                               onCodeTap: widget.onScan,
+                              controller: controller,
                             )
                           : null,
                     ),

@@ -43,7 +43,6 @@ class _DemoPageState extends State<DemoPage> {
   Code? result;
   Codes? multiResult;
 
-  // Currently code positions works incorrect on Android in Portrait mode
   bool isMultiScan = false;
 
   bool showDebugInfo = true;

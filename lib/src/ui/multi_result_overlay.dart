@@ -1,6 +1,9 @@
 import 'dart:ui';
 
+import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../flutter_zxing.dart';
 
@@ -9,23 +12,45 @@ class MultiResultOverlay extends StatelessWidget {
     super.key,
     this.results = const <Code>[],
     this.onCodeTap,
+    this.controller,
   });
 
   final List<Code> results;
   final Function(Code code)? onCodeTap;
+  final CameraController? controller;
 
   @override
   Widget build(BuildContext context) {
     return Positioned.fill(
-      child: CustomPaint(
-        painter: MultiScanPainter(
-          context: context,
-          codes: results,
-          color: Theme.of(context).primaryColor,
-          onCodeTap: onCodeTap,
+      child: RotatedBox(
+        quarterTurns: _getQuarterTurns(),
+        child: CustomPaint(
+          painter: MultiScanPainter(
+            context: context,
+            codes: results,
+            color: Theme.of(context).primaryColor,
+            onCodeTap: onCodeTap,
+          ),
         ),
       ),
     );
+  }
+
+  int _getQuarterTurns() {
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      return 0;
+    }
+    final Map<DeviceOrientation, int> turns = <DeviceOrientation, int>{
+      DeviceOrientation.portraitUp: 1,
+      DeviceOrientation.landscapeRight: 2,
+      DeviceOrientation.portraitDown: 1,
+      DeviceOrientation.landscapeLeft: 0,
+    };
+    return turns[_getApplicableOrientation()]!;
+  }
+
+  DeviceOrientation _getApplicableOrientation() {
+    return controller?.value.deviceOrientation ?? DeviceOrientation.portraitUp;
   }
 }
 
