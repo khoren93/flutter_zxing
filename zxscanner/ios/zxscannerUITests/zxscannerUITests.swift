@@ -45,6 +45,10 @@ class zxscannerUITests: XCTestCase {
 
         element.children(matching: .button).element.tap()
         sleep(3)
+        app.buttons["Create"].tap()
+        sleep(1)
+        app.buttons["Create"].tap()
+        sleep(3)
         snapshot("02_creator_screen")
 
         app.buttons["Back"].tap()
