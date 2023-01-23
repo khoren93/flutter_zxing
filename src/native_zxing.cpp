@@ -1,7 +1,6 @@
 #include "common.h"
 #include "ReadBarcode.h"
 #include "MultiFormatWriter.h"
-#include "TextUtfEncoding.h"
 #include "BitMatrix.h"
 #include "native_zxing.h"
 
@@ -23,6 +22,7 @@ extern "C"
     FUNCTION_ATTRIBUTE
     char const *version()
     {
+        // TODO: use ZXING_VERSION_STR after zxing-cpp 2.1 is released
         return "2.0.0";
     }
 
@@ -31,11 +31,7 @@ extern "C"
     {
         long long start = get_now();
 
-        long length = width * height;
-        auto *data = new uint8_t[length];
-        memcpy(data, bytes, length);
-
-        ImageView image{data, width, height, ImageFormat::Lum};
+        ImageView image{reinterpret_cast<const uint8_t*>(bytes), width, height, ImageFormat::Lum};
         if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
@@ -43,11 +39,10 @@ extern "C"
         DecodeHints hints = DecodeHints().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format)).setTryInvert(tryInvert).setReturnErrors(true);
         Result result = ReadBarcode(image, hints);
 
+        delete[] bytes;
+
         struct CodeResult code;
         resultToCodeResult(&code, result);
-
-        delete[] data;
-        delete[] bytes;
 
         int evalInMillis = static_cast<int>(get_now() - start);
         code.duration = evalInMillis;
@@ -62,20 +57,14 @@ extern "C"
     {
         long long start = get_now();
 
-        long length = width * height;
-        auto *data = new uint8_t[length];
-        memcpy(data, bytes, length);
-
-        ImageView image{data, width, height, ImageFormat::Lum};
+        ImageView image{reinterpret_cast<const uint8_t*>(bytes), width, height, ImageFormat::Lum};
         if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
         }
-        DecodeHints hints = DecodeHints().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format)).setTryInvert(tryInvert).setReturnErrors(true);
+        DecodeHints hints = DecodeHints().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format)).setTryInvert(tryInvert);
         Results results = ReadBarcodes(image, hints);
-
-        // remove invalid results
-        results.erase(remove_if(results.begin(), results.end(), [](Result const &result) { return !result.isValid(); }), results.end());
+        delete[] bytes;
 
         int evalInMillis = static_cast<int>(get_now() - start);
         platform_log("Read Barcode in: %d ms\n", evalInMillis);
@@ -92,8 +81,7 @@ extern "C"
             codes[i] = code;
             i++;
         }
-        delete[] data;
-        delete[] bytes;
+
         return {i, codes, evalInMillis};
     }
 
@@ -106,7 +94,7 @@ extern "C"
         try
         {
             auto writer = MultiFormatWriter(BarcodeFormat(format)).setMargin(margin).setEccLevel(eccLevel).setEncoding(CharacterSet::UTF8);
-            auto bitMatrix = writer.encode(TextUtfEncoding::FromUtf8(string(contents)), width, height);
+            auto bitMatrix = writer.encode(contents, width, height);
             result.data = ToMatrix<int8_t>(bitMatrix).data();
             result.length = bitMatrix.width() * bitMatrix.height();
             result.isValid = true;
@@ -138,6 +126,7 @@ extern "C"
 
         code->format = static_cast<int>(result.format());
 
+        // TODO: this needs to be allocated and coped as well (see text above). Will also require a delete in some flutter code, I assume
         code->bytes = result.bytes().data();
         code->length = result.bytes().size();
 
