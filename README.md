@@ -20,7 +20,7 @@ ZXScanner is a free QR code and barcode scanner app for Android and iOS. It is b
 ## Demo Screenshots
 
 <pre>
-<img alt="01_scanner_screen" src="https://user-images.githubusercontent.com/11523360/174789425-b33861aa-dbe5-49c1-a84a-a02b514a5e0f.png" width="240">&nbsp; <img alt="02_creator_screen" src="https://user-images.githubusercontent.com/11523360/174789816-a2a4ab74-f5ef-41a1-98f3-e514447dff5a.png" width="240">&nbsp;
+<img alt="01_scanner_screen" src="https://user-images.githubusercontent.com/11523360/214021992-7650c714-ebd9-4633-abc0-dcce5a36b2b8.png" width="240">&nbsp; <img alt="02_creator_screen" src="https://user-images.githubusercontent.com/11523360/214022172-025f09c7-65d9-494a-a663-232420d638db.png" width="240">&nbsp;
 </pre>
 
 ## Flutter ZXing
