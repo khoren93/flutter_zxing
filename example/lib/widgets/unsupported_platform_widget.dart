@@ -8,7 +8,7 @@ class UnsupportedPlatformWidget extends StatelessWidget {
     return Center(
       child: Text(
         'This platform is not supported yet.',
-        style: Theme.of(context).textTheme.headline6,
+        style: Theme.of(context).textTheme.titleLarge,
       ),
     );
   }

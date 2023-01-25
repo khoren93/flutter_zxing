@@ -28,7 +28,7 @@ class LanguageWidget extends StatelessWidget {
                     width: 80,
                     child: Text(
                       e.countryCode?.toLangIcon() ?? '',
-                      style: Theme.of(context).textTheme.headline5,
+                      style: Theme.of(context).textTheme.headlineSmall,
                       textAlign: TextAlign.right,
                     ),
                   ),

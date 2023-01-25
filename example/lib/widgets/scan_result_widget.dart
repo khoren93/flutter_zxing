@@ -21,17 +21,17 @@ class ScanResultWidget extends StatelessWidget {
           children: [
             Text(
               result?.format?.name ?? '',
-              style: Theme.of(context).textTheme.headline5,
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 20),
             Text(
               result?.text ?? '',
-              style: Theme.of(context).textTheme.headline6,
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 20),
             Text(
               'Inverted: ${result?.isInverted}\t\tMirrored: ${result?.isMirrored}',
-              style: Theme.of(context).textTheme.bodyText2,
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 40),
             ElevatedButton(

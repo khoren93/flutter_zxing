@@ -47,7 +47,7 @@ class _HomePageState extends State<HomePage> {
       body: pages()[selectedIndex],
       bottomNavigationBar: ConvexAppBar(
         style: TabStyle.fixedCircle,
-        backgroundColor: Theme.of(context).bottomAppBarColor,
+        backgroundColor: Theme.of(context).bottomAppBarTheme.color,
         color: Theme.of(context).unselectedWidgetColor,
         activeColor: Theme.of(context).colorScheme.primary,
         items: tabItems(),
