@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.0
+
+* Updated zxing-cpp to v2.0.0
+* Added support for macOS, Linux, and Windows
+* Added support for micro QR codes
+* Added the following properties to Code:
+  * isInverted
+  * isMirrored
+  * duration
+* Implemented image resizing before decoding
+* Implemented multi result drawing
+
 ## 1.0.0-beta.9
 
 * Corrected code position in Android when in portrait mode.
