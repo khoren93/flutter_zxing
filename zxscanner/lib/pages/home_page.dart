@@ -46,6 +46,7 @@ class _HomePageState extends State<HomePage> {
       // ignore: avoid_dynamic_calls
       body: pages()[selectedIndex],
       bottomNavigationBar: ConvexAppBar(
+        disableDefaultTabController: true,
         style: TabStyle.fixedCircle,
         backgroundColor: Theme.of(context).bottomAppBarTheme.color,
         color: Theme.of(context).unselectedWidgetColor,

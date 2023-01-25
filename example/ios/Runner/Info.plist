@@ -49,5 +49,7 @@
 	<string>$(APP_DISPLAY_NAME) needs camera access to scan barcodes</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
 </dict>
 </plist>

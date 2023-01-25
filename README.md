@@ -86,7 +86,7 @@ git clone --recursive https://github.com/khoren93/flutter_zxing.git
 Use Melos to install the dependencies of the flutter_zxing project. Melos is a tool that helps you manage multiple Dart packages in a single repository. To install Melos, use the following command:
 
 ```bash
-pub global activate melos
+flutter pub global activate melos
 ```
 
 To install the dependencies of the flutter_zxing project, use the following command:
