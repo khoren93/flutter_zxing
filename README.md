@@ -23,6 +23,13 @@ ZXScanner is a free QR code and barcode scanner app for Android and iOS. It is b
 <img alt="01_scanner_screen" src="https://user-images.githubusercontent.com/11523360/214021992-7650c714-ebd9-4633-abc0-dcce5a36b2b8.png" width="240">&nbsp; <img alt="02_creator_screen" src="https://user-images.githubusercontent.com/11523360/214022172-025f09c7-65d9-494a-a663-232420d638db.png" width="240">&nbsp;
 </pre>
 
+All screenshots for iOS were generated using [Fastlane Snap](https://docs.fastlane.tools/actions/snapshot/). To generate your own, run the command:
+
+```bash
+cd zxscanner/ios
+bundle exec fastlane screenshots
+```
+
 ## Flutter ZXing
 
 Flutter ZXing is a Flutter plugin for scanning and generating QR codes using the ZXing (Zebra Crossing) barcode scanning library. The plugin is implemented using the Dart FFI (Foreign Function Interface) and the [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp) library, and allows you to easily integrate barcode scanning and generation functionality into your Flutter apps.
