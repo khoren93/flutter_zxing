@@ -13,15 +13,15 @@ updates:
       interval: "monthly"
     reviewers:
       - "khoren93"
-  - package-ecosystem: "pub"
-    directory: "/example"
-    schedule:
-      interval: "monthly"
-    reviewers:
-      - "khoren93"
-  - package-ecosystem: "pub"
-    directory: "/zxscanner"
-    schedule:
-      interval: "monthly"
-    reviewers:
-      - "khoren93"
+  # - package-ecosystem: "pub"
+  #   directory: "/example"
+  #   schedule:
+  #     interval: "monthly"
+  #   reviewers:
+  #     - "khoren93"
+  # - package-ecosystem: "pub"
+  #   directory: "/zxscanner"
+  #   schedule:
+  #     interval: "monthly"
+  #   reviewers:
+  #     - "khoren93"
