@@ -5,17 +5,22 @@ class ScanModeDropdown extends StatelessWidget {
     super.key,
     this.isMultiScan = false,
     this.onChanged,
+    this.alignment = Alignment.bottomRight,
+    this.padding = const EdgeInsets.all(10),
   });
 
   final bool isMultiScan;
   final Function(bool value)? onChanged;
 
+  final AlignmentGeometry alignment;
+  final EdgeInsetsGeometry padding;
+
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment: Alignment.bottomRight,
+      alignment: alignment,
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: padding,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(

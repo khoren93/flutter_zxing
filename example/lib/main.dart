@@ -90,7 +90,6 @@ class _DemoPageState extends State<DemoPage> {
                         ? Duration.zero
                         : const Duration(milliseconds: 500),
                     tryInverted: true,
-                    actionButtonsAlignment: Alignment.bottomLeft,
                   ),
                   if (showDebugInfo)
                     DebugInfoWidget(
@@ -166,6 +165,12 @@ class _DemoPageState extends State<DemoPage> {
     }
   }
 
+  _onMultiScanModeChanged(bool isMultiScan) {
+    setState(() {
+      this.isMultiScan = isMultiScan;
+    });
+  }
+
   _showMessage(BuildContext context, String message) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -177,12 +182,6 @@ class _DemoPageState extends State<DemoPage> {
     setState(() {
       successScans = 0;
       failedScans = 0;
-    });
-  }
-
-  _onMultiScanModeChanged(bool isMultiScan) {
-    setState(() {
-      this.isMultiScan = isMultiScan;
     });
   }
 }

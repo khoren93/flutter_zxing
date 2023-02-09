@@ -20,12 +20,14 @@ class ReaderWidget extends StatefulWidget {
     this.onControllerCreated,
     this.onMultiScanModeChanged,
     this.isMultiScan = false,
+    this.multiScanModeAlignment = Alignment.bottomRight,
+    this.multiScanModePadding = const EdgeInsets.all(10),
     this.codeFormat = Format.any,
     this.tryHarder = false,
     this.tryInverted = false,
     this.showScannerOverlay = true,
     this.scannerOverlay,
-    this.actionButtonsAlignment = Alignment.topCenter,
+    this.actionButtonsAlignment = Alignment.bottomLeft,
     this.actionButtonsPadding = const EdgeInsets.all(10),
     this.showFlashlight = true,
     this.showToggleCamera = true,
@@ -55,10 +57,17 @@ class ReaderWidget extends StatefulWidget {
   final Function(CameraController?)? onControllerCreated;
 
   /// Called when the multi scan mode is changed
+  /// When set to null, the multi scan mode button will not be displayed
   final Function(bool)? onMultiScanModeChanged;
 
   /// Allow multiple scans
   final bool isMultiScan;
+
+  /// Alignment for multi scan mode button
+  final AlignmentGeometry multiScanModeAlignment;
+
+  /// Padding for multi scan mode button
+  final EdgeInsetsGeometry multiScanModePadding;
 
   /// Code format to scan
   final int codeFormat;
@@ -395,15 +404,18 @@ class _ReaderWidgetState extends State<ReaderWidget>
             ),
           ),
         ),
-        ScanModeDropdown(
-          isMultiScan: isMultiScan,
-          onChanged: (bool value) {
-            setState(() {
-              isMultiScan = value;
-            });
-            widget.onMultiScanModeChanged?.call(value);
-          },
-        ),
+        if (widget.onMultiScanModeChanged != null)
+          ScanModeDropdown(
+            isMultiScan: isMultiScan,
+            alignment: widget.multiScanModeAlignment,
+            padding: widget.multiScanModePadding,
+            onChanged: (bool value) {
+              setState(() {
+                isMultiScan = value;
+              });
+              widget.onMultiScanModeChanged?.call(value);
+            },
+          ),
       ],
     );
   }
