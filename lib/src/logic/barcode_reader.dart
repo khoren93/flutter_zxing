@@ -16,13 +16,23 @@ Future<Code> zxingReadBarcodeImagePath(
   DecodeParams? params,
 }) async {
   final Uint8List imageBytes = await path.readAsBytes();
-  imglib.Image? image = imglib.decodeImage(imageBytes);
+  final imglib.Image? image = imglib.decodeImage(imageBytes);
+
   if (image == null) {
     return Code();
   }
-  image = resizeToMaxSize(image, params?.maxSize);
+  // image = resizeToMaxSize(image, params?.maxSize);
+
+  // imglib.Image imgRgba8 = image.convert(
+  //   format: imglib.Format.uint8,
+  //   numChannels: 4,
+  // ); // Make sure it's an RGBA 32-bit image like v3
+  // imgRgba8 =
+  //     imglib.grayscale(imgRgba8); // map the pixels to grayscale (luminance)
+  // final Uint8List bytes = imgRgba8.getBytes();
+
   return zxingReadBarcode(
-    image.getBytes(format: imglib.Format.luminance),
+    image.toUint8List(), //.getBytes(format: imglib.Format.luminance),
     width: image.width,
     height: image.height,
     params: params,
@@ -42,7 +52,7 @@ Future<Code> zxingReadBarcodeImageUrl(
   }
   image = resizeToMaxSize(image, params?.maxSize);
   return zxingReadBarcode(
-    image.getBytes(format: imglib.Format.luminance),
+    image.toUint8List(), //.getBytes(format: imglib.Format.luminance),
     width: image.width,
     height: image.height,
     params: params,
@@ -63,17 +73,18 @@ Code _readBarcode(
   int width,
   int height,
   DecodeParams? params,
-) =>
-    bindings
-        .readBarcode(
-          bytes.allocatePointer(),
-          params?.format ?? Format.any,
-          width,
-          height,
-          params?.cropWidth ?? 0,
-          params?.cropHeight ?? 0,
-          params?.tryHarder ?? false ? 1 : 0,
-          params?.tryRotate ?? true ? 1 : 0,
-          params?.tryInverted ?? false ? 1 : 0,
-        )
-        .toCode();
+) {
+  return bindings
+      .readBarcode(
+        bytes.allocatePointer(),
+        params?.format ?? Format.any,
+        width,
+        height,
+        params?.cropWidth ?? 0,
+        params?.cropHeight ?? 0,
+        params?.tryHarder ?? false ? 1 : 0,
+        params?.tryRotate ?? true ? 1 : 0,
+        params?.tryInverted ?? false ? 1 : 0,
+      )
+      .toCode();
+}

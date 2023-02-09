@@ -16,7 +16,7 @@ Future<Uint8List> convertImage(CameraImage image) async {
     } else if (image.format.group == ImageFormatGroup.bgra8888) {
       img = convertBGRA8888(image);
     }
-    return img.getBytes(format: imglib.Format.luminance);
+    return img.toUint8List();
   } catch (e) {
     debugPrint('>>>>>>>>>>>> ERROR: $e');
   }
@@ -25,39 +25,43 @@ Future<Uint8List> convertImage(CameraImage image) async {
 
 imglib.Image convertBGRA8888(CameraImage image) {
   return imglib.Image.fromBytes(
-    image.width,
-    image.height,
-    image.planes[0].bytes,
-    format: imglib.Format.bgra,
+    width: image.width,
+    height: image.height,
+    bytes: image.planes[0].bytes.buffer,
+    // format: imglib.Format.bgra,
+    // format: imglib.Format.int8,
+    // order: imglib.ChannelOrder.bgra,
   );
 }
 
 // ignore: unused_element
-imglib.Image convertYUV420(CameraImage image) {
-  final imglib.Image img =
-      imglib.Image(image.width, image.height); // Create Image buffer
+// imglib.Image convertYUV420(CameraImage image) {
+//   final imglib.Image img = imglib.Image(
+//     width: image.width,
+//     height: image.height,
+//   ); // Create Image buffer
 
-  final Plane plane = image.planes[0];
-  const int shift = 0xFF << 24;
+//   final Plane plane = image.planes[0];
+//   const int shift = 0xFF << 24;
 
-  // Fill image buffer with plane[0] from YUV420_888
-  for (int x = 0; x < image.width; x++) {
-    for (int planeOffset = 0;
-        planeOffset < image.height * image.width;
-        planeOffset += image.width) {
-      final int pixelColor = plane.bytes[planeOffset + x];
-      // color: 0x FF  FF  FF  FF
-      //           A   B   G   R
-      // Calculate pixel color
-      final int newVal =
-          shift | (pixelColor << 16) | (pixelColor << 8) | pixelColor;
+//   // Fill image buffer with plane[0] from YUV420_888
+//   for (int x = 0; x < image.width; x++) {
+//     for (int planeOffset = 0;
+//         planeOffset < image.height * image.width;
+//         planeOffset += image.width) {
+//       final int pixelColor = plane.bytes[planeOffset + x];
+//       // color: 0x FF  FF  FF  FF
+//       //           A   B   G   R
+//       // Calculate pixel color
+//       final int newVal =
+//           shift | (pixelColor << 16) | (pixelColor << 8) | pixelColor;
 
-      img.data[planeOffset + x] = newVal;
-    }
-  }
+//       // img.data?.buffer[planeOffset + x] = newVal;
+//     }
+//   }
 
-  return img;
-}
+//   return img;
+// }
 
 Uint8List invertImage(Uint8List bytes) {
   final Uint8List invertedBytes = Uint8List.fromList(bytes);
