@@ -8,17 +8,17 @@ import '../../zxing_mobile.dart';
 extension CodeExt on CodeResult {
   Code toCode() {
     return Code(
-      text == nullptr ? null : text.cast<Utf8>().toDartString(),
-      isValid == 1,
-      error == nullptr ? null : error.cast<Utf8>().toDartString(),
-      bytes == nullptr
+      text: text == nullptr ? null : text.cast<Utf8>().toDartString(),
+      isValid: isValid == 1,
+      error: error == nullptr ? null : error.cast<Utf8>().toDartString(),
+      rawBytes: bytes == nullptr
           ? null
           : Uint8List.fromList(bytes.cast<Int8>().asTypedList(length)),
-      format,
-      pos == nullptr ? null : pos.ref.toPosition(),
-      isInverted == 1,
-      isMirrored == 1,
-      duration,
+      format: format,
+      position: pos == nullptr ? null : pos.ref.toPosition(),
+      isInverted: isInverted == 1,
+      isMirrored: isMirrored == 1,
+      duration: duration,
     );
   }
 }

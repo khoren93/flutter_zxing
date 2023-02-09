@@ -4,17 +4,17 @@ import 'position.dart';
 
 // Represents a barcode code
 class Code {
-  Code(
+  Code({
     this.text,
-    this.isValid,
+    this.isValid = false,
     this.error,
     this.rawBytes,
     this.format,
     this.position,
-    this.isInverted,
-    this.isMirrored,
-    this.duration,
-  );
+    this.isInverted = false,
+    this.isMirrored = false,
+    this.duration = 0,
+  });
 
   String? text; // The text of the code
   bool isValid; // Whether the code is valid
@@ -29,10 +29,10 @@ class Code {
 
 // Represents a list of barcode codes
 class Codes {
-  Codes(
-    this.codes,
-    this.duration,
-  );
+  Codes({
+    this.codes = const <Code>[],
+    this.duration = 0,
+  });
 
   List<Code> codes; // The list of codes
   int duration; // The duration of the decoding in milliseconds

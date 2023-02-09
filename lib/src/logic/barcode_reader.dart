@@ -1,7 +1,7 @@
 part of 'zxing.dart';
 
 /// Reads barcode from String image path
-Future<Code?> zxingReadBarcodeImagePathString(
+Future<Code> zxingReadBarcodeImagePathString(
   String path, {
   DecodeParams? params,
 }) =>
@@ -11,14 +11,14 @@ Future<Code?> zxingReadBarcodeImagePathString(
     );
 
 /// Reads barcode from XFile image path
-Future<Code?> zxingReadBarcodeImagePath(
+Future<Code> zxingReadBarcodeImagePath(
   XFile path, {
   DecodeParams? params,
 }) async {
   final Uint8List imageBytes = await path.readAsBytes();
   imglib.Image? image = imglib.decodeImage(imageBytes);
   if (image == null) {
-    return null;
+    return Code();
   }
   image = resizeToMaxSize(image, params?.maxSize);
   return zxingReadBarcode(
@@ -30,7 +30,7 @@ Future<Code?> zxingReadBarcodeImagePath(
 }
 
 /// Reads barcode from image url
-Future<Code?> zxingReadBarcodeImageUrl(
+Future<Code> zxingReadBarcodeImageUrl(
   String url, {
   DecodeParams? params,
 }) async {
@@ -38,7 +38,7 @@ Future<Code?> zxingReadBarcodeImageUrl(
       (await NetworkAssetBundle(Uri.parse(url)).load(url)).buffer.asUint8List();
   imglib.Image? image = imglib.decodeImage(imageBytes);
   if (image == null) {
-    return null;
+    return Code(error: 'Failed to decode image');
   }
   image = resizeToMaxSize(image, params?.maxSize);
   return zxingReadBarcode(

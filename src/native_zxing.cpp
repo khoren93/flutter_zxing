@@ -3,6 +3,7 @@
 #include "MultiFormatWriter.h"
 #include "BitMatrix.h"
 #include "native_zxing.h"
+#include "ZXVersion.h"
 
 #include <locale>
 #include <codecvt>
@@ -22,8 +23,7 @@ extern "C"
     FUNCTION_ATTRIBUTE
     char const *version()
     {
-        // TODO: use ZXING_VERSION_STR after zxing-cpp 2.1 is released
-        return "2.0.0";
+        return ZXING_VERSION_STR;
     }
 
     FUNCTION_ATTRIBUTE

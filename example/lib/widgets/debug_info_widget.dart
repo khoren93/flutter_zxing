@@ -19,22 +19,37 @@ class DebugInfoWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    TextStyle? style =
+        Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white);
     return Align(
-      alignment: Alignment.topLeft,
+      alignment: Alignment.topCenter,
       child: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(10.0),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10),
           child: Container(
-            color: Colors.white.withOpacity(0.7),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            child: Column(
+            color: Colors.black54,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Success: $successScans\nFailed: $failedScans\nDuration: $duration ms',
-                  style: Theme.of(context).textTheme.bodySmall,
+                Flexible(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Success: $successScans', style: style),
+                        const SizedBox(width: 10),
+                        Text('Failed: $failedScans', style: style),
+                        const SizedBox(width: 10),
+                        Text('Duration: $duration ms', style: style),
+                      ],
+                    ),
+                  ),
                 ),
+                const SizedBox(width: 10),
                 TextButton(
                   onPressed: onReset,
                   child: const Text('Reset'),

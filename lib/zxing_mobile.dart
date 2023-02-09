@@ -53,21 +53,21 @@ class ZxingMobile implements Zxing {
       await zxingProcessCameraImage(image, params: params) as Codes;
 
   @override
-  Future<Code?> readBarcodeImagePathString(
+  Future<Code> readBarcodeImagePathString(
     String path, {
     DecodeParams? params,
   }) =>
       zxingReadBarcodeImagePathString(path, params: params);
 
   @override
-  Future<Code?> readBarcodeImagePath(
+  Future<Code> readBarcodeImagePath(
     XFile path, {
     DecodeParams? params,
   }) =>
       zxingReadBarcodeImagePath(path, params: params);
 
   @override
-  Future<Code?> readBarcodeImageUrl(
+  Future<Code> readBarcodeImageUrl(
     String url, {
     DecodeParams? params,
   }) =>

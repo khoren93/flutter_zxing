@@ -18,7 +18,7 @@ Future<Codes> zxingReadBarcodesImagePath(
   final Uint8List imageBytes = await path.readAsBytes();
   imglib.Image? image = imglib.decodeImage(imageBytes);
   if (image == null) {
-    return Codes(<Code>[], 0);
+    return Codes();
   }
   image = resizeToMaxSize(image, params?.maxSize);
   return zxingReadBarcodes(
@@ -38,7 +38,7 @@ Future<Codes> zxingReadBarcodesImageUrl(
       (await NetworkAssetBundle(Uri.parse(url)).load(url)).buffer.asUint8List();
   imglib.Image? image = imglib.decodeImage(imageBytes);
   if (image == null) {
-    return Codes(<Code>[], 0);
+    return Codes();
   }
   image = resizeToMaxSize(image, params?.maxSize);
   return zxingReadBarcodes(
@@ -80,5 +80,5 @@ Codes _readBarcodes(
   for (int i = 0; i < result.count; i++) {
     results.add(result.results.elementAt(i).ref.toCode());
   }
-  return Codes(results, result.duration);
+  return Codes(codes: results, duration: result.duration);
 }

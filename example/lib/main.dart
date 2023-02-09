@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
 import 'widgets/debug_info_widget.dart';
-import 'widgets/scan_from_gallery_widget.dart';
-import 'widgets/scan_mode_dropdown.dart';
 import 'widgets/scan_result_widget.dart';
 import 'widgets/unsupported_platform_widget.dart';
 
@@ -86,24 +84,13 @@ class _DemoPageState extends State<DemoPage> {
                     onScanFailure: _onScanFailure,
                     onMultiScan: _onMultiScanSuccess,
                     onMultiScanFailure: _onMultiScanFailure,
+                    onMultiScanModeChanged: _onMultiScanModeChanged,
                     isMultiScan: isMultiScan,
                     scanDelay: isMultiScan
                         ? Duration.zero
                         : const Duration(milliseconds: 500),
                     tryInverted: true,
-                  ),
-                  ScanFromGalleryWidget(
-                    onScan: _onScanSuccess,
-                    onScanFailure: _onScanFailure,
-                  ),
-                  // Change single/multi scan mode dropdown button
-                  ScanModeDropdown(
-                    isMultiScan: isMultiScan,
-                    onChanged: (value) {
-                      setState(() {
-                        isMultiScan = value;
-                      });
-                    },
+                    actionButtonsAlignment: Alignment.bottomLeft,
                   ),
                   if (showDebugInfo)
                     DebugInfoWidget(
@@ -190,6 +177,12 @@ class _DemoPageState extends State<DemoPage> {
     setState(() {
       successScans = 0;
       failedScans = 0;
+    });
+  }
+
+  _onMultiScanModeChanged(bool isMultiScan) {
+    setState(() {
+      this.isMultiScan = isMultiScan;
     });
   }
 }

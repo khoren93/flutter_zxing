@@ -4,8 +4,10 @@ import 'dart:math';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../flutter_zxing.dart';
+import 'scan_mode_dropdown.dart';
 
 /// Widget to scan a code from the camera stream
 class ReaderWidget extends StatefulWidget {
@@ -16,13 +18,18 @@ class ReaderWidget extends StatefulWidget {
     this.onMultiScan,
     this.onMultiScanFailure,
     this.onControllerCreated,
+    this.onMultiScanModeChanged,
     this.isMultiScan = false,
     this.codeFormat = Format.any,
     this.tryHarder = false,
     this.tryInverted = false,
     this.showScannerOverlay = true,
     this.scannerOverlay,
+    this.actionButtonsAlignment = Alignment.topCenter,
+    this.actionButtonsPadding = const EdgeInsets.all(10),
     this.showFlashlight = true,
+    this.showToggleCamera = true,
+    this.showGallery = true,
     this.allowPinchZoom = true,
     this.scanDelay = const Duration(milliseconds: 1000),
     this.scanDelaySuccess = const Duration(milliseconds: 1000),
@@ -47,6 +54,9 @@ class ReaderWidget extends StatefulWidget {
   /// Called when the camera controller is created
   final Function(CameraController?)? onControllerCreated;
 
+  /// Called when the multi scan mode is changed
+  final Function(bool)? onMultiScanModeChanged;
+
   /// Allow multiple scans
   final bool isMultiScan;
 
@@ -65,8 +75,20 @@ class ReaderWidget extends StatefulWidget {
   /// Custom scanner overlay
   final ScannerOverlay? scannerOverlay;
 
+  /// Align for action buttons
+  final AlignmentGeometry actionButtonsAlignment;
+
+  /// Padding for action buttons
+  final EdgeInsetsGeometry actionButtonsPadding;
+
   /// Show flashlight button
   final bool showFlashlight;
+
+  /// Show toggle camera
+  final bool showGallery;
+
+  /// Show toggle camera
+  final bool showToggleCamera;
 
   /// Allow pinch zoom
   final bool allowPinchZoom;
@@ -93,6 +115,7 @@ class ReaderWidget extends StatefulWidget {
 class _ReaderWidgetState extends State<ReaderWidget>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   List<CameraDescription> cameras = <CameraDescription>[];
+  CameraDescription? selectedCamera;
   CameraController? controller;
   bool _cameraOn = false;
 
@@ -106,12 +129,15 @@ class _ReaderWidgetState extends State<ReaderWidget>
   // true when code detecting is ongoing
   bool _isProcessing = false;
 
-  Codes results = Codes(<Code>[], 0);
+  bool isMultiScan = false;
+
+  Codes results = Codes();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    isMultiScan = widget.isMultiScan;
     initStateAsync();
   }
 
@@ -123,7 +149,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
       setState(() {
         this.cameras = cameras;
         if (cameras.isNotEmpty) {
-          onNewCameraSelected(cameras.first);
+          selectedCamera = cameras.first;
+          onNewCameraSelected(selectedCamera);
         }
       });
     });
@@ -171,7 +198,10 @@ class _ReaderWidgetState extends State<ReaderWidget>
     }
   }
 
-  Future<void> onNewCameraSelected(CameraDescription cameraDescription) async {
+  Future<void> onNewCameraSelected(CameraDescription? cameraDescription) async {
+    if (cameraDescription == null) {
+      return;
+    }
     final CameraController? oldController = controller;
     if (oldController != null) {
       // controller?.removeListener(rebuildOnMount);
@@ -235,7 +265,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
               await Future<void>.delayed(widget.scanDelaySuccess);
             }
           } else {
-            results = Codes(<Code>[], 0);
+            results = Codes();
             widget.onMultiScanFailure?.call(result);
           }
         } else {
@@ -327,45 +357,106 @@ class _ReaderWidgetState extends State<ReaderWidget>
               controller?.setZoomLevel(_scaleFactor);
             },
           ),
-        if (widget.showFlashlight && isCameraReady)
-          Positioned(
-            bottom: 20,
-            left: 20,
-            child: FloatingActionButton(
-                onPressed: () {
-                  FlashMode mode = controller!.value.flashMode;
-                  if (mode == FlashMode.torch) {
-                    mode = FlashMode.off;
-                  } else {
-                    mode = FlashMode.torch;
-                  }
-                  controller?.setFlashMode(mode);
-                  setState(() {});
-                },
-                backgroundColor: Colors.black26,
-                child: _FlashIcon(
-                    flashMode: controller?.value.flashMode ?? FlashMode.off)),
+        Align(
+          alignment: widget.actionButtonsAlignment,
+          child: Padding(
+            padding: widget.actionButtonsPadding,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    if (widget.showFlashlight && isCameraReady)
+                      IconButton(
+                        onPressed: _onFlashButtonTapped,
+                        color: Colors.white,
+                        icon: Icon(
+                          _flashIcon(
+                              controller?.value.flashMode ?? FlashMode.off),
+                        ),
+                      ),
+                    if (widget.showGallery && isCameraReady)
+                      IconButton(
+                        onPressed: _onGalleryButtonTapped,
+                        color: Colors.white,
+                        icon: const Icon(Icons.photo_library),
+                      ),
+                    if (widget.showToggleCamera && isCameraReady)
+                      IconButton(
+                        onPressed: _onCameraButtonTapped,
+                        color: Colors.white,
+                        icon: const Icon(Icons.switch_camera),
+                      ),
+                  ],
+                ),
+              ),
+            ),
           ),
+        ),
+        ScanModeDropdown(
+          isMultiScan: isMultiScan,
+          onChanged: (bool value) {
+            setState(() {
+              isMultiScan = value;
+            });
+            widget.onMultiScanModeChanged?.call(value);
+          },
+        ),
       ],
     );
   }
-}
 
-class _FlashIcon extends StatelessWidget {
-  const _FlashIcon({required this.flashMode});
-  final FlashMode flashMode;
+  void _onFlashButtonTapped() {
+    FlashMode mode = controller!.value.flashMode;
+    if (mode == FlashMode.torch) {
+      mode = FlashMode.off;
+    } else {
+      mode = FlashMode.torch;
+    }
+    controller?.setFlashMode(mode);
+    setState(() {});
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    switch (flashMode) {
+  Future<void> _onGalleryButtonTapped() async {
+    final XFile? file =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (file != null) {
+      final Code result = await zx.readBarcodeImagePath(
+        file,
+        params: DecodeParams(
+          format: widget.codeFormat,
+          tryHarder: widget.tryHarder,
+          tryInverted: widget.tryInverted,
+          isMultiScan: widget.isMultiScan,
+        ),
+      );
+      if (result.isValid) {
+        widget.onScan?.call(result);
+      } else {
+        widget.onScanFailure?.call(result);
+      }
+    }
+  }
+
+  void _onCameraButtonTapped() {
+    final int cameraIndex = cameras.indexOf(controller!.description);
+    final int nextCameraIndex = (cameraIndex + 1) % cameras.length;
+    selectedCamera = cameras[nextCameraIndex];
+    onNewCameraSelected(selectedCamera);
+  }
+
+  IconData _flashIcon(FlashMode mode) {
+    switch (mode) {
       case FlashMode.torch:
-        return const Icon(Icons.flash_on);
+        return Icons.flash_on;
       case FlashMode.off:
-        return const Icon(Icons.flash_off);
+        return Icons.flash_off;
       case FlashMode.always:
-        return const Icon(Icons.flash_on);
+        return Icons.flash_on;
       case FlashMode.auto:
-        return const Icon(Icons.flash_auto);
+        return Icons.flash_auto;
     }
   }
 }

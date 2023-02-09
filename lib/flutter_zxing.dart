@@ -45,19 +45,19 @@ abstract class Zxing {
   });
 
   /// Reads barcode from String image path
-  Future<Code?> readBarcodeImagePathString(
+  Future<Code> readBarcodeImagePathString(
     String path, {
     DecodeParams? params,
   });
 
   /// Reads barcode from XFile image path
-  Future<Code?> readBarcodeImagePath(
+  Future<Code> readBarcodeImagePath(
     XFile path, {
     DecodeParams? params,
   });
 
   /// Reads barcode from image url
-  Future<Code?> readBarcodeImageUrl(
+  Future<Code> readBarcodeImageUrl(
     String url, {
     DecodeParams? params,
   });

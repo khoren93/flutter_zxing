@@ -46,21 +46,21 @@ class ZxingWeb implements Zxing {
       throw UnimplementedError();
 
   @override
-  Future<Code?> readBarcodeImagePathString(
+  Future<Code> readBarcodeImagePathString(
     String path, {
     DecodeParams? params,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Code?> readBarcodeImagePath(
+  Future<Code> readBarcodeImagePath(
     XFile path, {
     DecodeParams? params,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Code?> readBarcodeImageUrl(
+  Future<Code> readBarcodeImageUrl(
     String url, {
     DecodeParams? params,
   }) =>

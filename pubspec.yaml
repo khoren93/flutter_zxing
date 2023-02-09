@@ -13,6 +13,7 @@ dependencies:
   flutter:
     sdk: flutter
   image: ^3.0.0
+  image_picker: ^0.8.0
 
 dev_dependencies:
   ffigen: ^7.0.0 # dart run ffigen
