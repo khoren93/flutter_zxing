@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+* Added support for changing the camera
+* Fixed issue with iPad
+
 ## 1.0.0
 
 * Updated zxing-cpp to v2.0.0

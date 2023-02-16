@@ -1,10 +1,10 @@
 name: flutter_zxing
 description: A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing.
-version: 1.0.0
+version: 1.0.1
 repository: https://github.com/khoren93/flutter_zxing
 
 environment:
-  sdk: ">=2.18.0 <3.0.0"
+  sdk: ">=2.19.0 <3.0.0"
   flutter: ">=3.3.0"
 
 dependencies:
