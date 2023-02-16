@@ -13,5 +13,10 @@ set (BUILD_WRITERS ON)
 
 add_subdirectory(zxing/core)
 
-find_library(log-lib log)
-target_link_libraries(flutter_zxing ZXing ${log-lib})
+target_link_libraries(flutter_zxing ZXing)
+
+# use log-lib only for android platform
+if (ANDROID)
+    find_library(log-lib log)
+    target_link_libraries(flutter_zxing ${log-lib})
+endif (ANDROID)

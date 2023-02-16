@@ -7,7 +7,7 @@ import 'widgets/scan_result_widget.dart';
 import 'widgets/unsupported_platform_widget.dart';
 
 void main() {
-  zx.setLogEnabled(false);
+  zx.setLogEnabled(kDebugMode);
   runApp(const MyApp());
 }
 
@@ -86,10 +86,8 @@ class _DemoPageState extends State<DemoPage> {
                     onMultiScanFailure: _onMultiScanFailure,
                     onMultiScanModeChanged: _onMultiScanModeChanged,
                     isMultiScan: isMultiScan,
-                    scanDelay: isMultiScan
-                        ? Duration.zero
-                        : const Duration(milliseconds: 500),
-                    tryInverted: true,
+                    scanDelay: Duration(milliseconds: isMultiScan ? 50 : 500),
+                    resolution: ResolutionPreset.high,
                   ),
                   if (showDebugInfo)
                     DebugInfoWidget(

@@ -3,7 +3,7 @@
 #include "MultiFormatWriter.h"
 #include "BitMatrix.h"
 #include "native_zxing.h"
-#include "ZXVersion.h"
+// #include "ZXVersion.h" // This file is not existing for iOS
 
 #include <locale>
 #include <codecvt>
@@ -23,7 +23,8 @@ extern "C"
     FUNCTION_ATTRIBUTE
     char const *version()
     {
-        return ZXING_VERSION_STR;
+        // return ZXING_VERSION_STR; // TODO: Not working on iOS for now
+        return "2.0.0";
     }
 
     FUNCTION_ATTRIBUTE

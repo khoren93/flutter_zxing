@@ -229,19 +229,30 @@ class _ReaderWidgetState extends State<ReaderWidget>
     cameraController.addListener(rebuildOnMount);
     try {
       await cameraController.initialize();
-      await cameraController.setFlashMode(FlashMode.off);
-      cameraController
-          .getMaxZoomLevel()
-          .then((double value) => _maxZoomLevel = value);
-      cameraController
-          .getMinZoomLevel()
-          .then((double value) => _minZoomLevel = value);
       cameraController.startImageStream(processImageStream);
     } on CameraException catch (e) {
       debugPrint('${e.code}: ${e.description}');
     } catch (e) {
       debugPrint('Error: $e');
     }
+
+    try {
+      await cameraController.setFlashMode(FlashMode.off);
+    } catch (e) {
+      debugPrint('Error: $e');
+    }
+
+    try {
+      cameraController
+          .getMaxZoomLevel()
+          .then((double value) => _maxZoomLevel = value);
+      cameraController
+          .getMinZoomLevel()
+          .then((double value) => _minZoomLevel = value);
+    } catch (e) {
+      debugPrint('Error: $e');
+    }
+
     rebuildOnMount();
     widget.onControllerCreated?.call(controller);
   }
@@ -366,55 +377,59 @@ class _ReaderWidgetState extends State<ReaderWidget>
               controller?.setZoomLevel(_scaleFactor);
             },
           ),
-        Align(
-          alignment: widget.actionButtonsAlignment,
-          child: Padding(
-            padding: widget.actionButtonsPadding,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                color: Colors.black.withOpacity(0.5),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    if (widget.showFlashlight && isCameraReady)
-                      IconButton(
-                        onPressed: _onFlashButtonTapped,
-                        color: Colors.white,
-                        icon: Icon(
-                          _flashIcon(
-                              controller?.value.flashMode ?? FlashMode.off),
+        SafeArea(
+          child: Align(
+            alignment: widget.actionButtonsAlignment,
+            child: Padding(
+              padding: widget.actionButtonsPadding,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      if (widget.showFlashlight && isCameraReady)
+                        IconButton(
+                          onPressed: _onFlashButtonTapped,
+                          color: Colors.white,
+                          icon: Icon(
+                            _flashIcon(
+                                controller?.value.flashMode ?? FlashMode.off),
+                          ),
                         ),
-                      ),
-                    if (widget.showGallery && isCameraReady)
-                      IconButton(
-                        onPressed: _onGalleryButtonTapped,
-                        color: Colors.white,
-                        icon: const Icon(Icons.photo_library),
-                      ),
-                    if (widget.showToggleCamera && isCameraReady)
-                      IconButton(
-                        onPressed: _onCameraButtonTapped,
-                        color: Colors.white,
-                        icon: const Icon(Icons.switch_camera),
-                      ),
-                  ],
+                      if (widget.showGallery && isCameraReady)
+                        IconButton(
+                          onPressed: _onGalleryButtonTapped,
+                          color: Colors.white,
+                          icon: const Icon(Icons.photo_library),
+                        ),
+                      if (widget.showToggleCamera && isCameraReady)
+                        IconButton(
+                          onPressed: _onCameraButtonTapped,
+                          color: Colors.white,
+                          icon: const Icon(Icons.switch_camera),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         ),
         if (widget.onMultiScanModeChanged != null)
-          ScanModeDropdown(
-            isMultiScan: isMultiScan,
-            alignment: widget.multiScanModeAlignment,
-            padding: widget.multiScanModePadding,
-            onChanged: (bool value) {
-              setState(() {
-                isMultiScan = value;
-              });
-              widget.onMultiScanModeChanged?.call(value);
-            },
+          SafeArea(
+            child: ScanModeDropdown(
+              isMultiScan: isMultiScan,
+              alignment: widget.multiScanModeAlignment,
+              padding: widget.multiScanModePadding,
+              onChanged: (bool value) {
+                setState(() {
+                  isMultiScan = value;
+                });
+                widget.onMultiScanModeChanged?.call(value);
+              },
+            ),
           ),
       ],
     );
