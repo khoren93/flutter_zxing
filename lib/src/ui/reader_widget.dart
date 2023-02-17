@@ -390,9 +390,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      if (widget.showFlashlight &&
-                          isCameraReady &&
-                          _isFlashAvailable)
+                      if (widget.showFlashlight && _isFlashAvailable)
                         IconButton(
                           onPressed: _onFlashButtonTapped,
                           color: Colors.white,
@@ -401,13 +399,13 @@ class _ReaderWidgetState extends State<ReaderWidget>
                                 controller?.value.flashMode ?? FlashMode.off),
                           ),
                         ),
-                      if (widget.showGallery && isCameraReady)
+                      if (widget.showGallery)
                         IconButton(
                           onPressed: _onGalleryButtonTapped,
                           color: Colors.white,
                           icon: const Icon(Icons.photo_library),
                         ),
-                      if (widget.showToggleCamera && isCameraReady)
+                      if (widget.showToggleCamera)
                         IconButton(
                           onPressed: _onCameraButtonTapped,
                           color: Colors.white,
@@ -439,7 +437,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
   }
 
   void _onFlashButtonTapped() {
-    FlashMode mode = controller!.value.flashMode;
+    FlashMode mode = controller?.value.flashMode ?? FlashMode.off;
     if (mode == FlashMode.torch) {
       mode = FlashMode.off;
     } else {
@@ -471,6 +469,9 @@ class _ReaderWidgetState extends State<ReaderWidget>
   }
 
   void _onCameraButtonTapped() {
+    if (cameras.isEmpty || controller == null) {
+      return;
+    }
     final int cameraIndex = cameras.indexOf(controller!.description);
     final int nextCameraIndex = (cameraIndex + 1) % cameras.length;
     selectedCamera = cameras[nextCameraIndex];

@@ -22,4 +22,9 @@ platform :ios do
     frameit # brew install imagemagick
     # upload_to_app_store(skip_binary_upload: true, skip_metadata: true)
   end
+
+  desc "Upload screenshots to App Store"
+  lane :upload do
+    upload_to_app_store(skip_binary_upload: true, skip_metadata: true)
+  end
 end
