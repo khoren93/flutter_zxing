@@ -126,27 +126,27 @@ class _ReaderWidgetState extends State<ReaderWidget>
   List<CameraDescription> cameras = <CameraDescription>[];
   CameraDescription? selectedCamera;
   CameraController? controller;
-  bool _cameraOn = false;
+
+  // true when code detecting is ongoing
+  bool _isProcessing = false;
+  bool _isCameraOn = false;
+  bool _isFlashAvailable = true;
+  bool _isMultiScan = false;
 
   double _zoom = 1.0;
   double _scaleFactor = 1.0;
   double _maxZoomLevel = 1.0;
   double _minZoomLevel = 1.0;
 
-  bool isAndroid() => Theme.of(context).platform == TargetPlatform.android;
-
-  // true when code detecting is ongoing
-  bool _isProcessing = false;
-
-  bool isMultiScan = false;
-
   Codes results = Codes();
+
+  bool isAndroid() => Theme.of(context).platform == TargetPlatform.android;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    isMultiScan = widget.isMultiScan;
+    _isMultiScan = widget.isMultiScan;
     initStateAsync();
   }
 
@@ -174,7 +174,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
     switch (state) {
       case AppLifecycleState.resumed:
-        if (cameras.isNotEmpty && !_cameraOn) {
+        if (cameras.isNotEmpty && !_isCameraOn) {
           onNewCameraSelected(cameras.first);
         }
         break;
@@ -182,7 +182,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
       case AppLifecycleState.paused:
         controller?.dispose();
         setState(() {
-          _cameraOn = false;
+          _isCameraOn = false;
         });
         break;
       case AppLifecycleState.detached:
@@ -202,7 +202,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
   void rebuildOnMount() {
     if (mounted) {
       setState(() {
-        _cameraOn = true;
+        _isCameraOn = true;
       });
     }
   }
@@ -239,6 +239,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
     try {
       await cameraController.setFlashMode(FlashMode.off);
     } catch (e) {
+      _isFlashAvailable = false;
       debugPrint('Error: $e');
     }
 
@@ -316,7 +317,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
   @override
   Widget build(BuildContext context) {
     final bool isCameraReady = cameras.isNotEmpty &&
-        _cameraOn &&
+        _isCameraOn &&
         controller != null &&
         controller!.value.isInitialized;
     final Size size = MediaQuery.of(context).size;
@@ -389,7 +390,9 @@ class _ReaderWidgetState extends State<ReaderWidget>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      if (widget.showFlashlight && isCameraReady)
+                      if (widget.showFlashlight &&
+                          isCameraReady &&
+                          _isFlashAvailable)
                         IconButton(
                           onPressed: _onFlashButtonTapped,
                           color: Colors.white,
@@ -420,12 +423,12 @@ class _ReaderWidgetState extends State<ReaderWidget>
         if (widget.onMultiScanModeChanged != null)
           SafeArea(
             child: ScanModeDropdown(
-              isMultiScan: isMultiScan,
+              isMultiScan: _isMultiScan,
               alignment: widget.multiScanModeAlignment,
               padding: widget.multiScanModePadding,
               onChanged: (bool value) {
                 setState(() {
-                  isMultiScan = value;
+                  _isMultiScan = value;
                 });
                 widget.onMultiScanModeChanged?.call(value);
               },

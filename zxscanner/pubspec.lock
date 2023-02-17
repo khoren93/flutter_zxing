@@ -77,10 +77,10 @@ packages:
     dependency: transitive
     description:
       name: build_resolvers
-      sha256: "7c35a3a7868626257d8aee47b51c26b9dba11eaddf3431117ed2744951416aab"
+      sha256: db49b8609ef8c81cca2b310618c3017c00f03a92af44c04d310b907b2d692d95
       url: "https://pub.dev"
     source: hosted
-    version: "2.1.0"
+    version: "2.2.0"
   build_runner:
     dependency: "direct dev"
     description:
@@ -601,10 +601,10 @@ packages:
     dependency: "direct main"
     description:
       name: mobx
-      sha256: f1862bd92c6a903fab67338f27e2f731117c3cb9ea37cee1a487f9e4e0de314a
+      sha256: "6738620307a424d2c9ad8b873f4dce391c44e9135eb4e75668ac8202fec7a9b8"
       url: "https://pub.dev"
     source: hosted
-    version: "2.1.3+1"
+    version: "2.1.4"
   mobx_codegen:
     dependency: "direct dev"
     description:
@@ -934,10 +934,10 @@ packages:
     dependency: transitive
     description:
       name: universal_io
-      sha256: "79f78ddad839ee3aae3ec7c01eb4575faf0d5c860f8e5223bc9f9c17f7f03cef"
+      sha256: "06866290206d196064fd61df4c7aea1ffe9a4e7c4ccaa8fcded42dd41948005d"
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.4"
+    version: "2.2.0"
   url_launcher:
     dependency: "direct main"
     description:
