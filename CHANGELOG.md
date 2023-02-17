@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+* Updated zxing cpp
+
 ## 1.0.1
 
 * Added support for changing the camera
