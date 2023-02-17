@@ -18,7 +18,7 @@ We collect several different types of information for various purposes to provid
 
 While using our Service, we may ask you to provide us with certain personally identifiable information that can be used to contact or identify you ("Personal Data"). Personally identifiable information may include, but is not limited to:
 
-*   Cookies and Usage Data
+* Cookies and Usage Data
 
 #### Usage Data
 
@@ -34,21 +34,21 @@ You can instruct your browser to refuse all cookies or to indicate when a cookie
 
 Examples of Cookies we use:
 
-*   **Session Cookies.** We use Session Cookies to operate our Service.
-*   **Preference Cookies.** We use Preference Cookies to remember your preferences and various settings.
-*   **Security Cookies.** We use Security Cookies for security purposes.
+* **Session Cookies.** We use Session Cookies to operate our Service.
+* **Preference Cookies.** We use Preference Cookies to remember your preferences and various settings.
+* **Security Cookies.** We use Security Cookies for security purposes.
 
 ## Use of Data
 
 ZXScanner uses the collected data for various purposes:
 
-*   To provide and maintain the Service
-*   To notify you about changes to our Service
-*   To allow you to participate in interactive features of our Service when you choose to do so
-*   To provide customer care and support
-*   To provide analysis or valuable information so that we can improve the Service
-*   To monitor the usage of the Service
-*   To detect, prevent and address technical issues
+* To provide and maintain the Service
+* To notify you about changes to our Service
+* To allow you to participate in interactive features of our Service when you choose to do so
+* To provide customer care and support
+* To provide analysis or valuable information so that we can improve the Service
+* To monitor the usage of the Service
+* To detect, prevent and address technical issues
 
 ## Transfer Of Data
 
@@ -66,11 +66,11 @@ ZXScanner will take all steps reasonably necessary to ensure that your data is t
 
 ZXScanner may disclose your Personal Data in the good faith belief that such action is necessary to:
 
-*   To comply with a legal obligation
-*   To protect and defend the rights or property of ZXScanner
-*   To prevent or investigate possible wrongdoing in connection with the Service
-*   To protect the personal safety of users of the Service or the public
-*   To protect against legal liability
+* To comply with a legal obligation
+* To protect and defend the rights or property of ZXScanner
+* To prevent or investigate possible wrongdoing in connection with the Service
+* To protect the personal safety of users of the Service or the public
+* To protect against legal liability
 
 ## Security Of Data
 
@@ -81,7 +81,6 @@ The security of your data is important to us, but remember that no method of tra
 We may employ third party companies and individuals to facilitate our Service ("Service Providers"), to provide the Service on our behalf, to perform Service-related services or to assist us in analyzing how our Service is used.
 
 These third parties have access to your Personal Data only to perform these tasks on our behalf and are obligated not to disclose or use it for any other purpose.
-
 
 ## Links To Other Sites
 
@@ -107,4 +106,4 @@ You are advised to review this Privacy Policy periodically for any changes. Chan
 
 If you have any questions about this Privacy Policy, please contact us:
 
-*   By email: xoren93@gmail.com
+* By email: khoren.markosyan@gmail.com
