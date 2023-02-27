@@ -16,23 +16,14 @@ Future<Code> zxingReadBarcodeImagePath(
   DecodeParams? params,
 }) async {
   final Uint8List imageBytes = await path.readAsBytes();
-  final imglib.Image? image = imglib.decodeImage(imageBytes);
+  imglib.Image? image = imglib.decodeImage(imageBytes);
 
   if (image == null) {
     return Code();
   }
-  // image = resizeToMaxSize(image, params?.maxSize);
-
-  // imglib.Image imgRgba8 = image.convert(
-  //   format: imglib.Format.uint8,
-  //   numChannels: 4,
-  // ); // Make sure it's an RGBA 32-bit image like v3
-  // imgRgba8 =
-  //     imglib.grayscale(imgRgba8); // map the pixels to grayscale (luminance)
-  // final Uint8List bytes = imgRgba8.getBytes();
-
+  image = resizeToMaxSize(image, params?.maxSize);
   return zxingReadBarcode(
-    image.toUint8List(), //.getBytes(format: imglib.Format.luminance),
+    grayscaleBytes(image),
     width: image.width,
     height: image.height,
     params: params,
@@ -52,7 +43,7 @@ Future<Code> zxingReadBarcodeImageUrl(
   }
   image = resizeToMaxSize(image, params?.maxSize);
   return zxingReadBarcode(
-    image.toUint8List(), //.getBytes(format: imglib.Format.luminance),
+    grayscaleBytes(image),
     width: image.width,
     height: image.height,
     params: params,

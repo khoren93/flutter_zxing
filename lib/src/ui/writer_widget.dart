@@ -281,6 +281,7 @@ class _WriterWidgetState extends State<WriterWidget>
             width: width,
             height: height,
             bytes: result.data!.buffer,
+            numChannels: 4,
           );
           final Uint8List encodedBytes = Uint8List.fromList(
             imglib.encodeJpg(img),

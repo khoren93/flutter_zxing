@@ -82,3 +82,13 @@ imglib.Image resizeToMaxSize(imglib.Image image, int? maxSize) {
   }
   return image;
 }
+
+// get the bytes of the image in grayscale format (luminance) like v3
+Uint8List grayscaleBytes(imglib.Image image) {
+  final imglib.Image imgRgba8 = image.convert(
+    format: imglib.Format.uint8,
+    numChannels: 1,
+  ); // Make sure it's an RGBA 32-bit image like v3
+  imglib.grayscale(imgRgba8); // map the pixels to grayscale (luminance)
+  return imgRgba8.getBytes();
+}
