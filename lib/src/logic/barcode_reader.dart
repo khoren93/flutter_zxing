@@ -17,12 +17,13 @@ Future<Code> zxingReadBarcodeImagePath(
 }) async {
   final Uint8List imageBytes = await path.readAsBytes();
   imglib.Image? image = imglib.decodeImage(imageBytes);
+
   if (image == null) {
     return Code();
   }
   image = resizeToMaxSize(image, params?.maxSize);
   return zxingReadBarcode(
-    image.getBytes(format: imglib.Format.luminance),
+    grayscaleBytes(image),
     width: image.width,
     height: image.height,
     params: params,
@@ -42,7 +43,7 @@ Future<Code> zxingReadBarcodeImageUrl(
   }
   image = resizeToMaxSize(image, params?.maxSize);
   return zxingReadBarcode(
-    image.getBytes(format: imglib.Format.luminance),
+    grayscaleBytes(image),
     width: image.width,
     height: image.height,
     params: params,
@@ -63,17 +64,18 @@ Code _readBarcode(
   int width,
   int height,
   DecodeParams? params,
-) =>
-    bindings
-        .readBarcode(
-          bytes.allocatePointer(),
-          params?.format ?? Format.any,
-          width,
-          height,
-          params?.cropWidth ?? 0,
-          params?.cropHeight ?? 0,
-          params?.tryHarder ?? false ? 1 : 0,
-          params?.tryRotate ?? true ? 1 : 0,
-          params?.tryInverted ?? false ? 1 : 0,
-        )
-        .toCode();
+) {
+  return bindings
+      .readBarcode(
+        bytes.allocatePointer(),
+        params?.format ?? Format.any,
+        width,
+        height,
+        params?.cropWidth ?? 0,
+        params?.cropHeight ?? 0,
+        params?.tryHarder ?? false ? 1 : 0,
+        params?.tryRotate ?? true ? 1 : 0,
+        params?.tryInverted ?? false ? 1 : 0,
+      )
+      .toCode();
+}
