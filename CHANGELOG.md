@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0
+
+* Updated Image to v4
+
 ## 1.0.2
 
 * Updated zxing cpp
