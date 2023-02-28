@@ -335,10 +335,10 @@ packages:
     dependency: "direct dev"
     description:
       name: flutter_native_splash
-      sha256: "6777a3abb974021a39b5fdd2d46a03ca390e03903b6351f21d10e7ecc969f12d"
+      sha256: e301ae206ff0fb09b67d3716009c6c28c2da57a0ad164827b178421bb9d601f7
       url: "https://pub.dev"
     source: hosted
-    version: "2.2.16"
+    version: "2.2.18"
   flutter_plugin_android_lifecycle:
     dependency: transitive
     description:
@@ -360,11 +360,10 @@ packages:
   flutter_zxing:
     dependency: "direct main"
     description:
-      name: flutter_zxing
-      sha256: "0df71f98099e7defc840847198259d21e3749eab0d90e124a955d30437d4d5d0"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.2"
+      path: ".."
+      relative: true
+    source: path
+    version: "1.1.0"
   font_awesome_flutter:
     dependency: "direct main"
     description:
@@ -457,18 +456,18 @@ packages:
     dependency: "direct dev"
     description:
       name: icons_launcher
-      sha256: c8e3ae1263822feafaec8a3c666ec84c2143470e1612f5481f1c875024c5f37e
+      sha256: f8ccfb80b56856b6eac586980bdd9c14f5ec24fb87127514055445ceb9424f4c
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.6"
+    version: "2.1.0"
   image:
     dependency: "direct main"
     description:
       name: image
-      sha256: "8e9d133755c3e84c73288363e6343157c383a0c6c56fc51afcc5d4d7180306d6"
+      sha256: "483a389d6ccb292b570c31b3a193779b1b0178e7eb571986d9a49904b6861227"
       url: "https://pub.dev"
     source: hosted
-    version: "3.3.0"
+    version: "4.0.15"
   image_picker:
     dependency: "direct main"
     description:
