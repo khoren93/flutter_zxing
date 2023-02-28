@@ -60,8 +60,9 @@ Flutter ZXing supports the following platforms:
 - Android (minimum API level 21)
 - iOS (minimum iOS 11.0)
 - MacOS (minimum osx 10.15) (beta)
-- Linux (beta)
-- Windows (beta)
+- Linux (not working yet)
+- Windows (not working yet)
+- Web (not working yet)
 
 Note that flutter_zxing relies on the Dart FFI (Foreign Function Interface) feature, which is currently only available for the mobile and desktop platforms. As a result, the plugin is not currently supported on the web platform.
 

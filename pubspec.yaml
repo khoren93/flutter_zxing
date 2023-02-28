@@ -35,4 +35,8 @@ flutter:
       windows:
         ffiPlugin: true
 
+# Publish to pub.dev
 # flutter pub publish --dry-run
+
+# Update zxing-cpp submodule
+# git submodule update --remote
