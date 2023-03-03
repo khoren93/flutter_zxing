@@ -23,6 +23,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return const MaterialApp(
       title: 'Flutter Zxing Example',
+      debugShowCheckedModeBanner: false,
       home: DemoPage(),
     );
   }
