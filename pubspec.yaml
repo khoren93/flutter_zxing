@@ -37,6 +37,7 @@ flutter:
 
 # Publish to pub.dev
 # flutter pub publish --dry-run
+# flutter pub publish
 
 # Update zxing-cpp submodule
 # git submodule update --remote
