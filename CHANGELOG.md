@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+* Allow to set camera lens direction
+
 ## 1.1.0
 
 * Updated Image to v4
