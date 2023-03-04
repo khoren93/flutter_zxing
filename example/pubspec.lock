@@ -166,7 +166,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "1.1.0"
+    version: "1.1.1"
   http:
     dependency: transitive
     description:
@@ -203,10 +203,10 @@ packages:
     dependency: transitive
     description:
       name: image_picker_android
-      sha256: "845f793834d5d3af887ce39e3c97186996928cd43c8350a23e5499268398cc16"
+      sha256: ca14b663fecbe7f5ddda83782abfb2e1dd2a23d6da49b6ed344bf8cf3871225a
       url: "https://pub.dev"
     source: hosted
-    version: "0.8.5+8"
+    version: "0.8.5+9"
   image_picker_for_web:
     dependency: transitive
     description:
