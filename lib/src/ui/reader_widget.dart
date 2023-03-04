@@ -37,6 +37,7 @@ class ReaderWidget extends StatefulWidget {
     this.scanDelaySuccess = const Duration(milliseconds: 1000),
     this.cropPercent = 0.5, // 50% of the screen
     this.resolution = ResolutionPreset.high,
+    this.lensDirection = CameraLensDirection.back,
     this.loading =
         const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
   });
@@ -111,6 +112,9 @@ class ReaderWidget extends StatefulWidget {
   /// Camera resolution
   final ResolutionPreset resolution;
 
+  /// Camera lens direction
+  final CameraLensDirection lensDirection;
+
   /// Delay between scans when a code is detected, will be ignored if isMultiScan is true
   final Duration scanDelaySuccess;
 
@@ -158,7 +162,11 @@ class _ReaderWidgetState extends State<ReaderWidget>
       setState(() {
         this.cameras = cameras;
         if (cameras.isNotEmpty) {
-          selectedCamera = cameras.first;
+          selectedCamera = cameras.firstWhere(
+            (CameraDescription camera) =>
+                camera.lensDirection == widget.lensDirection,
+            orElse: () => cameras.first,
+          );
           onNewCameraSelected(selectedCamera);
         }
       });

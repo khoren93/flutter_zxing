@@ -89,6 +89,7 @@ class _DemoPageState extends State<DemoPage> {
                     isMultiScan: isMultiScan,
                     scanDelay: Duration(milliseconds: isMultiScan ? 50 : 500),
                     resolution: ResolutionPreset.high,
+                    lensDirection: CameraLensDirection.back,
                   ),
                   if (showDebugInfo)
                     DebugInfoWidget(
