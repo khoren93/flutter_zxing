@@ -37,18 +37,18 @@ packages:
     dependency: transitive
     description:
       name: camera_android
-      sha256: df9c3376ccfce13c98a09c1d6433c64b0c6b2de81eeade8151884f8c8f08881f
+      sha256: "16e46b32915fcbc53afc1f96ca868cd91495608935a20bd16f47b854bfed9b17"
       url: "https://pub.dev"
     source: hosted
-    version: "0.10.4+1"
+    version: "0.10.4+3"
   camera_avfoundation:
     dependency: transitive
     description:
       name: camera_avfoundation
-      sha256: a1ebce7132e2c1ffd3138e672538f6f2360715e181cf5b7eb5a073f1a735235e
+      sha256: "7ac8b950672716722af235eed7a7c37896853669800b7da706bb0a9fd41d3737"
       url: "https://pub.dev"
     source: hosted
-    version: "0.9.12"
+    version: "0.9.13+1"
   camera_platform_interface:
     dependency: transitive
     description:
@@ -61,10 +61,10 @@ packages:
     dependency: transitive
     description:
       name: camera_web
-      sha256: f7a949ce4d2e091234f2e6607557a0a65398c34c84c1161fb249498595e3b4ce
+      sha256: d77965f32479ee6d8f48205dcf10f845d7210595c6c00faa51eab265d1cae993
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.1+2"
+    version: "0.3.1+3"
   characters:
     dependency: transitive
     description:
@@ -195,34 +195,34 @@ packages:
     dependency: transitive
     description:
       name: image_picker
-      sha256: "715d68a53d6bcc2eae26005097dc74c375a04c0d7c0e657da84deebbbbbf51ed"
+      sha256: "64b21d9f0e065f9ab0e4dde458076226c97382cc0c6949144cb874c62bf8e9f8"
       url: "https://pub.dev"
     source: hosted
-    version: "0.8.6+4"
+    version: "0.8.7"
   image_picker_android:
     dependency: transitive
     description:
       name: image_picker_android
-      sha256: ca14b663fecbe7f5ddda83782abfb2e1dd2a23d6da49b6ed344bf8cf3871225a
+      sha256: "420ed22d2c9ce767ed96df723aaebfeb20ce92dfda8665cd2ba72d72a51ae669"
       url: "https://pub.dev"
     source: hosted
-    version: "0.8.5+9"
+    version: "0.8.6+1"
   image_picker_for_web:
     dependency: transitive
     description:
       name: image_picker_for_web
-      sha256: "66fc6e3877bbde82c33d122f3588777c3784ac5bd7d1cdd79213ef7aecb85b34"
+      sha256: "98f50d6b9f294c8ba35e25cc0d13b04bfddd25dbc8d32fa9d566a6572f2c081c"
       url: "https://pub.dev"
     source: hosted
-    version: "2.1.11"
+    version: "2.1.12"
   image_picker_ios:
     dependency: transitive
     description:
       name: image_picker_ios
-      sha256: "93b4403350b54f45a5061632721ee29a563c8b45b1e22feda9049b8329bd1337"
+      sha256: "50e882fe0a06bf0c8f7f5bce78d30975f279213293afc9471dc35f05617c50ff"
       url: "https://pub.dev"
     source: hosted
-    version: "0.8.7"
+    version: "0.8.7+1"
   image_picker_platform_interface:
     dependency: transitive
     description:
