@@ -14,6 +14,7 @@ dependencies:
     sdk: flutter
   image: ^4.0.0
   image_picker: ^0.8.0
+  melos: ^3.0.0
 
 dev_dependencies:
   ffigen: ^7.0.0 # flutter pub run ffigen --config ffigen.yaml
