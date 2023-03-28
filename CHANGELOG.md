@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.2
+
+* Fixed issue with onControllerCreated callback is sometimes not called
+
 ## 1.1.1
 
 * Allow to set camera lens direction
