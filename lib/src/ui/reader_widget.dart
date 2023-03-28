@@ -230,24 +230,17 @@ class _ReaderWidgetState extends State<ReaderWidget>
       cameraDescription,
       widget.resolution,
       enableAudio: false,
-      imageFormatGroup:
-          isAndroid() ? ImageFormatGroup.yuv420 : ImageFormatGroup.yuv420,
+      imageFormatGroup: ImageFormatGroup.yuv420,
     );
     controller = cameraController;
-    cameraController.addListener(rebuildOnMount);
     try {
       await cameraController.initialize();
+      widget.onControllerCreated?.call(controller);
+      cameraController.addListener(rebuildOnMount);
       cameraController.startImageStream(processImageStream);
     } on CameraException catch (e) {
       debugPrint('${e.code}: ${e.description}');
     } catch (e) {
-      debugPrint('Error: $e');
-    }
-
-    try {
-      await cameraController.setFlashMode(FlashMode.off);
-    } catch (e) {
-      _isFlashAvailable = false;
       debugPrint('Error: $e');
     }
 
@@ -262,8 +255,14 @@ class _ReaderWidgetState extends State<ReaderWidget>
       debugPrint('Error: $e');
     }
 
+    try {
+      await cameraController.setFlashMode(FlashMode.off);
+    } catch (e) {
+      _isFlashAvailable = false;
+      debugPrint('Error: $e');
+    }
+
     rebuildOnMount();
-    widget.onControllerCreated?.call(controller);
   }
 
   Future<void> processImageStream(CameraImage image) async {
