@@ -10,7 +10,7 @@ environment:
 dependencies:
   convex_bottom_bar: ^3.2.0
   cupertino_icons: ^1.0.5
-  flex_color_scheme: ^6.1.2
+  flex_color_scheme: ^7.0.1
   flutter:
     sdk: flutter
   flutter_localizations:

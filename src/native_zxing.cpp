@@ -14,6 +14,35 @@ using namespace std;
 
 extern "C"
 {
+    void resultToCodeResult(struct CodeResult *code, Result result)
+    {
+        string text = result.text();
+        code->text = new char[text.length() + 1];
+        strcpy(code->text, text.c_str());
+
+        code->isValid = result.isValid();
+
+        string error = result.error().msg();
+        code->error = new char[error.length() + 1];
+        strcpy(code->error, error.c_str());
+
+        code->format = static_cast<int>(result.format());
+
+        // TODO: this needs to be allocated and coped as well (see text above). Will also require a delete in some flutter code, I assume
+        code->bytes = result.bytes().data();
+        code->length = result.bytes().size();
+
+        auto p = result.position();
+        auto tl = p.topLeft();
+        auto tr = p.topRight();
+        auto bl = p.bottomLeft();
+        auto br = p.bottomRight();
+        code->pos = new Pos{0, 0, tl.x, tl.y, tr.x, tr.y, bl.x, bl.y, br.x, br.y};
+
+        code->isInverted = result.isInverted();
+        code->isMirrored = result.isMirrored();
+    }
+
     FUNCTION_ATTRIBUTE
     void setLogEnabled(int enable)
     {
@@ -32,7 +61,7 @@ extern "C"
     {
         long long start = get_now();
 
-        ImageView image{reinterpret_cast<const uint8_t*>(bytes), width, height, ImageFormat::Lum};
+        ImageView image{reinterpret_cast<const uint8_t *>(bytes), width, height, ImageFormat::Lum};
         if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
@@ -58,7 +87,7 @@ extern "C"
     {
         long long start = get_now();
 
-        ImageView image{reinterpret_cast<const uint8_t*>(bytes), width, height, ImageFormat::Lum};
+        ImageView image{reinterpret_cast<const uint8_t *>(bytes), width, height, ImageFormat::Lum};
         if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
@@ -110,35 +139,5 @@ extern "C"
         int evalInMillis = static_cast<int>(get_now() - start);
         platform_log("Encode Barcode in: %d ms\n", evalInMillis);
         return result;
-    }
-
-    FUNCTION_ATTRIBUTE
-    void resultToCodeResult(struct CodeResult *code, Result result)
-    {
-        string text = result.text();
-        code->text = new char[text.length() + 1];
-        strcpy(code->text, text.c_str());
-
-        code->isValid = result.isValid();
-
-        string error = result.error().msg();
-        code->error = new char[error.length() + 1];
-        strcpy(code->error, error.c_str());
-
-        code->format = static_cast<int>(result.format());
-
-        // TODO: this needs to be allocated and coped as well (see text above). Will also require a delete in some flutter code, I assume
-        code->bytes = result.bytes().data();
-        code->length = result.bytes().size();
-
-        auto p = result.position();
-        auto tl = p.topLeft();
-        auto tr = p.topRight();
-        auto bl = p.bottomLeft();
-        auto br = p.bottomRight();
-        code->pos = new Pos{0, 0, tl.x, tl.y, tr.x, tr.y, bl.x, bl.y, br.x, br.y};
-
-        code->isInverted = result.isInverted();
-        code->isMirrored = result.isMirrored();
     }
 }

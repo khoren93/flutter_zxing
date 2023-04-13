@@ -117,9 +117,6 @@ extern "C"
      */
     struct EncodeResult encodeBarcode(char *contents, int width, int height, int format, int margin, int eccLevel);
 
-    // Private functions
-    void resultToCodeResult(struct CodeResult *code, ZXing::Result result);
-
 #ifdef __cplusplus
 }
 #endif
