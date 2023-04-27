@@ -458,19 +458,30 @@ class _ReaderWidgetState extends State<ReaderWidget>
     final XFile? file =
         await ImagePicker().pickImage(source: ImageSource.gallery);
     if (file != null) {
-      final Code result = await zx.readBarcodeImagePath(
-        file,
-        params: DecodeParams(
-          format: widget.codeFormat,
-          tryHarder: widget.tryHarder,
-          tryInverted: widget.tryInverted,
-          isMultiScan: widget.isMultiScan,
-        ),
+      final DecodeParams params = DecodeParams(
+        format: widget.codeFormat,
+        tryHarder: widget.tryHarder,
+        tryInverted: widget.tryInverted,
+        isMultiScan: widget.isMultiScan,
       );
-      if (result.isValid) {
-        widget.onScan?.call(result);
+      if (widget.isMultiScan) {
+        final Codes result =
+            await zx.readBarcodesImagePath(file, params: params);
+        if (result.codes.isNotEmpty) {
+          results = result;
+          widget.onMultiScan?.call(result);
+          setState(() {});
+        } else {
+          results = Codes();
+          widget.onMultiScanFailure?.call(result);
+        }
       } else {
-        widget.onScanFailure?.call(result);
+        final Code result = await zx.readBarcodeImagePath(file, params: params);
+        if (result.isValid) {
+          widget.onScan?.call(result);
+        } else {
+          widget.onScanFailure?.call(result);
+        }
       }
     }
   }
