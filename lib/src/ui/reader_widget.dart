@@ -25,6 +25,7 @@ class ReaderWidget extends StatefulWidget {
     this.codeFormat = Format.any,
     this.tryHarder = false,
     this.tryInverted = false,
+    this.tryRotate = true,
     this.showScannerOverlay = true,
     this.scannerOverlay,
     this.actionButtonsAlignment = Alignment.bottomLeft,
@@ -78,6 +79,9 @@ class ReaderWidget extends StatefulWidget {
 
   /// Try to detect inverted code
   final bool tryInverted;
+
+  /// Try to rotate the image
+  final bool tryRotate;
 
   /// Show cropping rect
   final bool showScannerOverlay;
@@ -277,6 +281,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
           cropWidth: cropSize,
           cropHeight: cropSize,
           tryHarder: widget.tryHarder,
+          tryRotate: widget.tryRotate,
           tryInverted: widget.tryInverted,
           isMultiScan: widget.isMultiScan,
         );
