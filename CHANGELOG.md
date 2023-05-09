@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0
+
+* Downgraded image version from v3.4.0 to v3.3.0 to resolve iOS detection issue.
+* Downgraded zxing-cpp from v3.0.0 to v2.0.0 to fix QR code decoding issues.
+* Resolved multiple code scan issue that occurred when using image path by implementing a fix.
+
 ## 1.1.2
 
 * Fixed issue with onControllerCreated callback is sometimes not called
