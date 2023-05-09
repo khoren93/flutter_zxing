@@ -16,7 +16,7 @@ Future<Uint8List> convertImage(CameraImage image) async {
     } else if (image.format.group == ImageFormatGroup.bgra8888) {
       img = convertBGRA8888(image);
     }
-    return img.toUint8List();
+    return img.getBytes(format: imglib.Format.luminance); //.toUint8List();
   } catch (e) {
     debugPrint('>>>>>>>>>>>> ERROR: $e');
   }
@@ -25,10 +25,10 @@ Future<Uint8List> convertImage(CameraImage image) async {
 
 imglib.Image convertBGRA8888(CameraImage image) {
   return imglib.Image.fromBytes(
-    width: image.width,
-    height: image.height,
-    bytes: image.planes[0].bytes.buffer,
-    // format: imglib.Format.bgra,
+    image.width,
+    image.height,
+    image.planes[0].bytes,
+    format: imglib.Format.bgra,
     // format: imglib.Format.int8,
     // order: imglib.ChannelOrder.bgra,
   );
@@ -85,10 +85,11 @@ imglib.Image resizeToMaxSize(imglib.Image image, int? maxSize) {
 
 // get the bytes of the image in grayscale format (luminance) like v3
 Uint8List grayscaleBytes(imglib.Image image) {
-  final imglib.Image imgRgba8 = image.convert(
-    format: imglib.Format.uint8,
-    numChannels: 1,
-  ); // Make sure it's an RGBA 32-bit image like v3
-  imglib.grayscale(imgRgba8); // map the pixels to grayscale (luminance)
-  return imgRgba8.getBytes();
+  return image.getBytes(format: imglib.Format.luminance);
+  // final imglib.Image imgRgba8 = image.convert(
+  //   format: imglib.Format.uint8,
+  //   numChannels: 1,
+  // ); // Make sure it's an RGBA 32-bit image like v3
+  // imglib.grayscale(imgRgba8); // map the pixels to grayscale (luminance)
+  // return imgRgba8.getBytes();
 }

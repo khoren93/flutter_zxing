@@ -234,7 +234,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
       cameraDescription,
       widget.resolution,
       enableAudio: false,
-      imageFormatGroup: ImageFormatGroup.yuv420,
+      imageFormatGroup:
+          isAndroid() ? ImageFormatGroup.yuv420 : ImageFormatGroup.bgra8888,
     );
     controller = cameraController;
     try {

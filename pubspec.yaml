@@ -12,7 +12,7 @@ dependencies:
   ffi: ^2.0.0
   flutter:
     sdk: flutter
-  image: ^4.0.0
+  image: ^3.0.0
   image_picker: ^0.8.0
   melos: ^3.0.0
 

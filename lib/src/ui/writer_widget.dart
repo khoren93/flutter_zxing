@@ -278,10 +278,9 @@ class _WriterWidgetState extends State<WriterWidget>
       if (result.isValid && result.data != null) {
         try {
           final imglib.Image img = imglib.Image.fromBytes(
-            width: width,
-            height: height,
-            bytes: result.data!.buffer,
-            numChannels: 4,
+            width,
+            height,
+            result.data!,
           );
           final Uint8List encodedBytes = Uint8List.fromList(
             imglib.encodeJpg(img),
