@@ -10,7 +10,7 @@ environment:
 dependencies:
   convex_bottom_bar: ^3.2.0
   cupertino_icons: ^1.0.5
-  flex_color_scheme: ^7.0.1
+  flex_color_scheme: ^7.0.0
   flutter:
     sdk: flutter
   flutter_localizations:
@@ -22,13 +22,13 @@ dependencies:
   font_awesome_flutter: ^10.3.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-  image: ^4.0.0
+  image: any
   image_picker: ^0.8.5
   intl: ^0.17.0
-  mobx: ^2.1.3
-  path_provider: ^2.0.11
-  share_plus: ^6.3.0
-  shared_preferences: ^2.0.15
+  mobx: ^2.0.0
+  path_provider: ^2.0.0
+  share_plus: ^7.0.0
+  shared_preferences: ^2.0.0
   url_launcher: ^6.1.7
 
 flutter_intl:
@@ -46,7 +46,7 @@ dev_dependencies:
   icons_launcher: ^2.0.6 # flutter pub run icons_launcher:create
   # integration_test:
   #   sdk: flutter
-  mobx_codegen:
+  mobx_codegen: any
 
 flutter:
   uses-material-design: true
