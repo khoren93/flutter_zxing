@@ -22,8 +22,8 @@ class HelpPage extends StatelessWidget {
                 onTap: () {
                   launchUrlString('https://scanbot.io');
                 },
-                child: Column(
-                  children: const <Widget>[
+                child: const Column(
+                  children: <Widget>[
                     Text('All information is taken from'),
                     Text(
                       'scanbot.io',

@@ -24,7 +24,8 @@ mixin _$AppStore on AppStoreBase, Store {
     });
   }
 
-  final Atom _$colorSchemeIndexAtom = Atom(name: 'AppStoreBase.colorSchemeIndex');
+  final Atom _$colorSchemeIndexAtom =
+      Atom(name: 'AppStoreBase.colorSchemeIndex');
 
   @override
   int get colorSchemeIndex {
@@ -69,7 +70,8 @@ mixin _$AppStore on AppStoreBase, Store {
     });
   }
 
-  final Atom _$selectedLanguageAtom = Atom(name: 'AppStoreBase.selectedLanguage');
+  final Atom _$selectedLanguageAtom =
+      Atom(name: 'AppStoreBase.selectedLanguage');
 
   @override
   String get selectedLanguage {
@@ -84,7 +86,8 @@ mixin _$AppStore on AppStoreBase, Store {
     });
   }
 
-  final AsyncAction _$setThemeModeAsyncAction = AsyncAction('AppStoreBase.setThemeMode');
+  final AsyncAction _$setThemeModeAsyncAction =
+      AsyncAction('AppStoreBase.setThemeMode');
 
   @override
   Future<void> setThemeMode(ThemeMode value) {
@@ -118,7 +121,8 @@ mixin _$AppStore on AppStoreBase, Store {
         .run(() => super.toggleVibrationMode(value: value));
   }
 
-  final AsyncAction _$setLanguageAsyncAction = AsyncAction('AppStoreBase.setLanguage');
+  final AsyncAction _$setLanguageAsyncAction =
+      AsyncAction('AppStoreBase.setLanguage');
 
   @override
   Future<void> setLanguage(String aLanguage) {

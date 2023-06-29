@@ -66,7 +66,7 @@ class _BarcodesPageState extends State<BarcodesPage> {
                                 icon: const Icon(FontAwesomeIcons.copy),
                                 onPressed: () {
                                   Clipboard.setData(
-                                      ClipboardData(text: result.text));
+                                      ClipboardData(text: result.text ?? ''));
                                 },
                               ),
                               // Remove button
