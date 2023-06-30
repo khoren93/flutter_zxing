@@ -4,7 +4,7 @@ version: 1.2.0
 repository: https://github.com/khoren93/flutter_zxing
 
 environment:
-  sdk: ">=2.19.0 <3.0.0"
+  sdk: '>=3.0.5 <4.0.0'
   flutter: ">=3.3.0"
 
 dependencies:
@@ -13,10 +13,10 @@ dependencies:
   flutter:
     sdk: flutter
   image: ^3.0.0
-  image_picker: ^0.8.0
+  image_picker: ^1.0.0
 
 dev_dependencies:
-  ffigen: ^7.0.0 # flutter pub run ffigen --config ffigen.yaml
+  ffigen: ^8.0.0 # flutter pub run ffigen --config ffigen.yaml
   flutter_lints: ^2.0.0
   flutter_test:
     sdk: flutter
