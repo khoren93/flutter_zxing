@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+
+* Moved `melos` to dev dependencies (thanks to [@phlip9](https://github.com/phlip9))
+* Updated dependencies to the latest version
+
 ## 1.2.0
 
 * Downgraded image version from v3.4.0 to v3.3.0 to resolve iOS detection issue.
