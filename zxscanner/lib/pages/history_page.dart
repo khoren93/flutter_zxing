@@ -55,7 +55,7 @@ class _HistoryPageState extends State<HistoryPage> {
                                 icon: const Icon(FontAwesomeIcons.copy),
                                 onPressed: () {
                                   Clipboard.setData(
-                                      ClipboardData(text: result.text));
+                                      ClipboardData(text: result.text ?? ''));
                                 },
                               ),
                               // Remove button
