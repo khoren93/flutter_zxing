@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.1
+
+* Utilized Flutter version 3.1.0 or higher
+
 ## 1.3.0
 
 * Updated zxing-cpp to v2.1.0
