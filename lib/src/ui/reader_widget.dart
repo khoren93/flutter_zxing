@@ -191,6 +191,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
         }
         break;
       case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
         controller?.dispose();
         setState(() {
