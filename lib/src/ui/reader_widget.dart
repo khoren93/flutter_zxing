@@ -193,12 +193,14 @@ class _ReaderWidgetState extends State<ReaderWidget>
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
         controller?.dispose();
         setState(() {
           _isCameraOn = false;
         });
         break;
       case AppLifecycleState.detached:
+      default:
         break;
     }
   }
