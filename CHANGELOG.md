@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0
+
+* Updated zxing-cpp to v2.1.0
+
 ## 1.2.1
 
 * Moved `melos` to dev dependencies (thanks to [@phlip9](https://github.com/phlip9))
