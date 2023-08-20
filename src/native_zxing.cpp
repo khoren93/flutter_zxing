@@ -53,7 +53,7 @@ extern "C"
     char const *version()
     {
         // return ZXING_VERSION_STR; // TODO: Not working on iOS for now
-        return "2.0.0";
+        return "2.1.0";
     }
 
     FUNCTION_ATTRIBUTE

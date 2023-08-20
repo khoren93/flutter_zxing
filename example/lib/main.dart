@@ -8,6 +8,8 @@ import 'widgets/unsupported_platform_widget.dart';
 
 void main() {
   zx.setLogEnabled(kDebugMode);
+  // print zxing version
+  debugPrint('ZXing version:  ${zx.version()}');
   runApp(const MyApp());
 }
 
