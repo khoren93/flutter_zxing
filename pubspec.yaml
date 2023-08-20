@@ -4,8 +4,8 @@ version: 1.3.0
 repository: https://github.com/khoren93/flutter_zxing
 
 environment:
-  sdk: '>=3.0.5 <4.0.0'
-  flutter: ">=3.3.0"
+  sdk: '>=3.1.0 <4.0.0'
+  flutter: ">=3.11.0"
 
 dependencies:
   camera: ">=0.9.7 <0.11.0"
@@ -16,7 +16,7 @@ dependencies:
   image_picker: ^1.0.0
 
 dev_dependencies:
-  ffigen: ^8.0.0 # flutter pub run ffigen --config ffigen.yaml
+  ffigen: ^8.0.0 # dart run ffigen --config ffigen.yaml
   flutter_lints: ^2.0.0
   flutter_test:
     sdk: flutter
