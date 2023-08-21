@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.2
+
+* Conditionally add namespace for AGP 8 support
+* Set minimum Flutter version to 3.7.0
+
 ## 1.3.1
 
 * Utilized Flutter version 3.1.0 or higher

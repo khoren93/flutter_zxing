@@ -5,7 +5,7 @@ publish_to: "none"
 version: 1.2.0+14
 
 environment:
-  sdk: '>=3.1.0 <4.0.0'
+  sdk: '>=3.0.5 <4.0.0'
 
 dependencies:
   convex_bottom_bar: ^3.2.0
