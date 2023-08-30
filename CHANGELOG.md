@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0
+
+* Updated Image to v4
+
 ## 1.3.2
 
 * Conditionally add namespace for AGP 8 support
