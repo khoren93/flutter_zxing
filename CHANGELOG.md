@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1
+
+* Replaced 'hidden' with 'default' for improved compatibility with older Flutter versions
+
 ## 1.4.0
 
 * Updated Image to v4

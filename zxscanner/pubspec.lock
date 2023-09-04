@@ -395,7 +395,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "1.4.0"
+    version: "1.4.1"
   font_awesome_flutter:
     dependency: "direct main"
     description:
