@@ -3,10 +3,10 @@ import 'package:flutter_zxing/flutter_zxing.dart';
 
 class ScanResultWidget extends StatelessWidget {
   const ScanResultWidget({
-    Key? key,
+    super.key,
     this.result,
     this.onScanAgain,
-  }) : super(key: key);
+  });
 
   final Code? result;
   final Function()? onScanAgain;

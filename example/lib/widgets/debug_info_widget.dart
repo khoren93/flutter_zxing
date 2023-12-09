@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 class DebugInfoWidget extends StatelessWidget {
   const DebugInfoWidget({
-    Key? key,
+    super.key,
     required this.successScans,
     required this.failedScans,
     this.error,
     this.duration = 0,
     this.onReset,
-  }) : super(key: key);
+  });
 
   final int successScans;
   final int failedScans;
