@@ -25,7 +25,7 @@ jobs:
           cache: true
 
       # Setup the melos environment.
-      - uses: bluefireteam/melos-action@v2
+      - uses: bluefireteam/melos-action@v3
 
       - name: Install dependencies
         run: melos bootstrap
