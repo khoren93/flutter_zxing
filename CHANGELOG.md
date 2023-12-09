@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.0
+
+* Updated zxing-cpp to v2.2.0
+
 ## 1.4.1
 
 * Replaced 'hidden' with 'default' for improved compatibility with older Flutter versions
