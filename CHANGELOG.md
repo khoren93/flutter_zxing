@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.1
+
+* Updated zxing-cpp to v2.2.1
+
 ## 1.5.0
 
 * Updated zxing-cpp to v2.2.0
