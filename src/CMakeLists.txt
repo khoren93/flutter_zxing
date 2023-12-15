@@ -20,3 +20,7 @@ if (ANDROID)
     find_library(log-lib log)
     target_link_libraries(flutter_zxing ${log-lib})
 endif (ANDROID)
+
+# Command to update zxing submodule
+# cd src/zxing
+# git checkout v2.2.0

@@ -20,6 +20,7 @@ abstract class Format {
   static const int upca = 1 << 14; // UPC-A (1D)
   static const int upce = 1 << 15; // UPC-E (1D)
   static const int microQRCode = 1 << 16; // Micro QR Code
+  static const int rmqrCode = 1 << 17; // Rectangular Micro QR Code
 
   static const int linearCodes = codabar |
       code39 |
@@ -33,7 +34,7 @@ abstract class Format {
       upca |
       upce;
   static const int matrixCodes =
-      aztec | dataMatrix | maxiCode | pdf417 | qrCode | microQRCode;
+      aztec | dataMatrix | maxiCode | pdf417 | qrCode | microQRCode | rmqrCode;
   static const int any = linearCodes | matrixCodes;
 }
 
@@ -53,6 +54,7 @@ extension CodeFormat on int {
   static final List<int> supportedEncodeFormats = <int>[
     Format.qrCode,
     // Format.microQRCode,
+    // Format.rmqrCode,
     Format.dataMatrix,
     Format.aztec,
     // Format.pdf417,
@@ -90,6 +92,7 @@ final Map<int, String> barcodeNames = <int, String>{
   Format.upca: 'UPCA',
   Format.upce: 'UPCE',
   Format.microQRCode: 'Micro QR Code',
+  Format.rmqrCode: 'Rectangular Micro QR Code',
   Format.linearCodes: 'OneD',
   Format.matrixCodes: 'TwoD',
   Format.any: 'Any',
@@ -113,6 +116,7 @@ final Map<int, double> barcodeRatios = <int, double>{
   Format.upca: 3.0 / 1.0, // recommended ratio: 3:1
   Format.upce: 1.0 / 1.0, // recommended ratio: 1:1 (square)
   Format.microQRCode: 3.0 / 3.0, // recommended ratio: 3:3 (square)
+  Format.rmqrCode: 3.0 / 3.0, // recommended ratio: 3:3 (square)
 };
 
 final Map<int, String> barcodeDemoText = <int, String>{
@@ -133,6 +137,7 @@ final Map<int, String> barcodeDemoText = <int, String>{
   Format.upca: '72527273070',
   Format.upce: '0123456',
   Format.microQRCode: 'This is a Micro QR Code',
+  Format.rmqrCode: 'This is a Rectangular Micro QR Code',
 };
 
 final Map<int, int> barcodeMaxTextLengths = <int, int>{
@@ -153,4 +158,5 @@ final Map<int, int> barcodeMaxTextLengths = <int, int>{
   Format.upca: 12,
   Format.upce: 8,
   Format.microQRCode: 4296,
+  Format.rmqrCode: 4296,
 };

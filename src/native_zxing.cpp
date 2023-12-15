@@ -53,7 +53,7 @@ extern "C"
     char const *version()
     {
         // return ZXING_VERSION_STR; // TODO: Not working on iOS for now
-        return "2.1.0";
+        return "2.2.0";
     }
 
     FUNCTION_ATTRIBUTE
@@ -66,7 +66,7 @@ extern "C"
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
         }
-        DecodeHints hints = DecodeHints().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format)).setTryInvert(tryInvert).setReturnErrors(true);
+        ReaderOptions hints = ReaderOptions().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format)).setTryInvert(tryInvert).setReturnErrors(true);
         Result result = ReadBarcode(image, hints);
 
         delete[] bytes;
@@ -92,7 +92,7 @@ extern "C"
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
         }
-        DecodeHints hints = DecodeHints().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format)).setTryInvert(tryInvert);
+        ReaderOptions hints = ReaderOptions().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format)).setTryInvert(tryInvert);
         Results results = ReadBarcodes(image, hints);
         delete[] bytes;
 

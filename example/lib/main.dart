@@ -14,7 +14,7 @@ void main() {
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -32,7 +32,7 @@ class _MyAppState extends State<MyApp> {
 }
 
 class DemoPage extends StatefulWidget {
-  const DemoPage({Key? key}) : super(key: key);
+  const DemoPage({super.key});
 
   @override
   State<DemoPage> createState() => _DemoPageState();
@@ -88,6 +88,7 @@ class _DemoPageState extends State<DemoPage> {
                     onMultiScan: _onMultiScanSuccess,
                     onMultiScanFailure: _onMultiScanFailure,
                     onMultiScanModeChanged: _onMultiScanModeChanged,
+                    onControllerCreated: _onControllerCreated,
                     isMultiScan: isMultiScan,
                     scanDelay: Duration(milliseconds: isMultiScan ? 50 : 500),
                     resolution: ResolutionPreset.high,
@@ -131,6 +132,13 @@ class _DemoPageState extends State<DemoPage> {
         ),
       ),
     );
+  }
+
+  void _onControllerCreated(_, Exception? error) {
+    if (error != null) {
+      // Handle permission or unknown errors
+      _showMessage(context, 'Error: $error');
+    }
   }
 
   _onScanSuccess(Code? code) {
