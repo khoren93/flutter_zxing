@@ -56,7 +56,8 @@ class ReaderWidget extends StatefulWidget {
   final Function(Codes)? onMultiScanFailure;
 
   /// Called when the camera controller is created
-  final Function(CameraController?)? onControllerCreated;
+  final Function(CameraController? controller, Exception? error)?
+      onControllerCreated;
 
   /// Called when the multi scan mode is changed
   /// When set to null, the multi scan mode button will not be displayed
@@ -239,11 +240,12 @@ class _ReaderWidgetState extends State<ReaderWidget>
     controller = cameraController;
     try {
       await cameraController.initialize();
-      widget.onControllerCreated?.call(controller);
+      widget.onControllerCreated?.call(controller, null);
       cameraController.addListener(rebuildOnMount);
       cameraController.startImageStream(processImageStream);
     } on CameraException catch (e) {
       debugPrint('${e.code}: ${e.description}');
+      widget.onControllerCreated?.call(null, e);
     } catch (e) {
       debugPrint('Error: $e');
     }

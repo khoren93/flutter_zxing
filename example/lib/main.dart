@@ -88,6 +88,7 @@ class _DemoPageState extends State<DemoPage> {
                     onMultiScan: _onMultiScanSuccess,
                     onMultiScanFailure: _onMultiScanFailure,
                     onMultiScanModeChanged: _onMultiScanModeChanged,
+                    onControllerCreated: _onControllerCreated,
                     isMultiScan: isMultiScan,
                     scanDelay: Duration(milliseconds: isMultiScan ? 50 : 500),
                     resolution: ResolutionPreset.high,
@@ -131,6 +132,13 @@ class _DemoPageState extends State<DemoPage> {
         ),
       ),
     );
+  }
+
+  void _onControllerCreated(_, Exception? error) {
+    if (error != null) {
+      // Handle permission or unknown errors
+      _showMessage(context, 'Error: $error');
+    }
   }
 
   _onScanSuccess(Code? code) {
