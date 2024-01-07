@@ -22,7 +22,7 @@ Future<Codes> zxingReadBarcodesImagePath(
   }
   image = resizeToMaxSize(image, params?.maxSize);
   return zxingReadBarcodes(
-    grayscaleBytes(image),
+    rgbBytes(image),
     width: image.width,
     height: image.height,
     params: params,
@@ -42,7 +42,7 @@ Future<Codes> zxingReadBarcodesImageUrl(
   }
   image = resizeToMaxSize(image, params?.maxSize);
   return zxingReadBarcodes(
-    grayscaleBytes(image),
+    rgbBytes(image),
     width: image.width,
     height: image.height,
     params: params,
@@ -67,6 +67,7 @@ Codes _readBarcodes(
 ) {
   final CodeResults result = bindings.readBarcodes(
     bytes.allocatePointer(),
+    params?.imageFormat ?? zx.ImageFormat.lum,
     params?.format ?? Format.any,
     width,
     height,

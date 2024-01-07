@@ -58,6 +58,7 @@ class GeneratedBindings {
 
   /// @brief Read barcode from image bytes.
   /// @param bytes Image bytes.
+  /// @param imageFormat Image format.
   /// @param format Specify a set of BarcodeFormats that should be searched for.
   /// @param width Image width in pixels.
   /// @param height Image height in pixels.
@@ -68,6 +69,7 @@ class GeneratedBindings {
   /// @return The barcode result.
   CodeResult readBarcode(
     ffi.Pointer<ffi.Char> bytes,
+    int imageFormat,
     int format,
     int width,
     int height,
@@ -79,6 +81,7 @@ class GeneratedBindings {
   ) {
     return _readBarcode(
       bytes,
+      imageFormat,
       format,
       width,
       height,
@@ -92,14 +95,24 @@ class GeneratedBindings {
 
   late final _readBarcodePtr = _lookup<
       ffi.NativeFunction<
-          CodeResult Function(ffi.Pointer<ffi.Char>, ffi.Int, ffi.Int, ffi.Int,
-              ffi.Int, ffi.Int, ffi.Int, ffi.Int, ffi.Int)>>('readBarcode');
+          CodeResult Function(
+              ffi.Pointer<ffi.Char>,
+              ffi.Int,
+              ffi.Int,
+              ffi.Int,
+              ffi.Int,
+              ffi.Int,
+              ffi.Int,
+              ffi.Int,
+              ffi.Int,
+              ffi.Int)>>('readBarcode');
   late final _readBarcode = _readBarcodePtr.asFunction<
-      CodeResult Function(
-          ffi.Pointer<ffi.Char>, int, int, int, int, int, int, int, int)>();
+      CodeResult Function(ffi.Pointer<ffi.Char>, int, int, int, int, int, int,
+          int, int, int)>();
 
   /// @brief Read barcodes from image bytes.
   /// @param bytes Image bytes.
+  /// @param imageFormat Image format.
   /// @param format Specify a set of BarcodeFormats that should be searched for.
   /// @param width Image width in pixels.
   /// @param height Image height in pixels.
@@ -110,6 +123,7 @@ class GeneratedBindings {
   /// @return The barcode results.
   CodeResults readBarcodes(
     ffi.Pointer<ffi.Char> bytes,
+    int imageFormat,
     int format,
     int width,
     int height,
@@ -121,6 +135,7 @@ class GeneratedBindings {
   ) {
     return _readBarcodes(
       bytes,
+      imageFormat,
       format,
       width,
       height,
@@ -134,11 +149,20 @@ class GeneratedBindings {
 
   late final _readBarcodesPtr = _lookup<
       ffi.NativeFunction<
-          CodeResults Function(ffi.Pointer<ffi.Char>, ffi.Int, ffi.Int, ffi.Int,
-              ffi.Int, ffi.Int, ffi.Int, ffi.Int, ffi.Int)>>('readBarcodes');
+          CodeResults Function(
+              ffi.Pointer<ffi.Char>,
+              ffi.Int,
+              ffi.Int,
+              ffi.Int,
+              ffi.Int,
+              ffi.Int,
+              ffi.Int,
+              ffi.Int,
+              ffi.Int,
+              ffi.Int)>>('readBarcodes');
   late final _readBarcodes = _readBarcodesPtr.asFunction<
-      CodeResults Function(
-          ffi.Pointer<ffi.Char>, int, int, int, int, int, int, int, int)>();
+      CodeResults Function(ffi.Pointer<ffi.Char>, int, int, int, int, int, int,
+          int, int, int)>();
 
   /// @brief Encode a string into a barcode
   /// @param contents The string to encode

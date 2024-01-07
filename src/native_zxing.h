@@ -80,6 +80,7 @@ extern "C"
     /**
      * @brief Read barcode from image bytes.
      * @param bytes Image bytes.
+     * @param imageFormat Image format.
      * @param format Specify a set of BarcodeFormats that should be searched for.
      * @param width Image width in pixels.
      * @param height Image height in pixels.
@@ -89,11 +90,12 @@ extern "C"
      * @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
      * @return The barcode result.
      */
-    struct CodeResult readBarcode(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert);
+    struct CodeResult readBarcode(char *bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert);
 
     /**
      * @brief Read barcodes from image bytes.
      * @param bytes Image bytes.
+     * @param imageFormat Image format.
      * @param format Specify a set of BarcodeFormats that should be searched for.
      * @param width Image width in pixels.
      * @param height Image height in pixels.
@@ -103,7 +105,7 @@ extern "C"
      * @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
      * @return The barcode results.
      */
-    struct CodeResults readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert);
+    struct CodeResults readBarcodes(char *bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert);
 
     /**
      * @brief Encode a string into a barcode

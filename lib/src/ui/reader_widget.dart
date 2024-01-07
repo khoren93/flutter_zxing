@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../flutter_zxing.dart';
+import '../../flutter_zxing.dart' as zxing;
 import 'scan_mode_dropdown.dart';
 
 /// Widget to scan a code from the camera stream
@@ -234,8 +235,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
       cameraDescription,
       widget.resolution,
       enableAudio: false,
-      imageFormatGroup:
-          isAndroid() ? ImageFormatGroup.yuv420 : ImageFormatGroup.bgra8888,
+      // imageFormatGroup:
+      //     isAndroid() ? ImageFormatGroup.yuv420 : ImageFormatGroup.bgra8888,
     );
     controller = cameraController;
     try {
@@ -279,6 +280,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
         final int cropSize =
             (min(image.width, image.height) * cropPercent).round();
         final DecodeParams params = DecodeParams(
+          imageFormat: _imageFormat(image.format.group),
           format: widget.codeFormat,
           cropWidth: cropSize,
           cropHeight: cropSize,
@@ -466,6 +468,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
         await ImagePicker().pickImage(source: ImageSource.gallery);
     if (file != null) {
       final DecodeParams params = DecodeParams(
+        imageFormat: zxing.ImageFormat.rgb,
         format: widget.codeFormat,
         tryHarder: widget.tryHarder,
         tryInverted: widget.tryInverted,
@@ -513,6 +516,21 @@ class _ReaderWidgetState extends State<ReaderWidget>
         return Icons.flash_on;
       case FlashMode.auto:
         return Icons.flash_auto;
+    }
+  }
+
+  int _imageFormat(ImageFormatGroup group) {
+    switch (group) {
+      case ImageFormatGroup.unknown:
+        return zxing.ImageFormat.none;
+      case ImageFormatGroup.bgra8888:
+        return zxing.ImageFormat.bgrx;
+      case ImageFormatGroup.yuv420:
+        return zxing.ImageFormat.lum;
+      case ImageFormatGroup.jpeg:
+        return zxing.ImageFormat.rgb;
+      case ImageFormatGroup.nv21:
+        return zxing.ImageFormat.rgb;
     }
   }
 }

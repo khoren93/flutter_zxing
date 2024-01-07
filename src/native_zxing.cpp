@@ -53,15 +53,15 @@ extern "C"
     char const *version()
     {
         // return ZXING_VERSION_STR; // TODO: Not working on iOS for now
-        return "2.2.0";
+        return "2.2.1";
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResult readBarcode(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert)
+    struct CodeResult readBarcode(char *bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert)
     {
         long long start = get_now();
 
-        ImageView image{reinterpret_cast<const uint8_t *>(bytes), width, height, ImageFormat::Lum};
+        ImageView image{reinterpret_cast<const uint8_t *>(bytes), width, height, ImageFormat(imageFormat)};
         if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
@@ -83,11 +83,11 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResults readBarcodes(char *bytes, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert)
+    struct CodeResults readBarcodes(char *bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert)
     {
         long long start = get_now();
 
-        ImageView image{reinterpret_cast<const uint8_t *>(bytes), width, height, ImageFormat::Lum};
+        ImageView image{reinterpret_cast<const uint8_t *>(bytes), width, height, ImageFormat(imageFormat)};
         if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);

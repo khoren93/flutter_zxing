@@ -11,6 +11,7 @@ import 'package:image/image.dart' as imglib;
 
 import '../../generated_bindings.dart';
 import '../models/models.dart';
+import '../models/models.dart' as zx;
 import '../utils/extentions.dart';
 // import '../utils/image_converter.dart';
 import '../utils/image_converter.dart';

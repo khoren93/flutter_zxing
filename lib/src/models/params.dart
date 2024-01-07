@@ -1,10 +1,12 @@
 import 'dart:core';
 
 import 'format.dart';
+import 'image_format.dart';
 
 // Represents the parameters for decoding a barcode
 class DecodeParams {
   DecodeParams({
+    this.imageFormat = ImageFormat.lum,
     this.format = Format.any,
     this.cropWidth = 0,
     this.cropHeight = 0,
@@ -14,6 +16,9 @@ class DecodeParams {
     this.maxSize = 768,
     this.isMultiScan = false,
   });
+
+  // The image format of the image. The default is lum.
+  int imageFormat;
 
   // Specify a set of BarcodeFormats that should be searched for, the default is all supported formats.
   int format;
