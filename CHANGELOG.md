@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.2
+
+* Fixed issue with recognizing the barcodes from the image
+
 ## 1.5.1
 
 * Updated zxing-cpp to v2.2.1
