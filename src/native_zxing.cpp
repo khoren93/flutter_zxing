@@ -5,8 +5,9 @@
 #include "native_zxing.h"
 // #include "ZXVersion.h" // This file is not existing for iOS
 
-#include <locale>
+#include <algorithm>
 #include <codecvt>
+#include <locale>
 #include <stdarg.h>
 
 using namespace ZXing;
@@ -125,8 +126,16 @@ extern "C"
         {
             auto writer = MultiFormatWriter(BarcodeFormat(format)).setMargin(margin).setEccLevel(eccLevel).setEncoding(CharacterSet::UTF8);
             auto bitMatrix = writer.encode(contents, width, height);
-            result.data = ToMatrix<int8_t>(bitMatrix).data();
-            result.length = bitMatrix.width() * bitMatrix.height();
+            auto matrix = ToMatrix<int8_t>(bitMatrix);
+
+            // We need to return an owned pointer across the ffi boundary. Copy
+            // the output (again).
+            auto length = matrix.size();
+            auto data = new int8_t[length];
+            std::copy(matrix.begin(), matrix.end(), data);
+
+            result.length = length;
+            result.data = data;
             result.isValid = true;
         }
         catch (const exception &e)
