@@ -5,16 +5,59 @@ import 'package:ffi/ffi.dart';
 
 import '../../zxing_mobile.dart';
 
+/// From an owned pointer allocated in native code, copy the data into the Dart
+/// VM Heap as a [Uint32List] and then immediately `free` the owned ffi pointer.
+Uint32List? copyUint32ListFromOwnedFfiPtr(
+  Pointer<SignedChar> data,
+  int length,
+) {
+  if (data == nullptr || length == 0) {
+    return null;
+  }
+
+  final Uint32List out =
+      Uint32List.fromList(data.cast<Int8>().asTypedList(length));
+  malloc.free(data);
+  return out;
+}
+
+/// From an owned pointer allocated in native code, copy the data into the Dart
+/// VM Heap as a [Uint8List] and then immediately `free` the owned ffi pointer.
+Uint8List? copyUint8ListFromOwnedFfiPtr(
+    Pointer<UnsignedChar> data, int length) {
+  if (data == nullptr || length == 0) {
+    return null;
+  }
+
+  final Uint8List out =
+      Uint8List.fromList(data.cast<Int8>().asTypedList(length));
+  malloc.free(data);
+  return out;
+}
+
+/// From an owned, UTF-8 encoded C-string (null-byte terminated) allocated in
+/// native code, copy the string into the Dart VM Heap as a [String]a and then
+/// immediately `free` the owned pointer.
+String? copyStringFromOwnedFfiPtr(Pointer<Char> text) {
+  if (text == nullptr) {
+    return null;
+  }
+
+  final String out = text.cast<Utf8>().toDartString();
+  malloc.free(text);
+  return out;
+}
+
 extension CodeExt on CodeResult {
   Code toCode() {
     return Code(
-      text: text == nullptr ? null : text.cast<Utf8>().toDartString(),
+      text: copyStringFromOwnedFfiPtr(text),
       isValid: isValid == 1,
-      error: error == nullptr ? null : error.cast<Utf8>().toDartString(),
-      rawBytes: bytes == nullptr
-          ? null
-          : Uint8List.fromList(bytes.cast<Int8>().asTypedList(length)),
+      error: copyStringFromOwnedFfiPtr(error),
+      rawBytes: copyUint8ListFromOwnedFfiPtr(bytes, length),
       format: format,
+      // TODO(phlip9): this should be passed by value... or free'd... Otherwise
+      // this currently leaks memory.
       position: pos == nullptr ? null : pos.ref.toPosition(),
       isInverted: isInverted == 1,
       isMirrored: isMirrored == 1,
@@ -27,16 +70,14 @@ extension EncodeExt on EncodeResult {
   Encode toEncode() => Encode(
         isValid == 1,
         format,
-        text == nullptr ? null : text.cast<Utf8>().toDartString(),
-        data == nullptr
-            ? null
-            : Uint32List.fromList(data.cast<Int8>().asTypedList(length)),
+        copyStringFromOwnedFfiPtr(text),
+        copyUint32ListFromOwnedFfiPtr(data, length),
         length,
-        error == nullptr ? null : error.cast<Utf8>().toDartString(),
+        copyStringFromOwnedFfiPtr(error),
       );
 }
 
-extension PoeExt on Pos {
+extension PosExt on Pos {
   Position toPosition() => Position(
         imageWidth,
         imageHeight,
