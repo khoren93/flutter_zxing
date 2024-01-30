@@ -56,9 +56,7 @@ extension CodeExt on CodeResult {
       error: copyStringFromOwnedFfiPtr(error),
       rawBytes: copyUint8ListFromOwnedFfiPtr(bytes, length),
       format: format,
-      // TODO(phlip9): this should be passed by value... or free'd... Otherwise
-      // this currently leaks memory.
-      position: pos == nullptr ? null : pos.ref.toPosition(),
+      position: pos.toPosition(),
       isInverted: isInverted == 1,
       isMirrored: isMirrored == 1,
       duration: duration,

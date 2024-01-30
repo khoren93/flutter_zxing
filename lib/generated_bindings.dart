@@ -265,7 +265,7 @@ final class CodeResult extends ffi.Struct {
   external int format;
 
   /// < The position of the barcode within the image
-  external ffi.Pointer<Pos> pos;
+  external Pos pos;
 
   /// < Whether the barcode was inverted
   @ffi.Int()

@@ -38,7 +38,7 @@ extern "C"
         auto tr = p.topRight();
         auto bl = p.bottomLeft();
         auto br = p.bottomRight();
-        code->pos = new Pos{0, 0, tl.x, tl.y, tr.x, tr.y, bl.x, bl.y, br.x, br.y};
+        code->pos = Pos{0, 0, tl.x, tl.y, tr.x, tr.y, bl.x, bl.y, br.x, br.y};
 
         code->isInverted = result.isInverted();
         code->isMirrored = result.isMirrored();
@@ -72,13 +72,13 @@ extern "C"
 
         delete[] bytes;
 
-        struct CodeResult code;
+        struct CodeResult code {};
         resultToCodeResult(&code, result);
 
         int evalInMillis = static_cast<int>(get_now() - start);
         code.duration = evalInMillis;
-        code.pos->imageWidth = width;
-        code.pos->imageHeight = height;
+        code.pos.imageWidth = width;
+        code.pos.imageHeight = height;
         platform_log("Read Barcode in: %d ms\n", code.duration);
         return code;
     }
@@ -104,11 +104,11 @@ extern "C"
         int i = 0;
         for (auto &result : results)
         {
-            struct CodeResult code;
+            struct CodeResult code {};
             resultToCodeResult(&code, result);
             code.duration = evalInMillis;
-            code.pos->imageWidth = width;
-            code.pos->imageHeight = height;
+            code.pos.imageWidth = width;
+            code.pos.imageHeight = height;
             codes[i] = code;
             i++;
         }

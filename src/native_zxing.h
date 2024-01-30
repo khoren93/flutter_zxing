@@ -32,7 +32,7 @@ extern "C"
         const unsigned char *bytes; ///< The bytes is the raw / standard content without any modifications like character set conversions
         int length;                 ///< The length of the bytes
         int format;                 ///< The format of the barcode
-        struct Pos *pos;            ///< The position of the barcode within the image
+        struct Pos pos;             ///< The position of the barcode within the image
         int isInverted;             ///< Whether the barcode was inverted
         int isMirrored;             ///< Whether the barcode was mirrored
         int duration;               ///< The duration of the decoding in milliseconds
