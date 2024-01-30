@@ -66,7 +66,7 @@ Codes _readBarcodes(
   DecodeParams? params,
 ) {
   final CodeResults result = bindings.readBarcodes(
-    bytes.allocatePointer(),
+    bytes.copyToNativePointer(),
     params?.imageFormat ?? zx.ImageFormat.lum,
     params?.format ?? Format.any,
     width,
@@ -81,5 +81,6 @@ Codes _readBarcodes(
   for (int i = 0; i < result.count; i++) {
     results.add(result.results.elementAt(i).ref.toCode());
   }
+  malloc.free(result.results);
   return Codes(codes: results, duration: result.duration);
 }

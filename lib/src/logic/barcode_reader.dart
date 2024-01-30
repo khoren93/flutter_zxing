@@ -67,7 +67,7 @@ Code _readBarcode(
 ) {
   return bindings
       .readBarcode(
-        bytes.allocatePointer(),
+        bytes.copyToNativePointer(),
         params?.imageFormat ?? zx.ImageFormat.lum,
         params?.format ?? Format.any,
         width,

@@ -8,7 +8,7 @@ import '../../zxing_mobile.dart';
 /// From an owned pointer allocated in native code, copy the data into the Dart
 /// VM Heap as a [Uint32List] and then immediately `free` the owned ffi pointer.
 Uint32List? copyUint32ListFromOwnedFfiPtr(
-  Pointer<SignedChar> data,
+  Pointer<Uint8> data,
   int length,
 ) {
   if (data == nullptr || length == 0) {
@@ -23,14 +23,12 @@ Uint32List? copyUint32ListFromOwnedFfiPtr(
 
 /// From an owned pointer allocated in native code, copy the data into the Dart
 /// VM Heap as a [Uint8List] and then immediately `free` the owned ffi pointer.
-Uint8List? copyUint8ListFromOwnedFfiPtr(
-    Pointer<UnsignedChar> data, int length) {
+Uint8List? copyUint8ListFromOwnedFfiPtr(Pointer<Uint8> data, int length) {
   if (data == nullptr || length == 0) {
     return null;
   }
 
-  final Uint8List out =
-      Uint8List.fromList(data.cast<Int8>().asTypedList(length));
+  final Uint8List out = Uint8List.fromList(data.asTypedList(length));
   malloc.free(data);
   return out;
 }

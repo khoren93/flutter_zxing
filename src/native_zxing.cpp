@@ -7,8 +7,9 @@
 
 #include <algorithm>
 #include <codecvt>
+#include <cstdarg>
+#include <cstdlib>
 #include <locale>
-#include <stdarg.h>
 
 using namespace ZXing;
 using namespace std;
@@ -29,9 +30,11 @@ extern "C"
 
         code->format = static_cast<int>(result.format());
 
-        // TODO: this needs to be allocated and coped as well (see text above). Will also require a delete in some flutter code, I assume
-        code->bytes = result.bytes().data();
-        code->length = result.bytes().size();
+        auto length = result.bytes().size();
+        auto* bytes = new uint8_t[length];
+        std::copy(result.bytes().begin(), result.bytes().end(), bytes);
+        code->bytes = bytes;
+        code->length = length;
 
         auto p = result.position();
         auto tl = p.topLeft();
@@ -58,18 +61,17 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResult readBarcode(char *bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert)
+    struct CodeResult readBarcode(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert)
     {
         long long start = get_now();
 
-        ImageView image{reinterpret_cast<const uint8_t *>(bytes), width, height, ImageFormat(imageFormat)};
+        ImageView image {bytes, width, height, ImageFormat(imageFormat)};
         if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
         }
         ReaderOptions hints = ReaderOptions().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format)).setTryInvert(tryInvert).setReturnErrors(true);
         Result result = ReadBarcode(image, hints);
-
         delete[] bytes;
 
         struct CodeResult code {};
@@ -84,11 +86,11 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResults readBarcodes(char *bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert)
+    struct CodeResults readBarcodes(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert)
     {
         long long start = get_now();
 
-        ImageView image{reinterpret_cast<const uint8_t *>(bytes), width, height, ImageFormat(imageFormat)};
+        ImageView image{bytes, width, height, ImageFormat(imageFormat)};
         if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
         {
             image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
@@ -117,7 +119,7 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct EncodeResult encodeBarcode(char *contents, int width, int height, int format, int margin, int eccLevel)
+    struct EncodeResult encodeBarcode(char* contents, int width, int height, int format, int margin, int eccLevel)
     {
         long long start = get_now();
 
@@ -126,12 +128,12 @@ extern "C"
         {
             auto writer = MultiFormatWriter(BarcodeFormat(format)).setMargin(margin).setEccLevel(eccLevel).setEncoding(CharacterSet::UTF8);
             auto bitMatrix = writer.encode(contents, width, height);
-            auto matrix = ToMatrix<int8_t>(bitMatrix);
+            auto matrix = ToMatrix<uint8_t>(bitMatrix);
 
             // We need to return an owned pointer across the ffi boundary. Copy
             // the output (again).
             auto length = matrix.size();
-            auto data = new int8_t[length];
+            auto* data = new uint8_t[length];
             std::copy(matrix.begin(), matrix.end(), data);
 
             result.length = length;
