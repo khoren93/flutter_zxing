@@ -77,10 +77,16 @@ Codes _readBarcodes(
     params?.tryRotate ?? true ? 1 : 0,
     params?.tryInverted ?? false ? 1 : 0,
   );
-  final List<Code> results = <Code>[];
+
+  final List<Code> codes = <Code>[];
+
+  if (result.count == 0 || result.results == nullptr) {
+    return Codes(codes: codes, duration: result.duration);
+  }
+
   for (int i = 0; i < result.count; i++) {
-    results.add(result.results.elementAt(i).ref.toCode());
+    codes.add(result.results.elementAt(i).ref.toCode());
   }
   malloc.free(result.results);
-  return Codes(codes: results, duration: result.duration);
+  return Codes(codes: codes, duration: result.duration);
 }

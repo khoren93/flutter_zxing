@@ -10,42 +10,63 @@
 #include <cstdarg>
 #include <cstdlib>
 #include <locale>
+#include <string>
+#include <vector>
 
 using namespace ZXing;
 using namespace std;
 
+// Returns an owned C-string `char*`, copied from a `std::string&`.
+char* cstrFromString(const std::string& s)
+{
+    auto size = s.length() + 1;
+    char* out = new char[size];
+    std::copy(s.begin(), s.end(), out);
+    out[size] = '\0';
+    return out;
+}
+
+// Returns an owned byte buffer `uint8_t*`, copied from a
+// `std::vector<uint8_t>&`.
+uint8_t* bytesFromVector(const std::vector<uint8_t>& v)
+{
+    auto* bytes = new uint8_t[v.size()];
+    std::copy(v.begin(), v.end(), bytes);
+    return bytes;
+}
+
+// Construct a `CodeResult` from a zxing barcode decode `Result` from within an
+// image.
+CodeResult codeResultFromResult(
+    const Result& result,
+    int duration,
+    int width,
+    int height
+) {
+    auto p = result.position();
+    auto tl = p.topLeft();
+    auto tr = p.topRight();
+    auto bl = p.bottomLeft();
+    auto br = p.bottomRight();
+
+    const auto text = result.text();
+
+    struct CodeResult code {};
+    code.text = cstrFromString(text);
+    code.isValid = result.isValid();
+    code.error = cstrFromString(result.error().msg());
+    code.bytes = bytesFromVector(result.bytes());
+    code.length = static_cast<int>(result.bytes().size());
+    code.format = static_cast<int>(result.format());
+    code.pos = Pos {width, height, tl.x, tl.y, tr.x, tr.y, bl.x, bl.y, br.x, br.y};
+    code.isInverted = result.isInverted();
+    code.isMirrored = result.isMirrored();
+    code.duration = duration;
+    return code;
+}
+
 extern "C"
 {
-    void resultToCodeResult(struct CodeResult *code, Result result)
-    {
-        string text = result.text();
-        code->text = new char[text.length() + 1];
-        strcpy(code->text, text.c_str());
-
-        code->isValid = result.isValid();
-
-        string error = result.error().msg();
-        code->error = new char[error.length() + 1];
-        strcpy(code->error, error.c_str());
-
-        code->format = static_cast<int>(result.format());
-
-        auto length = result.bytes().size();
-        auto* bytes = new uint8_t[length];
-        std::copy(result.bytes().begin(), result.bytes().end(), bytes);
-        code->bytes = bytes;
-        code->length = length;
-
-        auto p = result.position();
-        auto tl = p.topLeft();
-        auto tr = p.topRight();
-        auto bl = p.bottomLeft();
-        auto br = p.bottomRight();
-        code->pos = Pos{0, 0, tl.x, tl.y, tr.x, tr.y, bl.x, bl.y, br.x, br.y};
-
-        code->isInverted = result.isInverted();
-        code->isMirrored = result.isMirrored();
-    }
 
     FUNCTION_ATTRIBUTE
     void setLogEnabled(int enable)
@@ -72,17 +93,15 @@ extern "C"
         }
         ReaderOptions hints = ReaderOptions().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format)).setTryInvert(tryInvert).setReturnErrors(true);
         Result result = ReadBarcode(image, hints);
+
+        // Dart passes us an owned image bytes pointer; we need to free it after
+        // we're done decoding.
         delete[] bytes;
 
-        struct CodeResult code {};
-        resultToCodeResult(&code, result);
+        int duration = static_cast<int>(get_now() - start);
+        platform_log("Read Barcode in: %d ms\n", duration);
 
-        int evalInMillis = static_cast<int>(get_now() - start);
-        code.duration = evalInMillis;
-        code.pos.imageWidth = width;
-        code.pos.imageHeight = height;
-        platform_log("Read Barcode in: %d ms\n", code.duration);
-        return code;
+        return codeResultFromResult(result, duration, width, height);
     }
 
     FUNCTION_ATTRIBUTE
@@ -97,25 +116,25 @@ extern "C"
         }
         ReaderOptions hints = ReaderOptions().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format)).setTryInvert(tryInvert);
         Results results = ReadBarcodes(image, hints);
+
+        // Dart passes us an owned image bytes pointer; we need to free it after
+        // we're done decoding.
         delete[] bytes;
 
-        int evalInMillis = static_cast<int>(get_now() - start);
-        platform_log("Read Barcode in: %d ms\n", evalInMillis);
+        int duration = static_cast<int>(get_now() - start);
+        platform_log("Read Barcode in: %d ms\n", duration);
 
-        auto *codes = new struct CodeResult[results.size()];
-        int i = 0;
-        for (auto &result : results)
-        {
-            struct CodeResult code {};
-            resultToCodeResult(&code, result);
-            code.duration = evalInMillis;
-            code.pos.imageWidth = width;
-            code.pos.imageHeight = height;
-            codes[i] = code;
-            i++;
+        if (results.empty()) {
+          return CodeResults {0, nullptr, duration};
         }
 
-        return {i, codes, evalInMillis};
+        auto* codes = new struct CodeResult[results.size()];
+        int i = 0;
+        for (const auto& result : results) {
+            codes[i] = codeResultFromResult(result, duration, width, height);
+            i++;
+        }
+        return CodeResults {i, codes, duration};
     }
 
     FUNCTION_ATTRIBUTE
