@@ -69,7 +69,7 @@ extern "C"
 {
 
     FUNCTION_ATTRIBUTE
-    void setLogEnabled(int enable)
+    void setLogEnabled(bool enable)
     {
         setLoggingEnabled(enable);
     }
@@ -82,7 +82,7 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResult readBarcode(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert)
+    struct CodeResult readBarcode(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert)
     {
         long long start = get_now();
 
@@ -105,7 +105,7 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResults readBarcodes(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert)
+    struct CodeResults readBarcodes(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert)
     {
         long long start = get_now();
 

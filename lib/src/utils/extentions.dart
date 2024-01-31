@@ -50,13 +50,13 @@ extension CodeExt on CodeResult {
   Code toCode() {
     return Code(
       text: copyStringFromOwnedFfiPtr(text),
-      isValid: isValid == 1,
+      isValid: isValid,
       error: copyStringFromOwnedFfiPtr(error),
       rawBytes: copyUint8ListFromOwnedFfiPtr(bytes, length),
       format: format,
       position: pos.toPosition(),
-      isInverted: isInverted == 1,
-      isMirrored: isMirrored == 1,
+      isInverted: isInverted,
+      isMirrored: isMirrored,
       duration: duration,
     );
   }
@@ -64,7 +64,7 @@ extension CodeExt on CodeResult {
 
 extension EncodeExt on EncodeResult {
   Encode toEncode() => Encode(
-        isValid == 1,
+        isValid,
         format,
         copyStringFromOwnedFfiPtr(text),
         copyUint32ListFromOwnedFfiPtr(data, length),

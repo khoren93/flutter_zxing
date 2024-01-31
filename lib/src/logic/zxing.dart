@@ -27,8 +27,7 @@ part 'camera_stream.dart';
 String zxingVersion() => bindings.version().cast<Utf8>().toDartString();
 
 /// Enables or disables the logging of the library
-void setZxingLogEnabled(bool enabled) =>
-    bindings.setLogEnabled(enabled ? 1 : 0);
+void setZxingLogEnabled(bool enabled) => bindings.setLogEnabled(enabled);
 
 /// Returns a readable barcode format name
 String zxingBarcodeFormatName(int format) => barcodeNames[format] ?? 'Unknown';

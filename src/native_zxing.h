@@ -1,6 +1,7 @@
 #ifdef __cplusplus
     #include <cstdint>
 #else
+    #include <stdbool.h>
     #include <stdint.h>
 #endif
 
@@ -33,14 +34,14 @@ extern "C"
     struct CodeResult
     {
         char *text;                 ///< The decoded text. Owned pointer. Must be freed by Dart code if not null.
-        int isValid;                ///< Whether the barcode was successfully decoded
+        bool isValid;               ///< Whether the barcode was successfully decoded
         char *error;                ///< The error message. Owned pointer. Must be freed by Dart code if not null.
         uint8_t* bytes;             ///< The bytes is the raw content without any character set conversions. Owned pointer. Must be freed by Dart code if not null.
         int length;                 ///< The length of the bytes
         int format;                 ///< The format of the barcode
         struct Pos pos;             ///< The position of the barcode within the image
-        int isInverted;             ///< Whether the barcode was inverted
-        int isMirrored;             ///< Whether the barcode was mirrored
+        bool isInverted;            ///< Whether the barcode was inverted
+        bool isMirrored;            ///< Whether the barcode was mirrored
         int duration;               ///< The duration of the decoding in milliseconds
     };
 
@@ -60,7 +61,7 @@ extern "C"
      */
     struct EncodeResult
     {
-        int isValid;              ///< Whether the barcode was successfully encoded
+        bool isValid;             ///< Whether the barcode was successfully encoded
         char *text;               ///< The encoded text. Owned pointer. Must be freed by Dart code if not null.
         int format;               ///< The format of the barcode
         uint8_t* data;            ///< The encoded data. Owned pointer. Must be freed by Dart code if not null.
@@ -71,9 +72,9 @@ extern "C"
     /**
      * @brief Enables or disables the logging of the library.
      *
-     * @param enable Whether to enable or disable the logging.
+     * @param enabled Whether to enable or disable the logging.
      */
-    void setLogEnabled(int enable);
+    void setLogEnabled(bool enabled);
 
     /**
      * Returns the version of the zxing-cpp library. Pointer has a static lifetime and must not be freed.
@@ -95,7 +96,7 @@ extern "C"
      * @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
      * @return The barcode result.
      */
-    struct CodeResult readBarcode(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert);
+    struct CodeResult readBarcode(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert);
 
     /**
      * @brief Read barcodes from image bytes.
@@ -110,7 +111,7 @@ extern "C"
      * @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
      * @return The barcode results.
      */
-    struct CodeResults readBarcodes(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert);
+    struct CodeResults readBarcodes(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert);
 
     /**
      * @brief Encode a string into a barcode

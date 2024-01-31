@@ -74,9 +74,9 @@ Code _readBarcode(
         height,
         params?.cropWidth ?? 0,
         params?.cropHeight ?? 0,
-        params?.tryHarder ?? false ? 1 : 0,
-        params?.tryRotate ?? true ? 1 : 0,
-        params?.tryInverted ?? false ? 1 : 0,
+        params?.tryHarder ?? false,
+        params?.tryRotate ?? true,
+        params?.tryInverted ?? false,
       )
       .toCode();
 }

@@ -29,19 +29,19 @@ class GeneratedBindings {
 
   /// @brief Enables or disables the logging of the library.
   ///
-  /// @param enable Whether to enable or disable the logging.
+  /// @param enabled Whether to enable or disable the logging.
   void setLogEnabled(
-    int enable,
+    bool enabled,
   ) {
     return _setLogEnabled(
-      enable,
+      enabled,
     );
   }
 
   late final _setLogEnabledPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int)>>('setLogEnabled');
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Bool)>>('setLogEnabled');
   late final _setLogEnabled =
-      _setLogEnabledPtr.asFunction<void Function(int)>();
+      _setLogEnabledPtr.asFunction<void Function(bool)>();
 
   /// Returns the version of the zxing-cpp library. Pointer has a static lifetime and must not be freed.
   ///
@@ -74,9 +74,9 @@ class GeneratedBindings {
     int height,
     int cropWidth,
     int cropHeight,
-    int tryHarder,
-    int tryRotate,
-    int tryInvert,
+    bool tryHarder,
+    bool tryRotate,
+    bool tryInvert,
   ) {
     return _readBarcode(
       bytes,
@@ -102,12 +102,12 @@ class GeneratedBindings {
               ffi.Int,
               ffi.Int,
               ffi.Int,
-              ffi.Int,
-              ffi.Int,
-              ffi.Int)>>('readBarcode');
+              ffi.Bool,
+              ffi.Bool,
+              ffi.Bool)>>('readBarcode');
   late final _readBarcode = _readBarcodePtr.asFunction<
       CodeResult Function(ffi.Pointer<ffi.Uint8>, int, int, int, int, int, int,
-          int, int, int)>();
+          bool, bool, bool)>();
 
   /// @brief Read barcodes from image bytes.
   /// @param bytes Image bytes. Owned pointer. Will be freed by native code.
@@ -128,9 +128,9 @@ class GeneratedBindings {
     int height,
     int cropWidth,
     int cropHeight,
-    int tryHarder,
-    int tryRotate,
-    int tryInvert,
+    bool tryHarder,
+    bool tryRotate,
+    bool tryInvert,
   ) {
     return _readBarcodes(
       bytes,
@@ -156,12 +156,12 @@ class GeneratedBindings {
               ffi.Int,
               ffi.Int,
               ffi.Int,
-              ffi.Int,
-              ffi.Int,
-              ffi.Int)>>('readBarcodes');
+              ffi.Bool,
+              ffi.Bool,
+              ffi.Bool)>>('readBarcodes');
   late final _readBarcodes = _readBarcodesPtr.asFunction<
       CodeResults Function(ffi.Pointer<ffi.Uint8>, int, int, int, int, int, int,
-          int, int, int)>();
+          bool, bool, bool)>();
 
   /// @brief Encode a string into a barcode
   /// @param contents The string to encode. Owned pointer. Will be freed by native code.
@@ -246,8 +246,8 @@ final class CodeResult extends ffi.Struct {
   external ffi.Pointer<ffi.Char> text;
 
   /// < Whether the barcode was successfully decoded
-  @ffi.Int()
-  external int isValid;
+  @ffi.Bool()
+  external bool isValid;
 
   /// < The error message. Owned pointer. Must be freed by Dart code if not null.
   external ffi.Pointer<ffi.Char> error;
@@ -267,12 +267,12 @@ final class CodeResult extends ffi.Struct {
   external Pos pos;
 
   /// < Whether the barcode was inverted
-  @ffi.Int()
-  external int isInverted;
+  @ffi.Bool()
+  external bool isInverted;
 
   /// < Whether the barcode was mirrored
-  @ffi.Int()
-  external int isMirrored;
+  @ffi.Bool()
+  external bool isMirrored;
 
   /// < The duration of the decoding in milliseconds
   @ffi.Int()
@@ -296,8 +296,8 @@ final class CodeResults extends ffi.Struct {
 /// @brief EncodeResult encapsulates the result of encoding a barcode.
 final class EncodeResult extends ffi.Struct {
   /// < Whether the barcode was successfully encoded
-  @ffi.Int()
-  external int isValid;
+  @ffi.Bool()
+  external bool isValid;
 
   /// < The encoded text. Owned pointer. Must be freed by Dart code if not null.
   external ffi.Pointer<ffi.Char> text;
