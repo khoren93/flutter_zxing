@@ -6,6 +6,7 @@
 // #include "ZXVersion.h" // This file is not existing for iOS
 
 #include <algorithm>
+#include <chrono>
 #include <codecvt>
 #include <cstdarg>
 #include <cstdlib>
@@ -15,6 +16,7 @@
 
 using namespace ZXing;
 using namespace std;
+using std::chrono::steady_clock;
 
 // Returns an owned C-string `char*`, copied from a `std::string&`.
 char* cstrFromString(const std::string& s)
@@ -65,6 +67,14 @@ CodeResult codeResultFromResult(
     return code;
 }
 
+// Returns the duration elapsed in milliseconds since `start`.
+int elapsed_ms(const steady_clock::time_point& start)
+{
+  auto end = steady_clock::now();
+  auto duration = end - start;
+  return chrono::duration_cast<chrono::milliseconds>(duration).count();
+}
+
 extern "C"
 {
 
@@ -84,7 +94,7 @@ extern "C"
     FUNCTION_ATTRIBUTE
     struct CodeResult readBarcode(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert)
     {
-        long long start = get_now();
+        auto start = steady_clock::now();
 
         ImageView image {bytes, width, height, ImageFormat(imageFormat)};
         if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
@@ -98,7 +108,7 @@ extern "C"
         // we're done decoding.
         delete[] bytes;
 
-        int duration = static_cast<int>(get_now() - start);
+        int duration = elapsed_ms(start);
         platform_log("Read Barcode in: %d ms\n", duration);
 
         return codeResultFromResult(result, duration, width, height);
@@ -107,7 +117,7 @@ extern "C"
     FUNCTION_ATTRIBUTE
     struct CodeResults readBarcodes(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert)
     {
-        long long start = get_now();
+        auto start = steady_clock::now();
 
         ImageView image{bytes, width, height, ImageFormat(imageFormat)};
         if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
@@ -121,7 +131,7 @@ extern "C"
         // we're done decoding.
         delete[] bytes;
 
-        int duration = static_cast<int>(get_now() - start);
+        int duration = elapsed_ms(start);
         platform_log("Read Barcode in: %d ms\n", duration);
 
         if (results.empty()) {
@@ -140,7 +150,7 @@ extern "C"
     FUNCTION_ATTRIBUTE
     struct EncodeResult encodeBarcode(char* contents, int width, int height, int format, int margin, int eccLevel)
     {
-        long long start = get_now();
+        auto start = steady_clock::now();
 
         struct EncodeResult result = {0, contents, format, nullptr, 0, nullptr};
         try
@@ -166,8 +176,8 @@ extern "C"
             strcpy(result.error, e.what());
         }
 
-        int evalInMillis = static_cast<int>(get_now() - start);
-        platform_log("Encode Barcode in: %d ms\n", evalInMillis);
+        int duration = elapsed_ms(start);
+        platform_log("Encode Barcode in: %d ms\n", duration);
         return result;
     }
 }
