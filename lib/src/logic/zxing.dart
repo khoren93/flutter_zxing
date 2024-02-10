@@ -27,18 +27,17 @@ part 'camera_stream.dart';
 String zxingVersion() => bindings.version().cast<Utf8>().toDartString();
 
 /// Enables or disables the logging of the library
-void setZxingLogEnabled(bool enabled) =>
-    bindings.setLogEnabled(enabled ? 1 : 0);
+void setZxingLogEnabled(bool enabled) => bindings.setLogEnabled(enabled);
 
 /// Returns a readable barcode format name
 String zxingBarcodeFormatName(int format) => barcodeNames[format] ?? 'Unknown';
 
-extension Uint8ListBlobConversion on Uint8List {
-  /// Allocates a pointer filled with the Uint8List data.
-  Pointer<Char> allocatePointer() {
-    final Pointer<Int8> blob = calloc<Int8>(length);
-    final Int8List blobBytes = blob.asTypedList(length);
-    blobBytes.setAll(0, this);
-    return blob.cast<Char>();
+extension Uint8ListExt on Uint8List {
+  /// Copy the [Uint8List] into a freshly allocated [Pointer<Uint8>].
+  Pointer<Uint8> copyToNativePointer() {
+    final Pointer<Uint8> ptr = malloc<Uint8>(length);
+    final Uint8List view = ptr.asTypedList(length);
+    view.setAll(0, this);
+    return ptr;
   }
 }

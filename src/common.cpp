@@ -1,5 +1,4 @@
 #include "common.h"
-#include <chrono>
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -10,13 +9,6 @@ bool isLogEnabled;
 void setLoggingEnabled(bool enabled)
 {
     isLogEnabled = enabled;
-}
-
-long long int get_now()
-{
-    return chrono::duration_cast<std::chrono::milliseconds>(
-               chrono::system_clock::now().time_since_epoch())
-        .count();
 }
 
 void platform_log(const char *fmt, ...)

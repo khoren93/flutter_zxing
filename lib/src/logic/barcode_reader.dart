@@ -67,16 +67,16 @@ Code _readBarcode(
 ) {
   return bindings
       .readBarcode(
-        bytes.allocatePointer(),
+        bytes.copyToNativePointer(),
         params?.imageFormat ?? zx.ImageFormat.lum,
         params?.format ?? Format.any,
         width,
         height,
         params?.cropWidth ?? 0,
         params?.cropHeight ?? 0,
-        params?.tryHarder ?? false ? 1 : 0,
-        params?.tryRotate ?? true ? 1 : 0,
-        params?.tryInverted ?? false ? 1 : 0,
+        params?.tryHarder ?? false,
+        params?.tryRotate ?? true,
+        params?.tryInverted ?? false,
       )
       .toCode();
 }

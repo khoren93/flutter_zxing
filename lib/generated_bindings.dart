@@ -28,23 +28,22 @@ class GeneratedBindings {
       : _lookup = lookup;
 
   /// @brief Enables or disables the logging of the library.
-  /// @param enable Whether to enable or disable the logging.
   ///
-  /// @param enabled
+  /// @param enabled Whether to enable or disable the logging.
   void setLogEnabled(
-    int enable,
+    bool enabled,
   ) {
     return _setLogEnabled(
-      enable,
+      enabled,
     );
   }
 
   late final _setLogEnabledPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int)>>('setLogEnabled');
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Bool)>>('setLogEnabled');
   late final _setLogEnabled =
-      _setLogEnabledPtr.asFunction<void Function(int)>();
+      _setLogEnabledPtr.asFunction<void Function(bool)>();
 
-  /// Returns the version of the zxing-cpp library.
+  /// Returns the version of the zxing-cpp library. Pointer has a static lifetime and must not be freed.
   ///
   /// @return The version of the zxing-cpp library.
   ffi.Pointer<ffi.Char> version() {
@@ -57,7 +56,7 @@ class GeneratedBindings {
       _versionPtr.asFunction<ffi.Pointer<ffi.Char> Function()>();
 
   /// @brief Read barcode from image bytes.
-  /// @param bytes Image bytes.
+  /// @param bytes Image bytes. Owned pointer. Will be freed by native code.
   /// @param imageFormat Image format.
   /// @param format Specify a set of BarcodeFormats that should be searched for.
   /// @param width Image width in pixels.
@@ -68,16 +67,16 @@ class GeneratedBindings {
   /// @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
   /// @return The barcode result.
   CodeResult readBarcode(
-    ffi.Pointer<ffi.Char> bytes,
+    ffi.Pointer<ffi.Uint8> bytes,
     int imageFormat,
     int format,
     int width,
     int height,
     int cropWidth,
     int cropHeight,
-    int tryHarder,
-    int tryRotate,
-    int tryInvert,
+    bool tryHarder,
+    bool tryRotate,
+    bool tryInvert,
   ) {
     return _readBarcode(
       bytes,
@@ -96,22 +95,22 @@ class GeneratedBindings {
   late final _readBarcodePtr = _lookup<
       ffi.NativeFunction<
           CodeResult Function(
-              ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Uint8>,
               ffi.Int,
               ffi.Int,
               ffi.Int,
               ffi.Int,
               ffi.Int,
               ffi.Int,
-              ffi.Int,
-              ffi.Int,
-              ffi.Int)>>('readBarcode');
+              ffi.Bool,
+              ffi.Bool,
+              ffi.Bool)>>('readBarcode');
   late final _readBarcode = _readBarcodePtr.asFunction<
-      CodeResult Function(ffi.Pointer<ffi.Char>, int, int, int, int, int, int,
-          int, int, int)>();
+      CodeResult Function(ffi.Pointer<ffi.Uint8>, int, int, int, int, int, int,
+          bool, bool, bool)>();
 
   /// @brief Read barcodes from image bytes.
-  /// @param bytes Image bytes.
+  /// @param bytes Image bytes. Owned pointer. Will be freed by native code.
   /// @param imageFormat Image format.
   /// @param format Specify a set of BarcodeFormats that should be searched for.
   /// @param width Image width in pixels.
@@ -122,16 +121,16 @@ class GeneratedBindings {
   /// @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
   /// @return The barcode results.
   CodeResults readBarcodes(
-    ffi.Pointer<ffi.Char> bytes,
+    ffi.Pointer<ffi.Uint8> bytes,
     int imageFormat,
     int format,
     int width,
     int height,
     int cropWidth,
     int cropHeight,
-    int tryHarder,
-    int tryRotate,
-    int tryInvert,
+    bool tryHarder,
+    bool tryRotate,
+    bool tryInvert,
   ) {
     return _readBarcodes(
       bytes,
@@ -150,28 +149,28 @@ class GeneratedBindings {
   late final _readBarcodesPtr = _lookup<
       ffi.NativeFunction<
           CodeResults Function(
-              ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Uint8>,
               ffi.Int,
               ffi.Int,
               ffi.Int,
               ffi.Int,
               ffi.Int,
               ffi.Int,
-              ffi.Int,
-              ffi.Int,
-              ffi.Int)>>('readBarcodes');
+              ffi.Bool,
+              ffi.Bool,
+              ffi.Bool)>>('readBarcodes');
   late final _readBarcodes = _readBarcodesPtr.asFunction<
-      CodeResults Function(ffi.Pointer<ffi.Char>, int, int, int, int, int, int,
-          int, int, int)>();
+      CodeResults Function(ffi.Pointer<ffi.Uint8>, int, int, int, int, int, int,
+          bool, bool, bool)>();
 
   /// @brief Encode a string into a barcode
-  /// @param contents The string to encode
+  /// @param contents The string to encode. Owned pointer. Will be freed by native code.
   /// @param width The width of the barcode in pixels.
   /// @param height The height of the barcode in pixels.
   /// @param format The format of the barcode
   /// @param margin The margin of the barcode
   /// @param eccLevel The error correction level of the barcode. Used for Aztec, PDF417, and QRCode only, [0-8].
-  /// @return The barcode data
+  /// @return The barcode data.
   EncodeResult encodeBarcode(
     ffi.Pointer<ffi.Char> contents,
     int width,
@@ -243,18 +242,18 @@ final class Pos extends ffi.Struct {
 
 /// @brief The CodeResult class encapsulates the result of decoding a barcode within an image.
 final class CodeResult extends ffi.Struct {
-  /// < The decoded text
+  /// < The decoded text. Owned pointer. Must be freed by Dart code if not null.
   external ffi.Pointer<ffi.Char> text;
 
   /// < Whether the barcode was successfully decoded
-  @ffi.Int()
-  external int isValid;
+  @ffi.Bool()
+  external bool isValid;
 
-  /// < The error message
+  /// < The error message. Owned pointer. Must be freed by Dart code if not null.
   external ffi.Pointer<ffi.Char> error;
 
-  /// < The bytes is the raw / standard content without any modifications like character set conversions
-  external ffi.Pointer<ffi.UnsignedChar> bytes;
+  /// < The bytes is the raw content without any character set conversions. Owned pointer. Must be freed by Dart code if not null.
+  external ffi.Pointer<ffi.Uint8> bytes;
 
   /// < The length of the bytes
   @ffi.Int()
@@ -265,15 +264,15 @@ final class CodeResult extends ffi.Struct {
   external int format;
 
   /// < The position of the barcode within the image
-  external ffi.Pointer<Pos> pos;
+  external Pos pos;
 
   /// < Whether the barcode was inverted
-  @ffi.Int()
-  external int isInverted;
+  @ffi.Bool()
+  external bool isInverted;
 
   /// < Whether the barcode was mirrored
-  @ffi.Int()
-  external int isMirrored;
+  @ffi.Bool()
+  external bool isMirrored;
 
   /// < The duration of the decoding in milliseconds
   @ffi.Int()
@@ -286,7 +285,7 @@ final class CodeResults extends ffi.Struct {
   @ffi.Int()
   external int count;
 
-  /// < The results of the barcode decoding
+  /// < The results of the barcode decoding. Owned pointer. Must be freed by Dart code.
   external ffi.Pointer<CodeResult> results;
 
   /// < The duration of the decoding in milliseconds
@@ -297,23 +296,23 @@ final class CodeResults extends ffi.Struct {
 /// @brief EncodeResult encapsulates the result of encoding a barcode.
 final class EncodeResult extends ffi.Struct {
   /// < Whether the barcode was successfully encoded
-  @ffi.Int()
-  external int isValid;
+  @ffi.Bool()
+  external bool isValid;
 
-  /// < The encoded text
+  /// < The encoded text. Owned pointer. Must be freed by Dart code if not null.
   external ffi.Pointer<ffi.Char> text;
 
   /// < The format of the barcode
   @ffi.Int()
   external int format;
 
-  /// < The encoded data
-  external ffi.Pointer<ffi.SignedChar> data;
+  /// < The encoded data. Owned pointer. Must be freed by Dart code if not null.
+  external ffi.Pointer<ffi.Uint8> data;
 
   /// < The length of the encoded data
   @ffi.Int()
   external int length;
 
-  /// < The error message
+  /// < The error message. Owned pointer. Must be freed by Dart code if not null.
   external ffi.Pointer<ffi.Char> error;
 }

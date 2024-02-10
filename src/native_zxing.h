@@ -1,4 +1,11 @@
 #ifdef __cplusplus
+    #include <cstdint>
+#else
+    #include <stdbool.h>
+    #include <stdint.h>
+#endif
+
+#ifdef __cplusplus
 extern "C"
 {
 #endif
@@ -26,15 +33,15 @@ extern "C"
      */
     struct CodeResult
     {
-        char *text;                 ///< The decoded text
-        int isValid;                ///< Whether the barcode was successfully decoded
-        char *error;                ///< The error message
-        const unsigned char *bytes; ///< The bytes is the raw / standard content without any modifications like character set conversions
+        char *text;                 ///< The decoded text. Owned pointer. Must be freed by Dart code if not null.
+        bool isValid;               ///< Whether the barcode was successfully decoded
+        char *error;                ///< The error message. Owned pointer. Must be freed by Dart code if not null.
+        uint8_t* bytes;             ///< The bytes is the raw content without any character set conversions. Owned pointer. Must be freed by Dart code if not null.
         int length;                 ///< The length of the bytes
         int format;                 ///< The format of the barcode
-        struct Pos *pos;            ///< The position of the barcode within the image
-        int isInverted;             ///< Whether the barcode was inverted
-        int isMirrored;             ///< Whether the barcode was mirrored
+        struct Pos pos;             ///< The position of the barcode within the image
+        bool isInverted;            ///< Whether the barcode was inverted
+        bool isMirrored;            ///< Whether the barcode was mirrored
         int duration;               ///< The duration of the decoding in milliseconds
     };
 
@@ -44,7 +51,7 @@ extern "C"
     struct CodeResults
     {
         int count;                  ///< The number of barcodes detected
-        struct CodeResult *results; ///< The results of the barcode decoding
+        struct CodeResult *results; ///< The results of the barcode decoding. Owned pointer. Must be freed by Dart code.
         int duration;               ///< The duration of the decoding in milliseconds
     };
 
@@ -54,24 +61,23 @@ extern "C"
      */
     struct EncodeResult
     {
-        int isValid;              ///< Whether the barcode was successfully encoded
-        char *text;               ///< The encoded text
+        bool isValid;             ///< Whether the barcode was successfully encoded
+        char *text;               ///< The encoded text. Owned pointer. Must be freed by Dart code if not null.
         int format;               ///< The format of the barcode
-        const signed char *data;  ///< The encoded data
+        uint8_t* data;            ///< The encoded data. Owned pointer. Must be freed by Dart code if not null.
         int length;               ///< The length of the encoded data
-        char *error;              ///< The error message
+        char *error;              ///< The error message. Owned pointer. Must be freed by Dart code if not null.
     };
 
     /**
      * @brief Enables or disables the logging of the library.
-     * @param enable Whether to enable or disable the logging.
      *
-     * @param enabled
+     * @param enabled Whether to enable or disable the logging.
      */
-    void setLogEnabled(int enable);
+    void setLogEnabled(bool enabled);
 
     /**
-     * Returns the version of the zxing-cpp library.
+     * Returns the version of the zxing-cpp library. Pointer has a static lifetime and must not be freed.
      *
      * @return The version of the zxing-cpp library.
      */
@@ -79,7 +85,7 @@ extern "C"
 
     /**
      * @brief Read barcode from image bytes.
-     * @param bytes Image bytes.
+     * @param bytes Image bytes. Owned pointer. Will be freed by native code.
      * @param imageFormat Image format.
      * @param format Specify a set of BarcodeFormats that should be searched for.
      * @param width Image width in pixels.
@@ -90,11 +96,11 @@ extern "C"
      * @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
      * @return The barcode result.
      */
-    struct CodeResult readBarcode(char *bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert);
+    struct CodeResult readBarcode(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert);
 
     /**
      * @brief Read barcodes from image bytes.
-     * @param bytes Image bytes.
+     * @param bytes Image bytes. Owned pointer. Will be freed by native code.
      * @param imageFormat Image format.
      * @param format Specify a set of BarcodeFormats that should be searched for.
      * @param width Image width in pixels.
@@ -105,19 +111,19 @@ extern "C"
      * @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
      * @return The barcode results.
      */
-    struct CodeResults readBarcodes(char *bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, int tryHarder, int tryRotate, int tryInvert);
+    struct CodeResults readBarcodes(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert);
 
     /**
      * @brief Encode a string into a barcode
-     * @param contents The string to encode
+     * @param contents The string to encode. Owned pointer. Will be freed by native code.
      * @param width The width of the barcode in pixels.
      * @param height The height of the barcode in pixels.
      * @param format The format of the barcode
      * @param margin The margin of the barcode
      * @param eccLevel The error correction level of the barcode. Used for Aztec, PDF417, and QRCode only, [0-8].
-     * @return The barcode data
+     * @return The barcode data.
      */
-    struct EncodeResult encodeBarcode(char *contents, int width, int height, int format, int margin, int eccLevel);
+    struct EncodeResult encodeBarcode(char* contents, int width, int height, int format, int margin, int eccLevel);
 
 #ifdef __cplusplus
 }

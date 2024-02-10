@@ -66,20 +66,27 @@ Codes _readBarcodes(
   DecodeParams? params,
 ) {
   final CodeResults result = bindings.readBarcodes(
-    bytes.allocatePointer(),
+    bytes.copyToNativePointer(),
     params?.imageFormat ?? zx.ImageFormat.lum,
     params?.format ?? Format.any,
     width,
     height,
     params?.cropWidth ?? 0,
     params?.cropHeight ?? 0,
-    params?.tryHarder ?? false ? 1 : 0,
-    params?.tryRotate ?? true ? 1 : 0,
-    params?.tryInverted ?? false ? 1 : 0,
+    params?.tryHarder ?? false,
+    params?.tryRotate ?? true,
+    params?.tryInverted ?? false,
   );
-  final List<Code> results = <Code>[];
-  for (int i = 0; i < result.count; i++) {
-    results.add(result.results.elementAt(i).ref.toCode());
+
+  final List<Code> codes = <Code>[];
+
+  if (result.count == 0 || result.results == nullptr) {
+    return Codes(codes: codes, duration: result.duration);
   }
-  return Codes(codes: results, duration: result.duration);
+
+  for (int i = 0; i < result.count; i++) {
+    codes.add(result.results.elementAt(i).ref.toCode());
+  }
+  malloc.free(result.results);
+  return Codes(codes: codes, duration: result.duration);
 }
