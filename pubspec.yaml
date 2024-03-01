@@ -16,11 +16,11 @@ dependencies:
   image_picker: ^1.0.0
 
 dev_dependencies:
-  ffigen: ^8.0.0 # dart run ffigen --config ffigen.yaml
+  ffigen: ">=8.0.0 <12.0.0" # dart run ffigen --config ffigen.yaml
   flutter_lints: ">=2.0.0 <4.0.0"
   flutter_test:
     sdk: flutter
-  melos: ^3.0.0
+  melos: ">=3.0.0 <5.0.0"
 
 flutter:
   plugin:
