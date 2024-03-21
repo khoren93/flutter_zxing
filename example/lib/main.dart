@@ -93,6 +93,14 @@ class _DemoPageState extends State<DemoPage> {
                     scanDelay: Duration(milliseconds: isMultiScan ? 50 : 500),
                     resolution: ResolutionPreset.high,
                     lensDirection: CameraLensDirection.back,
+                    flashOnIcon: const Icon(Icons.flash_on),
+                    flashOffIcon: const Icon(Icons.flash_off),
+                    flashAlwaysIcon: const Icon(Icons.flash_on),
+                    flashAutoIcon: const Icon(Icons.flash_auto),
+                    galleryIcon: const Icon(Icons.photo_library),
+                    toggleCameraIcon: const Icon(Icons.switch_camera),
+                    actionButtonsBackgroundBorderRadius: BorderRadius.circular(10),
+                    actionButtonsBackgroundColor: Colors.black.withOpacity(0.5),
                   ),
                   if (showDebugInfo)
                     DebugInfoWidget(
