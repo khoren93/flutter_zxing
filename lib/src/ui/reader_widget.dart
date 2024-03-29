@@ -34,6 +34,14 @@ class ReaderWidget extends StatefulWidget {
     this.showFlashlight = true,
     this.showToggleCamera = true,
     this.showGallery = true,
+    this.flashOnIcon = const Icon(Icons.flash_on),
+    this.flashOffIcon = const Icon(Icons.flash_off),
+    this.flashAlwaysIcon = const Icon(Icons.flash_on),
+    this.flashAutoIcon = const Icon(Icons.flash_auto),
+    this.galleryIcon = const Icon(Icons.photo_library),
+    this.toggleCameraIcon = const Icon(Icons.switch_camera),
+    this.actionButtonsBackgroundColor = Colors.black,
+    this.actionButtonsBackgroundBorderRadius,
     this.allowPinchZoom = true,
     this.scanDelay = const Duration(milliseconds: 1000),
     this.scanDelaySuccess = const Duration(milliseconds: 1000),
@@ -105,6 +113,30 @@ class ReaderWidget extends StatefulWidget {
 
   /// Show toggle camera
   final bool showToggleCamera;
+
+  /// Custom flash_on icon
+  final Widget flashOnIcon;
+
+  /// Custom flash_off icon
+  final Widget flashOffIcon;
+
+  /// Custom flash_always icon
+  final Widget flashAlwaysIcon;
+
+  /// Custom flash_auto icon
+  final Widget flashAutoIcon;
+
+  /// Custom gallery icon
+  final Widget galleryIcon;
+
+  /// Custom camera toggle icon
+  final Widget toggleCameraIcon;
+
+  /// Custom background color for action buttons
+  final Color actionButtonsBackgroundColor;
+  
+  /// Custom background border radius for action buttons
+  final BorderRadius? actionButtonsBackgroundBorderRadius;
 
   /// Allow pinch zoom
   final bool allowPinchZoom;
@@ -400,9 +432,10 @@ class _ReaderWidgetState extends State<ReaderWidget>
             child: Padding(
               padding: widget.actionButtonsPadding,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: widget.actionButtonsBackgroundBorderRadius
+                    ?? BorderRadius.circular(10.0),
                 child: Container(
-                  color: Colors.black.withOpacity(0.5),
+                  color: widget.actionButtonsBackgroundColor,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
@@ -410,22 +443,19 @@ class _ReaderWidgetState extends State<ReaderWidget>
                         IconButton(
                           onPressed: _onFlashButtonTapped,
                           color: Colors.white,
-                          icon: Icon(
-                            _flashIcon(
-                                controller?.value.flashMode ?? FlashMode.off),
-                          ),
+                          icon: _flashIcon(controller?.value.flashMode ?? FlashMode.off),
                         ),
                       if (widget.showGallery)
                         IconButton(
                           onPressed: _onGalleryButtonTapped,
                           color: Colors.white,
-                          icon: const Icon(Icons.photo_library),
+                          icon: widget.galleryIcon,
                         ),
                       if (widget.showToggleCamera)
                         IconButton(
                           onPressed: _onCameraButtonTapped,
                           color: Colors.white,
-                          icon: const Icon(Icons.switch_camera),
+                          icon: widget.toggleCameraIcon,
                         ),
                     ],
                   ),
@@ -506,16 +536,16 @@ class _ReaderWidgetState extends State<ReaderWidget>
     onNewCameraSelected(selectedCamera);
   }
 
-  IconData _flashIcon(FlashMode mode) {
+  Widget _flashIcon(FlashMode mode) {
     switch (mode) {
       case FlashMode.torch:
-        return Icons.flash_on;
+        return widget.flashOnIcon;
       case FlashMode.off:
-        return Icons.flash_off;
+        return widget.flashOffIcon;
       case FlashMode.always:
-        return Icons.flash_on;
+        return widget.flashAlwaysIcon;
       case FlashMode.auto:
-        return Icons.flash_auto;
+        return widget.flashAutoIcon;
     }
   }
 
