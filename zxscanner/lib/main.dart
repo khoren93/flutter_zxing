@@ -1,8 +1,10 @@
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:receive_intent/receive_intent.dart';
 
 import 'configs/app_store.dart';
 import 'configs/app_theme.dart';
@@ -31,6 +33,23 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final AppRouter _appRouter = AppRouter();
+  
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    if (Platform.isAndroid) {
+      final receivedIntent = await ReceiveIntent.getInitialIntent();
+      if(receivedIntent?.fromPackageName != null){
+        AppStoreBase.isExternCall = true;
+      }else{
+        AppStoreBase.isExternCall = false;
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

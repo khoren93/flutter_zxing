@@ -15,6 +15,8 @@ const String isVibrationOnPref = 'isVibrationOnPref';
 const String languagePref = 'languagePref';
 
 abstract class AppStoreBase with Store {
+  static bool isExternCall = false;
+
   @observable
   ThemeMode themeMode = ThemeMode.system;
 

@@ -30,6 +30,7 @@ dependencies:
   share_plus: ^7.0.0
   shared_preferences: ^2.0.0
   url_launcher: ^6.1.11
+  receive_intent: any
 
 flutter_intl:
   main_locale: en_US
