@@ -1,8 +1,8 @@
 #ifdef __cplusplus
-    #include <cstdint>
+#include <cstdint>
 #else
-    #include <stdbool.h>
-    #include <stdint.h>
+#include <stdbool.h>
+#include <stdint.h>
 #endif
 
 #ifdef __cplusplus
@@ -33,16 +33,16 @@ extern "C"
      */
     struct CodeResult
     {
-        char *text;                 ///< The decoded text. Owned pointer. Must be freed by Dart code if not null.
-        bool isValid;               ///< Whether the barcode was successfully decoded
-        char *error;                ///< The error message. Owned pointer. Must be freed by Dart code if not null.
-        uint8_t* bytes;             ///< The bytes is the raw content without any character set conversions. Owned pointer. Must be freed by Dart code if not null.
-        int length;                 ///< The length of the bytes
-        int format;                 ///< The format of the barcode
-        struct Pos pos;             ///< The position of the barcode within the image
-        bool isInverted;            ///< Whether the barcode was inverted
-        bool isMirrored;            ///< Whether the barcode was mirrored
-        int duration;               ///< The duration of the decoding in milliseconds
+        char *text;      ///< The decoded text. Owned pointer. Must be freed by Dart code if not null.
+        bool isValid;    ///< Whether the barcode was successfully decoded
+        char *error;     ///< The error message. Owned pointer. Must be freed by Dart code if not null.
+        uint8_t *bytes;  ///< The bytes is the raw content without any character set conversions. Owned pointer. Must be freed by Dart code if not null.
+        int length;      ///< The length of the bytes
+        int format;      ///< The format of the barcode
+        struct Pos pos;  ///< The position of the barcode within the image
+        bool isInverted; ///< Whether the barcode was inverted
+        bool isMirrored; ///< Whether the barcode was mirrored
+        int duration;    ///< The duration of the decoding in milliseconds
     };
 
     /**
@@ -61,12 +61,12 @@ extern "C"
      */
     struct EncodeResult
     {
-        bool isValid;             ///< Whether the barcode was successfully encoded
-        char *text;               ///< The encoded text. Owned pointer. Must be freed by Dart code if not null.
-        int format;               ///< The format of the barcode
-        uint8_t* data;            ///< The encoded data. Owned pointer. Must be freed by Dart code if not null.
-        int length;               ///< The length of the encoded data
-        char *error;              ///< The error message. Owned pointer. Must be freed by Dart code if not null.
+        bool isValid;  ///< Whether the barcode was successfully encoded
+        char *text;    ///< The encoded text. Owned pointer. Must be freed by Dart code if not null.
+        int format;    ///< The format of the barcode
+        uint8_t *data; ///< The encoded data. Owned pointer. Must be freed by Dart code if not null.
+        int length;    ///< The length of the encoded data
+        char *error;   ///< The error message. Owned pointer. Must be freed by Dart code if not null.
     };
 
     /**
@@ -96,7 +96,7 @@ extern "C"
      * @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
      * @return The barcode result.
      */
-    struct CodeResult readBarcode(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert);
+    struct CodeResult readBarcode(uint8_t *bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert);
 
     /**
      * @brief Read barcodes from image bytes.
@@ -111,7 +111,7 @@ extern "C"
      * @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
      * @return The barcode results.
      */
-    struct CodeResults readBarcodes(uint8_t* bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert);
+    struct CodeResults readBarcodes(uint8_t *bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert);
 
     /**
      * @brief Encode a string into a barcode
@@ -123,7 +123,7 @@ extern "C"
      * @param eccLevel The error correction level of the barcode. Used for Aztec, PDF417, and QRCode only, [0-8].
      * @return The barcode data.
      */
-    struct EncodeResult encodeBarcode(char* contents, int width, int height, int format, int margin, int eccLevel);
+    struct EncodeResult encodeBarcode(char *contents, int width, int height, int format, int margin, int eccLevel);
 
 #ifdef __cplusplus
 }
