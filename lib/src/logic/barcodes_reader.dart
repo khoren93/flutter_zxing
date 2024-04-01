@@ -85,7 +85,7 @@ Codes _readBarcodes(
   }
 
   for (int i = 0; i < result.count; i++) {
-    codes.add(result.results.elementAt(i).ref.toCode());
+    codes.add(result.results[i].toCode());
   }
   malloc.free(result.results);
   return Codes(codes: codes, duration: result.duration);
