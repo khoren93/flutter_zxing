@@ -99,7 +99,8 @@ class _DemoPageState extends State<DemoPage> {
                     flashAutoIcon: const Icon(Icons.flash_auto),
                     galleryIcon: const Icon(Icons.photo_library),
                     toggleCameraIcon: const Icon(Icons.switch_camera),
-                    actionButtonsBackgroundBorderRadius: BorderRadius.circular(10),
+                    actionButtonsBackgroundBorderRadius:
+                        BorderRadius.circular(10),
                     actionButtonsBackgroundColor: Colors.black.withOpacity(0.5),
                   ),
                   if (showDebugInfo)

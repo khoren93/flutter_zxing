@@ -67,10 +67,6 @@ CodeResult codeResultFromResult(
     code.isMirrored = result.isMirrored();
     code.duration = duration;
 
-    // print code.text and code.error to console
-    platform_log("Code Text: %s\n", code.text);
-    platform_log("Code Error: %s\n", code.error);
-
     return code;
 }
 

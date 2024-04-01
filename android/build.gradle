@@ -26,7 +26,8 @@ android {
     if (project.android.hasProperty("namespace")) {
         namespace 'com.markosyan.flutter_zxing'
     }
-    compileSdkVersion 31
+    compileSdk 34
+    ndkVersion android.ndkVersion
 
     externalNativeBuild {
         cmake {
