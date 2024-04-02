@@ -18,6 +18,27 @@ using namespace ZXing;
 using namespace std;
 using std::chrono::steady_clock;
 
+// Helper functions
+
+ImageView createCroppedImageView(const struct DecodeBarcodeParams &params)
+{
+    ImageView image{reinterpret_cast<const uint8_t *>(params.bytes), params.width, params.height, ImageFormat(params.imageFormat)};
+    if (params.cropWidth > 0 && params.cropHeight > 0 && params.cropWidth < params.width && params.cropHeight < params.height)
+    {
+        image = image.cropped(params.cropLeft, params.cropTop, params.cropWidth, params.cropHeight);
+    }
+
+    // Dart passes us an owned image bytes pointer; we need to free it after
+    delete[] params.bytes;
+
+    return image;
+}
+
+ReaderOptions createReaderOptions(const struct DecodeBarcodeParams &params)
+{
+    return ReaderOptions().setTryHarder(params.tryHarder).setTryRotate(params.tryRotate).setFormats(BarcodeFormat(params.format)).setTryInvert(params.tryInvert).setReturnErrors(true);
+}
+
 // Returns an owned C-string `char*`, copied from a `std::string&`.
 char *cstrFromString(const std::string &s)
 {
@@ -95,44 +116,28 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResult readBarcode(uint8_t *bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert)
+    struct CodeResult readBarcode(struct DecodeBarcodeParams params)
     {
         auto start = steady_clock::now();
 
-        ImageView image{bytes, width, height, ImageFormat(imageFormat)};
-        if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
-        {
-            image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
-        }
-        ReaderOptions hints = ReaderOptions().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format)).setTryInvert(tryInvert).setReturnErrors(true);
+        ImageView image = createCroppedImageView(params);
+        ReaderOptions hints = createReaderOptions(params);
         Result result = ReadBarcode(image, hints);
-
-        // Dart passes us an owned image bytes pointer; we need to free it after
-        // we're done decoding.
-        delete[] bytes;
 
         int duration = elapsed_ms(start);
         platform_log("Read Barcode in: %d ms\n", duration);
-
-        return codeResultFromResult(result, duration, width, height);
+        return codeResultFromResult(result, duration, params.width, params.height);
+        ;
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResults readBarcodes(uint8_t *bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert)
+    struct CodeResults readBarcodes(struct DecodeBarcodeParams params)
     {
         auto start = steady_clock::now();
 
-        ImageView image{bytes, width, height, ImageFormat(imageFormat)};
-        if (cropWidth > 0 && cropHeight > 0 && cropWidth < width && cropHeight < height)
-        {
-            image = image.cropped(width / 2 - cropWidth / 2, height / 2 - cropHeight / 2, cropWidth, cropHeight);
-        }
-        ReaderOptions hints = ReaderOptions().setTryHarder(tryHarder).setTryRotate(tryRotate).setFormats(BarcodeFormat(format)).setTryInvert(tryInvert);
+        ImageView image = createCroppedImageView(params);
+        ReaderOptions hints = createReaderOptions(params);
         Results results = ReadBarcodes(image, hints);
-
-        // Dart passes us an owned image bytes pointer; we need to free it after
-        // we're done decoding.
-        delete[] bytes;
 
         int duration = elapsed_ms(start);
         platform_log("Read Barcode in: %d ms\n", duration);
@@ -146,22 +151,22 @@ extern "C"
         int i = 0;
         for (const auto &result : results)
         {
-            codes[i] = codeResultFromResult(result, duration, width, height);
+            codes[i] = codeResultFromResult(result, duration, params.width, params.height);
             i++;
         }
         return CodeResults{i, codes, duration};
     }
 
     FUNCTION_ATTRIBUTE
-    struct EncodeResult encodeBarcode(char *contents, int width, int height, int format, int margin, int eccLevel)
+    struct EncodeResult encodeBarcode(struct EncodeBarcodeParams params)
     {
         auto start = steady_clock::now();
 
-        struct EncodeResult result = {0, contents, format, nullptr, 0, nullptr};
+        struct EncodeResult result = {0, params.contents, params.format, nullptr, 0, nullptr};
         try
         {
-            auto writer = MultiFormatWriter(BarcodeFormat(format)).setMargin(margin).setEccLevel(eccLevel).setEncoding(CharacterSet::UTF8);
-            auto bitMatrix = writer.encode(contents, width, height);
+            auto writer = MultiFormatWriter(BarcodeFormat(params.format)).setMargin(params.margin).setEccLevel(params.eccLevel).setEncoding(CharacterSet::UTF8);
+            auto bitMatrix = writer.encode(params.contents, params.width, params.height);
             auto matrix = ToMatrix<uint8_t>(bitMatrix);
 
             // We need to return an owned pointer across the ffi boundary. Copy
@@ -176,7 +181,7 @@ extern "C"
         }
         catch (const exception &e)
         {
-            platform_log("Can't encode text: %s\nError: %s\n", contents, e.what());
+            platform_log("Can't encode text: %s\nError: %s\n", params.contents, e.what());
             result.error = new char[strlen(e.what()) + 1];
             strcpy(result.error, e.what());
         }

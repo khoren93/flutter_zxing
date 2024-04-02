@@ -32,76 +32,43 @@ class ZxingWeb implements Zxing {
   void stopCameraProcessing() => throw UnimplementedError();
 
   @override
-  Future<Code> processCameraImage(
-    CameraImage image, {
-    DecodeParams? params,
-  }) =>
+  Future<Code> processCameraImage(CameraImage image, DecodeParams params) =>
       throw UnimplementedError();
 
   @override
   Future<Codes> processCameraImageMulti(
-    CameraImage image, {
-    DecodeParams? params,
-  }) =>
+          CameraImage image, DecodeParams params) =>
       throw UnimplementedError();
 
   @override
-  Future<Code> readBarcodeImagePathString(
-    String path, {
-    DecodeParams? params,
-  }) =>
+  Future<Code> readBarcodeImagePathString(String path, DecodeParams params) =>
       throw UnimplementedError();
 
   @override
-  Future<Code> readBarcodeImagePath(
-    XFile path, {
-    DecodeParams? params,
-  }) =>
+  Future<Code> readBarcodeImagePath(XFile path, DecodeParams params) =>
       throw UnimplementedError();
 
   @override
-  Future<Code> readBarcodeImageUrl(
-    String url, {
-    DecodeParams? params,
-  }) =>
+  Future<Code> readBarcodeImageUrl(String url, DecodeParams params) =>
       throw UnimplementedError();
 
   @override
-  Code readBarcode(
-    Uint8List bytes, {
-    required int width,
-    required int height,
-    DecodeParams? params,
-  }) =>
+  Code readBarcode(Uint8List bytes, DecodeParams params) =>
       throw UnimplementedError();
 
   @override
-  Future<Codes> readBarcodesImagePathString(
-    String path, {
-    DecodeParams? params,
-  }) =>
+  Future<Codes> readBarcodesImagePathString(String path, DecodeParams params) =>
       throw UnimplementedError();
 
   @override
-  Future<Codes> readBarcodesImagePath(
-    XFile path, {
-    DecodeParams? params,
-  }) =>
+  Future<Codes> readBarcodesImagePath(XFile path, DecodeParams params) =>
       throw UnimplementedError();
 
   @override
-  Future<Codes> readBarcodesImageUrl(
-    String url, {
-    DecodeParams? params,
-  }) =>
+  Future<Codes> readBarcodesImageUrl(String url, DecodeParams params) =>
       throw UnimplementedError();
 
   @override
-  Codes readBarcodes(
-    Uint8List bytes, {
-    required int width,
-    required int height,
-    DecodeParams? params,
-  }) =>
+  Codes readBarcodes(Uint8List bytes, DecodeParams params) =>
       throw UnimplementedError();
 }

@@ -8,6 +8,10 @@ class DecodeParams {
   DecodeParams({
     this.imageFormat = ImageFormat.lum,
     this.format = Format.any,
+    this.width = 0,
+    this.height = 0,
+    this.cropLeft = 0,
+    this.cropTop = 0,
     this.cropWidth = 0,
     this.cropHeight = 0,
     this.tryHarder = false,
@@ -22,6 +26,18 @@ class DecodeParams {
 
   // Specify a set of BarcodeFormats that should be searched for, the default is all supported formats.
   int format;
+
+  // The width of the image to scan, in pixels.
+  int width;
+
+  // The height of the image to scan, in pixels.
+  int height;
+
+  // The left of the area of the image to scan, in pixels.
+  int cropLeft;
+
+  // The top of the area of the image to scan, in pixels.
+  int cropTop;
 
   // The width of the area of the image to scan, in pixels. If 0, the entire image width is used.
   int cropWidth;

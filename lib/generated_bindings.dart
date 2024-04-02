@@ -56,145 +56,131 @@ class GeneratedBindings {
       _versionPtr.asFunction<ffi.Pointer<ffi.Char> Function()>();
 
   /// @brief Read barcode from image bytes.
-  /// @param bytes Image bytes. Owned pointer. Will be freed by native code.
-  /// @param imageFormat Image format.
-  /// @param format Specify a set of BarcodeFormats that should be searched for.
-  /// @param width Image width in pixels.
-  /// @param height Image height in pixels.
-  /// @param cropWidth Crop width.
-  /// @param cropHeight Crop height.
-  /// @param tryHarder Spend more time to try to find a barcode; optimize for accuracy, not speed.
-  /// @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
+  /// @param params Barcode parameters.
   /// @return The barcode result.
   CodeResult readBarcode(
-    ffi.Pointer<ffi.Uint8> bytes,
-    int imageFormat,
-    int format,
-    int width,
-    int height,
-    int cropWidth,
-    int cropHeight,
-    bool tryHarder,
-    bool tryRotate,
-    bool tryInvert,
+    DecodeBarcodeParams params,
   ) {
     return _readBarcode(
-      bytes,
-      imageFormat,
-      format,
-      width,
-      height,
-      cropWidth,
-      cropHeight,
-      tryHarder,
-      tryRotate,
-      tryInvert,
+      params,
     );
   }
 
-  late final _readBarcodePtr = _lookup<
-      ffi.NativeFunction<
-          CodeResult Function(
-              ffi.Pointer<ffi.Uint8>,
-              ffi.Int,
-              ffi.Int,
-              ffi.Int,
-              ffi.Int,
-              ffi.Int,
-              ffi.Int,
-              ffi.Bool,
-              ffi.Bool,
-              ffi.Bool)>>('readBarcode');
-  late final _readBarcode = _readBarcodePtr.asFunction<
-      CodeResult Function(ffi.Pointer<ffi.Uint8>, int, int, int, int, int, int,
-          bool, bool, bool)>();
+  late final _readBarcodePtr =
+      _lookup<ffi.NativeFunction<CodeResult Function(DecodeBarcodeParams)>>(
+          'readBarcode');
+  late final _readBarcode =
+      _readBarcodePtr.asFunction<CodeResult Function(DecodeBarcodeParams)>();
 
   /// @brief Read barcodes from image bytes.
-  /// @param bytes Image bytes. Owned pointer. Will be freed by native code.
-  /// @param imageFormat Image format.
-  /// @param format Specify a set of BarcodeFormats that should be searched for.
-  /// @param width Image width in pixels.
-  /// @param height Image height in pixels.
-  /// @param cropWidth Crop width.
-  /// @param cropHeight Crop height.
-  /// @param tryHarder Spend more time to try to find a barcode, optimize for accuracy, not speed.
-  /// @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
+  /// @param params Barcode parameters.
   /// @return The barcode results.
   CodeResults readBarcodes(
-    ffi.Pointer<ffi.Uint8> bytes,
-    int imageFormat,
-    int format,
-    int width,
-    int height,
-    int cropWidth,
-    int cropHeight,
-    bool tryHarder,
-    bool tryRotate,
-    bool tryInvert,
+    DecodeBarcodeParams params,
   ) {
     return _readBarcodes(
-      bytes,
-      imageFormat,
-      format,
-      width,
-      height,
-      cropWidth,
-      cropHeight,
-      tryHarder,
-      tryRotate,
-      tryInvert,
+      params,
     );
   }
 
-  late final _readBarcodesPtr = _lookup<
-      ffi.NativeFunction<
-          CodeResults Function(
-              ffi.Pointer<ffi.Uint8>,
-              ffi.Int,
-              ffi.Int,
-              ffi.Int,
-              ffi.Int,
-              ffi.Int,
-              ffi.Int,
-              ffi.Bool,
-              ffi.Bool,
-              ffi.Bool)>>('readBarcodes');
-  late final _readBarcodes = _readBarcodesPtr.asFunction<
-      CodeResults Function(ffi.Pointer<ffi.Uint8>, int, int, int, int, int, int,
-          bool, bool, bool)>();
+  late final _readBarcodesPtr =
+      _lookup<ffi.NativeFunction<CodeResults Function(DecodeBarcodeParams)>>(
+          'readBarcodes');
+  late final _readBarcodes =
+      _readBarcodesPtr.asFunction<CodeResults Function(DecodeBarcodeParams)>();
 
   /// @brief Encode a string into a barcode
-  /// @param contents The string to encode. Owned pointer. Will be freed by native code.
-  /// @param width The width of the barcode in pixels.
-  /// @param height The height of the barcode in pixels.
-  /// @param format The format of the barcode
-  /// @param margin The margin of the barcode
-  /// @param eccLevel The error correction level of the barcode. Used for Aztec, PDF417, and QRCode only, [0-8].
-  /// @return The barcode data.
+  /// @param params The parameters for encoding the barcode
+  /// @return The barcode data
   EncodeResult encodeBarcode(
-    ffi.Pointer<ffi.Char> contents,
-    int width,
-    int height,
-    int format,
-    int margin,
-    int eccLevel,
+    EncodeBarcodeParams params,
   ) {
     return _encodeBarcode(
-      contents,
-      width,
-      height,
-      format,
-      margin,
-      eccLevel,
+      params,
     );
   }
 
-  late final _encodeBarcodePtr = _lookup<
-      ffi.NativeFunction<
-          EncodeResult Function(ffi.Pointer<ffi.Char>, ffi.Int, ffi.Int,
-              ffi.Int, ffi.Int, ffi.Int)>>('encodeBarcode');
-  late final _encodeBarcode = _encodeBarcodePtr.asFunction<
-      EncodeResult Function(ffi.Pointer<ffi.Char>, int, int, int, int, int)>();
+  late final _encodeBarcodePtr =
+      _lookup<ffi.NativeFunction<EncodeResult Function(EncodeBarcodeParams)>>(
+          'encodeBarcode');
+  late final _encodeBarcode = _encodeBarcodePtr
+      .asFunction<EncodeResult Function(EncodeBarcodeParams)>();
+}
+
+/// @brief The BarcodeParams class encapsulates parameters for reading barcodes.
+final class DecodeBarcodeParams extends ffi.Struct {
+  /// < Image bytes
+  external ffi.Pointer<ffi.Uint8> bytes;
+
+  /// < Image format
+  @ffi.Int()
+  external int imageFormat;
+
+  /// < Specify a set of BarcodeFormats that should be searched for
+  @ffi.Int()
+  external int format;
+
+  /// < Image width in pixels
+  @ffi.Int()
+  external int width;
+
+  /// < Image height in pixels
+  @ffi.Int()
+  external int height;
+
+  /// < Crop left
+  @ffi.Int()
+  external int cropLeft;
+
+  /// < Crop top
+  @ffi.Int()
+  external int cropTop;
+
+  /// < Crop width
+  @ffi.Int()
+  external int cropWidth;
+
+  /// < Crop height
+  @ffi.Int()
+  external int cropHeight;
+
+  /// < Spend more time to try to find a barcode, optimize for accuracy, not speed
+  @ffi.Bool()
+  external bool tryHarder;
+
+  /// < Also try detecting code in 90, 180 and 270 degree rotated images
+  @ffi.Bool()
+  external bool tryRotate;
+
+  /// < Try inverting the image
+  @ffi.Bool()
+  external bool tryInvert;
+}
+
+/// @brief The EncodeBarcodeParams class encapsulates parameters for encoding barcodes.
+final class EncodeBarcodeParams extends ffi.Struct {
+  /// < The string to encode
+  external ffi.Pointer<ffi.Char> contents;
+
+  /// < The width of the barcode in pixels
+  @ffi.Int()
+  external int width;
+
+  /// < The height of the barcode in pixels
+  @ffi.Int()
+  external int height;
+
+  /// < The format of the barcode
+  @ffi.Int()
+  external int format;
+
+  /// < The margin of the barcode
+  @ffi.Int()
+  external int margin;
+
+  /// < The error correction level of the barcode. Used for Aztec, PDF417, and QRCode only, [0-8].
+  @ffi.Int()
+  external int eccLevel;
 }
 
 /// @brief Pos is a position of a barcode in a image.

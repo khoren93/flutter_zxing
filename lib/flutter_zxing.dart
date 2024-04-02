@@ -34,66 +34,32 @@ abstract class Zxing {
   void stopCameraProcessing();
 
   /// Reads barcode from the camera
-  Future<Code> processCameraImage(
-    CameraImage image, {
-    DecodeParams? params,
-  });
+  Future<Code> processCameraImage(CameraImage image, DecodeParams params);
 
   /// Reads barcodes from the camera
-  Future<Codes> processCameraImageMulti(
-    CameraImage image, {
-    DecodeParams? params,
-  });
+  Future<Codes> processCameraImageMulti(CameraImage image, DecodeParams params);
 
   /// Reads barcode from String image path
-  Future<Code> readBarcodeImagePathString(
-    String path, {
-    DecodeParams? params,
-  });
+  Future<Code> readBarcodeImagePathString(String path, DecodeParams params);
 
   /// Reads barcode from XFile image path
-  Future<Code> readBarcodeImagePath(
-    XFile path, {
-    DecodeParams? params,
-  });
+  Future<Code> readBarcodeImagePath(XFile path, DecodeParams params);
 
   /// Reads barcode from image url
-  Future<Code> readBarcodeImageUrl(
-    String url, {
-    DecodeParams? params,
-  });
+  Future<Code> readBarcodeImageUrl(String url, DecodeParams params);
 
 // Reads barcode from Uint8List image bytes
-  Code readBarcode(
-    Uint8List bytes, {
-    required int width,
-    required int height,
-    DecodeParams? params,
-  });
+  Code readBarcode(Uint8List bytes, DecodeParams params);
 
   /// Reads barcodes from String image path
-  Future<Codes> readBarcodesImagePathString(
-    String path, {
-    DecodeParams? params,
-  });
+  Future<Codes> readBarcodesImagePathString(String path, DecodeParams params);
 
   /// Reads barcodes from XFile image path
-  Future<Codes> readBarcodesImagePath(
-    XFile path, {
-    DecodeParams? params,
-  });
+  Future<Codes> readBarcodesImagePath(XFile path, DecodeParams params);
 
   /// Reads barcodes from image url
-  Future<Codes> readBarcodesImageUrl(
-    String url, {
-    DecodeParams? params,
-  });
+  Future<Codes> readBarcodesImageUrl(String url, DecodeParams params);
 
   /// Reads barcodes from Uint8List image bytes
-  Codes readBarcodes(
-    Uint8List bytes, {
-    required int width,
-    required int height,
-    DecodeParams? params,
-  });
+  Codes readBarcodes(Uint8List bytes, DecodeParams params);
 }

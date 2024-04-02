@@ -134,7 +134,7 @@ class ReaderWidget extends StatefulWidget {
 
   /// Custom background color for action buttons
   final Color actionButtonsBackgroundColor;
-  
+
   /// Custom background border radius for action buttons
   final BorderRadius? actionButtonsBackgroundBorderRadius;
 
@@ -314,6 +314,10 @@ class _ReaderWidgetState extends State<ReaderWidget>
         final DecodeParams params = DecodeParams(
           imageFormat: _imageFormat(image.format.group),
           format: widget.codeFormat,
+          width: image.width,
+          height: image.height,
+          cropLeft: (image.width - cropSize) ~/ 2,
+          cropTop: (image.height - cropSize) ~/ 2,
           cropWidth: cropSize,
           cropHeight: cropSize,
           tryHarder: widget.tryHarder,
@@ -322,10 +326,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
           isMultiScan: widget.isMultiScan,
         );
         if (widget.isMultiScan) {
-          final Codes result = await zx.processCameraImageMulti(
-            image,
-            params: params,
-          );
+          final Codes result = await zx.processCameraImageMulti(image, params);
           if (result.codes.isNotEmpty) {
             results = result;
             widget.onMultiScan?.call(result);
@@ -338,10 +339,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
             widget.onMultiScanFailure?.call(result);
           }
         } else {
-          final Code result = await zx.processCameraImage(
-            image,
-            params: params,
-          );
+          final Code result = await zx.processCameraImage(image, params);
           if (result.isValid) {
             widget.onScan?.call(result);
             setState(() {});
@@ -432,8 +430,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
             child: Padding(
               padding: widget.actionButtonsPadding,
               child: ClipRRect(
-                borderRadius: widget.actionButtonsBackgroundBorderRadius
-                    ?? BorderRadius.circular(10.0),
+                borderRadius: widget.actionButtonsBackgroundBorderRadius ??
+                    BorderRadius.circular(10.0),
                 child: Container(
                   color: widget.actionButtonsBackgroundColor,
                   child: Row(
@@ -443,7 +441,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
                         IconButton(
                           onPressed: _onFlashButtonTapped,
                           color: Colors.white,
-                          icon: _flashIcon(controller?.value.flashMode ?? FlashMode.off),
+                          icon: _flashIcon(
+                              controller?.value.flashMode ?? FlashMode.off),
                         ),
                       if (widget.showGallery)
                         IconButton(
@@ -505,8 +504,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
         isMultiScan: widget.isMultiScan,
       );
       if (widget.isMultiScan) {
-        final Codes result =
-            await zx.readBarcodesImagePath(file, params: params);
+        final Codes result = await zx.readBarcodesImagePath(file, params);
         if (result.codes.isNotEmpty) {
           results = result;
           widget.onMultiScan?.call(result);
@@ -516,7 +514,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
           widget.onMultiScanFailure?.call(result);
         }
       } else {
-        final Code result = await zx.readBarcodeImagePath(file, params: params);
+        final Code result = await zx.readBarcodeImagePath(file, params);
         if (result.isValid) {
           widget.onScan?.call(result);
         } else {

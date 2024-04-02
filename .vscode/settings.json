@@ -6,6 +6,8 @@
         "codecvt": "cpp",
         "cmath": "cpp",
         "array": "cpp",
-        "new": "cpp"
+        "new": "cpp",
+        "ios": "cpp",
+        "vector": "cpp"
     }
 }

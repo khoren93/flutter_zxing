@@ -11,6 +11,38 @@ extern "C"
 #endif
 
     /**
+     * @brief The BarcodeParams class encapsulates parameters for reading barcodes.
+     */
+    struct DecodeBarcodeParams
+    {
+        uint8_t *bytes;     ///< Image bytes
+        int imageFormat; ///< Image format
+        int format;      ///< Specify a set of BarcodeFormats that should be searched for
+        int width;       ///< Image width in pixels
+        int height;      ///< Image height in pixels
+        int cropLeft;    ///< Crop left
+        int cropTop;     ///< Crop top
+        int cropWidth;   ///< Crop width
+        int cropHeight;  ///< Crop height
+        bool tryHarder;   ///< Spend more time to try to find a barcode, optimize for accuracy, not speed
+        bool tryRotate;   ///< Also try detecting code in 90, 180 and 270 degree rotated images
+        bool tryInvert;   ///< Try inverting the image
+    };
+
+    /**
+     * @brief The EncodeBarcodeParams class encapsulates parameters for encoding barcodes.
+     */
+    struct EncodeBarcodeParams
+    {
+        char *contents; ///< The string to encode
+        int width;      ///< The width of the barcode in pixels
+        int height;     ///< The height of the barcode in pixels
+        int format;     ///< The format of the barcode
+        int margin;     ///< The margin of the barcode
+        int eccLevel;   ///< The error correction level of the barcode. Used for Aztec, PDF417, and QRCode only, [0-8].
+    };
+
+    /**
      * @brief Pos is a position of a barcode in a image.
      *
      */
@@ -85,45 +117,24 @@ extern "C"
 
     /**
      * @brief Read barcode from image bytes.
-     * @param bytes Image bytes. Owned pointer. Will be freed by native code.
-     * @param imageFormat Image format.
-     * @param format Specify a set of BarcodeFormats that should be searched for.
-     * @param width Image width in pixels.
-     * @param height Image height in pixels.
-     * @param cropWidth Crop width.
-     * @param cropHeight Crop height.
-     * @param tryHarder Spend more time to try to find a barcode; optimize for accuracy, not speed.
-     * @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
+     * @param params Barcode parameters.
      * @return The barcode result.
      */
-    struct CodeResult readBarcode(uint8_t *bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert);
+    struct CodeResult readBarcode(struct DecodeBarcodeParams params);
 
     /**
      * @brief Read barcodes from image bytes.
-     * @param bytes Image bytes. Owned pointer. Will be freed by native code.
-     * @param imageFormat Image format.
-     * @param format Specify a set of BarcodeFormats that should be searched for.
-     * @param width Image width in pixels.
-     * @param height Image height in pixels.
-     * @param cropWidth Crop width.
-     * @param cropHeight Crop height.
-     * @param tryHarder Spend more time to try to find a barcode, optimize for accuracy, not speed.
-     * @param tryRotate Also try detecting code in 90, 180 and 270 degree rotated images.
+     * @param params Barcode parameters.
      * @return The barcode results.
      */
-    struct CodeResults readBarcodes(uint8_t *bytes, int imageFormat, int format, int width, int height, int cropWidth, int cropHeight, bool tryHarder, bool tryRotate, bool tryInvert);
+    struct CodeResults readBarcodes(struct DecodeBarcodeParams params);
 
     /**
      * @brief Encode a string into a barcode
-     * @param contents The string to encode. Owned pointer. Will be freed by native code.
-     * @param width The width of the barcode in pixels.
-     * @param height The height of the barcode in pixels.
-     * @param format The format of the barcode
-     * @param margin The margin of the barcode
-     * @param eccLevel The error correction level of the barcode. Used for Aztec, PDF417, and QRCode only, [0-8].
-     * @return The barcode data.
+     * @param params The parameters for encoding the barcode
+     * @return The barcode data
      */
-    struct EncodeResult encodeBarcode(char *contents, int width, int height, int format, int margin, int eccLevel);
+    struct EncodeResult encodeBarcode(struct EncodeBarcodeParams params);
 
 #ifdef __cplusplus
 }

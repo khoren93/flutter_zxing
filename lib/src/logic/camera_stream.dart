@@ -12,13 +12,8 @@ Future<void> zxingStartCameraProcessing() async {
 void zxingStopCameraProcessing() => isolateUtils?.stopReadingBarcode();
 
 Future<dynamic> zxingProcessCameraImage(
-  CameraImage image, {
-  DecodeParams? params,
-}) async {
-  final IsolateData isolateData = IsolateData(image, params ?? DecodeParams());
-  final dynamic result = await _inference(isolateData);
-  return result;
-}
+        CameraImage image, DecodeParams params) =>
+    _inference(IsolateData(image, params));
 
 /// Runs inference in another isolate
 Future<dynamic> _inference(IsolateData isolateData) async {

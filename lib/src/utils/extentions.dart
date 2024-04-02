@@ -87,3 +87,35 @@ extension PosExt on Pos {
         bottomRightY,
       );
 }
+
+extension EncodeParamsExt on EncodeParams {
+  EncodeBarcodeParams toEncodeBarcodeParams(String contents) {
+    final Pointer<EncodeBarcodeParams> p = calloc<EncodeBarcodeParams>();
+    p.ref.contents = contents.toNativeUtf8().cast<Char>();
+    p.ref.width = width;
+    p.ref.height = height;
+    p.ref.format = format;
+    p.ref.margin = margin;
+    p.ref.eccLevel = eccLevel.value;
+    return p.ref;
+  }
+}
+
+extension DecodeParamsExt on DecodeParams {
+  DecodeBarcodeParams toDecodeBarcodeParams(Uint8List bytes) {
+    final Pointer<DecodeBarcodeParams> p = calloc<DecodeBarcodeParams>();
+    p.ref.bytes = bytes.copyToNativePointer();
+    p.ref.imageFormat = imageFormat;
+    p.ref.format = format;
+    p.ref.width = width;
+    p.ref.height = height;
+    p.ref.cropLeft = cropLeft;
+    p.ref.cropTop = cropTop;
+    p.ref.cropWidth = cropWidth;
+    p.ref.cropHeight = cropHeight;
+    p.ref.tryHarder = tryHarder;
+    p.ref.tryRotate = tryRotate;
+    p.ref.tryInvert = tryInverted;
+    return p.ref;
+  }
+}
