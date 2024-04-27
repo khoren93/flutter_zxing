@@ -9,7 +9,6 @@
 #include <chrono>
 #include <codecvt>
 #include <cstdarg>
-#include <cstdlib>
 #include <locale>
 #include <string>
 #include <vector>
@@ -27,10 +26,6 @@ ImageView createCroppedImageView(const struct DecodeBarcodeParams &params)
     {
         image = image.cropped(params.cropLeft, params.cropTop, params.cropWidth, params.cropHeight);
     }
-
-    // Dart passes us an owned image bytes pointer; we need to free it after
-    delete[] params.bytes;
-
     return image;
 }
 
