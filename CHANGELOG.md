@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.0
+
+* Updated camera to v0.11.0
+
 ## 1.5.2
 
 * Fixed issue with recognizing the barcodes from the image
