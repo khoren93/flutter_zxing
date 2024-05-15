@@ -20,7 +20,7 @@ dev_dependencies:
   flutter_lints: ^3.0.0
   flutter_test:
     sdk: flutter
-  melos: ^5.0.0
+  melos: ">=5.0.0 <7.0.0"
 
 flutter:
   plugin:
