@@ -9,13 +9,13 @@ environment:
 
 dependencies:
   convex_bottom_bar: ^3.2.0
-  cupertino_icons: ^1.0.5
+  cupertino_icons: ^1.0.8
   flex_color_scheme: ^7.0.0
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  flutter_markdown: ^0.6.15
+  flutter_markdown: ^0.7.0
   flutter_mobx: ^2.2.0
   flutter_zxing:
     path: ../
@@ -24,10 +24,10 @@ dependencies:
   hive_flutter: ^1.1.0
   image: any
   image_picker: ^1.0.0
-  intl: ^0.18.0
+  intl: ^0.19.0
   mobx: ^2.0.0
   path_provider: ^2.0.0
-  share_plus: ^8.0.0
+  share_plus: ^9.0.0
   shared_preferences: ^2.0.0
   url_launcher: ^6.2.0
 
@@ -36,9 +36,9 @@ flutter_intl:
   enabled: true
 
 dev_dependencies:
-  build_runner: ^2.4.6
+  build_runner: ^2.4.0
   # espresso: ^0.2.0+2
-  flutter_lints: ^3.0.0
+  flutter_lints: ^4.0.0
   flutter_native_splash: ^2.2.16 # flutter pub run flutter_native_splash:create
   flutter_test:
     sdk: flutter
@@ -59,15 +59,28 @@ flutter_native_splash:
     - "ios/Runner/Info-Debug.plist"
     - "ios/Runner/Info-Release.plist"
 
-flutter_icons:
-  android: true
-  ios: true
-  macos: false
-  windows: false
-  web: false
-  remove_alpha_ios: true
+icons_launcher:
   image_path: "assets/images/app_icon_border.png"
-  image_path_ios: "assets/images/app_icon.png"
-  adaptive_icon_background: "#4C9BBA"
-  adaptive_icon_foreground: "assets/images/app_icon_adaptive.png"
-  adaptive_icon_round: "assets/images/app_icon_round.png"
+  platforms:
+    android:
+      enable: true
+      image_path: "assets/images/app_icon_border.png"
+      adaptive_background_color: '#4C9BBA'
+      adaptive_foreground_image: "assets/images/app_icon_foreground.png"
+      adaptive_round_image: "assets/images/app_icon_round.png"
+    ios:
+      enable: true
+      image_path: "assets/images/app_icon.png"
+    web:
+      enable: true
+      image_path: "assets/images/app_icon_border.png"
+      favicon_path: "assets/images/app_icon_round.png"
+    macos:
+      enable: false
+      image_path: "assets/images/app_icon_border.png"
+    windows:
+      enable: false
+      image_path: "assets/images/app_icon_border.png"
+    linux:
+      enable: false
+      image_path: "assets/images/app_icon_border.png"
