@@ -1,8 +1,10 @@
 #ifdef __cplusplus
 #include <cstdint>
+#include <cstdlib>
 #else
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #endif
 
 #ifdef __cplusplus
@@ -15,7 +17,7 @@ extern "C"
      */
     struct DecodeBarcodeParams
     {
-        uint8_t *bytes;     ///< Image bytes
+        uint8_t *bytes;     ///< Image bytes. Owned pointer, freed in destructor.
         int imageFormat; ///< Image format
         int format;      ///< Specify a set of BarcodeFormats that should be searched for
         int width;       ///< Image width in pixels
@@ -27,6 +29,18 @@ extern "C"
         bool tryHarder;   ///< Spend more time to try to find a barcode, optimize for accuracy, not speed
         bool tryRotate;   ///< Also try detecting code in 90, 180 and 270 degree rotated images
         bool tryInvert;   ///< Try inverting the image
+
+#ifdef __cplusplus
+        ~DecodeBarcodeParams() {
+            // Dart passes us an owned image bytes pointer; we need to free it.
+            free(bytes);
+        }
+
+        DecodeBarcodeParams(const DecodeBarcodeParams&) = delete;
+        DecodeBarcodeParams& operator=(const DecodeBarcodeParams&) = delete;
+        DecodeBarcodeParams(DecodeBarcodeParams&&) = delete;
+        DecodeBarcodeParams& operator=(DecodeBarcodeParams&&) = delete;
+#endif
     };
 
     /**
@@ -34,12 +48,24 @@ extern "C"
      */
     struct EncodeBarcodeParams
     {
-        char *contents; ///< The string to encode
+        char *contents; ///< The string to encode. Owned pointer, freed in destructor.
         int width;      ///< The width of the barcode in pixels
         int height;     ///< The height of the barcode in pixels
         int format;     ///< The format of the barcode
         int margin;     ///< The margin of the barcode
         int eccLevel;   ///< The error correction level of the barcode. Used for Aztec, PDF417, and QRCode only, [0-8].
+
+#ifdef __cplusplus
+        ~EncodeBarcodeParams() {
+            // Dart passes us an owned string; we need to free it.
+            free(contents);
+        }
+
+        EncodeBarcodeParams(const EncodeBarcodeParams&) = delete;
+        EncodeBarcodeParams& operator=(const EncodeBarcodeParams&) = delete;
+        EncodeBarcodeParams(EncodeBarcodeParams&&) = delete;
+        EncodeBarcodeParams& operator=(EncodeBarcodeParams&&) = delete;
+#endif
     };
 
     /**

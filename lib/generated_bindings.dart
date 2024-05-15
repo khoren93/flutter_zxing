@@ -109,7 +109,7 @@ class GeneratedBindings {
 
 /// @brief The BarcodeParams class encapsulates parameters for reading barcodes.
 final class DecodeBarcodeParams extends ffi.Struct {
-  /// < Image bytes
+  /// < Image bytes. Owned pointer, freed in destructor.
   external ffi.Pointer<ffi.Uint8> bytes;
 
   /// < Image format
@@ -159,7 +159,7 @@ final class DecodeBarcodeParams extends ffi.Struct {
 
 /// @brief The EncodeBarcodeParams class encapsulates parameters for encoding barcodes.
 final class EncodeBarcodeParams extends ffi.Struct {
-  /// < The string to encode
+  /// < The string to encode. Owned pointer, freed in destructor.
   external ffi.Pointer<ffi.Char> contents;
 
   /// < The width of the barcode in pixels
