@@ -100,14 +100,14 @@ import 'package:flutter_zxing/flutter_zxing.dart';
 // Use ReaderWidget to quickly read barcode from camera image
 @override
 Widget build(BuildContext context) {
-    return Scaffold(
-        body: ReaderWidget(
-            onScan: (result) async {
-                // Do something with the result
-            },
-        ),
+  return Scaffold(
+    body: ReaderWidget(
+      onScan: (result) async {
+        // Do something with the result
+      },
     ),
-);
+  );
+}
 
 // Or use flutter_zxing plugin methods 
 // To read barcode from camera image directly
@@ -147,17 +147,17 @@ import 'package:image/image.dart' as imglib;
 // Use WriterWidget to quickly create barcode
 @override
 Widget build(BuildContext context) {
-    return Scaffold(
-        body: WriterWidget(
-            onSuccess: (result, bytes) {
-                // Do something with the result
-            },
-            onError: (error) {
-                // Do something with the error
-            },
-        ),
+  return Scaffold(
+    body: WriterWidget(
+      onSuccess: (result, bytes) {
+        // Do something with the result
+      },
+      onError: (error) {
+        // Do something with the error
+      },
     ),
-);
+  );
+}
 
 // Or use FlutterZxing to create barcode directly
 final Encode result = zx.encodeBarcode(

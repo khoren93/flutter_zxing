@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.1
+
+* Fixed iOS and macOS compatibility issues
+
 ## 1.6.0
 
 * Updated camera to v0.11.0
