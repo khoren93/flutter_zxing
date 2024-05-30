@@ -42,21 +42,21 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    CodeResult readBarcode(DecodeBarcodeParams params)
+    CodeResult readBarcode(DecodeBarcodeParams* params)
     {
-        return _readBarcode(params);
+        return _readBarcode(*params);
     }
 
     FUNCTION_ATTRIBUTE
-    CodeResults readBarcodes(DecodeBarcodeParams params)
+    CodeResults readBarcodes(DecodeBarcodeParams* params)
     {
-        return _readBarcodes(params);
+        return _readBarcodes(*params);
     }
 
     FUNCTION_ATTRIBUTE
-    EncodeResult encodeBarcode(EncodeBarcodeParams params)
+    EncodeResult encodeBarcode(EncodeBarcodeParams* params)
     {
-        return _encodeBarcode(params);
+        return _encodeBarcode(*params);
     }
 }
 

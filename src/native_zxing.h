@@ -143,24 +143,27 @@ extern "C"
 
     /**
      * @brief Read barcode from image bytes.
-     * @param params Barcode parameters.
+     * @param params Barcode parameters. Owned pointer. Will be freed before
+     *               function returns.
      * @return The barcode result.
      */
-    struct CodeResult readBarcode(struct DecodeBarcodeParams params);
+    struct CodeResult readBarcode(struct DecodeBarcodeParams* params);
 
     /**
      * @brief Read barcodes from image bytes.
-     * @param params Barcode parameters.
+     * @param params Barcode parameters. Owned pointer. Will be freed before
+     *               function returns.
      * @return The barcode results.
      */
-    struct CodeResults readBarcodes(struct DecodeBarcodeParams params);
+    struct CodeResults readBarcodes(struct DecodeBarcodeParams* params);
 
     /**
      * @brief Encode a string into a barcode
-     * @param params The parameters for encoding the barcode
+     * @param params Encoding parameters. Owned pointer. Will be freed before
+     *               function returns.
      * @return The barcode data
      */
-    struct EncodeResult encodeBarcode(struct EncodeBarcodeParams params);
+    struct EncodeResult encodeBarcode(struct EncodeBarcodeParams* params);
 
 #ifdef __cplusplus
 }
