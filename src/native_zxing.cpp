@@ -230,7 +230,7 @@ EncodeResult _encodeBarcode(const EncodeBarcodeParams& params)
 {
     auto start = steady_clock::now();
 
-    EncodeResult result {0, params.contents, params.format, nullptr, 0, nullptr};
+    EncodeResult result {0, params.format, nullptr, 0, nullptr};
     try
     {
         auto writer = MultiFormatWriter(BarcodeFormat(params.format))

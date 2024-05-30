@@ -63,10 +63,10 @@ extension CodeExt on CodeResult {
 }
 
 extension EncodeExt on EncodeResult {
-  Encode toEncode() => Encode(
+  Encode toEncode(final String text) => Encode(
         isValid,
         format,
-        copyStringFromOwnedFfiPtr(text),
+        text,
         copyUint32ListFromOwnedFfiPtr(data, length),
         length,
         copyStringFromOwnedFfiPtr(error),

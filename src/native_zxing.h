@@ -120,7 +120,6 @@ extern "C"
     struct EncodeResult
     {
         bool isValid;  ///< Whether the barcode was successfully encoded
-        char* text;    ///< The encoded text. Owned pointer. Must be freed by Dart code if not null.
         int format;    ///< The format of the barcode
         uint8_t* data; ///< The encoded data. Owned pointer. Must be freed by Dart code if not null.
         int length;    ///< The length of the encoded data

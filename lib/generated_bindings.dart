@@ -291,9 +291,6 @@ final class EncodeResult extends ffi.Struct {
   @ffi.Bool()
   external bool isValid;
 
-  /// < The encoded text. Owned pointer. Must be freed by Dart code if not null.
-  external ffi.Pointer<ffi.Char> text;
-
   /// < The format of the barcode
   @ffi.Int()
   external int format;
