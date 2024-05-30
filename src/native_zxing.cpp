@@ -66,8 +66,14 @@ extern "C"
 
 ImageView createCroppedImageView(const DecodeBarcodeParams &params)
 {
-    ImageView image {reinterpret_cast<const uint8_t *>(params.bytes), params.width, params.height, ImageFormat(params.imageFormat)};
-    if (params.cropWidth > 0 && params.cropHeight > 0 && params.cropWidth < params.width && params.cropHeight < params.height)
+    ImageView image {
+        reinterpret_cast<const uint8_t *>(params.bytes),
+        params.width,
+        params.height,
+        ImageFormat(params.imageFormat),
+    };
+    if (params.cropWidth > 0 && params.cropHeight > 0
+        && params.cropWidth < params.width && params.cropHeight < params.height)
     {
         image = image.cropped(params.cropLeft, params.cropTop, params.cropWidth, params.cropHeight);
     }
@@ -76,7 +82,12 @@ ImageView createCroppedImageView(const DecodeBarcodeParams &params)
 
 ReaderOptions createReaderOptions(const DecodeBarcodeParams &params)
 {
-    return ReaderOptions().setTryHarder(params.tryHarder).setTryRotate(params.tryRotate).setFormats(BarcodeFormat(params.format)).setTryInvert(params.tryInvert).setReturnErrors(true);
+    return ReaderOptions()
+        .setTryHarder(params.tryHarder)
+        .setTryRotate(params.tryRotate)
+        .setFormats(BarcodeFormat(params.format))
+        .setTryInvert(params.tryInvert)
+        .setReturnErrors(true);
 }
 
 // Returns an owned C-string `char*`, copied from a `std::string&`.
@@ -187,7 +198,10 @@ EncodeResult _encodeBarcode(const EncodeBarcodeParams& params)
     EncodeResult result {0, params.contents, params.format, nullptr, 0, nullptr};
     try
     {
-        auto writer = MultiFormatWriter(BarcodeFormat(params.format)).setMargin(params.margin).setEccLevel(params.eccLevel).setEncoding(CharacterSet::UTF8);
+        auto writer = MultiFormatWriter(BarcodeFormat(params.format))
+           .setMargin(params.margin)
+           .setEccLevel(params.eccLevel)
+           .setEncoding(CharacterSet::UTF8);
         auto bitMatrix = writer.encode(params.contents, params.width, params.height);
         auto matrix = ToMatrix<uint8_t>(bitMatrix);
 
