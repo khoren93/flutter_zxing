@@ -10,6 +10,7 @@
 #include <codecvt>
 #include <cstdarg>
 #include <locale>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -21,6 +22,22 @@ using std::chrono::steady_clock;
 CodeResult _readBarcode(const DecodeBarcodeParams& params);
 CodeResults _readBarcodes(const DecodeBarcodeParams& params);
 EncodeResult _encodeBarcode(const EncodeBarcodeParams& params);
+
+// `unique_dart_ptr` is a `unique_ptr` that can safely manage pointers allocated
+// from within Dart. In particular, it will dealloc pointers passed from Dart
+// using the same allocator that alloc'd them.
+//
+// On Unix-like systems, this is the libc allocator (`malloc` and `free`). On
+// Windows, this is... whatever allocator Windows uses (`CoTaskMemAlloc` and
+// `CoTaskMemFree` apparently).
+//
+// See: <https://pub.dev/documentation/ffi/latest/ffi/malloc-constant.html>
+struct dart_deleter {
+    template <typename T>
+    void operator()(T *p) const;
+};
+template <typename T>
+using unique_dart_ptr = std::unique_ptr<T, dart_deleter>;
 
 //
 // Public, exported FFI functions
@@ -44,19 +61,22 @@ extern "C"
     FUNCTION_ATTRIBUTE
     CodeResult readBarcode(DecodeBarcodeParams* params)
     {
-        return _readBarcode(*params);
+        unique_dart_ptr<DecodeBarcodeParams> _params(params);
+        return _readBarcode(*_params);
     }
 
     FUNCTION_ATTRIBUTE
     CodeResults readBarcodes(DecodeBarcodeParams* params)
     {
-        return _readBarcodes(*params);
+        unique_dart_ptr<DecodeBarcodeParams> _params(params);
+        return _readBarcodes(*_params);
     }
 
     FUNCTION_ATTRIBUTE
     EncodeResult encodeBarcode(EncodeBarcodeParams* params)
     {
-        return _encodeBarcode(*params);
+        unique_dart_ptr<EncodeBarcodeParams> _params(params);
+        return _encodeBarcode(*_params);
     }
 }
 
@@ -147,6 +167,21 @@ int elapsed_ms(const steady_clock::time_point &start)
     auto duration = end - start;
     return chrono::duration_cast<chrono::milliseconds>(duration).count();
 }
+
+// A "deleter" for `std::unique_ptr` that can free pointers from Dart.
+template <typename T>
+void dart_deleter::operator()(T *p) const
+{
+    // TODO(phlip9): this should use `CoTaskMemFree` on Windows
+    std::free(const_cast<std::remove_const_t<T>*>(p));
+}
+
+// Ensure `unique_dart_ptr` doesn't add any extra fn ptr overhead. It should
+// just be ptr-sized.
+static_assert(
+    sizeof(unique_ptr<uint8_t>) == sizeof(unique_dart_ptr<uint8_t>),
+    "no extra overhead"
+);
 
 //
 // FFI impls
