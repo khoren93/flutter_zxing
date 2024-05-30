@@ -42,19 +42,19 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResult readBarcode(struct DecodeBarcodeParams params)
+    CodeResult readBarcode(DecodeBarcodeParams params)
     {
         return _readBarcode(params);
     }
 
     FUNCTION_ATTRIBUTE
-    struct CodeResults readBarcodes(struct DecodeBarcodeParams params)
+    CodeResults readBarcodes(DecodeBarcodeParams params)
     {
         return _readBarcodes(params);
     }
 
     FUNCTION_ATTRIBUTE
-    struct EncodeResult encodeBarcode(struct EncodeBarcodeParams params)
+    EncodeResult encodeBarcode(EncodeBarcodeParams params)
     {
         return _encodeBarcode(params);
     }
@@ -64,9 +64,9 @@ extern "C"
 // Helper functions
 //
 
-ImageView createCroppedImageView(const struct DecodeBarcodeParams &params)
+ImageView createCroppedImageView(const DecodeBarcodeParams &params)
 {
-    ImageView image{reinterpret_cast<const uint8_t *>(params.bytes), params.width, params.height, ImageFormat(params.imageFormat)};
+    ImageView image {reinterpret_cast<const uint8_t *>(params.bytes), params.width, params.height, ImageFormat(params.imageFormat)};
     if (params.cropWidth > 0 && params.cropHeight > 0 && params.cropWidth < params.width && params.cropHeight < params.height)
     {
         image = image.cropped(params.cropLeft, params.cropTop, params.cropWidth, params.cropHeight);
@@ -74,7 +74,7 @@ ImageView createCroppedImageView(const struct DecodeBarcodeParams &params)
     return image;
 }
 
-ReaderOptions createReaderOptions(const struct DecodeBarcodeParams &params)
+ReaderOptions createReaderOptions(const DecodeBarcodeParams &params)
 {
     return ReaderOptions().setTryHarder(params.tryHarder).setTryRotate(params.tryRotate).setFormats(BarcodeFormat(params.format)).setTryInvert(params.tryInvert).setReturnErrors(true);
 }
@@ -114,9 +114,7 @@ CodeResult codeResultFromResult(
 
     const auto text = result.text();
 
-    struct CodeResult code
-    {
-    };
+    CodeResult code {};
     code.text = cstrFromString(text);
     code.isValid = result.isValid();
     code.error = cstrFromString(result.error().msg());
@@ -172,7 +170,7 @@ CodeResults _readBarcodes(const DecodeBarcodeParams& params)
         return CodeResults{0, nullptr, duration};
     }
 
-    auto *codes = new struct CodeResult[results.size()];
+    auto *codes = new CodeResult[results.size()];
     int i = 0;
     for (const auto &result : results)
     {
@@ -186,7 +184,7 @@ EncodeResult _encodeBarcode(const EncodeBarcodeParams& params)
 {
     auto start = steady_clock::now();
 
-    struct EncodeResult result = {0, params.contents, params.format, nullptr, 0, nullptr};
+    EncodeResult result {0, params.contents, params.format, nullptr, 0, nullptr};
     try
     {
         auto writer = MultiFormatWriter(BarcodeFormat(params.format)).setMargin(params.margin).setEccLevel(params.eccLevel).setEncoding(CharacterSet::UTF8);
