@@ -34,7 +34,7 @@ EncodeResult _encodeBarcode(const EncodeBarcodeParams& params);
 // See: <https://pub.dev/documentation/ffi/latest/ffi/malloc-constant.html>
 struct dart_deleter {
     template <typename T>
-    void operator()(T *p) const;
+    void operator()(T* p) const;
 };
 template <typename T>
 using unique_dart_ptr = std::unique_ptr<T, dart_deleter>;
@@ -52,7 +52,7 @@ extern "C"
     }
 
     FUNCTION_ATTRIBUTE
-    char const *version()
+    char const* version()
     {
         // return ZXING_VERSION_STR; // TODO: Not working on iOS for now
         return "2.2.1";
@@ -84,10 +84,10 @@ extern "C"
 // Helper functions
 //
 
-ImageView createCroppedImageView(const DecodeBarcodeParams &params)
+ImageView createCroppedImageView(const DecodeBarcodeParams& params)
 {
     ImageView image {
-        reinterpret_cast<const uint8_t *>(params.bytes),
+        reinterpret_cast<const uint8_t*>(params.bytes),
         params.width,
         params.height,
         ImageFormat(params.imageFormat),
@@ -100,7 +100,7 @@ ImageView createCroppedImageView(const DecodeBarcodeParams &params)
     return image;
 }
 
-ReaderOptions createReaderOptions(const DecodeBarcodeParams &params)
+ReaderOptions createReaderOptions(const DecodeBarcodeParams& params)
 {
     return ReaderOptions()
         .setTryHarder(params.tryHarder)
@@ -111,7 +111,7 @@ ReaderOptions createReaderOptions(const DecodeBarcodeParams &params)
 }
 
 // Returns an owned C-string `char*`, copied from a `std::string&`.
-char *cstrFromString(const std::string &s)
+char* cstrFromString(const std::string& s)
 {
     auto size = s.length() + 1;
     char *out = new char[size];
@@ -122,9 +122,9 @@ char *cstrFromString(const std::string &s)
 
 // Returns an owned byte buffer `uint8_t*`, copied from a
 // `std::vector<uint8_t>&`.
-uint8_t *bytesFromVector(const std::vector<uint8_t> &v)
+uint8_t* bytesFromVector(const std::vector<uint8_t>& v)
 {
-    auto *bytes = new uint8_t[v.size()];
+    auto* bytes = new uint8_t[v.size()];
     std::copy(v.begin(), v.end(), bytes);
     return bytes;
 }
@@ -132,7 +132,7 @@ uint8_t *bytesFromVector(const std::vector<uint8_t> &v)
 // Construct a `CodeResult` from a zxing barcode decode `Result` from within an
 // image.
 CodeResult codeResultFromResult(
-    const Result &result,
+    const Result& result,
     int duration,
     int width,
     int height)
@@ -161,7 +161,7 @@ CodeResult codeResultFromResult(
 }
 
 // Returns the duration elapsed in milliseconds since `start`.
-int elapsed_ms(const steady_clock::time_point &start)
+int elapsed_ms(const steady_clock::time_point& start)
 {
     auto end = steady_clock::now();
     auto duration = end - start;
@@ -170,7 +170,7 @@ int elapsed_ms(const steady_clock::time_point &start)
 
 // A "deleter" for `std::unique_ptr` that can free pointers from Dart.
 template <typename T>
-void dart_deleter::operator()(T *p) const
+void dart_deleter::operator()(T* p) const
 {
     // TODO(phlip9): this should use `CoTaskMemFree` on Windows
     std::free(const_cast<std::remove_const_t<T>*>(p));
@@ -213,7 +213,7 @@ CodeResults _readBarcodes(const DecodeBarcodeParams& params)
 
     if (results.empty())
     {
-        return CodeResults{0, nullptr, duration};
+        return CodeResults {0, nullptr, duration};
     }
 
     auto *codes = new CodeResult[results.size()];
@@ -223,7 +223,7 @@ CodeResults _readBarcodes(const DecodeBarcodeParams& params)
         codes[i] = codeResultFromResult(result, duration, params.width, params.height);
         i++;
     }
-    return CodeResults{i, codes, duration};
+    return CodeResults {i, codes, duration};
 }
 
 EncodeResult _encodeBarcode(const EncodeBarcodeParams& params)
@@ -250,7 +250,7 @@ EncodeResult _encodeBarcode(const EncodeBarcodeParams& params)
         result.data = data;
         result.isValid = true;
     }
-    catch (const exception &e)
+    catch (const exception& e)
     {
         platform_log("Can't encode text: %s\nError: %s\n", params.contents, e.what());
         result.error = new char[strlen(e.what()) + 1];

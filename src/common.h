@@ -19,6 +19,6 @@
 #define FUNCTION_ATTRIBUTE __declspec(dllexport)
 #endif
 
-void platform_log(const char *fmt, ...);
+void platform_log(const char* fmt, ...);
 
 void setLoggingEnabled(bool enabled);

@@ -17,7 +17,7 @@ extern "C"
      */
     struct DecodeBarcodeParams
     {
-        uint8_t *bytes;     ///< Image bytes. Owned pointer, freed in destructor.
+        uint8_t* bytes;  ///< Image bytes. Owned pointer, freed in destructor.
         int imageFormat; ///< Image format
         int format;      ///< Specify a set of BarcodeFormats that should be searched for
         int width;       ///< Image width in pixels
@@ -26,9 +26,9 @@ extern "C"
         int cropTop;     ///< Crop top
         int cropWidth;   ///< Crop width
         int cropHeight;  ///< Crop height
-        bool tryHarder;   ///< Spend more time to try to find a barcode, optimize for accuracy, not speed
-        bool tryRotate;   ///< Also try detecting code in 90, 180 and 270 degree rotated images
-        bool tryInvert;   ///< Try inverting the image
+        bool tryHarder;  ///< Spend more time to try to find a barcode, optimize for accuracy, not speed
+        bool tryRotate;  ///< Also try detecting code in 90, 180 and 270 degree rotated images
+        bool tryInvert;  ///< Try inverting the image
 
 #ifdef __cplusplus
         ~DecodeBarcodeParams() {
@@ -48,7 +48,7 @@ extern "C"
      */
     struct EncodeBarcodeParams
     {
-        char *contents; ///< The string to encode. Owned pointer, freed in destructor.
+        char* contents; ///< The string to encode. Owned pointer, freed in destructor.
         int width;      ///< The width of the barcode in pixels
         int height;     ///< The height of the barcode in pixels
         int format;     ///< The format of the barcode
@@ -91,10 +91,10 @@ extern "C"
      */
     struct CodeResult
     {
-        char *text;      ///< The decoded text. Owned pointer. Must be freed by Dart code if not null.
+        char* text;      ///< The decoded text. Owned pointer. Must be freed by Dart code if not null.
         bool isValid;    ///< Whether the barcode was successfully decoded
-        char *error;     ///< The error message. Owned pointer. Must be freed by Dart code if not null.
-        uint8_t *bytes;  ///< The bytes is the raw content without any character set conversions. Owned pointer. Must be freed by Dart code if not null.
+        char* error;     ///< The error message. Owned pointer. Must be freed by Dart code if not null.
+        uint8_t* bytes;  ///< The bytes is the raw content without any character set conversions. Owned pointer. Must be freed by Dart code if not null.
         int length;      ///< The length of the bytes
         int format;      ///< The format of the barcode
         struct Pos pos;  ///< The position of the barcode within the image
@@ -109,7 +109,7 @@ extern "C"
     struct CodeResults
     {
         int count;                  ///< The number of barcodes detected
-        struct CodeResult *results; ///< The results of the barcode decoding. Owned pointer. Must be freed by Dart code.
+        struct CodeResult* results; ///< The results of the barcode decoding. Owned pointer. Must be freed by Dart code.
         int duration;               ///< The duration of the decoding in milliseconds
     };
 
@@ -120,11 +120,11 @@ extern "C"
     struct EncodeResult
     {
         bool isValid;  ///< Whether the barcode was successfully encoded
-        char *text;    ///< The encoded text. Owned pointer. Must be freed by Dart code if not null.
+        char* text;    ///< The encoded text. Owned pointer. Must be freed by Dart code if not null.
         int format;    ///< The format of the barcode
-        uint8_t *data; ///< The encoded data. Owned pointer. Must be freed by Dart code if not null.
+        uint8_t* data; ///< The encoded data. Owned pointer. Must be freed by Dart code if not null.
         int length;    ///< The length of the encoded data
-        char *error;   ///< The error message. Owned pointer. Must be freed by Dart code if not null.
+        char* error;   ///< The error message. Owned pointer. Must be freed by Dart code if not null.
     };
 
     /**
@@ -139,7 +139,7 @@ extern "C"
      *
      * @return The version of the zxing-cpp library.
      */
-    char const *version();
+    char const* version();
 
     /**
      * @brief Read barcode from image bytes.

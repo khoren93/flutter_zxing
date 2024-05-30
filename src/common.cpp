@@ -11,7 +11,7 @@ void setLoggingEnabled(bool enabled)
         isLogEnabled = enabled;
 }
 
-void platform_log(const char *fmt, ...)
+void platform_log(const char* fmt, ...)
 {
         if (isLogEnabled)
         {
@@ -20,7 +20,7 @@ void platform_log(const char *fmt, ...)
 #ifdef __ANDROID__
                 __android_log_vprint(ANDROID_LOG_VERBOSE, "ndk", fmt, args);
 #elif defined(IS_WIN32)
-                char *buf = new char[4096];
+                char* buf = new char[4096];
                 std::fill_n(buf, 4096, '\0');
                 _vsprintf_p(buf, 4096, fmt, args);
                 OutputDebugStringA(buf);
