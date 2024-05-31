@@ -1,4 +1,8 @@
+#pragma once
+
 #ifdef __cplusplus
+#include "dart_alloc.h"
+
 #include <cstdint>
 #include <cstdlib>
 #else
@@ -33,7 +37,7 @@ extern "C"
 #ifdef __cplusplus
         ~DecodeBarcodeParams() {
             // Dart passes us an owned image bytes pointer; we need to free it.
-            free(bytes);
+            dart_free(bytes);
         }
 
         DecodeBarcodeParams(const DecodeBarcodeParams&) = delete;
@@ -58,7 +62,7 @@ extern "C"
 #ifdef __cplusplus
         ~EncodeBarcodeParams() {
             // Dart passes us an owned string; we need to free it.
-            free(contents);
+            dart_free(contents);
         }
 
         EncodeBarcodeParams(const EncodeBarcodeParams&) = delete;

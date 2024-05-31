@@ -1,16 +1,30 @@
+//! The native C++ FFI impl for `flutter_zxing`.
+//!
+//! ### Tips writing FFI code
+//!
+//! Returning allocated memory to Dart or freeing memory allocated from within
+//! Dart in C++ must be done _very carefully_. For this to be safe, both C++ and
+//! Dart must use the same allocator on each side. Since C++ may use a different
+//! allocator for `new`/`free`/other std types:
+//!
+//! * Manage all memory from/to dart using `dart_allocator` (in `dart_alloc.h`).
+//! * Avoid returning memory from `new` to Dart.
+//! * Avoid freeing memory from Dart with `delete`.
+//!
+//! It's also unsafe to unwind across the FFI boundary, so ensure top-level
+//! functions are wrapped in a try/catch.
+
+#include "native_zxing.h"
+
 #include "common.h"
+#include "dart_alloc.h"
 #include "ReadBarcode.h"
 #include "MultiFormatWriter.h"
 #include "BitMatrix.h"
-#include "native_zxing.h"
 // #include "ZXVersion.h" // This file is not existing for iOS
 
 #include <algorithm>
 #include <chrono>
-#include <codecvt>
-#include <cstdarg>
-#include <locale>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -22,22 +36,6 @@ using std::chrono::steady_clock;
 CodeResult _readBarcode(const DecodeBarcodeParams& params);
 CodeResults _readBarcodes(const DecodeBarcodeParams& params);
 EncodeResult _encodeBarcode(const EncodeBarcodeParams& params);
-
-// `unique_dart_ptr` is a `unique_ptr` that can safely manage pointers allocated
-// from within Dart. In particular, it will dealloc pointers passed from Dart
-// using the same allocator that alloc'd them.
-//
-// On Unix-like systems, this is the libc allocator (`malloc` and `free`). On
-// Windows, this is... whatever allocator Windows uses (`CoTaskMemAlloc` and
-// `CoTaskMemFree` apparently).
-//
-// See: <https://pub.dev/documentation/ffi/latest/ffi/malloc-constant.html>
-struct dart_deleter {
-    template <typename T>
-    void operator()(T* p) const;
-};
-template <typename T>
-using unique_dart_ptr = std::unique_ptr<T, dart_deleter>;
 
 //
 // Public, exported FFI functions
@@ -110,23 +108,46 @@ ReaderOptions createReaderOptions(const DecodeBarcodeParams& params)
         .setReturnErrors(true);
 }
 
-// Returns an owned C-string `char*`, copied from a `std::string&`.
-char* cstrFromString(const std::string& s)
+/// Returns an owned C-string `char*` copied from a `std::string&`.
+/// The owned pointer is safe to send back to Dart.
+char* dartCstrFromString(const std::string& s)
 {
     auto size = s.length() + 1;
-    char *out = new char[size];
+    auto* out = dart_malloc<char>(size);
     std::copy(s.begin(), s.end(), out);
     out[size - 1] = '\0';
     return out;
 }
 
-// Returns an owned byte buffer `uint8_t*`, copied from a
-// `std::vector<uint8_t>&`.
-uint8_t* bytesFromVector(const std::vector<uint8_t>& v)
+/// Returns an owned C-string `char*` copied from the `exception::what()` message.
+/// The owned pointer is safe to send back to Dart.
+char* dartCstrFromException(const exception& e)
 {
-    auto* bytes = new uint8_t[v.size()];
+    auto* s = e.what();
+    auto len = strlen(s);
+    auto* out = dart_malloc<char>(len + 1);
+    std::copy_n(s, len, out);
+    out[len] = '\0';
+    return out;
+}
+
+/// Returns an owned byte buffer `uint8_t*` copied from a `std::vector<uint8_t>&`.
+/// The owned pointer is safe to send back to Dart.
+uint8_t* dartBytesFromVector(const std::vector<uint8_t>& v)
+{
+    auto* bytes = dart_malloc<uint8_t>(v.size());
     std::copy(v.begin(), v.end(), bytes);
     return bytes;
+}
+
+/// Returns an owned byte buffer `uint8_t*` copied from a `Matrix<uint8_t>&`.
+/// The owned pointer is safe to send back to Dart.
+uint8_t* dartBytesFromMatrix(const Matrix<uint8_t>& matrix)
+{
+    auto length = matrix.size();
+    auto* data = dart_malloc<uint8_t>(length);
+    std::copy(matrix.begin(), matrix.end(), data);
+    return data;
 }
 
 // Construct a `CodeResult` from a zxing barcode decode `Result` from within an
@@ -135,8 +156,8 @@ CodeResult codeResultFromResult(
     const Result& result,
     int duration,
     int width,
-    int height)
-{
+    int height
+) {
     auto p = result.position();
     auto tl = p.topLeft();
     auto tr = p.topRight();
@@ -146,10 +167,10 @@ CodeResult codeResultFromResult(
     const auto text = result.text();
 
     CodeResult code {};
-    code.text = cstrFromString(text);
+    code.text = dartCstrFromString(text);
     code.isValid = result.isValid();
-    code.error = cstrFromString(result.error().msg());
-    code.bytes = bytesFromVector(result.bytes());
+    code.error = dartCstrFromString(result.error().msg());
+    code.bytes = dartBytesFromVector(result.bytes());
     code.length = static_cast<int>(result.bytes().size());
     code.format = static_cast<int>(result.format());
     code.pos = Pos{width, height, tl.x, tl.y, tr.x, tr.y, bl.x, bl.y, br.x, br.y};
@@ -167,21 +188,6 @@ int elapsed_ms(const steady_clock::time_point& start)
     auto duration = end - start;
     return chrono::duration_cast<chrono::milliseconds>(duration).count();
 }
-
-// A "deleter" for `std::unique_ptr` that can free pointers from Dart.
-template <typename T>
-void dart_deleter::operator()(T* p) const
-{
-    // TODO(phlip9): this should use `CoTaskMemFree` on Windows
-    std::free(const_cast<std::remove_const_t<T>*>(p));
-}
-
-// Ensure `unique_dart_ptr` doesn't add any extra fn ptr overhead. It should
-// just be ptr-sized.
-static_assert(
-    sizeof(unique_ptr<uint8_t>) == sizeof(unique_dart_ptr<uint8_t>),
-    "no extra overhead"
-);
 
 //
 // FFI impls
@@ -216,9 +222,9 @@ CodeResults _readBarcodes(const DecodeBarcodeParams& params)
         return CodeResults {0, nullptr, duration};
     }
 
-    auto *codes = new CodeResult[results.size()];
+    auto* codes = dart_malloc<CodeResult>(results.size());
     int i = 0;
-    for (const auto &result : results)
+    for (const auto& result : results)
     {
         codes[i] = codeResultFromResult(result, duration, params.width, params.height);
         i++;
@@ -242,19 +248,14 @@ EncodeResult _encodeBarcode(const EncodeBarcodeParams& params)
 
         // We need to return an owned pointer across the ffi boundary. Copy
         // the output (again).
-        auto length = matrix.size();
-        auto *data = new uint8_t[length];
-        std::copy(matrix.begin(), matrix.end(), data);
-
-        result.length = length;
-        result.data = data;
+        result.data = dartBytesFromMatrix(matrix);
+        result.length = matrix.size();
         result.isValid = true;
     }
     catch (const exception& e)
     {
         platform_log("Can't encode text: %s\nError: %s\n", params.contents, e.what());
-        result.error = new char[strlen(e.what()) + 1];
-        strcpy(result.error, e.what());
+        result.error = dartCstrFromException(e);
     }
 
     int duration = elapsed_ms(start);
