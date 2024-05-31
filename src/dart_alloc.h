@@ -1,5 +1,6 @@
 #pragma once
 
+#include <exception>
 #include <memory>
 
 #ifdef IS_WIN32
@@ -33,15 +34,24 @@ public:
     /// Allocates `n * sizeof(T)` bytes of uninit memory on the same global
     /// allocator as the Dart VM.
     [[nodiscard]]
-    T* allocate(std::size_t n)
+    T* allocate(std::size_t n) noexcept
     {
 #ifdef IS_WIN32
         T* p = static_cast<T*>(CoTaskMemAlloc(n * sizeof(T)));
 #else
         T* p = static_cast<T*>(std::malloc(n * sizeof(T)));
 #endif
-        if (t == nullptr) {
-            throw std::bad_alloc();
+
+        // If allocation fails, normally we `throw std::bad_alloc()`. However:
+        //
+        // (1) We need to call this allocator near the FFI boundary (which we
+        //     can't unwind across)
+        // (2) We only allocate a small amount with this allocator
+        //
+        // Therefore it's safer for us to just abort on this super rare
+        // allocation failure event.
+        if (p == nullptr) {
+            std::terminate();
         }
 
         return p;
@@ -67,14 +77,14 @@ constexpr bool operator!=(const dart_allocator<T>&, const dart_allocator<U>&) { 
 /// Convenience fn. See `dart_allocator<T>::allocate`.
 template <typename T>
 [[nodiscard]]
-T* dart_malloc(std::size_t n)
+T* dart_malloc(std::size_t n) noexcept
 {
     return dart_allocator<T>{}.allocate(n);
 }
 
 /// Convenience fn. See `dart_allocator<T>::deallocate`.
 template <typename T>
-void dart_free(T* p)
+void dart_free(T* p) noexcept
 {
     dart_allocator<T>{}.deallocate(p, 1 /* wrong but unused value */);
 }
@@ -82,7 +92,7 @@ void dart_free(T* p)
 /// A "deleter" for `std::unique_ptr` that can free pointers from Dart.
 struct dart_deleter {
     template <typename T>
-    void operator()(T* p) const
+    void operator()(T* p) const noexcept
     {
         dart_allocator<T>{}.deallocate(p, 1);
     }

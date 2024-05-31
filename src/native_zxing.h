@@ -12,6 +12,12 @@
 #endif
 
 #ifdef __cplusplus
+#define NOEXCEPT noexcept
+#else
+#define NOEXCEPT
+#endif
+
+#ifdef __cplusplus
 extern "C"
 {
 #endif
@@ -35,7 +41,7 @@ extern "C"
         bool tryInvert;  ///< Try inverting the image
 
 #ifdef __cplusplus
-        ~DecodeBarcodeParams() {
+        ~DecodeBarcodeParams() noexcept {
             // Dart passes us an owned image bytes pointer; we need to free it.
             dart_free(bytes);
         }
@@ -60,7 +66,7 @@ extern "C"
         int eccLevel;   ///< The error correction level of the barcode. Used for Aztec, PDF417, and QRCode only, [0-8].
 
 #ifdef __cplusplus
-        ~EncodeBarcodeParams() {
+        ~EncodeBarcodeParams() noexcept {
             // Dart passes us an owned string; we need to free it.
             dart_free(contents);
         }
@@ -135,14 +141,14 @@ extern "C"
      *
      * @param enabled Whether to enable or disable the logging.
      */
-    void setLogEnabled(bool enabled);
+    void setLogEnabled(bool enabled) NOEXCEPT;
 
     /**
      * Returns the version of the zxing-cpp library. Pointer has a static lifetime and must not be freed.
      *
      * @return The version of the zxing-cpp library.
      */
-    char const* version();
+    char const* version() NOEXCEPT;
 
     /**
      * @brief Read barcode from image bytes.
@@ -150,7 +156,7 @@ extern "C"
      *               function returns.
      * @return The barcode result.
      */
-    struct CodeResult readBarcode(struct DecodeBarcodeParams* params);
+    struct CodeResult readBarcode(struct DecodeBarcodeParams* params) NOEXCEPT;
 
     /**
      * @brief Read barcodes from image bytes.
@@ -158,7 +164,7 @@ extern "C"
      *               function returns.
      * @return The barcode results.
      */
-    struct CodeResults readBarcodes(struct DecodeBarcodeParams* params);
+    struct CodeResults readBarcodes(struct DecodeBarcodeParams* params) NOEXCEPT;
 
     /**
      * @brief Encode a string into a barcode
@@ -166,7 +172,7 @@ extern "C"
      *               function returns.
      * @return The barcode data
      */
-    struct EncodeResult encodeBarcode(struct EncodeBarcodeParams* params);
+    struct EncodeResult encodeBarcode(struct EncodeBarcodeParams* params) NOEXCEPT;
 
 #ifdef __cplusplus
 }

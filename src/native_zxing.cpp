@@ -33,9 +33,9 @@ using namespace std;
 using std::chrono::steady_clock;
 
 // Forward declare some impls
-CodeResult _readBarcode(const DecodeBarcodeParams& params);
-CodeResults _readBarcodes(const DecodeBarcodeParams& params);
-EncodeResult _encodeBarcode(const EncodeBarcodeParams& params);
+CodeResult _readBarcode(const DecodeBarcodeParams& params) noexcept;
+CodeResults _readBarcodes(const DecodeBarcodeParams& params) noexcept;
+EncodeResult _encodeBarcode(const EncodeBarcodeParams& params) noexcept;
 
 //
 // Public, exported FFI functions
@@ -44,34 +44,34 @@ EncodeResult _encodeBarcode(const EncodeBarcodeParams& params);
 extern "C"
 {
     FUNCTION_ATTRIBUTE
-    void setLogEnabled(bool enable)
+    void setLogEnabled(bool enable) noexcept
     {
         setLoggingEnabled(enable);
     }
 
     FUNCTION_ATTRIBUTE
-    char const* version()
+    char const* version() noexcept
     {
         // return ZXING_VERSION_STR; // TODO: Not working on iOS for now
         return "2.2.1";
     }
 
     FUNCTION_ATTRIBUTE
-    CodeResult readBarcode(DecodeBarcodeParams* params)
+    CodeResult readBarcode(DecodeBarcodeParams* params) noexcept
     {
         unique_dart_ptr<DecodeBarcodeParams> _params(params);
         return _readBarcode(*_params);
     }
 
     FUNCTION_ATTRIBUTE
-    CodeResults readBarcodes(DecodeBarcodeParams* params)
+    CodeResults readBarcodes(DecodeBarcodeParams* params) noexcept
     {
         unique_dart_ptr<DecodeBarcodeParams> _params(params);
         return _readBarcodes(*_params);
     }
 
     FUNCTION_ATTRIBUTE
-    EncodeResult encodeBarcode(EncodeBarcodeParams* params)
+    EncodeResult encodeBarcode(EncodeBarcodeParams* params) noexcept
     {
         unique_dart_ptr<EncodeBarcodeParams> _params(params);
         return _encodeBarcode(*_params);
@@ -112,16 +112,16 @@ ReaderOptions createReaderOptions(const DecodeBarcodeParams& params)
 /// The owned pointer is safe to send back to Dart.
 char* dartCstrFromString(const std::string& s)
 {
-    auto size = s.length() + 1;
-    auto* out = dart_malloc<char>(size);
+    auto len = s.length();
+    auto* out = dart_malloc<char>(len + 1);
     std::copy(s.begin(), s.end(), out);
-    out[size - 1] = '\0';
+    out[len] = '\0';
     return out;
 }
 
 /// Returns an owned C-string `char*` copied from the `exception::what()` message.
 /// The owned pointer is safe to send back to Dart.
-char* dartCstrFromException(const exception& e)
+char* dartCstrFromException(const exception& e) noexcept
 {
     auto* s = e.what();
     auto len = strlen(s);
@@ -193,7 +193,7 @@ int elapsed_ms(const steady_clock::time_point& start)
 // FFI impls
 //
 
-CodeResult _readBarcode(const DecodeBarcodeParams& params)
+CodeResult _readBarcode(const DecodeBarcodeParams& params) noexcept
 {
     // Absolutely ensure we don't unwind across the FFI boundary.
     try
@@ -218,7 +218,7 @@ CodeResult _readBarcode(const DecodeBarcodeParams& params)
     }
 }
 
-CodeResults _readBarcodes(const DecodeBarcodeParams& params)
+CodeResults _readBarcodes(const DecodeBarcodeParams& params) noexcept
 {
     // Absolutely ensure we don't unwind across the FFI boundary.
     try
@@ -253,7 +253,7 @@ CodeResults _readBarcodes(const DecodeBarcodeParams& params)
     }
 }
 
-EncodeResult _encodeBarcode(const EncodeBarcodeParams& params)
+EncodeResult _encodeBarcode(const EncodeBarcodeParams& params) noexcept
 {
     // Absolutely ensure we don't unwind across the FFI boundary.
     try

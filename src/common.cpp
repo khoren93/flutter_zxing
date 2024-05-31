@@ -2,16 +2,14 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-using namespace std;
-
 bool isLogEnabled;
 
-void setLoggingEnabled(bool enabled)
+void setLoggingEnabled(bool enabled) noexcept
 {
         isLogEnabled = enabled;
 }
 
-void platform_log(const char* fmt, ...)
+void platform_log(const char* fmt, ...) noexcept
 {
         if (isLogEnabled)
         {
@@ -26,7 +24,8 @@ void platform_log(const char* fmt, ...)
                 OutputDebugStringA(buf);
                 delete[] buf;
 #else
-                vprintf(fmt, args);
+                // vprintf(fmt, args);
+                vfprintf(stderr, fmt, args);
 #endif
                 va_end(args);
         }
