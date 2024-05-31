@@ -195,50 +195,71 @@ int elapsed_ms(const steady_clock::time_point& start)
 
 CodeResult _readBarcode(const DecodeBarcodeParams& params)
 {
-    auto start = steady_clock::now();
+    // Absolutely ensure we don't unwind across the FFI boundary.
+    try
+    {
+        auto start = steady_clock::now();
 
-    ImageView image = createCroppedImageView(params);
-    ReaderOptions hints = createReaderOptions(params);
-    Result result = ReadBarcode(image, hints);
+        ImageView image = createCroppedImageView(params);
+        ReaderOptions hints = createReaderOptions(params);
+        Result result = ReadBarcode(image, hints);
 
-    int duration = elapsed_ms(start);
-    platform_log("Read Barcode in: %d ms\n", duration);
-    return codeResultFromResult(result, duration, params.width, params.height);
+        int duration = elapsed_ms(start);
+        platform_log("Read Barcode in: %d ms\n", duration);
+        return codeResultFromResult(result, duration, params.width, params.height);
+    }
+    catch (const exception& e)
+    {
+        platform_log("Exception while reading barcode: %s\n", e.what());
+        CodeResult result{};
+        result.isValid = false;
+        result.error = dartCstrFromException(e);
+        return result;
+    }
 }
 
 CodeResults _readBarcodes(const DecodeBarcodeParams& params)
 {
-    auto start = steady_clock::now();
-
-    ImageView image = createCroppedImageView(params);
-    ReaderOptions hints = createReaderOptions(params);
-    Results results = ReadBarcodes(image, hints);
-
-    int duration = elapsed_ms(start);
-    platform_log("Read Barcode in: %d ms\n", duration);
-
-    if (results.empty())
+    // Absolutely ensure we don't unwind across the FFI boundary.
+    try
     {
-        return CodeResults {0, nullptr, duration};
-    }
+        auto start = steady_clock::now();
 
-    auto* codes = dart_malloc<CodeResult>(results.size());
-    int i = 0;
-    for (const auto& result : results)
-    {
-        codes[i] = codeResultFromResult(result, duration, params.width, params.height);
-        i++;
+        ImageView image = createCroppedImageView(params);
+        ReaderOptions hints = createReaderOptions(params);
+        Results results = ReadBarcodes(image, hints);
+
+        int duration = elapsed_ms(start);
+        platform_log("Read Barcode in: %d ms\n", duration);
+
+        if (results.empty())
+        {
+            return CodeResults {0, nullptr, duration};
+        }
+
+        auto* codes = dart_malloc<CodeResult>(results.size());
+        int i = 0;
+        for (const auto& result : results)
+        {
+            codes[i] = codeResultFromResult(result, duration, params.width, params.height);
+            i++;
+        }
+        return CodeResults {i, codes, duration};
     }
-    return CodeResults {i, codes, duration};
+    catch (const exception& e)
+    {
+        platform_log("Exception while reading barcodes: %s\n", e.what());
+        return CodeResults {0, nullptr, 0};
+    }
 }
 
 EncodeResult _encodeBarcode(const EncodeBarcodeParams& params)
 {
-    auto start = steady_clock::now();
-
-    EncodeResult result {0, params.format, nullptr, 0, nullptr};
+    // Absolutely ensure we don't unwind across the FFI boundary.
     try
     {
+        auto start = steady_clock::now();
+
         auto writer = MultiFormatWriter(BarcodeFormat(params.format))
            .setMargin(params.margin)
            .setEccLevel(params.eccLevel)
@@ -246,19 +267,28 @@ EncodeResult _encodeBarcode(const EncodeBarcodeParams& params)
         auto bitMatrix = writer.encode(params.contents, params.width, params.height);
         auto matrix = ToMatrix<uint8_t>(bitMatrix);
 
-        // We need to return an owned pointer across the ffi boundary. Copy
-        // the output (again).
+        EncodeResult result {};
+        result.isValid = true;
+        result.format = params.format;
+        // We need to return an owned pointer across the ffi boundary. Copy.
         result.data = dartBytesFromMatrix(matrix);
         result.length = matrix.size();
-        result.isValid = true;
+
+        int duration = elapsed_ms(start);
+        platform_log("Encode Barcode in: %d ms\n", duration);
+        return result;
     }
     catch (const exception& e)
     {
-        platform_log("Can't encode text: %s\nError: %s\n", params.contents, e.what());
-        result.error = dartCstrFromException(e);
-    }
+        platform_log(
+            "Exception encoding text: \"%s\", error: %s\n",
+            params.contents, e.what()
+        );
 
-    int duration = elapsed_ms(start);
-    platform_log("Encode Barcode in: %d ms\n", duration);
-    return result;
+        EncodeResult result {};
+        result.isValid = false;
+        result.format = params.format;
+        result.error = dartCstrFromException(e);
+        return result;
+    }
 }
