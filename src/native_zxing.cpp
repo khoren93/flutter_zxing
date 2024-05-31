@@ -164,13 +164,11 @@ CodeResult codeResultFromResult(
     auto bl = p.bottomLeft();
     auto br = p.bottomRight();
 
-    const auto text = result.text();
-
     CodeResult code {};
-    code.text = dartCstrFromString(text);
     code.isValid = result.isValid();
-    code.error = dartCstrFromString(result.error().msg());
-    code.bytes = dartBytesFromVector(result.bytes());
+    code.text = result.isValid() ? dartCstrFromString(result.text()) : nullptr;
+    code.bytes = result.isValid() ? dartBytesFromVector(result.bytes()) : nullptr;
+    code.error = result.isValid() ? nullptr : dartCstrFromString(result.error().msg());
     code.length = static_cast<int>(result.bytes().size());
     code.format = static_cast<int>(result.format());
     code.pos = Pos{width, height, tl.x, tl.y, tr.x, tr.y, bl.x, bl.y, br.x, br.y};
