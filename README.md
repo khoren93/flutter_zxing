@@ -36,7 +36,7 @@ Flutter ZXing supports the following platforms:
 - iOS (minimum iOS 11.0)
 - MacOS (minimum osx 10.15) (beta)
 - Linux (working, but [no camera support](https://pub.dev/packages/camera)) (alpha)
-- Windows (working, but [no camera support](https://pub.dev/packages/camera)) (alpha)
+- Windows (not working yet)
 - Web (not working yet)
 
 Note that flutter_zxing relies on the Dart FFI (Foreign Function Interface) feature, which is currently only available for the mobile and desktop platforms. As a result, the plugin is not currently supported on the web platform.
@@ -84,8 +84,7 @@ melos bootstrap
 To allow the building on iOS and MacOS, you need to run the following command:
 
 ```bash
-cd scripts
-sh update_ios_macos_src.sh
+./scripts/update_ios_macos_src.sh
 ```
 
 To run the integration tests:
