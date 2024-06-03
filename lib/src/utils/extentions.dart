@@ -63,10 +63,10 @@ extension CodeExt on CodeResult {
 }
 
 extension EncodeExt on EncodeResult {
-  Encode toEncode() => Encode(
+  Encode toEncode(final String text) => Encode(
         isValid,
         format,
-        copyStringFromOwnedFfiPtr(text),
+        text,
         copyUint32ListFromOwnedFfiPtr(data, length),
         length,
         copyStringFromOwnedFfiPtr(error),
@@ -89,7 +89,7 @@ extension PosExt on Pos {
 }
 
 extension EncodeParamsExt on EncodeParams {
-  EncodeBarcodeParams toEncodeBarcodeParams(String contents) {
+  Pointer<EncodeBarcodeParams> toEncodeBarcodeParams(String contents) {
     final Pointer<EncodeBarcodeParams> p = calloc<EncodeBarcodeParams>();
     p.ref.contents = contents.toNativeUtf8().cast<Char>();
     p.ref.width = width;
@@ -97,12 +97,12 @@ extension EncodeParamsExt on EncodeParams {
     p.ref.format = format;
     p.ref.margin = margin;
     p.ref.eccLevel = eccLevel.value;
-    return p.ref;
+    return p;
   }
 }
 
 extension DecodeParamsExt on DecodeParams {
-  DecodeBarcodeParams toDecodeBarcodeParams(Uint8List bytes) {
+  Pointer<DecodeBarcodeParams> toDecodeBarcodeParams(Uint8List bytes) {
     final Pointer<DecodeBarcodeParams> p = calloc<DecodeBarcodeParams>();
     p.ref.bytes = bytes.copyToNativePointer();
     p.ref.imageFormat = imageFormat;
@@ -116,6 +116,6 @@ extension DecodeParamsExt on DecodeParams {
     p.ref.tryHarder = tryHarder;
     p.ref.tryRotate = tryRotate;
     p.ref.tryInvert = tryInverted;
-    return p.ref;
+    return p;
   }
 }

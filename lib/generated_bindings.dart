@@ -56,55 +56,61 @@ class GeneratedBindings {
       _versionPtr.asFunction<ffi.Pointer<ffi.Char> Function()>();
 
   /// @brief Read barcode from image bytes.
-  /// @param params Barcode parameters.
+  /// @param params Barcode parameters. Owned pointer. Will be freed before
+  /// function returns.
   /// @return The barcode result.
   CodeResult readBarcode(
-    DecodeBarcodeParams params,
+    ffi.Pointer<DecodeBarcodeParams> params,
   ) {
     return _readBarcode(
       params,
     );
   }
 
-  late final _readBarcodePtr =
-      _lookup<ffi.NativeFunction<CodeResult Function(DecodeBarcodeParams)>>(
-          'readBarcode');
-  late final _readBarcode =
-      _readBarcodePtr.asFunction<CodeResult Function(DecodeBarcodeParams)>();
+  late final _readBarcodePtr = _lookup<
+      ffi.NativeFunction<
+          CodeResult Function(
+              ffi.Pointer<DecodeBarcodeParams>)>>('readBarcode');
+  late final _readBarcode = _readBarcodePtr
+      .asFunction<CodeResult Function(ffi.Pointer<DecodeBarcodeParams>)>();
 
   /// @brief Read barcodes from image bytes.
-  /// @param params Barcode parameters.
+  /// @param params Barcode parameters. Owned pointer. Will be freed before
+  /// function returns.
   /// @return The barcode results.
   CodeResults readBarcodes(
-    DecodeBarcodeParams params,
+    ffi.Pointer<DecodeBarcodeParams> params,
   ) {
     return _readBarcodes(
       params,
     );
   }
 
-  late final _readBarcodesPtr =
-      _lookup<ffi.NativeFunction<CodeResults Function(DecodeBarcodeParams)>>(
-          'readBarcodes');
-  late final _readBarcodes =
-      _readBarcodesPtr.asFunction<CodeResults Function(DecodeBarcodeParams)>();
+  late final _readBarcodesPtr = _lookup<
+      ffi.NativeFunction<
+          CodeResults Function(
+              ffi.Pointer<DecodeBarcodeParams>)>>('readBarcodes');
+  late final _readBarcodes = _readBarcodesPtr
+      .asFunction<CodeResults Function(ffi.Pointer<DecodeBarcodeParams>)>();
 
   /// @brief Encode a string into a barcode
-  /// @param params The parameters for encoding the barcode
+  /// @param params Encoding parameters. Owned pointer. Will be freed before
+  /// function returns.
   /// @return The barcode data
   EncodeResult encodeBarcode(
-    EncodeBarcodeParams params,
+    ffi.Pointer<EncodeBarcodeParams> params,
   ) {
     return _encodeBarcode(
       params,
     );
   }
 
-  late final _encodeBarcodePtr =
-      _lookup<ffi.NativeFunction<EncodeResult Function(EncodeBarcodeParams)>>(
-          'encodeBarcode');
+  late final _encodeBarcodePtr = _lookup<
+      ffi.NativeFunction<
+          EncodeResult Function(
+              ffi.Pointer<EncodeBarcodeParams>)>>('encodeBarcode');
   late final _encodeBarcode = _encodeBarcodePtr
-      .asFunction<EncodeResult Function(EncodeBarcodeParams)>();
+      .asFunction<EncodeResult Function(ffi.Pointer<EncodeBarcodeParams>)>();
 }
 
 /// @brief The BarcodeParams class encapsulates parameters for reading barcodes.
@@ -284,9 +290,6 @@ final class EncodeResult extends ffi.Struct {
   /// < Whether the barcode was successfully encoded
   @ffi.Bool()
   external bool isValid;
-
-  /// < The encoded text. Owned pointer. Must be freed by Dart code if not null.
-  external ffi.Pointer<ffi.Char> text;
 
   /// < The format of the barcode
   @ffi.Int()

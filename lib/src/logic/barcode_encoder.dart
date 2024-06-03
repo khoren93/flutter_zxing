@@ -5,4 +5,6 @@ Encode zxingEncodeBarcode({
   required String contents,
   required EncodeParams params,
 }) =>
-    bindings.encodeBarcode(params.toEncodeBarcodeParams(contents)).toEncode();
+    bindings
+        .encodeBarcode(params.toEncodeBarcodeParams(contents))
+        .toEncode(contents);

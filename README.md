@@ -35,7 +35,7 @@ Flutter ZXing supports the following platforms:
 - Android (minimum API level 21)
 - iOS (minimum iOS 11.0)
 - MacOS (minimum osx 10.15) (beta)
-- Linux (not working yet)
+- Linux (working, but [no camera support](https://pub.dev/packages/camera)) (alpha)
 - Windows (not working yet)
 - Web (not working yet)
 
@@ -84,8 +84,14 @@ melos bootstrap
 To allow the building on iOS and MacOS, you need to run the following command:
 
 ```bash
-cd scripts
-sh update_ios_macos_src.sh
+./scripts/update_ios_macos_src.sh
+```
+
+To run the integration tests:
+
+```bash
+cd example
+flutter test integration_test
 ```
 
 Now you can run the flutter_zxing example app on your device or emulator.

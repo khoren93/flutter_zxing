@@ -1,10 +1,20 @@
+#pragma once
+
 #ifdef __cplusplus
+#include "dart_alloc.h"
+
 #include <cstdint>
 #include <cstdlib>
 #else
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#endif
+
+#ifdef __cplusplus
+#define NOEXCEPT noexcept
+#else
+#define NOEXCEPT
 #endif
 
 #ifdef __cplusplus
@@ -17,7 +27,7 @@ extern "C"
      */
     struct DecodeBarcodeParams
     {
-        uint8_t *bytes;     ///< Image bytes. Owned pointer, freed in destructor.
+        uint8_t* bytes;  ///< Image bytes. Owned pointer, freed in destructor.
         int imageFormat; ///< Image format
         int format;      ///< Specify a set of BarcodeFormats that should be searched for
         int width;       ///< Image width in pixels
@@ -26,14 +36,14 @@ extern "C"
         int cropTop;     ///< Crop top
         int cropWidth;   ///< Crop width
         int cropHeight;  ///< Crop height
-        bool tryHarder;   ///< Spend more time to try to find a barcode, optimize for accuracy, not speed
-        bool tryRotate;   ///< Also try detecting code in 90, 180 and 270 degree rotated images
-        bool tryInvert;   ///< Try inverting the image
+        bool tryHarder;  ///< Spend more time to try to find a barcode, optimize for accuracy, not speed
+        bool tryRotate;  ///< Also try detecting code in 90, 180 and 270 degree rotated images
+        bool tryInvert;  ///< Try inverting the image
 
 #ifdef __cplusplus
-        ~DecodeBarcodeParams() {
+        ~DecodeBarcodeParams() noexcept {
             // Dart passes us an owned image bytes pointer; we need to free it.
-            free(bytes);
+            dart_free(bytes);
         }
 
         DecodeBarcodeParams(const DecodeBarcodeParams&) = delete;
@@ -48,7 +58,7 @@ extern "C"
      */
     struct EncodeBarcodeParams
     {
-        char *contents; ///< The string to encode. Owned pointer, freed in destructor.
+        char* contents; ///< The string to encode. Owned pointer, freed in destructor.
         int width;      ///< The width of the barcode in pixels
         int height;     ///< The height of the barcode in pixels
         int format;     ///< The format of the barcode
@@ -56,9 +66,9 @@ extern "C"
         int eccLevel;   ///< The error correction level of the barcode. Used for Aztec, PDF417, and QRCode only, [0-8].
 
 #ifdef __cplusplus
-        ~EncodeBarcodeParams() {
+        ~EncodeBarcodeParams() noexcept {
             // Dart passes us an owned string; we need to free it.
-            free(contents);
+            dart_free(contents);
         }
 
         EncodeBarcodeParams(const EncodeBarcodeParams&) = delete;
@@ -91,10 +101,10 @@ extern "C"
      */
     struct CodeResult
     {
-        char *text;      ///< The decoded text. Owned pointer. Must be freed by Dart code if not null.
+        char* text;      ///< The decoded text. Owned pointer. Must be freed by Dart code if not null.
         bool isValid;    ///< Whether the barcode was successfully decoded
-        char *error;     ///< The error message. Owned pointer. Must be freed by Dart code if not null.
-        uint8_t *bytes;  ///< The bytes is the raw content without any character set conversions. Owned pointer. Must be freed by Dart code if not null.
+        char* error;     ///< The error message. Owned pointer. Must be freed by Dart code if not null.
+        uint8_t* bytes;  ///< The bytes is the raw content without any character set conversions. Owned pointer. Must be freed by Dart code if not null.
         int length;      ///< The length of the bytes
         int format;      ///< The format of the barcode
         struct Pos pos;  ///< The position of the barcode within the image
@@ -109,7 +119,7 @@ extern "C"
     struct CodeResults
     {
         int count;                  ///< The number of barcodes detected
-        struct CodeResult *results; ///< The results of the barcode decoding. Owned pointer. Must be freed by Dart code.
+        struct CodeResult* results; ///< The results of the barcode decoding. Owned pointer. Must be freed by Dart code.
         int duration;               ///< The duration of the decoding in milliseconds
     };
 
@@ -120,11 +130,10 @@ extern "C"
     struct EncodeResult
     {
         bool isValid;  ///< Whether the barcode was successfully encoded
-        char *text;    ///< The encoded text. Owned pointer. Must be freed by Dart code if not null.
         int format;    ///< The format of the barcode
-        uint8_t *data; ///< The encoded data. Owned pointer. Must be freed by Dart code if not null.
+        uint8_t* data; ///< The encoded data. Owned pointer. Must be freed by Dart code if not null.
         int length;    ///< The length of the encoded data
-        char *error;   ///< The error message. Owned pointer. Must be freed by Dart code if not null.
+        char* error;   ///< The error message. Owned pointer. Must be freed by Dart code if not null.
     };
 
     /**
@@ -132,35 +141,38 @@ extern "C"
      *
      * @param enabled Whether to enable or disable the logging.
      */
-    void setLogEnabled(bool enabled);
+    void setLogEnabled(bool enabled) NOEXCEPT;
 
     /**
      * Returns the version of the zxing-cpp library. Pointer has a static lifetime and must not be freed.
      *
      * @return The version of the zxing-cpp library.
      */
-    char const *version();
+    char const* version() NOEXCEPT;
 
     /**
      * @brief Read barcode from image bytes.
-     * @param params Barcode parameters.
+     * @param params Barcode parameters. Owned pointer. Will be freed before
+     *               function returns.
      * @return The barcode result.
      */
-    struct CodeResult readBarcode(struct DecodeBarcodeParams params);
+    struct CodeResult readBarcode(struct DecodeBarcodeParams* params) NOEXCEPT;
 
     /**
      * @brief Read barcodes from image bytes.
-     * @param params Barcode parameters.
+     * @param params Barcode parameters. Owned pointer. Will be freed before
+     *               function returns.
      * @return The barcode results.
      */
-    struct CodeResults readBarcodes(struct DecodeBarcodeParams params);
+    struct CodeResults readBarcodes(struct DecodeBarcodeParams* params) NOEXCEPT;
 
     /**
      * @brief Encode a string into a barcode
-     * @param params The parameters for encoding the barcode
+     * @param params Encoding parameters. Owned pointer. Will be freed before
+     *               function returns.
      * @return The barcode data
      */
-    struct EncodeResult encodeBarcode(struct EncodeBarcodeParams params);
+    struct EncodeResult encodeBarcode(struct EncodeBarcodeParams* params) NOEXCEPT;
 
 #ifdef __cplusplus
 }

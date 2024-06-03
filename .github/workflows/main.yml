@@ -1,40 +1,264 @@
 name: Flutter CI
 
-# This workflow is triggered on pushes to the repository.
+# Trigger CI on (1) pull requests and (2) pushes to main.
 on:
+  pull_request:
   push:
     branches:
       - main
 
+# Workflows run on a PR should cancel previous workflows run on the same PR, but
+# NOT workflows running elsewhere (master).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions: read-all
+
 jobs:
-  build:
-    # This job will run on ubuntu virtual machine
+  # Lint and format all the *.dart code.
+  lint:
     runs-on: ubuntu-latest
     steps:
-      # Setup Java environment in order to build the Android app.
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4.2.1
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+      - uses: bluefireteam/melos-action@v3
+        with:
+          run-bootstrap: true
+          enforce-lockfile: true
+
+      - run: dart format --set-exit-if-changed .
+      - run: dart analyze
+
+  # Build the example application across all supported platforms.
+  build-example:
+    name: 'build-example (${{ matrix.target }}, ${{ matrix.os}})'
+    runs-on: ${{ matrix.os }}-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: android
+            os: ubuntu
+          - target: ios
+            os: macos
+          - target: macos
+            os: macos
+          - target: linux
+            os: ubuntu
+          # Windows build failing
+          # - target: windows
+          #   os: windows
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: (iOS/macOS-only) Copy zxing src to ios/macos flutter build dir
+        if: matrix.target == 'ios' || matrix.target == 'macos'
+        run: ./scripts/update_ios_macos_src.sh
+
+      - name: (Android-only) Setup Java
+        uses: actions/setup-java@v4
+        if: matrix.target == 'android'
         with:
           java-version: 11
           distribution: temurin
 
-      # Setup the flutter environment.
+      - name: (Linux-only) Install Flutter apt dependencies
+        if: matrix.target == 'linux' && matrix.os == 'ubuntu'
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            cmake dbus libblkid-dev libgtk-3-dev liblzma-dev ninja-build \
+            pkg-config xvfb network-manager upower
+
+      # Setup flutter
       - uses: subosito/flutter-action@v2
         with:
           channel: "stable"
           cache: true
 
-      # Setup the melos environment.
+      # Setup melos
       - uses: bluefireteam/melos-action@v3
+        with:
+          run-bootstrap: true
+          enforce-lockfile: true
 
-      - name: Install dependencies
-        run: melos bootstrap
+      - name: 'Build example ${{ matrix.target }}'
+        run: |
+          cd example
+          TARGET=${{ matrix.target }}
 
-      - name: Verify formatting
-        run: dart format .
+          case $TARGET in
+            ios)
+              flutter build ios --debug --no-codesign
+              ;;
+            macos)
+              flutter build macos --debug
+              ;;
+            android)
+              flutter build appbundle --debug
+              ;;
+            linux)
+              flutter build linux --debug
+              ;;
+          # Windows build failing
+          #   windows)
+          #     flutter build windows --debug
+          #     ;;
+          esac
 
-      - name: Analyze project source
-        run: dart analyze
+  # Run `cd ./example && flutter test integration_test` across supported
+  # platforms, (except android, which has its own flow below).
+  test-example:
+    name: 'test-example (${{ matrix.target }}, ${{ matrix.os }})'
+    runs-on: ${{ matrix.os }}-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: ios
+            os: macos
+            device: iphone
 
-      # - name: Run tests
-      #   run: dart test
+          - target: macos
+            os: macos
+            device: macos
+
+          - target: linux
+            os: ubuntu
+            device: linux
+
+          # Windows build failing
+          # - target: windows
+          #   os: windows
+          #   device: windows
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: (iOS/macOS-only) Copy zxing src to ios/macos flutter build dir
+        if: matrix.target == 'ios' || matrix.target == 'macos'
+        run: ./scripts/update_ios_macos_src.sh
+
+      # Setup flutter
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      # Setup melos
+      - uses: bluefireteam/melos-action@v3
+        with:
+          run-bootstrap: true
+          enforce-lockfile: true
+
+      - name: (Linux-only) Install Flutter apt dependencies
+        if: matrix.target == 'linux' && matrix.os == 'ubuntu'
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            cmake dbus libblkid-dev libgtk-3-dev liblzma-dev ninja-build \
+            pkg-config xvfb network-manager upower
+
+      - name: (iOS-only) Launch iOS simulator
+        if: matrix.target == 'ios'
+        run: |
+          # # List available iOS simulator devices and runtimes
+          # xcrun simctl list devices available --json
+          simulator_id=$(xcrun simctl create iphone-zxing \
+            com.apple.CoreSimulator.SimDeviceType.iPhone-15 \
+            com.apple.CoreSimulator.SimRuntime.iOS-17-5)
+          xcrun simctl boot ${simulator_id}
+
+      - run: flutter devices
+
+      - if: matrix.target != 'linux'
+        run: cd ./example && flutter test integration_test -d "${{ matrix.device }}" --verbose
+      - if: matrix.target == 'linux'
+        run: cd ./example && xvfb-run flutter test integration_test -d "${{ matrix.device }}" --verbose
+
+  # Run `cd ./example && flutter test integration_test` on an Android emulator.
+  # Android has a lot of extra steps, so it has its own section.
+  test-example-android:
+    name: 'test-example (android v${{ matrix.api-level}}, ubuntu)'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [21]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: 11
+          distribution: temurin
+
+      # Setup flutter
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      # Setup melos
+      - uses: bluefireteam/melos-action@v3
+        with:
+          run-bootstrap: true
+          enforce-lockfile: true
+
+      # Enable nested virtualization so we can run an Android emulator VM
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # Gradle cache
+      - uses: gradle/actions/setup-gradle@v3
+
+      - name: Setup AVD actions/cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ matrix.api-level }}
+
+      - name: Create and cache AVD snapshot
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "Generated AVD snapshot for caching."
+
+      # Run tests on the android emulator
+      - name: flutter test integration_test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            flutter devices
+            cd ./example && flutter test integration_test --verbose

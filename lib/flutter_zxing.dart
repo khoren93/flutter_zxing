@@ -48,7 +48,7 @@ abstract class Zxing {
   /// Reads barcode from image url
   Future<Code> readBarcodeImageUrl(String url, DecodeParams params);
 
-// Reads barcode from Uint8List image bytes
+  /// Reads barcode from Uint8List image bytes
   Code readBarcode(Uint8List bytes, DecodeParams params);
 
   /// Reads barcodes from String image path
