@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.0
+
+* Added support for Linux (thanks to [@phlip9](https://github.com/phlip9))
+* Fixed memory leak in iOS
+
 ## 1.6.1
 
 * Fixed iOS and macOS compatibility issues
