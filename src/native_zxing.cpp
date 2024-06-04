@@ -202,6 +202,9 @@ CodeResult _readBarcode(const DecodeBarcodeParams& params) noexcept
         ReaderOptions hints = createReaderOptions(params);
         Result result = ReadBarcode(image, hints);
 
+        // Dart passes us an owned image bytes pointer; we need to free it after
+        delete[] params.bytes;
+
         int duration = elapsed_ms(start);
         platform_log("Read Barcode in: %d ms\n", duration);
         return codeResultFromResult(result, duration, params.width, params.height);
@@ -226,6 +229,9 @@ CodeResults _readBarcodes(const DecodeBarcodeParams& params) noexcept
         ImageView image = createCroppedImageView(params);
         ReaderOptions hints = createReaderOptions(params);
         Results results = ReadBarcodes(image, hints);
+
+        // Dart passes us an owned image bytes pointer; we need to free it after
+        delete[] params.bytes;
 
         int duration = elapsed_ms(start);
         platform_log("Read Barcode in: %d ms\n", duration);
