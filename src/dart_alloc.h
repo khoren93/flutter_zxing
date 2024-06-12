@@ -94,7 +94,11 @@ struct dart_deleter {
     template <typename T>
     void operator()(T* p) const noexcept
     {
-        dart_allocator<T>{}.deallocate(p, 1);
+        if (p != nullptr) {
+            // A "deleter" also needs to run p's destructor before free'ing.
+            p->~T();
+            dart_allocator<T>{}.deallocate(p, 1);
+        }
     }
 };
 

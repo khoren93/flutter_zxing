@@ -46,6 +46,7 @@ extern "C"
             dart_free(bytes);
         }
 
+        // Disable copy/move contsructors
         DecodeBarcodeParams(const DecodeBarcodeParams&) = delete;
         DecodeBarcodeParams& operator=(const DecodeBarcodeParams&) = delete;
         DecodeBarcodeParams(DecodeBarcodeParams&&) = delete;
@@ -71,6 +72,7 @@ extern "C"
             dart_free(contents);
         }
 
+        // Disable copy/move contsructors
         EncodeBarcodeParams(const EncodeBarcodeParams&) = delete;
         EncodeBarcodeParams& operator=(const EncodeBarcodeParams&) = delete;
         EncodeBarcodeParams(EncodeBarcodeParams&&) = delete;
