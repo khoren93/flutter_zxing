@@ -48,8 +48,7 @@ class ReaderWidget extends StatefulWidget {
     this.cropPercent = 0.5, // 50% of the screen
     this.resolution = ResolutionPreset.high,
     this.lensDirection = CameraLensDirection.back,
-    this.loading =
-        const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
+    this.loading = const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
   });
 
   /// Called when a code is detected
@@ -65,8 +64,7 @@ class ReaderWidget extends StatefulWidget {
   final Function(Codes)? onMultiScanFailure;
 
   /// Called when the camera controller is created
-  final Function(CameraController? controller, Exception? error)?
-      onControllerCreated;
+  final Function(CameraController? controller, Exception? error)? onControllerCreated;
 
   /// Called when the multi scan mode is changed
   /// When set to null, the multi scan mode button will not be displayed
@@ -163,8 +161,7 @@ class ReaderWidget extends StatefulWidget {
   State<ReaderWidget> createState() => _ReaderWidgetState();
 }
 
-class _ReaderWidgetState extends State<ReaderWidget>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
+class _ReaderWidgetState extends State<ReaderWidget> with TickerProviderStateMixin, WidgetsBindingObserver {
   List<CameraDescription> cameras = <CameraDescription>[];
   CameraDescription? selectedCamera;
   CameraController? controller;
@@ -195,19 +192,20 @@ class _ReaderWidgetState extends State<ReaderWidget>
   Future<void> initStateAsync() async {
     // Spawn a new isolate
     await zx.startCameraProcessing();
+    final List<CameraDescription> cameras = await availableCameras();
 
-    availableCameras().then((List<CameraDescription> cameras) {
-      setState(() {
-        this.cameras = cameras;
-        if (cameras.isNotEmpty) {
-          selectedCamera = cameras.firstWhere(
-            (CameraDescription camera) =>
-                camera.lensDirection == widget.lensDirection,
-            orElse: () => cameras.first,
-          );
-          onNewCameraSelected(selectedCamera);
-        }
-      });
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      this.cameras = cameras;
+      if (cameras.isNotEmpty) {
+        selectedCamera = cameras.firstWhere(
+          (CameraDescription camera) => camera.lensDirection == widget.lensDirection,
+          orElse: () => cameras.first,
+        );
+        onNewCameraSelected(selectedCamera);
+      }
     });
   }
 
@@ -228,9 +226,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
         break;
       default:
         controller?.dispose();
-        setState(() {
-          _isCameraOn = false;
-        });
+        setState(() => _isCameraOn = false);
         break;
     }
   }
@@ -246,9 +242,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   void rebuildOnMount() {
     if (mounted) {
-      setState(() {
-        _isCameraOn = true;
-      });
+      setState(() => _isCameraOn = true);
     }
   }
 
@@ -284,12 +278,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
     }
 
     try {
-      cameraController
-          .getMaxZoomLevel()
-          .then((double value) => _maxZoomLevel = value);
-      cameraController
-          .getMinZoomLevel()
-          .then((double value) => _minZoomLevel = value);
+      cameraController.getMaxZoomLevel().then((double value) => _maxZoomLevel = value);
+      cameraController.getMinZoomLevel().then((double value) => _minZoomLevel = value);
     } catch (e) {
       debugPrint('Error: $e');
     }
@@ -309,8 +299,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
       _isProcessing = true;
       try {
         final double cropPercent = widget.isMultiScan ? 0 : widget.cropPercent;
-        final int cropSize =
-            (min(image.width, image.height) * cropPercent).round();
+        final int cropSize = (min(image.width, image.height) * cropPercent).round();
         final DecodeParams params = DecodeParams(
           imageFormat: _imageFormat(image.format.group),
           format: widget.codeFormat,
@@ -330,6 +319,9 @@ class _ReaderWidgetState extends State<ReaderWidget>
           if (result.codes.isNotEmpty) {
             results = result;
             widget.onMultiScan?.call(result);
+            if (!mounted) {
+              return;
+            }
             setState(() {});
             if (!widget.isMultiScan) {
               await Future<void>.delayed(widget.scanDelaySuccess);
@@ -342,6 +334,9 @@ class _ReaderWidgetState extends State<ReaderWidget>
           final Code result = await zx.processCameraImage(image, params);
           if (result.isValid) {
             widget.onScan?.call(result);
+            if (!mounted) {
+              return;
+            }
             setState(() {});
             await Future<void>.delayed(widget.scanDelaySuccess);
           } else {
@@ -362,10 +357,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   @override
   Widget build(BuildContext context) {
-    final bool isCameraReady = cameras.isNotEmpty &&
-        _isCameraOn &&
-        controller != null &&
-        controller!.value.isInitialized;
+    final bool isCameraReady = cameras.isNotEmpty && _isCameraOn && controller != null && controller!.value.isInitialized;
     final Size size = MediaQuery.of(context).size;
     final double cameraMaxSize = max(size.width, size.height);
     final double cropSize = min(size.width, size.height) * widget.cropPercent;
@@ -384,9 +376,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
                     width: cameraMaxSize,
                     child: CameraPreview(
                       controller!,
-                      child: widget.showScannerOverlay &&
-                              widget.isMultiScan &&
-                              results.codes.isNotEmpty
+                      child: widget.showScannerOverlay && widget.isMultiScan && results.codes.isNotEmpty
                           ? MultiResultOverlay(
                               results: results.codes,
                               onCodeTap: widget.onScan,
@@ -419,8 +409,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
               _zoom = _scaleFactor;
             },
             onScaleUpdate: (ScaleUpdateDetails details) {
-              _scaleFactor =
-                  (_zoom * details.scale).clamp(_minZoomLevel, _maxZoomLevel);
+              _scaleFactor = (_zoom * details.scale).clamp(_minZoomLevel, _maxZoomLevel);
               controller?.setZoomLevel(_scaleFactor);
             },
           ),
@@ -430,8 +419,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
             child: Padding(
               padding: widget.actionButtonsPadding,
               child: ClipRRect(
-                borderRadius: widget.actionButtonsBackgroundBorderRadius ??
-                    BorderRadius.circular(10.0),
+                borderRadius: widget.actionButtonsBackgroundBorderRadius ?? BorderRadius.circular(10.0),
                 child: Container(
                   color: widget.actionButtonsBackgroundColor,
                   child: Row(
@@ -441,8 +429,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
                         IconButton(
                           onPressed: _onFlashButtonTapped,
                           color: Colors.white,
-                          icon: _flashIcon(
-                              controller?.value.flashMode ?? FlashMode.off),
+                          icon: _flashIcon(controller?.value.flashMode ?? FlashMode.off),
                         ),
                       if (widget.showGallery)
                         IconButton(
@@ -493,8 +480,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
   }
 
   Future<void> _onGalleryButtonTapped() async {
-    final XFile? file =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
+    final XFile? file = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (file != null) {
       final DecodeParams params = DecodeParams(
         imageFormat: zxing.ImageFormat.rgb,
@@ -508,6 +494,9 @@ class _ReaderWidgetState extends State<ReaderWidget>
         if (result.codes.isNotEmpty) {
           results = result;
           widget.onMultiScan?.call(result);
+          if (!mounted) {
+            return;
+          }
           setState(() {});
         } else {
           results = Codes();
