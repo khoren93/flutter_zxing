@@ -17,7 +17,7 @@ dependencies:
 
 dev_dependencies:
   ffigen: ">=12.0.0 <14.0.0" # dart run ffigen --config ffigen.yaml
-  flutter_lints: ^4.0.0
+  flutter_lints: ">=4.0.0 <6.0.0"
   flutter_test:
     sdk: flutter
   melos: ">=5.0.0 <7.0.0"
