@@ -3,9 +3,9 @@
 #include <exception>
 #include <memory>
 
-#ifdef IS_WIN32
-#include <Windows.h>
-#else
+#include "common.h"
+
+#ifndef IS_WIN32
 #include <cstdlib>
 #endif
 

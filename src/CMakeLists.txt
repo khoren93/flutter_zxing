@@ -11,7 +11,7 @@ add_library(
 
 set (BUILD_WRITERS ON)
 
-add_subdirectory(zxing/core)
+add_subdirectory(zxing/core EXCLUDE_FROM_ALL)
 
 target_link_libraries(flutter_zxing ZXing)
 

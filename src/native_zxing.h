@@ -17,6 +17,8 @@
 #define NOEXCEPT
 #endif
 
+#include "common.h"
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -143,6 +145,7 @@ extern "C"
      *
      * @param enabled Whether to enable or disable the logging.
      */
+    FUNCTION_ATTRIBUTE
     void setLogEnabled(bool enabled) NOEXCEPT;
 
     /**
@@ -150,6 +153,7 @@ extern "C"
      *
      * @return The version of the zxing-cpp library.
      */
+    FUNCTION_ATTRIBUTE
     char const* version() NOEXCEPT;
 
     /**
@@ -158,6 +162,7 @@ extern "C"
      *               function returns.
      * @return The barcode result.
      */
+    FUNCTION_ATTRIBUTE
     struct CodeResult readBarcode(struct DecodeBarcodeParams* params) NOEXCEPT;
 
     /**
@@ -166,6 +171,7 @@ extern "C"
      *               function returns.
      * @return The barcode results.
      */
+    FUNCTION_ATTRIBUTE
     struct CodeResults readBarcodes(struct DecodeBarcodeParams* params) NOEXCEPT;
 
     /**
@@ -174,6 +180,7 @@ extern "C"
      *               function returns.
      * @return The barcode data
      */
+    FUNCTION_ATTRIBUTE
     struct EncodeResult encodeBarcode(struct EncodeBarcodeParams* params) NOEXCEPT;
 
 #ifdef __cplusplus
