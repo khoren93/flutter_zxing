@@ -47,21 +47,18 @@ class _HistoryPageState extends State<HistoryPage> {
                         child: ListTile(
                           title: Text(result.text ?? ''),
                           subtitle: Text(result.formatName),
-                          trailing: ButtonBar(
-                            mainAxisSize: MainAxisSize.min,
+                          trailing: OverflowBar(
                             children: <Widget>[
                               // Copy button
                               IconButton(
                                 icon: const Icon(FontAwesomeIcons.copy),
                                 onPressed: () {
-                                  Clipboard.setData(
-                                      ClipboardData(text: result.text ?? ''));
+                                  Clipboard.setData(ClipboardData(text: result.text ?? ''));
                                 },
                               ),
                               // Remove button
                               IconButton(
-                                icon: const Icon(FontAwesomeIcons.trash,
-                                    color: Colors.red),
+                                icon: const Icon(FontAwesomeIcons.trash, color: Colors.red),
                                 onPressed: () {
                                   DbService.instance.deleteCode(result);
                                   setState(() {});

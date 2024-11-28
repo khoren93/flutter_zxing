@@ -10,7 +10,6 @@ class AppTheme {
         colors: FlexColor.schemesList[appStore.colorSchemeIndex].light,
         surfaceMode: FlexSurfaceMode.highScaffoldLevelSurface,
         blendLevel: 12,
-        useMaterial3: true,
         useMaterial3ErrorColors: true,
       );
 
@@ -18,7 +17,6 @@ class AppTheme {
         colors: FlexColor.schemesList[appStore.colorSchemeIndex].dark,
         surfaceMode: FlexSurfaceMode.highScaffoldLevelSurface,
         blendLevel: 6,
-        useMaterial3: true,
         useMaterial3ErrorColors: true,
       );
 }

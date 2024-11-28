@@ -58,8 +58,7 @@ class _BarcodesPageState extends State<BarcodesPage> {
                           ),
                           title: Text(result.text ?? ''),
                           subtitle: Text(result.formatName),
-                          trailing: ButtonBar(
-                            mainAxisSize: MainAxisSize.min,
+                          trailing: OverflowBar(
                             children: <Widget>[
                               // Copy button
                               IconButton(
