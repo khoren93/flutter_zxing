@@ -1,6 +1,7 @@
 #include "common.h"
 #include <stdio.h>
 #include <stdarg.h>
+#include <algorithm>
 
 bool isLogEnabled;
 

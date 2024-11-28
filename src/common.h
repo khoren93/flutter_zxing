@@ -9,6 +9,7 @@
 #endif
 
 #ifdef IS_WIN32
+#define NOMINMAX
 #include <windows.h>
 #endif
 
