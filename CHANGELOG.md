@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.8.0
+
+* Fixed Windows compatibility issues (thanks to [@liff](https://github.com/liff))
+* Updated dependencies to the latest version
+
 ## 1.7.0
 
 * Added support for Linux (thanks to [@phlip9](https://github.com/phlip9))
