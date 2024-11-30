@@ -5,12 +5,12 @@
 
 bool isLogEnabled;
 
-void setLoggingEnabled(bool enabled) noexcept
+void setLoggingEnabled(bool enabled)
 {
         isLogEnabled = enabled;
 }
 
-void platform_log(const char* fmt, ...) noexcept
+void platform_log(const char* fmt, ...)
 {
         if (isLogEnabled)
         {
