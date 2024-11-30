@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.1
+
+* Minor improvements
+
 ## 1.8.0
 
 * Fixed Windows compatibility issues (thanks to [@liff](https://github.com/liff))
