@@ -1,20 +1,51 @@
 # Flutter ZXing
 
-Flutter ZXing is a Flutter plugin for scanning and generating QR codes using the ZXing (Zebra Crossing) barcode scanning library. The plugin is implemented using the Dart FFI (Foreign Function Interface) and the [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp) library, and allows you to easily integrate barcode scanning and generation functionality into your Flutter apps.
+Flutter ZXing is a high-performance Flutter plugin for scanning and generating QR codes and barcodes. Built on the powerful [ZXing C++ library](https://github.com/zxing-cpp/zxing-cpp), it provides fast and reliable barcode processing capabilities for Flutter applications. Whether you need to scan barcodes from the camera or generate custom QR codes, Flutter ZXing makes it seamless and efficient.
+
+---
+
+## Table of Contents
+
+- [Flutter ZXing](#flutter-zxing)
+  - [Table of Contents](#table-of-contents)
+  - [Demo Screenshots](#demo-screenshots)
+  - [Features](#features)
+  - [Supported Formats](#supported-formats)
+  - [Supported Platforms](#supported-platforms)
+  - [ZXScanner](#zxscanner)
+    - [Features](#features-1)
+    - [Try ZXScanner](#try-zxscanner)
+  - [Getting Started](#getting-started)
+    - [Cloning the flutter\_zxing project](#cloning-the-flutter_zxing-project)
+    - [Installing dependencies](#installing-dependencies)
+  - [Usage](#usage)
+    - [To read barcode](#to-read-barcode)
+    - [To create barcode](#to-create-barcode)
+  - [License](#license)
+
+---
 
 ## Demo Screenshots
 
-<pre>
-<img alt="01_scanner_screen" src="https://user-images.githubusercontent.com/11523360/222677044-a15841a7-e617-44bb-b3a0-66b2d5b57dce.png" width="240">&nbsp; <img alt="02_creator_screen" src="https://user-images.githubusercontent.com/11523360/222677058-60a676fd-c229-4b51-8780-f40155cb5db6.png" width="240">&nbsp;
-</pre>
+<p align="center">
+  <img alt="Scanner Screen" src="https://user-images.githubusercontent.com/11523360/222677044-a15841a7-e617-44bb-b3a0-66b2d5b57dce.png" width="240">
+  <img alt="Creator Screen" src="https://user-images.githubusercontent.com/11523360/222677058-60a676fd-c229-4b51-8780-f40155cb5db6.png" width="240">
+</p>
+<p align="center">
+  <i>Left: Barcode Scanner, Right: QR Code Creator</i>
+</p>
+
+---
 
 ## Features
 
-- Scan QR codes and barcodes from the camera stream (on mobile platforms only), image file or URL
-- Scan multiple barcodes at once from the camera stream (on mobile platforms only), image file or URL
-- Generate QR codes with customizable content and size
-- Return the position points of the scanned barcode
-- Customizable scanner frame size and color, and ability to enable or disable features like torch and pinch to zoom
+- Scan QR codes and barcodes from the camera stream (on mobile platforms only), image file, or URL.
+- Scan multiple barcodes at once from the camera stream (on mobile platforms only), image file, or URL.
+- Generate QR codes with customizable content and size.
+- Return the position points of the scanned barcode.
+- Customizable scanner frame size and color, and the ability to enable or disable features like torch and pinch to zoom.
+
+---
 
 ## Supported Formats
 
@@ -28,24 +59,23 @@ Flutter ZXing is a Flutter plugin for scanning and generating QR codes using the
 |                | ITF               | PDF417             |
 |                |                   | MaxiCode (partial) |
 
-## Supported platforms
+---
 
-Flutter ZXing supports the following platforms:
+## Supported Platforms
 
-- Android (minimum API level 21)
-- iOS (minimum iOS 11.0)
-- MacOS (minimum osx 10.15) (beta)
-- Linux (working, but [no camera support](https://pub.dev/packages/camera)) (alpha)
-- Windows (not working yet)
-- Web (not working yet)
+| Platform   | Status               | Notes                                     |
+|------------|----------------------|-------------------------------------------|
+| Android    | ✅ Fully Supported   | Minimum API level 21                     |
+| iOS        | ✅ Fully Supported   | Minimum iOS 11.0                         |
+| MacOS      | ⚠️ Beta             | Minimum macOS 10.15                      |
+| Linux      | ⚠️ Beta             | No camera support                        |
+| Windows    | ⚠️ Beta             | No camera support                        |
+| Web        | ❌ Not Supported    | Dart FFI is not available on the web     |
 
-Note that flutter_zxing relies on the Dart FFI (Foreign Function Interface) feature, which is currently only available for the mobile and desktop platforms. As a result, the plugin is not currently supported on the web platform.
+> Note: Flutter ZXing relies on the Dart FFI feature, making it unsupported on the web. Camera-based scanning is only available on mobile platforms.
 
-In addition, flutter_zxing uses the camera plugin to access the device's camera for scanning barcodes. This plugin is only supported on mobile platforms, and is not available for desktop platforms. Therefore, some features of flutter_zxing, such as scanning barcodes using the camera, are not available on desktop platforms.
+---
 
-## Generated by [ChatGPT](https://chat.openai.com/chat)
-
-This README file was mainly generated using ChatGPT, a tool that generates human-like text.
 
 ## ZXScanner
 
@@ -53,9 +83,17 @@ ZXScanner is a free QR code and barcode scanner app for Android and iOS. It is b
 
 <p align="center">
     <a href="https://github.com/khoren93/flutter_zxing/tree/main/zxscanner">
-        <img src="https://user-images.githubusercontent.com/11523360/178162663-57ec28ac-7075-43ab-ac31-35058298c73e.png" alt="ZXScanner logo" height="100" >
+        <img src="https://user-images.githubusercontent.com/11523360/178162663-57ec28ac-7075-43ab-ac31-35058298c73e.png" alt="ZXScanner logo" height="100">
     </a>
 </p>
+
+### Features
+- Fast and reliable QR code and barcode scanning.
+- Built-in support for multiple barcode formats.
+- Fully open-source and customizable.
+
+### Try ZXScanner
+To learn more or contribute, visit the [ZXScanner repository](https://github.com/khoren93/flutter_zxing/tree/main/zxscanner).
 
 ## Getting Started
 
