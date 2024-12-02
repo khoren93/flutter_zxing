@@ -102,8 +102,8 @@ jobs:
           run-bootstrap: true
           enforce-lockfile: true
 
-      # Build the example application
       - name: Build example for ${{ matrix.target }} on ${{ matrix.os }}
+        shell: bash
         run: |
           cd example
           TARGET=${{ matrix.target }}
@@ -123,6 +123,10 @@ jobs:
               ;;
             windows)
               flutter build windows --debug
+              ;;
+            *)
+              echo "Unknown target: $TARGET"
+              exit 1
               ;;
           esac
 
