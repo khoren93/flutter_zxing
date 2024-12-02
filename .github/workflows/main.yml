@@ -194,6 +194,7 @@ jobs:
 
       # Run tests
       - name: Run tests for ${{ matrix.target }} on ${{ matrix.os }}
+        shell: bash
         run: |
           cd ./example
           if [ "${{ matrix.target }}" == "linux" ]; then
@@ -251,4 +252,7 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
             flutter devices
-            cd ./example && flutter test integration_test --verbose
+            adb devices
+            adb shell getprop
+            cd ./example
+            flutter test integration_test --verbose
