@@ -53,12 +53,14 @@ class _HistoryPageState extends State<HistoryPage> {
                               IconButton(
                                 icon: const Icon(FontAwesomeIcons.copy),
                                 onPressed: () {
-                                  Clipboard.setData(ClipboardData(text: result.text ?? ''));
+                                  Clipboard.setData(
+                                      ClipboardData(text: result.text ?? ''));
                                 },
                               ),
                               // Remove button
                               IconButton(
-                                icon: const Icon(FontAwesomeIcons.trash, color: Colors.red),
+                                icon: const Icon(FontAwesomeIcons.trash,
+                                    color: Colors.red),
                                 onPressed: () {
                                   DbService.instance.deleteCode(result);
                                   setState(() {});
