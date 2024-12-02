@@ -46,7 +46,6 @@ jobs:
   # Build the example application across all supported platforms
   build-example:
     name: 'Build example (${{ matrix.target }}, ${{ matrix.os }})'
-    needs: lint
     runs-on: ${{ matrix.os }}-latest
     timeout-minutes: 20
     strategy:
@@ -133,7 +132,6 @@ jobs:
   # Integration tests for all platforms except Android (handled separately)
   test-example:
     name: 'Test example (${{ matrix.target }}, ${{ matrix.os }})'
-    needs: build-example
     runs-on: ${{ matrix.os }}-latest
     timeout-minutes: 30
     strategy:
@@ -206,7 +204,6 @@ jobs:
   # Integration tests on Android emulator
   test-example-android:
     name: 'Test example on Android API level ${{ matrix.api-level }} (${{ matrix.os }})'
-    needs: build-example
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -243,16 +240,36 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # Gradle cache
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Setup AVD actions/cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ matrix.api-level }}
+
+      - name: Create and cache AVD snapshot
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "Generated AVD snapshot for caching."
+
       # Create and run Android emulator
       - name: Run tests on Android API level ${{ matrix.api-level }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
           force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
           script: |
             flutter devices
-            adb devices
-            adb shell getprop
-            cd ./example
-            flutter test integration_test --verbose
+            cd ./example && flutter test integration_test --verbose
