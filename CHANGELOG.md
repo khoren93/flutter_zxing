@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.2
+
+* Minor improvements
+
 ## 1.8.1
 
 * Minor improvements
