@@ -3,14 +3,16 @@ import 'package:flutter/material.dart';
 import 'scanner_overlay.dart';
 
 class DynamicScannerOverlay extends ScannerOverlay {
-  const DynamicScannerOverlay({
-    super.borderColor,
-    super.borderWidth,
-    super.overlayColor,
-    super.borderRadius,
-    super.borderLength,
-    this.cutOutSize = 0.5,
-  }) : assert(cutOutSize >= 0 && cutOutSize <= 1, 'The cut out size must be between 0 and 1');
+  const DynamicScannerOverlay(
+      {super.borderColor,
+      super.borderWidth,
+      super.overlayColor,
+      super.borderRadius,
+      super.borderLength,
+      this.cutOutSize = 0.5})
+      : assert(cutOutSize >= 0 && cutOutSize <= 1,
+            'The cut out size must be between 0 and 1');
+
 
   @override
   final double cutOutSize;
