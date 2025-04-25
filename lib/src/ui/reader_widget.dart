@@ -423,6 +423,9 @@ class _ReaderWidgetState extends State<ReaderWidget>
               _zoom = _scaleFactor;
             },
             onScaleUpdate: (ScaleUpdateDetails details) {
+              if (!_isCameraOn) {
+                return;
+              }
               _scaleFactor =
                   (_zoom * details.scale).clamp(_minZoomLevel, _maxZoomLevel);
               controller?.setZoomLevel(_scaleFactor);
