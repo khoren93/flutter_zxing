@@ -38,19 +38,18 @@ void main() async {
     assert(enc.data != null);
     assert(enc.length! > 0);
 
-    final dataU32 = enc.data!;
-    expect(dataU32.length, encodeParams.width * encodeParams.height);
+    final dataU8 = enc.data!;
+    expect(dataU8.length, encodeParams.width * encodeParams.height);
 
     // Decode the image (no multiscan)
 
     final decodeParams = DecodeParams(
-      imageFormat: ImageFormat.rgbx,
+      imageFormat: ImageFormat.lum,
       format: encodeParams.format,
       width: encodeParams.width,
       height: encodeParams.height,
       isMultiScan: false,
     );
-    final dataU8 = dataU32.buffer.asUint8List();
     final code1 = zx.readBarcode(dataU8, decodeParams);
 
     assert(code1.isValid);
@@ -63,7 +62,7 @@ void main() async {
     // Decode the image (multiscan)
 
     final decodeParams2 = DecodeParams(
-      imageFormat: ImageFormat.rgbx,
+      imageFormat: ImageFormat.lum,
       format: encodeParams.format,
       width: encodeParams.width,
       height: encodeParams.height,
