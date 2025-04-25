@@ -211,7 +211,7 @@ jobs:
       matrix:
         include:
           - api-level: 21
-            target: google_apis
+            target: default
             arch: x86
           - api-level: 34
             target: google_apis
