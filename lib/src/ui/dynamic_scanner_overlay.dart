@@ -13,6 +13,7 @@ class DynamicScannerOverlay extends ScannerOverlay {
       : assert(cutOutSize >= 0 && cutOutSize <= 1,
             'The cut out size must be between 0 and 1');
 
+
   @override
   final double cutOutSize;
 
@@ -22,7 +23,7 @@ class DynamicScannerOverlay extends ScannerOverlay {
     final double height = rect.height;
     final double borderOffset = borderWidth / 2;
     final double newBorderLength = borderLength;
-    final double newCutOutSize = width * cutOutSize;
+    final double newCutOutSize = width < height ? width * cutOutSize : height * cutOutSize;
 
     final Paint backgroundPaint = Paint()
       ..color = overlayColor
