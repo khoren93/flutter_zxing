@@ -209,7 +209,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api-level: [21, 34, 36]
+        include:
+          - api-level: 21
+            target: google_apis
+            arch: x86
+          - api-level: 34
+            target: google_apis
+            arch: x86_64
+          - api-level: 36
+            target: google_apis
+            arch: x86_64
     steps:
       - uses: actions/checkout@v4
         with:
@@ -257,8 +266,8 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
-          target: google_apis
-          arch: x86_64
+          target: ${{ matrix.target }}
+          arch: ${{ matrix.arch }}
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: false
@@ -269,8 +278,8 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
-          target: google_apis
-          arch: x86_64
+          target: ${{ matrix.target }}
+          arch: ${{ matrix.arch }}
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
