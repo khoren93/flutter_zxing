@@ -203,7 +203,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "1.9.0"
+    version: "1.9.1"
   fuchsia_remote_debug_protocol:
     dependency: transitive
     description: flutter

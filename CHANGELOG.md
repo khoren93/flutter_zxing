@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.1
+
+* Increased minimum versions of `camera` and `image` packages to support newer APIs.
+
 ## 1.9.0
 
 * Improved FFI interoperability: changed image data type from `Uint32List` to `Uint8List` for correct handling of binary (black & white) matrices between C++ (zxing-cpp) and Flutter.
