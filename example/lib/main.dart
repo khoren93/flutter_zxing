@@ -52,8 +52,8 @@ class _DemoPageState extends State<DemoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isCameraSupported =
-        defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android;
+    final isCameraSupported = defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.android;
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -99,15 +99,19 @@ class _DemoPageState extends State<DemoPage> {
                     flashAutoIcon: const Icon(Icons.flash_auto),
                     galleryIcon: const Icon(Icons.photo_library),
                     toggleCameraIcon: const Icon(Icons.switch_camera),
-                    actionButtonsBackgroundBorderRadius: BorderRadius.circular(10),
-                    actionButtonsBackgroundColor: Colors.black.withValues(alpha: 0.5),
+                    actionButtonsBackgroundBorderRadius:
+                        BorderRadius.circular(10),
+                    actionButtonsBackgroundColor:
+                        Colors.black.withValues(alpha: 0.5),
                   ),
                   if (showDebugInfo)
                     DebugInfoWidget(
                       successScans: successScans,
                       failedScans: failedScans,
                       error: isMultiScan ? multiResult?.error : result?.error,
-                      duration: isMultiScan ? multiResult?.duration ?? 0 : result?.duration ?? 0,
+                      duration: isMultiScan
+                          ? multiResult?.duration ?? 0
+                          : result?.duration ?? 0,
                       onReset: _onReset,
                     ),
                 ],
@@ -130,7 +134,8 @@ class _DemoPageState extends State<DemoPage> {
                       _showMessage(context, 'Error: $error');
                     },
                   ),
-                  if (createdCodeBytes != null) Image.memory(createdCodeBytes ?? Uint8List(0), height: 400),
+                  if (createdCodeBytes != null)
+                    Image.memory(createdCodeBytes ?? Uint8List(0), height: 400),
                 ],
               ),
           ],

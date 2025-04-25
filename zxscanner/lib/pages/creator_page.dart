@@ -93,15 +93,18 @@ class _CreatorPageState extends State<CreatorPage> {
                   final String path = file.path;
 
                   // Share image
-                  final RenderBox? box = context.findRenderObject() as RenderBox?;
+                  final RenderBox? box =
+                      context.findRenderObject() as RenderBox?;
                   if (box != null) {
                     final ShareParams params = ShareParams(
                       text: 'Check out this code!',
                       files: <XFile>[XFile(path)],
-                      sharePositionOrigin: box.localToGlobal(Offset.zero) & box.size,
+                      sharePositionOrigin:
+                          box.localToGlobal(Offset.zero) & box.size,
                     );
 
-                    final ShareResult result = await SharePlus.instance.share(params);
+                    final ShareResult result =
+                        await SharePlus.instance.share(params);
 
                     if (result.status == ShareResultStatus.success) {
                       debugPrint('Share success');

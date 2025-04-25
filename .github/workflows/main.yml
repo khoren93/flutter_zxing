@@ -203,7 +203,7 @@ jobs:
 
   # Integration tests on Android emulator
   test-example-android:
-    name: 'Test example on Android API level ${{ matrix.api-level }} (${{ matrix.os }})'
+    name: 'Test example on Android API level ${{ matrix.api-level }}'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -215,7 +215,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Java for Android (${{ matrix.os }})'
+      - name: Setup Java for Android (${{ matrix.api-level }})'
         uses: actions/setup-java@v4
         with:
           java-version: 11
