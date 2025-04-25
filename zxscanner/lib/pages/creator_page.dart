@@ -86,21 +86,26 @@ class _CreatorPageState extends State<CreatorPage> {
           children: <Widget>[
             Builder(builder: (BuildContext context) {
               return ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   // Save image to device
                   final File file = File(tempPath);
                   file.writeAsBytesSync(encode?.data ?? Uint8List(0));
                   final String path = file.path;
 
                   // Share image
-                  final RenderBox? box =
-                      context.findRenderObject() as RenderBox?;
+                  final RenderBox? box = context.findRenderObject() as RenderBox?;
                   if (box != null) {
-                    Share.shareXFiles(
-                      <XFile>[XFile(path)],
-                      sharePositionOrigin:
-                          box.localToGlobal(Offset.zero) & box.size,
+                    final ShareParams params = ShareParams(
+                      text: 'Check out this code!',
+                      files: <XFile>[XFile(path)],
+                      sharePositionOrigin: box.localToGlobal(Offset.zero) & box.size,
                     );
+
+                    final ShareResult result = await SharePlus.instance.share(params);
+
+                    if (result.status == ShareResultStatus.success) {
+                      debugPrint('Share success');
+                    }
                   }
                 },
                 child: const Text('Share'),
