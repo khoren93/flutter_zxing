@@ -214,9 +214,9 @@ final Encode result = zx.encodeBarcode(
         eccLevel: EccLevel.low,
     ),
 );
-if (result.isValid) {
-    final img = imglib.Image.fromBytes(width, height, result.data);
-    final encodedBytes = Uint8List.fromList(imglib.encodeJpg(img));
+if (result.isValid && result.data != null) {
+    final img = imglib.Image.fromBytes(width, height, result.data!.buffer, numChannels: 1);
+    final Uint8List encodedBytes = imglib.encodePng(img);
     // use encodedBytes as you wish
 }
 ```
