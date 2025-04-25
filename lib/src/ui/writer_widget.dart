@@ -143,7 +143,7 @@ class _WriterWidgetState extends State<WriterWidget>
                     ),
                   ),
                   if (_codeFormat.isSupportedEccLevel) ...<Widget>[
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 6),
                     Flexible(
                       child: DropdownButtonFormField<EccLevel>(
                         value: _eccLevel,
@@ -281,11 +281,10 @@ class _WriterWidgetState extends State<WriterWidget>
             width: width,
             height: height,
             bytes: result.data!.buffer,
-            numChannels: 4,
+            numChannels: 1,
           );
-          final Uint8List encodedBytes = Uint8List.fromList(
-            imglib.encodeJpg(img),
-          );
+          // Encode the resulting image to the PNG image format.
+          final Uint8List encodedBytes = imglib.encodePng(img);
           widget.onSuccess?.call(result, encodedBytes);
         } catch (e) {
           error = e.toString();

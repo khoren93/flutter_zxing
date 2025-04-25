@@ -6,22 +6,6 @@ import 'package:ffi/ffi.dart';
 import '../../zxing_mobile.dart';
 
 /// From an owned pointer allocated in native code, copy the data into the Dart
-/// VM Heap as a [Uint32List] and then immediately `free` the owned ffi pointer.
-Uint32List? copyUint32ListFromOwnedFfiPtr(
-  Pointer<Uint8> data,
-  int length,
-) {
-  if (data == nullptr || length == 0) {
-    return null;
-  }
-
-  final Uint32List out =
-      Uint32List.fromList(data.cast<Int8>().asTypedList(length));
-  malloc.free(data);
-  return out;
-}
-
-/// From an owned pointer allocated in native code, copy the data into the Dart
 /// VM Heap as a [Uint8List] and then immediately `free` the owned ffi pointer.
 Uint8List? copyUint8ListFromOwnedFfiPtr(Pointer<Uint8> data, int length) {
   if (data == nullptr || length == 0) {
@@ -67,7 +51,7 @@ extension EncodeExt on EncodeResult {
         isValid,
         format,
         text,
-        copyUint32ListFromOwnedFfiPtr(data, length),
+        copyUint8ListFromOwnedFfiPtr(data, length),
         length,
         copyStringFromOwnedFfiPtr(error),
       );

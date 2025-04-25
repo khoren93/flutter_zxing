@@ -14,7 +14,7 @@ class Encode {
   bool isValid; // Whether the code is valid
   int? format; // The format of the code
   String? text; // The text of the code
-  Uint32List? data; // The raw bytes of the code
+  Uint8List? data; // The raw bytes of the code
   int? length; // The length of the raw bytes
   String? error; // The error message
 }
