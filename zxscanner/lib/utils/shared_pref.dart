@@ -30,7 +30,7 @@ Future<void> initializePrefs() async {
   );
 }
 
-/// Add a value in SharedPref based on their type - Must be a String, int, bool, double, Map<String, dynamic> or StringList
+// Add a value in SharedPref based on their type - Must be a String, int, bool, double, Map<String, dynamic> or StringList
 Future<bool> setPrefValue(String key, dynamic value,
     {bool print = true}) async {
   if (value is String) {

@@ -24,3 +24,4 @@ endif (ANDROID)
 # Command to update zxing submodule
 # cd src/zxing
 # git checkout v2.2.0
+# git submodule update --init --recursive
