@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.9.0
+
+* Improved FFI interoperability: changed image data type from `Uint32List` to `Uint8List` for correct handling of binary (black & white) matrices between C++ (zxing-cpp) and Flutter.
+* Fixed issues when creating images from binary data in Flutter, ensuring proper grayscale and RGB handling.
+* Updated integration tests to work with the new data format.
+* Minor code cleanup and refactoring.
+
 ## 1.8.2
 
 * Minor improvements

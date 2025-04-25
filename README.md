@@ -65,12 +65,12 @@ Flutter ZXing is a high-performance Flutter plugin for scanning and generating Q
 
 | Platform   | Status               | Notes                                     |
 |------------|----------------------|-------------------------------------------|
-| Android    | ✅ Fully Supported   | Minimum API level 21                     |
-| iOS        | ✅ Fully Supported   | Minimum iOS 11.0                         |
-| MacOS      | ⚠️ Beta             | Minimum macOS 10.15                      |
-| Linux      | ⚠️ Beta             | No camera support                        |
-| Windows    | ⚠️ Beta             | No camera support                        |
-| Web        | ❌ Not Supported    | Dart FFI is not available on the web     |
+| Android    | ✅ Fully Supported   | Minimum API level 21                      |
+| iOS        | ✅ Fully Supported   | Minimum iOS 11.0                          |
+| MacOS      | ⚠️ Beta              | Without Camera support                    |
+| Linux      | ⚠️ Beta              | Without Camera support                    |
+| Windows    | ⚠️ Beta              | Without Camera support                    |
+| Web        | ❌ Not Supported     | Dart FFI is not available on the web      |
 
 > Note: Flutter ZXing relies on the Dart FFI feature, making it unsupported on the web. Camera-based scanning is only available on mobile platforms.
 
