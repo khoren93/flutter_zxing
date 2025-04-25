@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.0
+
+* Updated zxing-cpp to v2.3.0
+
 ## 1.9.1
 
 * Increased minimum versions of `camera` and `image` packages to support newer APIs.
