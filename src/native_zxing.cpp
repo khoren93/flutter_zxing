@@ -16,21 +16,37 @@
 
 #include "native_zxing.h"
 
-#include "common.h"
 #include "dart_alloc.h"
 #include "ReadBarcode.h"
 #include "MultiFormatWriter.h"
 #include "BitMatrix.h"
+#include "Version.h"
 // #include "ZXVersion.h" // This file is not existing for iOS
 
 #include <algorithm>
 #include <chrono>
 #include <string>
 #include <vector>
+#include <stdio.h>
+#include <stdarg.h>
+#include <algorithm>
 
 using namespace ZXing;
 using namespace std;
 using std::chrono::steady_clock;
+
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
+#define IS_WIN32
+#endif
+
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
+#ifdef IS_WIN32
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 // Forward declare some impls
 CodeResult _readBarcode(const DecodeBarcodeParams& params) noexcept;
@@ -43,6 +59,35 @@ EncodeResult _encodeBarcode(const EncodeBarcodeParams& params) noexcept;
 
 extern "C"
 {
+    bool isLogEnabled;
+
+    void setLoggingEnabled(bool enabled)
+    {
+        isLogEnabled = enabled;
+    }
+
+    void platform_log(const char* fmt, ...)
+    {
+        if (isLogEnabled)
+        {
+            va_list args;
+            va_start(args, fmt);
+#ifdef __ANDROID__
+            __android_log_vprint(ANDROID_LOG_VERBOSE, "ndk", fmt, args);
+#elif defined(IS_WIN32)
+            char* buf = new char[4096];
+            std::fill_n(buf, 4096, '\0');
+            _vsprintf_p(buf, 4096, fmt, args);
+            OutputDebugStringA(buf);
+            delete[] buf;
+#else
+            // vprintf(fmt, args);
+            vfprintf(stderr, fmt, args);
+#endif
+            va_end(args);
+        }
+    }
+
     FUNCTION_ATTRIBUTE
     void setLogEnabled(bool enable) noexcept
     {
@@ -52,8 +97,7 @@ extern "C"
     FUNCTION_ATTRIBUTE
     char const* version() noexcept
     {
-        // return ZXING_VERSION_STR; // TODO: Not working on iOS for now
-        return "2.2.1";
+        return ZXING_VERSION_STR;
     }
 
     FUNCTION_ATTRIBUTE

@@ -3,8 +3,6 @@
 #include <exception>
 #include <memory>
 
-#include "common.h"
-
 #ifndef IS_WIN32
 #include <cstdlib>
 #endif

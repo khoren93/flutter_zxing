@@ -1,15 +1,14 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
 project(flutter_zxing LANGUAGES C CXX)
 
 add_library(
     flutter_zxing
     SHARED
-    common.cpp
     native_zxing.cpp
 )
 
-set (BUILD_WRITERS ON)
+set (ZXING_WRITERS ON)
 
 add_subdirectory(zxing/core EXCLUDE_FROM_ALL)
 

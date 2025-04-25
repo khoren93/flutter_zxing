@@ -20,9 +20,23 @@ rm -rf "$MACOS_SRC_PATH"
 mkdir -p "$IOS_SRC_DIR"
 mkdir -p "$MACOS_SRC_PATH"
 
-# Copy the source files
-rsync -av --exclude '*.txt' --exclude "zxing/" "$SRC_DIR/" "$IOS_SRC_DIR/"
-rsync -av "$ZXING_SRC_DIR/" "$IOS_SRC_DIR/zxing/"
+# Create a temporary build dir for CMake-generated headers
+BUILD_DIR="$REPO_DIR/scripts/build_temp"
+mkdir -p "$BUILD_DIR"
 
-rsync -av --exclude '*.txt' --exclude "zxing/" "$SRC_DIR/" "$MACOS_SRC_PATH/"
-rsync -av "$ZXING_SRC_DIR/" "$MACOS_SRC_PATH/zxing/"
+# Run CMake to generate Version.h
+cmake -S "$ZXING_SRC_DIR/.." -B "$BUILD_DIR"
+
+# Copy the source files, -L follows symlinks, -v is verbose, -a is archive mode (preserves permissions, timestamps, etc.)
+rsync -aLv --exclude '*.txt' --exclude "zxing/" "$SRC_DIR/" "$IOS_SRC_DIR/"
+rsync -aLv "$ZXING_SRC_DIR/" "$IOS_SRC_DIR/zxing/"
+
+rsync -aLv --exclude '*.txt' --exclude "zxing/" "$SRC_DIR/" "$MACOS_SRC_PATH/"
+rsync -aLv "$ZXING_SRC_DIR/" "$MACOS_SRC_PATH/zxing/"
+
+# Copy the generated Version.h to iOS and macOS
+cp "$BUILD_DIR/Version.h" "$IOS_SRC_DIR/zxing/"
+cp "$BUILD_DIR/Version.h" "$MACOS_SRC_PATH/zxing/"
+
+# Clean up the build_temp directory
+rm -rf "$BUILD_DIR"

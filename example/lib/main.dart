@@ -119,24 +119,26 @@ class _DemoPageState extends State<DemoPage> {
             if (kIsWeb)
               const UnsupportedPlatformWidget()
             else
-              ListView(
-                children: [
-                  WriterWidget(
-                    messages: const Messages(
-                      createButton: 'Create Code',
+              SingleChildScrollView(
+                child: Column(
+                  children: [
+                    WriterWidget(
+                      messages: const Messages(
+                        createButton: 'Create Code',
+                      ),
+                      onSuccess: (result, bytes) {
+                        setState(() {
+                          createdCodeBytes = bytes;
+                        });
+                      },
+                      onError: (error) {
+                        _showMessage(context, 'Error: $error');
+                      },
                     ),
-                    onSuccess: (result, bytes) {
-                      setState(() {
-                        createdCodeBytes = bytes;
-                      });
-                    },
-                    onError: (error) {
-                      _showMessage(context, 'Error: $error');
-                    },
-                  ),
-                  if (createdCodeBytes != null)
-                    Image.memory(createdCodeBytes ?? Uint8List(0), height: 400),
-                ],
+                    if (createdCodeBytes != null)
+                      Image.memory(createdCodeBytes ?? Uint8List(0)),
+                  ],
+                ),
               ),
           ],
         ),
