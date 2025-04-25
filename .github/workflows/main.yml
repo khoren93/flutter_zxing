@@ -73,7 +73,7 @@ jobs:
         run: ./scripts/update_ios_macos_src.sh
 
       # Android-specific setup
-      - name: Setup Java for Android (${{ matrix.target }}, ${{ matrix.os }})'
+      - name: Setup Java for Android (${{ matrix.target }}, ${{ matrix.os }})
         if: matrix.target == 'android'
         uses: actions/setup-java@v4
         with:
@@ -81,7 +81,7 @@ jobs:
           distribution: temurin
 
       # Linux-specific setup
-      - name: Install dependencies for Flutter on Linux (${{ matrix.target }}, ${{ matrix.os }})'
+      - name: Install dependencies for Flutter on Linux (${{ matrix.target }}, ${{ matrix.os }})
         if: matrix.target == 'linux' && matrix.os == 'ubuntu'
         run: |
           sudo apt update
@@ -215,7 +215,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Java for Android (${{ matrix.target }}, ${{ matrix.os }})'
+      - name: Setup Java for Android (${{ matrix.os }})'
         uses: actions/setup-java@v4
         with:
           java-version: 11
