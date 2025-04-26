@@ -60,12 +60,14 @@ extern "C"
 {
     bool isLogEnabled;
 
-    void setLoggingEnabled(bool enabled)
+    FUNCTION_ATTRIBUTE
+    void setLoggingEnabled(bool enabled) noexcept
     {
         isLogEnabled = enabled;
     }
 
-    void platform_log(const char* fmt, ...)
+    FUNCTION_ATTRIBUTE
+    void platform_log(const char* fmt, ...) noexcept
     {
         if (isLogEnabled)
         {
