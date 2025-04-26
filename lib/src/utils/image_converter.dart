@@ -29,3 +29,14 @@ imglib.Image resizeToMaxSize(imglib.Image image, int? maxSize) {
 Uint8List rgbBytes(imglib.Image image) {
   return image.getBytes(order: imglib.ChannelOrder.rgb);
 }
+
+Uint8List pngFromBytes(Uint8List bytes, int width, int height) {
+  final imglib.Image img = imglib.Image.fromBytes(
+    width: width,
+    height: height,
+    bytes: bytes.buffer,
+    numChannels: 1,
+  );
+  // Encode the resulting image to the PNG image format.
+  return imglib.encodePng(img);
+}

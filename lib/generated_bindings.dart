@@ -269,6 +269,21 @@ final class CodeResult extends ffi.Struct {
   /// < The duration of the decoding in milliseconds
   @ffi.Int()
   external int duration;
+
+  /// < The image bytes. Owned pointer. Must be freed by Dart code if not null.
+  external ffi.Pointer<ffi.Uint8> imageBytes;
+
+  /// < The length of the image bytes
+  @ffi.Int()
+  external int imageLength;
+
+  /// < The width of the image
+  @ffi.Int()
+  external int imageWidth;
+
+  /// < The height of the image
+  @ffi.Int()
+  external int imageHeight;
 }
 
 /// @brief The CodeResults class encapsulates the result of decoding multiple barcodes within an image.

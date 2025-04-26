@@ -14,6 +14,9 @@ class Code {
     this.isInverted = false,
     this.isMirrored = false,
     this.duration = 0,
+    this.imageBytes,
+    this.imageWidth,
+    this.imageHeight,
   });
 
   String? text; // The text of the code
@@ -25,6 +28,9 @@ class Code {
   bool isInverted; // Whether the code is inverted
   bool isMirrored; // Whether the code is mirrored
   int duration; // The duration of the decoding in milliseconds
+  Uint8List? imageBytes; // The processed image bytes of the code
+  int? imageWidth; // The width of the processed image
+  int? imageHeight; // The height of the processed image
 }
 
 // Represents a list of barcode codes

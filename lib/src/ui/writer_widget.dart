@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:image/image.dart' as imglib;
 
 import '../../flutter_zxing.dart';
 
@@ -277,14 +276,8 @@ class _WriterWidgetState extends State<WriterWidget>
       String? error;
       if (result.isValid && result.data != null) {
         try {
-          final imglib.Image img = imglib.Image.fromBytes(
-            width: width,
-            height: height,
-            bytes: result.data!.buffer,
-            numChannels: 1,
-          );
-          // Encode the resulting image to the PNG image format.
-          final Uint8List encodedBytes = imglib.encodePng(img);
+          final Uint8List encodedBytes =
+              pngFromBytes(result.data!, width, height);
           widget.onSuccess?.call(result, encodedBytes);
         } catch (e) {
           error = e.toString();

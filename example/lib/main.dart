@@ -113,6 +113,13 @@ class _DemoPageState extends State<DemoPage> {
                           ? multiResult?.duration ?? 0
                           : result?.duration ?? 0,
                       onReset: _onReset,
+                      imageBytes: !isMultiScan && result?.imageBytes != null
+                          ? pngFromBytes(
+                              result?.imageBytes ?? Uint8List(0),
+                              result?.imageWidth ?? 0,
+                              result?.imageHeight ?? 0,
+                            )
+                          : null,
                     ),
                 ],
               ),

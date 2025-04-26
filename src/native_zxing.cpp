@@ -21,7 +21,6 @@
 #include "MultiFormatWriter.h"
 #include "BitMatrix.h"
 #include "Version.h"
-// #include "ZXVersion.h" // This file is not existing for iOS
 
 #include <algorithm>
 #include <chrono>
@@ -194,13 +193,29 @@ uint8_t* dartBytesFromMatrix(const Matrix<uint8_t>& matrix)
     return data;
 }
 
-// Construct a `CodeResult` from a zxing barcode decode `Result` from within an
-// image.
+/// Returns an owned byte buffer `uint8_t*` copied from a `ImageView&`.
+/// The owned pointer is safe to send back to Dart.
+uint8_t* dartBytesFromImageView(const ImageView& image)
+{
+    int w = image.width();
+    int h = image.height();
+    int stride = image.rowStride(); // stride in bytes
+    const uint8_t* src = image.data();
+
+    auto* out = dart_malloc<uint8_t>(w * h);
+    for (int y = 0; y < h; ++y) {
+        std::copy(src + y * stride, src + y * stride + w, out + y * w);
+    }
+    return out;
+}
+
+// Construct a `CodeResult` from a zxing barcode decode `Result` from within an image.
 CodeResult codeResultFromResult(
     const Result& result,
     int duration,
     int width,
-    int height
+    int height,
+    const ImageView image 
 ) {
     auto p = result.position();
     auto tl = p.topLeft();
@@ -219,6 +234,13 @@ CodeResult codeResultFromResult(
     code.isInverted = result.isInverted();
     code.isMirrored = result.isMirrored();
     code.duration = duration;
+
+    if (isLogEnabled) {
+        code.imageLength = image.width() * image.height();
+        code.imageWidth = image.width();
+        code.imageHeight = image.height();
+        code.imageBytes = dartBytesFromImageView(image);
+    }
 
     return code;
 }
@@ -248,7 +270,7 @@ CodeResult _readBarcode(const DecodeBarcodeParams& params) noexcept
 
         int duration = elapsed_ms(start);
         platform_log("Read Barcode in: %d ms\n", duration);
-        return codeResultFromResult(result, duration, params.width, params.height);
+        return codeResultFromResult(result, duration, params.width, params.height, image);
     }
     catch (const exception& e)
     {
@@ -283,7 +305,7 @@ CodeResults _readBarcodes(const DecodeBarcodeParams& params) noexcept
         int i = 0;
         for (const auto& result : results)
         {
-            codes[i] = codeResultFromResult(result, duration, params.width, params.height);
+            codes[i] = codeResultFromResult(result, duration, params.width, params.height, image);
             i++;
         }
         return CodeResults {i, codes, duration};

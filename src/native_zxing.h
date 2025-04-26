@@ -121,6 +121,10 @@ extern "C"
         bool isInverted; ///< Whether the barcode was inverted
         bool isMirrored; ///< Whether the barcode was mirrored
         int duration;    ///< The duration of the decoding in milliseconds
+        uint8_t* imageBytes; ///< The image bytes. Owned pointer. Must be freed by Dart code if not null.
+        int imageLength; ///< The length of the image bytes
+        int imageWidth;  ///< The width of the image
+        int imageHeight; ///< The height of the image
     };
 
     /**

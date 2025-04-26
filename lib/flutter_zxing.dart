@@ -10,6 +10,7 @@ import 'zxing_cross.dart'
 export 'package:camera/camera.dart' show ResolutionPreset, CameraLensDirection;
 export 'src/models/models.dart';
 export 'src/ui/ui.dart';
+export 'src/utils/image_converter.dart';
 
 final Zxing zx = Zxing();
 

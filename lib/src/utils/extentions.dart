@@ -42,6 +42,9 @@ extension CodeExt on CodeResult {
       isInverted: isInverted,
       isMirrored: isMirrored,
       duration: duration,
+      imageBytes: copyUint8ListFromOwnedFfiPtr(imageBytes, imageLength),
+      imageWidth: imageWidth,
+      imageHeight: imageHeight,
     );
   }
 }
