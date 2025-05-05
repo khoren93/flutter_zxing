@@ -7,6 +7,10 @@
 #include <cstdlib>
 #endif
 
+#ifdef linux
+#include <inttypes.h>
+#endif
+
 /// `dart_allocator` is a `std::allocator` impl that can:
 ///
 /// (1) safely allocate memory in C++ that is later freed inside the Dart VM
