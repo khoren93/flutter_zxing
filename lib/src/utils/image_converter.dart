@@ -27,7 +27,7 @@ Uint8List tightlyPackedYPlaneFromCameraImage(CameraImage image) {
 Future<Uint8List> convertImage(CameraImage image) async {
   try {
     final Plane yPlane = image.planes.first;
-    if (yPlane.bytesPerRow != image.width) {
+    if (image.format.group == ImageFormatGroup.yuv420 && yPlane.bytesPerRow != image.width) {
       return tightlyPackedYPlaneFromCameraImage(image);
     }
     return yPlane.bytes;
