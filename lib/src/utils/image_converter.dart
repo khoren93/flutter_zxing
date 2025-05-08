@@ -5,9 +5,32 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as imglib;
 
+Uint8List tightlyPackedYPlaneFromCameraImage(CameraImage image) {
+  final Plane yPlane = image.planes.first;
+  final int bytesPerRow = yPlane.bytesPerRow;
+
+  // If row stride matches the image width, copy directly.
+  if (bytesPerRow == image.width) {
+    return yPlane.bytes;
+  }
+
+  final Uint8List packed = Uint8List(image.width * image.height);
+
+  for (int row = 0; row < image.height; row++) {
+    final int srcOffset = row * bytesPerRow;
+    final int dstOffset = row * image.width;
+    packed.setRange(dstOffset, dstOffset + image.width, yPlane.bytes, srcOffset);
+  }
+  return packed;
+}
+
 Future<Uint8List> convertImage(CameraImage image) async {
   try {
-    return image.planes.first.bytes;
+    final Plane yPlane = image.planes.first;
+    if (yPlane.bytesPerRow != image.width) {
+      return tightlyPackedYPlaneFromCameraImage(image);
+    }
+    return yPlane.bytes;
   } catch (e) {
     debugPrint('>>>>>>>>>>>> ERROR: $e');
   }
