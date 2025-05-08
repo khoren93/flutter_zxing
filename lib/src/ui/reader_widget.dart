@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../flutter_zxing.dart';
 import '../../flutter_zxing.dart' as zxing;
+import '../logic/zxing.dart';
 import 'scan_mode_dropdown.dart';
 
 /// Widget to scan a code from the camera stream
@@ -340,7 +341,16 @@ class _ReaderWidgetState extends State<ReaderWidget>
             widget.onMultiScanFailure?.call(result);
           }
         } else {
-          final Code result = await zx.processCameraImage(image, params);
+
+          Code result;
+          if(image.isZxingProcessableCameraImage()) {
+            result = await zx.processCameraImage(image, params);
+          } else {
+            // for some devices we need to convert the image
+            // to a tightly packed Y plane
+            result = zx.readBarcode(image.getTightlyPackedYPlane(), params);
+          }
+
           if (result.isValid) {
             widget.onScan?.call(result);
             if (!mounted) {
