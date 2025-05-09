@@ -20,7 +20,6 @@ part 'barcode_encoder.dart';
 part 'barcode_reader.dart';
 part 'barcodes_reader.dart';
 part 'bindings.dart';
-part 'camera_image.dart';
 part 'camera_stream.dart';
 
 /// Returns a version of the zxing library
