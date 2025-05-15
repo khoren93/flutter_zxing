@@ -19,7 +19,8 @@ Uint8List tightlyPackedYPlaneFromCameraImage(CameraImage image) {
   for (int row = 0; row < image.height; row++) {
     final int srcOffset = row * bytesPerRow;
     final int dstOffset = row * image.width;
-    packed.setRange(dstOffset, dstOffset + image.width, yPlane.bytes, srcOffset);
+    packed.setRange(
+        dstOffset, dstOffset + image.width, yPlane.bytes, srcOffset);
   }
   return packed;
 }
@@ -27,7 +28,8 @@ Uint8List tightlyPackedYPlaneFromCameraImage(CameraImage image) {
 Future<Uint8List> convertImage(CameraImage image) async {
   try {
     final Plane yPlane = image.planes.first;
-    if (image.format.group == ImageFormatGroup.yuv420 && yPlane.bytesPerRow != image.width) {
+    if (image.format.group == ImageFormatGroup.yuv420 &&
+        yPlane.bytesPerRow != image.width) {
       return tightlyPackedYPlaneFromCameraImage(image);
     }
     return yPlane.bytes;
