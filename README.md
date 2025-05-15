@@ -134,6 +134,36 @@ flutter test integration_test
 
 Now you can run the flutter_zxing example app on your device or emulator.
 
+### Use with dependency_overrides
+
+If you want to use a forked version of the flutter_zxing library in your project, you can specify it using `dependency_overrides` in your `pubspec.yaml`. However, be aware that `flutter_zxing` relies on the ZXing C++ code included as a git submodule. When using `dependency_overrides` with a git repository, these submodules are not automatically included, and the `update_ios_macos_src.sh` script is not run, which can lead to errors, especially on iOS.
+
+Your project might build but encounter runtime errors due to missing library exports that appear as an error like this: `flutter: type 'ArgumentError' is not a subtype of type 'Code' in type cast`
+
+#### Recommended Approach: Using a Git Submodule
+
+To ensure all necessary files are present, it's recommended to add your forked repository as a git submodule, initialize the submodules recursively, and reference it using a local path. Follow these steps:
+
+1. In your project add your fork as a submodule and initialize it recursively.
+```bash
+git submodule add https://github.com/YourUsername/flutter_zxing.git flutter_zxing
+git submodule update --init --recursive
+```
+2. Add your submodule to your `pubspec.yaml` file as a `path` dependency override.
+```yaml
+dependency_overrides:
+  flutter_zxing:
+    path: ./flutter_zxing
+```
+3. Run `flutter pub get` to install the dependencies.
+4. Run the `scripts/update_ios_macos_src.sh` script to update the iOS and MacOS source files. (Or add it to your own projects build process)
+5. Run `flutter clean` to clear the build cache.
+6. Build and run your project.
+
+#### Why Not Use a Direct Git Reference?
+
+Referencing your forked repo as a direct `git` reference in the `depenency_overrides` section of the `pubspec.yaml` does not include submodules or run the `update_ios_macos_src.sh` script. Manually running these steps in the `.pub-cache` directory is not practical, since the path changes with each commit.
+
 ## Usage
 
 ### To read barcode
