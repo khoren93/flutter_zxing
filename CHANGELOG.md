@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.1
+
+* Fixed windows compatibility issues
+
 ## 2.0.0
 
 * Updated zxing-cpp to v2.3.0
