@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.2
+
+* Added parameters `tryDownscale` and `maxNumberOfSymbols` to the `ReaderWidget` for better performance and flexibility.
+
 ## 2.0.1
 
 * Fixed windows compatibility issues
