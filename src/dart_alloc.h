@@ -3,7 +3,7 @@
 #include <exception>
 #include <memory>
 
-#include "common.h"
+#include "zxcommon.h"
 
 #ifndef IS_WIN32
 #include <cstdlib>

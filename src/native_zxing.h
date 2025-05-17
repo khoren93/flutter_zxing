@@ -17,7 +17,7 @@
 #define NOEXCEPT
 #endif
 
-#include "common.h"
+#include "zxcommon.h"
 
 #ifdef __cplusplus
 extern "C"

@@ -16,7 +16,7 @@
 
 #include "native_zxing.h"
 
-#include "common.h"
+#include "zxcommon.h"
 #include "dart_alloc.h"
 #include "ReadBarcode.h"
 #include "MultiFormatWriter.h"

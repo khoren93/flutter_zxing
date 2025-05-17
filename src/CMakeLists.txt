@@ -5,7 +5,7 @@ project(flutter_zxing LANGUAGES C CXX)
 add_library(
     flutter_zxing
     SHARED
-    common.cpp
+    zxcommon.cpp
     native_zxing.cpp
 )
 
