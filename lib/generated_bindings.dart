@@ -161,6 +161,13 @@ final class DecodeBarcodeParams extends ffi.Struct {
   /// < Try inverting the image
   @ffi.Bool()
   external bool tryInvert;
+
+  /// < try detecting code in downscaled images (depending on image size).
+  @ffi.Bool()
+  external bool tryDownscale;
+
+  @ffi.Int()
+  external int maxNumberOfSymbols;
 }
 
 /// @brief The EncodeBarcodeParams class encapsulates parameters for encoding barcodes.

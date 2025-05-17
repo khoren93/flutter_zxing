@@ -27,6 +27,8 @@ class ReaderWidget extends StatefulWidget {
     this.tryHarder = false,
     this.tryInverted = false,
     this.tryRotate = true,
+    this.tryDownscale = false,
+    this.maxNumberOfSymbols = 10,
     this.showScannerOverlay = true,
     this.scannerOverlay,
     this.actionButtonsAlignment = Alignment.bottomLeft,
@@ -92,6 +94,12 @@ class ReaderWidget extends StatefulWidget {
 
   /// Try to rotate the image
   final bool tryRotate;
+
+  /// Try to downscale the image
+  final bool tryDownscale;
+
+  /// Maximum number of barcodes to detect
+  final int maxNumberOfSymbols;
 
   /// Show cropping rect
   final bool showScannerOverlay;
@@ -321,6 +329,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
           tryHarder: widget.tryHarder,
           tryRotate: widget.tryRotate,
           tryInverted: widget.tryInverted,
+          tryDownscale: widget.tryDownscale,
+          maxNumberOfSymbols: widget.maxNumberOfSymbols,
           isMultiScan: widget.isMultiScan,
         );
         if (widget.isMultiScan) {

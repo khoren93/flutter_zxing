@@ -104,6 +104,8 @@ ReaderOptions createReaderOptions(const DecodeBarcodeParams& params)
         .setTryRotate(params.tryRotate)
         .setFormats(BarcodeFormat(params.format))
         .setTryInvert(params.tryInvert)
+        .setTryDownscale(params.tryDownscale)
+        .setMaxNumberOfSymbols(params.maxNumberOfSymbols)
         .setReturnErrors(true);
 }
 

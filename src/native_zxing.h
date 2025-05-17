@@ -41,6 +41,8 @@ extern "C"
         bool tryHarder;  ///< Spend more time to try to find a barcode, optimize for accuracy, not speed
         bool tryRotate;  ///< Also try detecting code in 90, 180 and 270 degree rotated images
         bool tryInvert;  ///< Try inverting the image
+        bool tryDownscale; ///< try detecting code in downscaled images (depending on image size).
+        int maxNumberOfSymbols; /// The maximum number of symbols (barcodes) to detect / look for in the image with ReadBarcodes 
 
 #ifdef __cplusplus
         ~DecodeBarcodeParams() noexcept {
