@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.0
+
+Enhance barcode scanning features and improve overlay customization
+
+* Added vertical and horizontal crop offsets, downscaling option, and max symbol count to barcode decoding parameters.
+* Refactored scanner overlay to use a new universal border with customizable cut-out size and offsets.
+* Updated ReaderWidget to support new overlay features and adjusted padding in debug info widget.
+* Removed deprecated dynamic and fixed scanner overlays.
+
 ## 2.0.2
 
 * Added parameters `tryDownscale` and `maxNumberOfSymbols` to the `ReaderWidget` for better performance and flexibility.
