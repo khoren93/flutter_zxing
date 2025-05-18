@@ -103,6 +103,8 @@ extension DecodeParamsExt on DecodeParams {
     p.ref.tryHarder = tryHarder;
     p.ref.tryRotate = tryRotate;
     p.ref.tryInvert = tryInverted;
+    p.ref.tryDownscale = tryDownscale;
+    p.ref.maxNumberOfSymbols = maxNumberOfSymbols;
     return p;
   }
 }

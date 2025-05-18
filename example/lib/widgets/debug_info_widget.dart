@@ -27,7 +27,7 @@ class DebugInfoWidget extends StatelessWidget {
         Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white);
     return Align(
       alignment: Alignment.topCenter,
-      child: Padding(
+      child: Container(
         padding: const EdgeInsets.all(10.0),
         child: Column(
           children: [
@@ -66,13 +66,14 @@ class DebugInfoWidget extends StatelessWidget {
               ),
             ),
 
+            Expanded(child: Container()),
+
             // Image memory for debug image from bytes
             if (imageBytes != null)
               Padding(
-                padding: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.only(bottom: 60),
                 child: Image.memory(
                   imageBytes!,
-                  width: 100,
                   height: 100,
                   fit: BoxFit.contain,
                 ),

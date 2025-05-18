@@ -48,6 +48,8 @@ class ReaderWidget extends StatefulWidget {
     this.scanDelay = const Duration(milliseconds: 1000),
     this.scanDelaySuccess = const Duration(milliseconds: 1000),
     this.cropPercent = 0.5, // 50% of the screen
+    this.horizontalCropOffset = 0.0,
+    this.verticalCropOffset = 0.0,
     this.resolution = ResolutionPreset.high,
     this.lensDirection = CameraLensDirection.back,
     this.loading =
@@ -105,7 +107,7 @@ class ReaderWidget extends StatefulWidget {
   final bool showScannerOverlay;
 
   /// Custom scanner overlay
-  final ScannerOverlay? scannerOverlay;
+  final ShapeBorder? scannerOverlay;
 
   /// Align for action buttons
   final AlignmentGeometry actionButtonsAlignment;
@@ -154,6 +156,12 @@ class ReaderWidget extends StatefulWidget {
 
   /// Crop percent of the screen, will be ignored if isMultiScan is true
   final double cropPercent;
+
+  /// Move the crop rect vertically, will be ignored if isMultiScan is true
+  final double verticalCropOffset;
+
+  /// Move the crop rect horizontally, will be ignored if isMultiScan is true
+  final double horizontalCropOffset;
 
   /// Camera resolution
   final ResolutionPreset resolution;
@@ -317,13 +325,29 @@ class _ReaderWidgetState extends State<ReaderWidget>
         final double cropPercent = widget.isMultiScan ? 0 : widget.cropPercent;
         final int cropSize =
             (min(image.width, image.height) * cropPercent).round();
+
+        final bool swapAxes = isAndroid() &&
+            MediaQuery.of(context).orientation == Orientation.portrait;
+        final double horizontalOffset =
+            swapAxes ? widget.verticalCropOffset : widget.horizontalCropOffset;
+        final double verticalOffset =
+            swapAxes ? -widget.horizontalCropOffset : widget.verticalCropOffset;
+        final int cropLeft = ((image.width - cropSize) ~/ 2 +
+                (horizontalOffset * (image.width - cropSize) / 2))
+            .round()
+            .clamp(0, image.width - cropSize);
+        final int cropTop = ((image.height - cropSize) ~/ 2 +
+                (verticalOffset * (image.height - cropSize) / 2))
+            .round()
+            .clamp(0, image.height - cropSize);
+
         final DecodeParams params = DecodeParams(
           imageFormat: _imageFormat(image.format.group),
           format: widget.codeFormat,
           width: image.width,
           height: image.height,
-          cropLeft: (image.width - cropSize) ~/ 2,
-          cropTop: (image.height - cropSize) ~/ 2,
+          cropLeft: cropLeft,
+          cropTop: cropTop,
           cropWidth: cropSize,
           cropHeight: cropSize,
           tryHarder: widget.tryHarder,
@@ -417,13 +441,15 @@ class _ReaderWidgetState extends State<ReaderWidget>
           Container(
             decoration: ShapeDecoration(
               shape: widget.scannerOverlay ??
-                  FixedScannerOverlay(
+                  ScannerOverlayBorder(
+                    cutOutSize: cropSize,
+                    horizontalOffset: widget.horizontalCropOffset,
+                    verticalOffset: widget.verticalCropOffset,
                     borderColor: Theme.of(context).primaryColor,
                     overlayColor: Colors.black45,
-                    borderRadius: 1,
-                    borderLength: 16,
+                    borderRadius: 4,
+                    borderLength: 20,
                     borderWidth: 8,
-                    cutOutSize: cropSize,
                   ),
             ),
           ),

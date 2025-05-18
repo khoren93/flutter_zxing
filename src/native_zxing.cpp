@@ -252,7 +252,7 @@ CodeResults _readBarcodes(const DecodeBarcodeParams& params) noexcept
         Results results = ReadBarcodes(image, hints);
 
         int duration = elapsed_ms(start);
-        platform_log("Read Barcode in: %d ms\n", duration);
+        platform_log("Read Barcodes in: %d ms\n", duration);
 
         if (results.empty())
         {
@@ -263,6 +263,11 @@ CodeResults _readBarcodes(const DecodeBarcodeParams& params) noexcept
         int i = 0;
         for (const auto& result : results)
         {
+            // if result is invalid skip it
+            if (!result.isValid())
+            {
+                continue;
+            }
             codes[i] = codeResultFromResult(result, duration, params.width, params.height, image);
             i++;
         }
