@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 
 import 'package:camera/camera.dart';
@@ -53,7 +52,7 @@ class ReaderWidget extends StatefulWidget {
     this.resolution = ResolutionPreset.high,
     this.lensDirection = CameraLensDirection.back,
     this.loading =
-        const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
+    const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
   });
 
   /// Called when a code is detected
@@ -70,7 +69,7 @@ class ReaderWidget extends StatefulWidget {
 
   /// Called when the camera controller is created
   final Function(CameraController? controller, Exception? error)?
-      onControllerCreated;
+  onControllerCreated;
 
   /// Called when the multi scan mode is changed
   /// When set to null, the multi scan mode button will not be displayed
@@ -190,6 +189,9 @@ class _ReaderWidgetState extends State<ReaderWidget>
   bool _isCameraOn = false;
   bool _isFlashAvailable = true;
   bool _isMultiScan = false;
+  bool _isInitializing = false;
+  String _controllerVersion = '';
+  Completer<void>? _initializationCompleter;
 
   double _zoom = 1.0;
   double _scaleFactor = 1.0;
@@ -209,24 +211,25 @@ class _ReaderWidgetState extends State<ReaderWidget>
   }
 
   Future<void> initStateAsync() async {
-    // Spawn a new isolate
-    await zx.startCameraProcessing();
-    final List<CameraDescription> cameras = await availableCameras();
+    try {
+      await zx.startCameraProcessing();
+      final List<CameraDescription> cameras = await availableCameras();
 
-    if (!mounted) {
-      return;
-    }
-    setState(() {
+      if (!mounted) {
+        return;
+      }
+
       this.cameras = cameras;
       if (cameras.isNotEmpty) {
         selectedCamera = cameras.firstWhere(
-          (CameraDescription camera) =>
-              camera.lensDirection == widget.lensDirection,
+              (CameraDescription camera) => camera.lensDirection == widget.lensDirection,
           orElse: () => cameras.first,
         );
-        onNewCameraSelected(selectedCamera);
+        await onNewCameraSelected(selectedCamera);
       }
-    });
+    } catch (e) {
+      debugPrint('initStateAsync error: $e');
+    }
   }
 
   @override
@@ -239,105 +242,202 @@ class _ReaderWidgetState extends State<ReaderWidget>
     switch (state) {
       case AppLifecycleState.resumed:
         if (cameras.isNotEmpty && !_isCameraOn) {
-          onNewCameraSelected(cameras.first);
+          onNewCameraSelected(selectedCamera ?? cameras.first);
         }
         break;
-      case AppLifecycleState.detached:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+        _stopCamera();
         break;
-      default:
-        controller?.dispose();
-        setState(() => _isCameraOn = false);
+      case AppLifecycleState.detached:
         break;
     }
   }
 
   @override
   void dispose() {
+    // Cancel any ongoing initialization
+    if (_initializationCompleter != null && !_initializationCompleter!.isCompleted) {
+      _initializationCompleter!.complete();
+    }
+
+    _stopCamera();
+    _disposeController();
     zx.stopCameraProcessing();
-    controller?.removeListener(rebuildOnMount);
-    controller?.dispose();
     WidgetsBinding.instance.removeObserver(this);
+
     super.dispose();
   }
 
   void rebuildOnMount() {
     if (mounted) {
-      setState(() => _isCameraOn = true);
+      _isCameraOn = true;
     }
+  }
+
+  Future<void> _disposeController() async {
+    final CameraController? oldController = controller;
+
+    if (oldController != null) {
+      // Immediately nullify controller and invalidate version
+      controller = null;
+      _isCameraOn = false;
+      _isProcessing = false;
+      _controllerVersion = 'disposed_${DateTime.now().millisecondsSinceEpoch}';
+
+      oldController.removeListener(rebuildOnMount);
+
+      // Aggressively stop image stream
+      if (oldController.value.isStreamingImages) {
+        for (int i = 0; i < 5; i++) {
+          try {
+            await oldController.stopImageStream();
+            break;
+          } catch (e) {
+            if (i < 2) {
+              await Future<void>.delayed(const Duration(milliseconds: 50));
+            }
+          }
+        }
+      }
+
+      try {
+        await oldController.dispose();
+      } catch (e) {
+        debugPrint('_disposeController dispose error: $e');
+      }
+    }
+  }
+
+  void _stopCamera() {
+    if ((controller?.value.isStreamingImages??false) == false) {
+      try {
+        controller?.stopImageStream();
+      } catch (e) {
+        debugPrint('stopImageStream error: $e');
+      }
+    }
+    _isCameraOn = false;
+    _isProcessing = false;
   }
 
   Future<void> onNewCameraSelected(CameraDescription? cameraDescription) async {
     if (cameraDescription == null) {
       return;
     }
-    final CameraController? oldController = controller;
-    if (oldController != null) {
-      // controller?.removeListener(rebuildOnMount);
-      controller = null;
-      await oldController.dispose();
+
+    // Cancel any ongoing initialization
+    if (_initializationCompleter != null && !_initializationCompleter!.isCompleted) {
+      _initializationCompleter!.complete();
     }
+
+    if (_isInitializing) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      if (_isInitializing) {
+        return;
+      }
+    }
+
+    _isInitializing = true;
+    _initializationCompleter = Completer<void>();
+
+    await _disposeController();
+
+    // Reset processing state and create new version
+    _isProcessing = false;
+    _controllerVersion = DateTime.now().millisecondsSinceEpoch.toString();
+    final String currentVersion = _controllerVersion;
+
+    // Small delay to ensure complete disposal
+    await Future<void>.delayed(const Duration(milliseconds: 100));
 
     final CameraController cameraController = CameraController(
       cameraDescription,
       widget.resolution,
       enableAudio: false,
-      // imageFormatGroup:
-      //     isAndroid() ? ImageFormatGroup.yuv420 : ImageFormatGroup.bgra8888,
     );
     controller = cameraController;
+
     try {
       await cameraController.initialize();
+      if (!mounted) {
+        return;
+      }
+
       widget.onControllerCreated?.call(controller, null);
       cameraController.addListener(rebuildOnMount);
-      cameraController.startImageStream(processImageStream);
-    } on CameraException catch (e) {
-      debugPrint('${e.code}: ${e.description}');
-      widget.onControllerCreated?.call(null, e);
-    } catch (e) {
-      debugPrint('Error: $e');
-    }
 
-    try {
-      cameraController
-          .getMaxZoomLevel()
-          .then((double value) => _maxZoomLevel = value);
-      cameraController
-          .getMinZoomLevel()
-          .then((double value) => _minZoomLevel = value);
-    } catch (e) {
-      debugPrint('Error: $e');
-    }
+      if (cameraController.value.isInitialized && !cameraController.value.isStreamingImages) {
+        try {
+          await cameraController.startImageStream((CameraImage image) => processImageStream(image, currentVersion));
 
-    try {
+          // Verify stream is actually running
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          if (!cameraController.value.isStreamingImages) {
+            await cameraController.startImageStream((CameraImage image) => processImageStream(image, currentVersion));
+          }
+        } catch (e) {
+          debugPrint('onNewCameraSelected: failed to start image stream: $e');
+        }
+      }
+
+      _maxZoomLevel = await cameraController.getMaxZoomLevel();
+      _minZoomLevel = await cameraController.getMinZoomLevel();
       await cameraController.setFlashMode(FlashMode.off);
+
+      if (mounted) {
+        setState(() => _isCameraOn = true);
+      }
+
+      // Force restart stream after initialization to ensure it works
+      if (cameraController.value.isStreamingImages) {
+        try {
+          await cameraController.stopImageStream();
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          await cameraController.startImageStream((CameraImage image) => processImageStream(image, currentVersion));
+        } catch (e) {
+          debugPrint('onNewCameraSelected: stream restart failed: $e');
+        }
+      }
+
     } catch (e) {
       _isFlashAvailable = false;
-      debugPrint('Error: $e');
+      widget.onControllerCreated?.call(null, e is Exception ? e : Exception(e.toString()));
+    } finally {
+      _isInitializing = false;
+      if (_initializationCompleter != null && !_initializationCompleter!.isCompleted) {
+        _initializationCompleter!.complete();
+      }
+      _initializationCompleter = null;
     }
-
-    rebuildOnMount();
   }
 
-  Future<void> processImageStream(CameraImage image) async {
+  Future<void> processImageStream(CameraImage image, String version) async {
+    // Early exit if version doesn't match or widget is disposed
+    if (version != _controllerVersion || !mounted || _isInitializing || controller == null || version.startsWith('disposed_') || _initializationCompleter != null) {
+      return;
+    }
+
     if (!_isProcessing) {
       _isProcessing = true;
       try {
         final double cropPercent = widget.isMultiScan ? 0 : widget.cropPercent;
         final int cropSize =
-            (min(image.width, image.height) * cropPercent).round();
+        (min(image.width, image.height) * cropPercent).round();
 
         final bool swapAxes = isAndroid() &&
             MediaQuery.of(context).orientation == Orientation.portrait;
         final double horizontalOffset =
-            swapAxes ? widget.verticalCropOffset : widget.horizontalCropOffset;
+        swapAxes ? widget.verticalCropOffset : widget.horizontalCropOffset;
         final double verticalOffset =
-            swapAxes ? -widget.horizontalCropOffset : widget.verticalCropOffset;
+        swapAxes ? -widget.horizontalCropOffset : widget.verticalCropOffset;
         final int cropLeft = ((image.width - cropSize) ~/ 2 +
-                (horizontalOffset * (image.width - cropSize) / 2))
+            (horizontalOffset * (image.width - cropSize) / 2))
             .round()
             .clamp(0, image.width - cropSize);
         final int cropTop = ((image.height - cropSize) ~/ 2 +
-                (verticalOffset * (image.height - cropSize) / 2))
+            (verticalOffset * (image.height - cropSize) / 2))
             .round()
             .clamp(0, image.height - cropSize);
 
@@ -365,7 +465,9 @@ class _ReaderWidgetState extends State<ReaderWidget>
             if (!mounted) {
               return;
             }
-            setState(() {});
+            if (mounted) {
+              setState(() {});
+            }
             if (!widget.isMultiScan) {
               await Future<void>.delayed(widget.scanDelaySuccess);
             }
@@ -380,22 +482,24 @@ class _ReaderWidgetState extends State<ReaderWidget>
             if (!mounted) {
               return;
             }
-            setState(() {});
+            if (mounted) {
+              setState(() {});
+            }
             await Future<void>.delayed(widget.scanDelaySuccess);
           } else {
             widget.onScanFailure?.call(result);
           }
         }
-      } on FileSystemException catch (e) {
-        debugPrint(e.message);
       } catch (e) {
-        debugPrint(e.toString());
+        debugPrint('processImageStream error: $e');
+      } finally {
+        // Check if still valid before delay
+        if (version == _controllerVersion && mounted) {
+          await Future<void>.delayed(widget.scanDelay);
+        }
+        _isProcessing = false;
       }
-      await Future<void>.delayed(widget.scanDelay);
-      _isProcessing = false;
     }
-
-    return;
   }
 
   @override
@@ -423,13 +527,13 @@ class _ReaderWidgetState extends State<ReaderWidget>
                     child: CameraPreview(
                       controller!,
                       child: widget.showScannerOverlay &&
-                              widget.isMultiScan &&
-                              results.codes.isNotEmpty
+                          widget.isMultiScan &&
+                          results.codes.isNotEmpty
                           ? MultiResultOverlay(
-                              results: results.codes,
-                              onCodeTap: widget.onScan,
-                              controller: controller,
-                            )
+                        results: results.codes,
+                        onCodeTap: widget.onScan,
+                        controller: controller,
+                      )
                           : null,
                     ),
                   ),
@@ -475,7 +579,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
               child: ClipRRect(
                 borderRadius: widget.actionButtonsBackgroundBorderRadius ??
                     BorderRadius.circular(10.0),
-                child: Container(
+                child: ColoredBox(
                   color: widget.actionButtonsBackgroundColor,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -513,9 +617,11 @@ class _ReaderWidgetState extends State<ReaderWidget>
               alignment: widget.multiScanModeAlignment,
               padding: widget.multiScanModePadding,
               onChanged: (bool value) {
-                setState(() {
-                  _isMultiScan = value;
-                });
+                if (mounted) {
+                  setState(() {
+                    _isMultiScan = value;
+                  });
+                }
                 widget.onMultiScanModeChanged?.call(value);
               },
             ),
@@ -532,12 +638,14 @@ class _ReaderWidgetState extends State<ReaderWidget>
       mode = FlashMode.torch;
     }
     controller?.setFlashMode(mode);
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _onGalleryButtonTapped() async {
     final XFile? file =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
+    await ImagePicker().pickImage(source: ImageSource.gallery);
     if (file != null) {
       final DecodeParams params = DecodeParams(
         imageFormat: zxing.ImageFormat.rgb,
@@ -554,7 +662,9 @@ class _ReaderWidgetState extends State<ReaderWidget>
           if (!mounted) {
             return;
           }
-          setState(() {});
+          if (mounted) {
+            setState(() {});
+          }
         } else {
           results = Codes();
           widget.onMultiScanFailure?.call(result);
