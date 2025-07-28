@@ -7,7 +7,8 @@ import 'zxing_cross.dart'
     if (dart.library.io) 'zxing_mobile.dart'
     if (dart.library.html) 'zxing_web.dart';
 
-export 'package:camera/camera.dart' show ResolutionPreset, CameraLensDirection;
+export 'package:camera/camera.dart'
+    show ResolutionPreset, CameraLensDirection, CameraController;
 export 'src/models/models.dart';
 export 'src/ui/ui.dart';
 export 'src/utils/image_converter.dart';

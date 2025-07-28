@@ -158,21 +158,21 @@ class _DemoPageState extends State<DemoPage> {
     );
   }
 
-  void _onControllerCreated(_, Exception? error) {
+  void _onControllerCreated(CameraController? controller, Exception? error) {
     if (error != null) {
       // Handle permission or unknown errors
       _showMessage(context, 'Error: $error');
     }
   }
 
-  _onScanSuccess(Code? code) {
+  void _onScanSuccess(Code? code) {
     setState(() {
       successScans++;
       result = code;
     });
   }
 
-  _onScanFailure(Code? code) {
+  void _onScanFailure(Code? code) {
     setState(() {
       failedScans++;
       result = code;
@@ -182,14 +182,14 @@ class _DemoPageState extends State<DemoPage> {
     }
   }
 
-  _onMultiScanSuccess(Codes codes) {
+  void _onMultiScanSuccess(Codes codes) {
     setState(() {
       successScans++;
       multiResult = codes;
     });
   }
 
-  _onMultiScanFailure(Codes result) {
+  void _onMultiScanFailure(Codes result) {
     setState(() {
       failedScans++;
       multiResult = result;
@@ -199,20 +199,20 @@ class _DemoPageState extends State<DemoPage> {
     }
   }
 
-  _onMultiScanModeChanged(bool isMultiScan) {
+  void _onMultiScanModeChanged(bool isMultiScan) {
     setState(() {
       this.isMultiScan = isMultiScan;
     });
   }
 
-  _showMessage(BuildContext context, String message) {
+  void _showMessage(BuildContext context, String message) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
   }
 
-  _onReset() {
+  void _onReset() {
     setState(() {
       successScans = 0;
       failedScans = 0;
