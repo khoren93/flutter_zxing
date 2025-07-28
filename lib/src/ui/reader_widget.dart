@@ -52,7 +52,7 @@ class ReaderWidget extends StatefulWidget {
     this.resolution = ResolutionPreset.high,
     this.lensDirection = CameraLensDirection.back,
     this.loading =
-    const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
+        const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
   });
 
   /// Called when a code is detected
@@ -69,7 +69,7 @@ class ReaderWidget extends StatefulWidget {
 
   /// Called when the camera controller is created
   final Function(CameraController? controller, Exception? error)?
-  onControllerCreated;
+      onControllerCreated;
 
   /// Called when the multi scan mode is changed
   /// When set to null, the multi scan mode button will not be displayed
@@ -222,7 +222,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
       this.cameras = cameras;
       if (cameras.isNotEmpty) {
         selectedCamera = cameras.firstWhere(
-              (CameraDescription camera) => camera.lensDirection == widget.lensDirection,
+          (CameraDescription camera) =>
+              camera.lensDirection == widget.lensDirection,
           orElse: () => cameras.first,
         );
         await onNewCameraSelected(selectedCamera);
@@ -258,7 +259,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
   @override
   void dispose() {
     // Cancel any ongoing initialization
-    if (_initializationCompleter != null && !_initializationCompleter!.isCompleted) {
+    if (_initializationCompleter != null &&
+        !_initializationCompleter!.isCompleted) {
       _initializationCompleter!.complete();
     }
 
@@ -311,7 +313,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
   }
 
   void _stopCamera() {
-    if ((controller?.value.isStreamingImages??false) == false) {
+    if ((controller?.value.isStreamingImages ?? false) == false) {
       try {
         controller?.stopImageStream();
       } catch (e) {
@@ -328,7 +330,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
     }
 
     // Cancel any ongoing initialization
-    if (_initializationCompleter != null && !_initializationCompleter!.isCompleted) {
+    if (_initializationCompleter != null &&
+        !_initializationCompleter!.isCompleted) {
       _initializationCompleter!.complete();
     }
 
@@ -368,14 +371,17 @@ class _ReaderWidgetState extends State<ReaderWidget>
       widget.onControllerCreated?.call(controller, null);
       cameraController.addListener(rebuildOnMount);
 
-      if (cameraController.value.isInitialized && !cameraController.value.isStreamingImages) {
+      if (cameraController.value.isInitialized &&
+          !cameraController.value.isStreamingImages) {
         try {
-          await cameraController.startImageStream((CameraImage image) => processImageStream(image, currentVersion));
+          await cameraController.startImageStream(
+              (CameraImage image) => processImageStream(image, currentVersion));
 
           // Verify stream is actually running
           await Future<void>.delayed(const Duration(milliseconds: 200));
           if (!cameraController.value.isStreamingImages) {
-            await cameraController.startImageStream((CameraImage image) => processImageStream(image, currentVersion));
+            await cameraController.startImageStream((CameraImage image) =>
+                processImageStream(image, currentVersion));
           }
         } catch (e) {
           debugPrint('onNewCameraSelected: failed to start image stream: $e');
@@ -395,18 +401,20 @@ class _ReaderWidgetState extends State<ReaderWidget>
         try {
           await cameraController.stopImageStream();
           await Future<void>.delayed(const Duration(milliseconds: 50));
-          await cameraController.startImageStream((CameraImage image) => processImageStream(image, currentVersion));
+          await cameraController.startImageStream(
+              (CameraImage image) => processImageStream(image, currentVersion));
         } catch (e) {
           debugPrint('onNewCameraSelected: stream restart failed: $e');
         }
       }
-
     } catch (e) {
       _isFlashAvailable = false;
-      widget.onControllerCreated?.call(null, e is Exception ? e : Exception(e.toString()));
+      widget.onControllerCreated
+          ?.call(null, e is Exception ? e : Exception(e.toString()));
     } finally {
       _isInitializing = false;
-      if (_initializationCompleter != null && !_initializationCompleter!.isCompleted) {
+      if (_initializationCompleter != null &&
+          !_initializationCompleter!.isCompleted) {
         _initializationCompleter!.complete();
       }
       _initializationCompleter = null;
@@ -415,7 +423,12 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   Future<void> processImageStream(CameraImage image, String version) async {
     // Early exit if version doesn't match or widget is disposed
-    if (version != _controllerVersion || !mounted || _isInitializing || controller == null || version.startsWith('disposed_') || _initializationCompleter != null) {
+    if (version != _controllerVersion ||
+        !mounted ||
+        _isInitializing ||
+        controller == null ||
+        version.startsWith('disposed_') ||
+        _initializationCompleter != null) {
       return;
     }
 
@@ -424,20 +437,20 @@ class _ReaderWidgetState extends State<ReaderWidget>
       try {
         final double cropPercent = widget.isMultiScan ? 0 : widget.cropPercent;
         final int cropSize =
-        (min(image.width, image.height) * cropPercent).round();
+            (min(image.width, image.height) * cropPercent).round();
 
         final bool swapAxes = isAndroid() &&
             MediaQuery.of(context).orientation == Orientation.portrait;
         final double horizontalOffset =
-        swapAxes ? widget.verticalCropOffset : widget.horizontalCropOffset;
+            swapAxes ? widget.verticalCropOffset : widget.horizontalCropOffset;
         final double verticalOffset =
-        swapAxes ? -widget.horizontalCropOffset : widget.verticalCropOffset;
+            swapAxes ? -widget.horizontalCropOffset : widget.verticalCropOffset;
         final int cropLeft = ((image.width - cropSize) ~/ 2 +
-            (horizontalOffset * (image.width - cropSize) / 2))
+                (horizontalOffset * (image.width - cropSize) / 2))
             .round()
             .clamp(0, image.width - cropSize);
         final int cropTop = ((image.height - cropSize) ~/ 2 +
-            (verticalOffset * (image.height - cropSize) / 2))
+                (verticalOffset * (image.height - cropSize) / 2))
             .round()
             .clamp(0, image.height - cropSize);
 
@@ -527,13 +540,13 @@ class _ReaderWidgetState extends State<ReaderWidget>
                     child: CameraPreview(
                       controller!,
                       child: widget.showScannerOverlay &&
-                          widget.isMultiScan &&
-                          results.codes.isNotEmpty
+                              widget.isMultiScan &&
+                              results.codes.isNotEmpty
                           ? MultiResultOverlay(
-                        results: results.codes,
-                        onCodeTap: widget.onScan,
-                        controller: controller,
-                      )
+                              results: results.codes,
+                              onCodeTap: widget.onScan,
+                              controller: controller,
+                            )
                           : null,
                     ),
                   ),
@@ -645,7 +658,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   Future<void> _onGalleryButtonTapped() async {
     final XFile? file =
-    await ImagePicker().pickImage(source: ImageSource.gallery);
+        await ImagePicker().pickImage(source: ImageSource.gallery);
     if (file != null) {
       final DecodeParams params = DecodeParams(
         imageFormat: zxing.ImageFormat.rgb,
