@@ -8,7 +8,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:7.4.1'
+        classpath 'com.android.tools.build:gradle:8.5.1'
     }
 }
 
@@ -27,7 +27,7 @@ android {
         namespace 'com.markosyan.flutter_zxing'
     }
     compileSdk 34
-    ndkVersion android.ndkVersion
+    ndkVersion "27.0.12077973"
 
     externalNativeBuild {
         cmake {
@@ -41,6 +41,6 @@ android {
     }
 
     defaultConfig {
-        minSdkVersion 21
+        minSdkVersion 23
     }
 }
