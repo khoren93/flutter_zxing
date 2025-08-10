@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.1
+
+* Draw scan result rectangle in single scan mode when cropRect = 0
+
 ## 2.2.0
 
 * Support 16KB page size on android
