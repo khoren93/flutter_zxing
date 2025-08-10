@@ -156,10 +156,10 @@ class ReaderWidget extends StatefulWidget {
   /// Crop percent of the screen, will be ignored if isMultiScan is true
   final double cropPercent;
 
-  /// Move the crop rect vertically, will be ignored if isMultiScan is true
+  /// Move the crop rect vertically, using a value from -1 (top) to 1 (bottom); ignored if [isMultiScan] is true
   final double verticalCropOffset;
 
-  /// Move the crop rect horizontally, will be ignored if isMultiScan is true
+  /// Move the crop rect horizontally, using a value from -1 (left) to 1 (right); ignored if [isMultiScan] is true
   final double horizontalCropOffset;
 
   /// Camera resolution
@@ -491,6 +491,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
         } else {
           final Code result = await zx.processCameraImage(image, params);
           if (result.isValid) {
+            results = Codes(codes: <Code>[result]);
             widget.onScan?.call(result);
             if (!mounted) {
               return;
@@ -500,6 +501,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
             }
             await Future<void>.delayed(widget.scanDelaySuccess);
           } else {
+            results = Codes();
             widget.onScanFailure?.call(result);
           }
         }
@@ -540,8 +542,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
                     child: CameraPreview(
                       controller!,
                       child: widget.showScannerOverlay &&
-                              widget.isMultiScan &&
-                              results.codes.isNotEmpty
+                              results.codes.isNotEmpty &&
+                              widget.cropPercent == 0
                           ? MultiResultOverlay(
                               results: results.codes,
                               onCodeTap: widget.onScan,
@@ -554,7 +556,9 @@ class _ReaderWidgetState extends State<ReaderWidget>
               ),
             ),
           ),
-        if (widget.showScannerOverlay && !widget.isMultiScan)
+        if (widget.showScannerOverlay &&
+            widget.cropPercent != 0 &&
+            !widget.isMultiScan)
           Container(
             decoration: ShapeDecoration(
               shape: widget.scannerOverlay ??
