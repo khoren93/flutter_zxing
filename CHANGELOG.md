@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2.0
+
+* Support 16KB page size on android
+* minSdkVersion had to be bumped to API Level 23 (Android 6.0)
+
 ## 2.1.0
 
 Enhance barcode scanning features and improve overlay customization
