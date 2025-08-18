@@ -94,6 +94,12 @@ class _DemoPageState extends State<DemoPage> {
                     verticalCropOffset: 0,
                     horizontalCropOffset: 0,
                     tryInverted: true,
+                    onActionSecondButton: () {
+                      setState(() {
+                        showDebugInfo = !showDebugInfo;
+                      });
+                    },
+                    actionSecondButtonIcon: const Icon(Icons.info_outline),
                     tryDownscale: true,
                     maxNumberOfSymbols: 5,
                     scanDelay: Duration(milliseconds: isMultiScan ? 50 : 500),
