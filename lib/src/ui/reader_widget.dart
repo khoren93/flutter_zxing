@@ -51,8 +51,10 @@ class ReaderWidget extends StatefulWidget {
     this.verticalCropOffset = 0.0,
     this.resolution = ResolutionPreset.high,
     this.lensDirection = CameraLensDirection.back,
-    this.loading =
-        const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
+    this.loading = const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
+    this.onActionSecondButton,
+    this.actionSecondButtonIcon,
+    this.actionSecondButtonIconBackgroundColor,
   });
 
   /// Called when a code is detected
@@ -173,6 +175,16 @@ class ReaderWidget extends StatefulWidget {
 
   /// Loading widget while camera is initializing. Default is a black screen
   final Widget loading;
+
+  /// Callback for second action button
+  final Function()? onActionSecondButton;
+
+  /// Second action icon to be displayed on the right side of the action buttons
+  final Widget? actionSecondButtonIcon;
+
+  /// Background color for the second action icon
+  final Color? actionSecondButtonIconBackgroundColor;
+
 
   @override
   State<ReaderWidget> createState() => _ReaderWidgetState();
@@ -594,36 +606,65 @@ class _ReaderWidgetState extends State<ReaderWidget>
             child: Padding(
               padding: widget.actionButtonsPadding,
               child: ClipRRect(
-                borderRadius: widget.actionButtonsBackgroundBorderRadius ??
-                    BorderRadius.circular(10.0),
-                child: ColoredBox(
-                  color: widget.actionButtonsBackgroundColor,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      if (widget.showFlashlight && _isFlashAvailable)
-                        IconButton(
-                          onPressed: _onFlashButtonTapped,
-                          color: Colors.white,
-                          icon: _flashIcon(
-                              controller?.value.flashMode ?? FlashMode.off),
+                borderRadius: widget.actionButtonsBackgroundBorderRadius ?? BorderRadius.circular(10.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    ClipRRect(
+                      borderRadius: widget.actionButtonsBackgroundBorderRadius ??
+                          BorderRadius.circular(10.0),
+                      child: ColoredBox(
+                        color: widget.actionButtonsBackgroundColor,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            if (widget.showFlashlight && _isFlashAvailable)
+                              IconButton(
+                                onPressed: _onFlashButtonTapped,
+                                color: Colors.white,
+                                icon: _flashIcon(
+                                    controller?.value.flashMode ?? FlashMode.off),
+                              ),
+                            if (widget.showGallery)
+                              IconButton(
+                                onPressed: _onGalleryButtonTapped,
+                                color: Colors.white,
+                                icon: widget.galleryIcon,
+                              ),
+                            if (widget.showToggleCamera)
+                              IconButton(
+                                onPressed: _onCameraButtonTapped,
+                                color: Colors.white,
+                                icon: widget.toggleCameraIcon,
+                              ),
+
+                          ],
                         ),
-                      if (widget.showGallery)
-                        IconButton(
-                          onPressed: _onGalleryButtonTapped,
-                          color: Colors.white,
-                          icon: widget.galleryIcon,
+                      ),
+                    ),
+                    if (widget.onActionSecondButton != null && widget.actionSecondButtonIcon != null) ... <Widget>[
+                      Container(
+                        margin: EdgeInsets.only(bottom: (widget.onMultiScanModeChanged != null && widget.multiScanModeAlignment == Alignment.bottomRight) ? 55.0 : 0),
+                        child: IconButton.filled(
+                          padding: widget.actionButtonsPadding,
+                          onPressed: widget.onActionSecondButton,
+                          icon: widget.actionSecondButtonIcon!,
+                          style: IconButton.styleFrom(
+                            backgroundColor: widget.actionSecondButtonIconBackgroundColor ?? widget.actionButtonsBackgroundColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: widget.actionButtonsBackgroundBorderRadius ?? BorderRadius.zero,
+                            ),
+                          ),
                         ),
-                      if (widget.showToggleCamera)
-                        IconButton(
-                          onPressed: _onCameraButtonTapped,
-                          color: Colors.white,
-                          icon: widget.toggleCameraIcon,
-                        ),
-                    ],
-                  ),
+                      )
+                    ]
+                  ],
                 ),
               ),
+
+
+
             ),
           ),
         ),
