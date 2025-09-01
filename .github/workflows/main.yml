@@ -75,7 +75,7 @@ jobs:
       # Android-specific setup
       - name: Setup Java for Android (${{ matrix.target }}, ${{ matrix.os }})
         if: matrix.target == 'android'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: 17
           distribution: temurin
@@ -225,7 +225,7 @@ jobs:
           submodules: recursive
 
       - name: Setup Java for Android (${{ matrix.api-level }})'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: 17
           distribution: temurin
