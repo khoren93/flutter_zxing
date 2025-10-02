@@ -32,14 +32,26 @@ class IsolateUtils {
 
   SendPort? get sendPort => _sendPort;
 
-  Future<void> startReadingBarcode() async {
-    _isolate = await Isolate.spawn<SendPort>(
-      readBarcodeEntryPoint,
-      _receivePort.sendPort,
-      debugName: kDebugName,
-    );
+  bool _initializing = false;
 
-    _sendPort = await _receivePort.first;
+  Future<void> startReadingBarcode() async {
+    if (_initializing || _isolate != null) {
+      return;
+    }
+    _initializing = true;
+    try {
+      _isolate = await Isolate.spawn<SendPort>(
+        readBarcodeEntryPoint,
+        _receivePort.sendPort,
+        debugName: kDebugName,
+      );
+
+      _sendPort = await _receivePort.first;
+    } catch (_) {
+      rethrow;
+    } finally {
+      _initializing = false;
+    }
   }
 
   void stopReadingBarcode() {
