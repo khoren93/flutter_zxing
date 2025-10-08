@@ -408,7 +408,11 @@ class _ReaderWidgetState extends State<ReaderWidget>
         }
       }
     } catch (e) {
-      _isFlashAvailable = false;
+      if (e is CameraException && e.code == 'setFlashModeFailed') {
+        setState(() {
+          _isFlashAvailable = false;
+        });
+      }
       widget.onControllerCreated
           ?.call(null, e is Exception ? e : Exception(e.toString()));
     } finally {
