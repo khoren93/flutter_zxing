@@ -4,12 +4,18 @@ IsolateUtils? isolateUtils;
 
 /// Starts reading barcode from the camera
 Future<void> zxingStartCameraProcessing() async {
+  if (isolateUtils != null) {
+    return;
+  }
   isolateUtils = IsolateUtils();
   await isolateUtils?.startReadingBarcode();
 }
 
 /// Stops reading barcode from the camera
-void zxingStopCameraProcessing() => isolateUtils?.stopReadingBarcode();
+void zxingStopCameraProcessing() {
+  isolateUtils?.stopReadingBarcode();
+  isolateUtils = null;
+}
 
 Future<dynamic> zxingProcessCameraImage(
         CameraImage image, DecodeParams params) =>
