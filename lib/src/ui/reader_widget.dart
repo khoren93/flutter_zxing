@@ -51,7 +51,8 @@ class ReaderWidget extends StatefulWidget {
     this.verticalCropOffset = 0.0,
     this.resolution = ResolutionPreset.high,
     this.lensDirection = CameraLensDirection.back,
-    this.loading = const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
+    this.loading =
+        const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
     this.onActionSecondButton,
     this.actionSecondButtonIcon,
     this.actionSecondButtonIconBackgroundColor,
@@ -184,7 +185,6 @@ class ReaderWidget extends StatefulWidget {
 
   /// Background color for the second action icon
   final Color? actionSecondButtonIconBackgroundColor;
-
 
   @override
   State<ReaderWidget> createState() => _ReaderWidgetState();
@@ -610,14 +610,16 @@ class _ReaderWidgetState extends State<ReaderWidget>
             child: Padding(
               padding: widget.actionButtonsPadding,
               child: ClipRRect(
-                borderRadius: widget.actionButtonsBackgroundBorderRadius ?? BorderRadius.circular(10.0),
+                borderRadius: widget.actionButtonsBackgroundBorderRadius ??
+                    BorderRadius.circular(10.0),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
                     ClipRRect(
-                      borderRadius: widget.actionButtonsBackgroundBorderRadius ??
-                          BorderRadius.circular(10.0),
+                      borderRadius:
+                          widget.actionButtonsBackgroundBorderRadius ??
+                              BorderRadius.circular(10.0),
                       child: ColoredBox(
                         color: widget.actionButtonsBackgroundColor,
                         child: Row(
@@ -627,8 +629,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
                               IconButton(
                                 onPressed: _onFlashButtonTapped,
                                 color: Colors.white,
-                                icon: _flashIcon(
-                                    controller?.value.flashMode ?? FlashMode.off),
+                                icon: _flashIcon(controller?.value.flashMode ??
+                                    FlashMode.off),
                               ),
                             if (widget.showGallery)
                               IconButton(
@@ -642,22 +644,31 @@ class _ReaderWidgetState extends State<ReaderWidget>
                                 color: Colors.white,
                                 icon: widget.toggleCameraIcon,
                               ),
-
                           ],
                         ),
                       ),
                     ),
-                    if (widget.onActionSecondButton != null && widget.actionSecondButtonIcon != null) ... <Widget>[
+                    if (widget.onActionSecondButton != null &&
+                        widget.actionSecondButtonIcon != null) ...<Widget>[
                       Container(
-                        margin: EdgeInsets.only(bottom: (widget.onMultiScanModeChanged != null && widget.multiScanModeAlignment == Alignment.bottomRight) ? 55.0 : 0),
+                        margin: EdgeInsets.only(
+                            bottom: (widget.onMultiScanModeChanged != null &&
+                                    widget.multiScanModeAlignment ==
+                                        Alignment.bottomRight)
+                                ? 55.0
+                                : 0),
                         child: IconButton.filled(
                           padding: widget.actionButtonsPadding,
                           onPressed: widget.onActionSecondButton,
                           icon: widget.actionSecondButtonIcon!,
                           style: IconButton.styleFrom(
-                            backgroundColor: widget.actionSecondButtonIconBackgroundColor ?? widget.actionButtonsBackgroundColor,
+                            backgroundColor:
+                                widget.actionSecondButtonIconBackgroundColor ??
+                                    widget.actionButtonsBackgroundColor,
                             shape: RoundedRectangleBorder(
-                              borderRadius: widget.actionButtonsBackgroundBorderRadius ?? BorderRadius.zero,
+                              borderRadius:
+                                  widget.actionButtonsBackgroundBorderRadius ??
+                                      BorderRadius.zero,
                             ),
                           ),
                         ),
@@ -666,9 +677,6 @@ class _ReaderWidgetState extends State<ReaderWidget>
                   ],
                 ),
               ),
-
-
-
             ),
           ),
         ),

@@ -116,7 +116,7 @@ class _WriterWidgetState extends State<WriterWidget>
                 children: <Widget>[
                   Flexible(
                     child: DropdownButtonFormField<int>(
-                      value: _codeFormat,
+                      initialValue: _codeFormat,
                       decoration: InputDecoration(
                         border: const OutlineInputBorder(),
                         filled: true,
@@ -145,7 +145,7 @@ class _WriterWidgetState extends State<WriterWidget>
                     const SizedBox(width: 6),
                     Flexible(
                       child: DropdownButtonFormField<EccLevel>(
-                        value: _eccLevel,
+                        initialValue: _eccLevel,
                         decoration: InputDecoration(
                           border: const OutlineInputBorder(),
                           filled: true,

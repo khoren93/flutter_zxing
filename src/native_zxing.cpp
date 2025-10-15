@@ -287,6 +287,7 @@ EncodeResult _encodeBarcode(const EncodeBarcodeParams& params) noexcept
     {
         auto start = steady_clock::now();
 
+        // DataMatrixWriter
         auto writer = MultiFormatWriter(BarcodeFormat(params.format))
            .setMargin(params.margin)
            .setEccLevel(params.eccLevel)
