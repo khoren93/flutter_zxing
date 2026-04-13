@@ -325,7 +325,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
   }
 
   void _stopCamera() {
-    if ((controller?.value.isStreamingImages ?? false) == false) {
+    if (controller?.value.isStreamingImages ?? false) {
       try {
         controller?.stopImageStream();
       } catch (e) {
