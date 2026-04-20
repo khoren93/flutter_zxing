@@ -5,7 +5,7 @@ publish_to: "none"
 version: 1.2.0+14
 
 environment:
-  sdk: '>=3.3.3 <4.0.0'
+  sdk: '>=3.11.0 <4.0.0'
 
 dependencies:
   convex_bottom_bar: ^3.2.0
@@ -19,7 +19,7 @@ dependencies:
   flutter_mobx: ^2.2.0
   flutter_zxing:
     path: ../
-  font_awesome_flutter: ^11.0.0
+  font_awesome_flutter: ^10.0.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   image: any

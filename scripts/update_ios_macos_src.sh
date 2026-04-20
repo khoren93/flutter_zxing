@@ -9,8 +9,8 @@ REPO_DIR="$(git rev-parse --show-toplevel)"
 
 SRC_DIR="$REPO_DIR/src"
 ZXING_SRC_DIR="$REPO_DIR/src/zxing/core/src"
-IOS_SRC_DIR="$REPO_DIR/ios/Classes/src"
-MACOS_SRC_PATH="$REPO_DIR/macos/Classes/src"
+IOS_SRC_DIR="$REPO_DIR/ios/flutter_zxing/Sources/flutter_zxing/src"
+MACOS_SRC_PATH="$REPO_DIR/macos/flutter_zxing/Sources/flutter_zxing/src"
 
 # Remove the source files if they exist
 rm -rf "$IOS_SRC_DIR"

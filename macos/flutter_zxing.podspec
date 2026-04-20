@@ -19,7 +19,7 @@ A new Flutter FFI plugin project.
   # `../src/*` so that the C sources can be shared among all target platforms.
   s.source           = { :path => '.' }
   # s.source           = { :git => 'https://git.code.sf.net/p/libzueci/code', :branch => 'master' }
-  s.source_files     = 'Classes/**/*'
+  s.source_files = 'flutter_zxing/Sources/flutter_zxing/**/*'
   s.dependency 'FlutterMacOS'
 
   s.platform = :osx, '10.15'

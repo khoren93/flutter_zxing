@@ -29,5 +29,5 @@
 build/
 
 # iOS and MacOS src folders
-ios/Classes/src/
-macos/Classes/src/
+ios/flutter_zxing/Sources/
+macos/flutter_zxing/Sources/
