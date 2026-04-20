@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3.0
+
+* Migrated iOS and macOS projects from CocoaPods to Swift Package Manager (SPM).
+* Improved camera handling: fixed `CameraController` disposal issues and `stopImageStream()` errors.
+* Enhanced flash/torch UI: hidden toggle button when flash is unavailable and improved state management.
+* Added a second action button capability for better UI flexibility.
+* Improved multiple concurrent isolates handling.
+* Updated iOS deployment target to 13.0.
+
 ## 2.2.1
 
 * Draw scan result rectangle in single scan mode when cropRect = 0
