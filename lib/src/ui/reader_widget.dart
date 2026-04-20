@@ -5,8 +5,8 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../flutter_zxing.dart';
 import '../../flutter_zxing.dart' as zxing;
+import '../../flutter_zxing.dart';
 import 'scan_mode_dropdown.dart';
 
 /// Widget to scan a code from the camera stream
@@ -324,10 +324,10 @@ class _ReaderWidgetState extends State<ReaderWidget>
     }
   }
 
-  void _stopCamera() {
+  Future<void> _stopCamera() async {
     if (controller?.value.isStreamingImages ?? false) {
       try {
-        controller?.stopImageStream();
+        await controller?.stopImageStream();
       } catch (e) {
         debugPrint('stopImageStream error: $e');
       }
@@ -558,34 +558,37 @@ class _ReaderWidgetState extends State<ReaderWidget>
     final double cropSize = min(size.width, size.height) * widget.cropPercent;
     return Stack(
       children: <Widget>[
-        if (!isCameraReady) widget.loading,
-        if (isCameraReady)
-          SizedBox(
-            width: cameraMaxSize,
-            height: cameraMaxSize,
-            child: ClipRRect(
-              child: OverflowBox(
-                child: FittedBox(
-                  fit: BoxFit.cover,
-                  child: SizedBox(
-                    width: cameraMaxSize,
-                    child: CameraPreview(
-                      controller!,
-                      child: widget.showScannerOverlay &&
-                              results.codes.isNotEmpty &&
-                              widget.cropPercent == 0
-                          ? MultiResultOverlay(
-                              results: results.codes,
-                              onCodeTap: widget.onScan,
-                              controller: controller,
-                            )
-                          : null,
+        switch (true) {
+          _ when !isCameraReady => widget.loading,
+          _ when _controllerVersion.startsWith('disposed_') =>
+            const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
+          _ => SizedBox(
+              width: cameraMaxSize,
+              height: cameraMaxSize,
+              child: ClipRRect(
+                child: OverflowBox(
+                  child: FittedBox(
+                    fit: BoxFit.cover,
+                    child: SizedBox(
+                      width: cameraMaxSize,
+                      child: CameraPreview(
+                        controller!,
+                        child: widget.showScannerOverlay &&
+                                results.codes.isNotEmpty &&
+                                widget.cropPercent == 0
+                            ? MultiResultOverlay(
+                                results: results.codes,
+                                onCodeTap: widget.onScan,
+                                controller: controller,
+                              )
+                            : null,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
+        },
         if (widget.showScannerOverlay &&
             widget.cropPercent != 0 &&
             !widget.isMultiScan)
