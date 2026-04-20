@@ -25,20 +25,20 @@ class _HomePageState extends State<HomePage> {
   final SettingsPage settingsPage = const SettingsPage();
 
   dynamic pages() => <dynamic>[
-        barcodesPage,
-        historyPage,
-        scannerPage,
-        helpPage,
-        settingsPage,
-      ];
+    barcodesPage,
+    historyPage,
+    scannerPage,
+    helpPage,
+    settingsPage,
+  ];
 
   dynamic tabItems() => <TabItem<IconData>>[
-        const TabItem<IconData>(icon: FontAwesomeIcons.barcode),
-        const TabItem<IconData>(icon: FontAwesomeIcons.clockRotateLeft),
-        const TabItem<IconData>(icon: Icons.qr_code_scanner),
-        const TabItem<IconData>(icon: FontAwesomeIcons.circleQuestion),
-        const TabItem<IconData>(icon: FontAwesomeIcons.gear),
-      ];
+    const TabItem<IconData>(icon: FontAwesomeIcons.barcode),
+    const TabItem<IconData>(icon: FontAwesomeIcons.clockRotateLeft),
+    const TabItem<IconData>(icon: Icons.qr_code_scanner),
+    const TabItem<IconData>(icon: FontAwesomeIcons.circleQuestion),
+    const TabItem<IconData>(icon: FontAwesomeIcons.gear),
+  ];
 
   @override
   Widget build(BuildContext context) {

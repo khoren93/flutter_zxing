@@ -22,9 +22,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(S.current.settingsAppBarTitle),
-      ),
+      appBar: AppBar(title: Text(S.current.settingsAppBarTitle)),
       body: SingleChildScrollView(
         child: ContainerX(
           child: Column(

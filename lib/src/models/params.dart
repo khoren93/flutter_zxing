@@ -24,19 +24,24 @@ class DecodeParams {
   });
 
   int imageFormat; // The image format of the image. The default is lum.
-  int format; // Specify a set of BarcodeFormats that should be searched for, the default is all supported formats.
+  int
+  format; // Specify a set of BarcodeFormats that should be searched for, the default is all supported formats.
   int width; // The width of the image to scan, in pixels.
   int height; // The height of the image to scan, in pixels.
   int cropLeft; // The left of the area of the image to scan, in pixels.
   int cropTop; // The top of the area of the image to scan, in pixels.
-  int cropWidth; // The width of the area of the image to scan, in pixels. If 0, the entire image width is used.
-  int cropHeight; // The height of the area of the image to scan, in pixels. If 0, the entire image height is used.
+  int
+  cropWidth; // The width of the area of the image to scan, in pixels. If 0, the entire image width is used.
+  int
+  cropHeight; // The height of the area of the image to scan, in pixels. If 0, the entire image height is used.
   bool tryHarder; // Spend more time to try to find a barcode
   bool tryRotate; // Try to detect rotated code
   bool tryInverted; // Try to detect inverted code
   bool tryDownscale; // try detecting code in downscaled images.
-  int maxNumberOfSymbols; // The maximum number of symbols (barcodes) to detect / look for in the image with ReadBarcodes
-  int maxSize; // Resize the image to a smaller size before scanning to improve performance. Default is 768.
+  int
+  maxNumberOfSymbols; // The maximum number of symbols (barcodes) to detect / look for in the image with ReadBarcodes
+  int
+  maxSize; // Resize the image to a smaller size before scanning to improve performance. Default is 768.
   bool isMultiScan; // Whether to scan multiple barcodes
 }
 
@@ -53,9 +58,10 @@ class EncodeParams {
   int format; // The barcode format to be generated. The default is QRCode.
   int width; // The width of the barcode image, in pixels.
   int height; // The height of the barcode image, in pixels.
-  int margin; // Used for all formats, sets the minimum number of quiet zone pixels
+  int
+  margin; // Used for all formats, sets the minimum number of quiet zone pixels
   EccLevel
-      eccLevel; // The error correction level determines how much damage the QR code can withstand while still being readable. Used for Aztec, PDF417, and QRCode only
+  eccLevel; // The error correction level determines how much damage the QR code can withstand while still being readable. Used for Aztec, PDF417, and QRCode only
 }
 
 enum EccLevel {

@@ -6,9 +6,7 @@ import '../utils/db_service.dart';
 import '../utils/extensions.dart';
 
 class ScannerPage extends StatefulWidget {
-  const ScannerPage({
-    super.key,
-  });
+  const ScannerPage({super.key});
 
   @override
   State<ScannerPage> createState() => _ScannerPageState();
@@ -18,9 +16,7 @@ class _ScannerPageState extends State<ScannerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scanner'),
-      ),
+      appBar: AppBar(title: const Text('Scanner')),
       body: ReaderWidget(
         actionButtonsAlignment: Alignment.topCenter,
         onScan: (Code result) async {

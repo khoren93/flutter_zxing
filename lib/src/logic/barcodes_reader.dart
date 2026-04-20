@@ -2,12 +2,15 @@ part of 'zxing.dart';
 
 /// Reads barcodes from String image path
 Future<Codes> zxingReadBarcodesImagePathString(
-        String path, DecodeParams params) =>
-    zxingReadBarcodesImagePath(XFile(path), params);
+  String path,
+  DecodeParams params,
+) => zxingReadBarcodesImagePath(XFile(path), params);
 
 /// Reads barcodes from XFile image path
 Future<Codes> zxingReadBarcodesImagePath(
-    XFile path, DecodeParams params) async {
+  XFile path,
+  DecodeParams params,
+) async {
   final Uint8List imageBytes = await path.readAsBytes();
   imglib.Image? image = imglib.decodeImage(imageBytes);
   if (image == null) {
@@ -21,8 +24,9 @@ Future<Codes> zxingReadBarcodesImagePath(
 
 /// Reads barcodes from image url
 Future<Codes> zxingReadBarcodesImageUrl(String url, DecodeParams params) async {
-  final Uint8List imageBytes =
-      (await NetworkAssetBundle(Uri.parse(url)).load(url)).buffer.asUint8List();
+  final Uint8List imageBytes = (await NetworkAssetBundle(
+    Uri.parse(url),
+  ).load(url)).buffer.asUint8List();
   imglib.Image? image = imglib.decodeImage(imageBytes);
   if (image == null) {
     return Codes();
@@ -38,8 +42,9 @@ Codes zxingReadBarcodes(Uint8List bytes, DecodeParams params) =>
     _readBarcodes(bytes, params);
 
 Codes _readBarcodes(Uint8List bytes, DecodeParams params) {
-  final CodeResults result =
-      bindings.readBarcodes(params.toDecodeBarcodeParams(bytes));
+  final CodeResults result = bindings.readBarcodes(
+    params.toDecodeBarcodeParams(bytes),
+  );
   final List<Code> codes = <Code>[];
 
   if (result.count == 0 || result.results == nullptr) {

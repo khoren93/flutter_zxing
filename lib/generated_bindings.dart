@@ -15,33 +15,28 @@ import 'dart:ffi' as ffi;
 class GeneratedBindings {
   /// Holds the symbol lookup function.
   final ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName)
-      _lookup;
+  _lookup;
 
   /// The symbols are looked up in [dynamicLibrary].
   GeneratedBindings(ffi.DynamicLibrary dynamicLibrary)
-      : _lookup = dynamicLibrary.lookup;
+    : _lookup = dynamicLibrary.lookup;
 
   /// The symbols are looked up with [lookup].
   GeneratedBindings.fromLookup(
-      ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName)
-          lookup)
-      : _lookup = lookup;
+    ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName) lookup,
+  ) : _lookup = lookup;
 
   /// @brief Enables or disables the logging of the library.
   ///
   /// @param enabled Whether to enable or disable the logging.
-  void setLogEnabled(
-    bool enabled,
-  ) {
-    return _setLogEnabled(
-      enabled,
-    );
+  void setLogEnabled(bool enabled) {
+    return _setLogEnabled(enabled);
   }
 
   late final _setLogEnabledPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Bool)>>('setLogEnabled');
-  late final _setLogEnabled =
-      _setLogEnabledPtr.asFunction<void Function(bool)>();
+  late final _setLogEnabled = _setLogEnabledPtr
+      .asFunction<void Function(bool)>();
 
   /// Returns the version of the zxing-cpp library. Pointer has a static lifetime and must not be freed.
   ///
@@ -52,25 +47,23 @@ class GeneratedBindings {
 
   late final _versionPtr =
       _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Char> Function()>>('version');
-  late final _version =
-      _versionPtr.asFunction<ffi.Pointer<ffi.Char> Function()>();
+  late final _version = _versionPtr
+      .asFunction<ffi.Pointer<ffi.Char> Function()>();
 
   /// @brief Read barcode from image bytes.
   /// @param params Barcode parameters. Owned pointer. Will be freed before
   /// function returns.
   /// @return The barcode result.
-  CodeResult readBarcode(
-    ffi.Pointer<DecodeBarcodeParams> params,
-  ) {
-    return _readBarcode(
-      params,
-    );
+  CodeResult readBarcode(ffi.Pointer<DecodeBarcodeParams> params) {
+    return _readBarcode(params);
   }
 
-  late final _readBarcodePtr = _lookup<
-      ffi.NativeFunction<
-          CodeResult Function(
-              ffi.Pointer<DecodeBarcodeParams>)>>('readBarcode');
+  late final _readBarcodePtr =
+      _lookup<
+        ffi.NativeFunction<
+          CodeResult Function(ffi.Pointer<DecodeBarcodeParams>)
+        >
+      >('readBarcode');
   late final _readBarcode = _readBarcodePtr
       .asFunction<CodeResult Function(ffi.Pointer<DecodeBarcodeParams>)>();
 
@@ -78,18 +71,16 @@ class GeneratedBindings {
   /// @param params Barcode parameters. Owned pointer. Will be freed before
   /// function returns.
   /// @return The barcode results.
-  CodeResults readBarcodes(
-    ffi.Pointer<DecodeBarcodeParams> params,
-  ) {
-    return _readBarcodes(
-      params,
-    );
+  CodeResults readBarcodes(ffi.Pointer<DecodeBarcodeParams> params) {
+    return _readBarcodes(params);
   }
 
-  late final _readBarcodesPtr = _lookup<
-      ffi.NativeFunction<
-          CodeResults Function(
-              ffi.Pointer<DecodeBarcodeParams>)>>('readBarcodes');
+  late final _readBarcodesPtr =
+      _lookup<
+        ffi.NativeFunction<
+          CodeResults Function(ffi.Pointer<DecodeBarcodeParams>)
+        >
+      >('readBarcodes');
   late final _readBarcodes = _readBarcodesPtr
       .asFunction<CodeResults Function(ffi.Pointer<DecodeBarcodeParams>)>();
 
@@ -97,18 +88,16 @@ class GeneratedBindings {
   /// @param params Encoding parameters. Owned pointer. Will be freed before
   /// function returns.
   /// @return The barcode data
-  EncodeResult encodeBarcode(
-    ffi.Pointer<EncodeBarcodeParams> params,
-  ) {
-    return _encodeBarcode(
-      params,
-    );
+  EncodeResult encodeBarcode(ffi.Pointer<EncodeBarcodeParams> params) {
+    return _encodeBarcode(params);
   }
 
-  late final _encodeBarcodePtr = _lookup<
-      ffi.NativeFunction<
-          EncodeResult Function(
-              ffi.Pointer<EncodeBarcodeParams>)>>('encodeBarcode');
+  late final _encodeBarcodePtr =
+      _lookup<
+        ffi.NativeFunction<
+          EncodeResult Function(ffi.Pointer<EncodeBarcodeParams>)
+        >
+      >('encodeBarcode');
   late final _encodeBarcode = _encodeBarcodePtr
       .asFunction<EncodeResult Function(ffi.Pointer<EncodeBarcodeParams>)>();
 }

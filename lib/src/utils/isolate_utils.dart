@@ -11,10 +11,7 @@ import 'image_converter.dart';
 
 /// Bundles data to pass between Isolate
 class IsolateData {
-  IsolateData(
-    this.cameraImage,
-    this.params,
-  );
+  IsolateData(this.cameraImage, this.params);
   CameraImage cameraImage;
   DecodeParams params;
 

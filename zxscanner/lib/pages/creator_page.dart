@@ -16,9 +16,7 @@ late Directory tempDir;
 String get tempPath => '${tempDir.path}/zxing.jpg';
 
 class CreatorPage extends StatefulWidget {
-  const CreatorPage({
-    super.key,
-  });
+  const CreatorPage({super.key});
 
   @override
   State<CreatorPage> createState() => _CreatorPageState();
@@ -46,9 +44,7 @@ class _CreatorPageState extends State<CreatorPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Creator'),
-      ),
+      appBar: AppBar(title: const Text('Creator')),
       body: SingleChildScrollView(
         child: ContainerX(
           child: Column(
@@ -84,36 +80,39 @@ class _CreatorPageState extends State<CreatorPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: <Widget>[
-            Builder(builder: (BuildContext context) {
-              return ElevatedButton(
-                onPressed: () async {
-                  // Save image to device
-                  final File file = File(tempPath);
-                  file.writeAsBytesSync(encode?.data ?? Uint8List(0));
-                  final String path = file.path;
+            Builder(
+              builder: (BuildContext context) {
+                return ElevatedButton(
+                  onPressed: () async {
+                    // Save image to device
+                    final File file = File(tempPath);
+                    file.writeAsBytesSync(encode?.data ?? Uint8List(0));
+                    final String path = file.path;
 
-                  // Share image
-                  final RenderBox? box =
-                      context.findRenderObject() as RenderBox?;
-                  if (box != null) {
-                    final ShareParams params = ShareParams(
-                      text: 'Check out this code!',
-                      files: <XFile>[XFile(path)],
-                      sharePositionOrigin:
-                          box.localToGlobal(Offset.zero) & box.size,
-                    );
+                    // Share image
+                    final RenderBox? box =
+                        context.findRenderObject() as RenderBox?;
+                    if (box != null) {
+                      final ShareParams params = ShareParams(
+                        text: 'Check out this code!',
+                        files: <XFile>[XFile(path)],
+                        sharePositionOrigin:
+                            box.localToGlobal(Offset.zero) & box.size,
+                      );
 
-                    final ShareResult result =
-                        await SharePlus.instance.share(params);
+                      final ShareResult result = await SharePlus.instance.share(
+                        params,
+                      );
 
-                    if (result.status == ShareResultStatus.success) {
-                      debugPrint('Share success');
+                      if (result.status == ShareResultStatus.success) {
+                        debugPrint('Share success');
+                      }
                     }
-                  }
-                },
-                child: const Text('Share'),
-              );
-            }),
+                  },
+                  child: const Text('Share'),
+                );
+              },
+            ),
             ElevatedButton(
               onPressed: () async {
                 if (encode != null) {

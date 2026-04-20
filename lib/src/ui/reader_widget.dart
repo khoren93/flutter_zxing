@@ -51,8 +51,9 @@ class ReaderWidget extends StatefulWidget {
     this.verticalCropOffset = 0.0,
     this.resolution = ResolutionPreset.high,
     this.lensDirection = CameraLensDirection.back,
-    this.loading =
-        const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
+    this.loading = const DecoratedBox(
+      decoration: BoxDecoration(color: Colors.black),
+    ),
     this.onActionSecondButton,
     this.actionSecondButtonIcon,
     this.actionSecondButtonIconBackgroundColor,
@@ -72,7 +73,7 @@ class ReaderWidget extends StatefulWidget {
 
   /// Called when the camera controller is created
   final Function(CameraController? controller, Exception? error)?
-      onControllerCreated;
+  onControllerCreated;
 
   /// Called when the multi scan mode is changed
   /// When set to null, the multi scan mode button will not be displayed
@@ -387,13 +388,15 @@ class _ReaderWidgetState extends State<ReaderWidget>
           !cameraController.value.isStreamingImages) {
         try {
           await cameraController.startImageStream(
-              (CameraImage image) => processImageStream(image, currentVersion));
+            (CameraImage image) => processImageStream(image, currentVersion),
+          );
 
           // Verify stream is actually running
           await Future<void>.delayed(const Duration(milliseconds: 200));
           if (!cameraController.value.isStreamingImages) {
-            await cameraController.startImageStream((CameraImage image) =>
-                processImageStream(image, currentVersion));
+            await cameraController.startImageStream(
+              (CameraImage image) => processImageStream(image, currentVersion),
+            );
           }
         } catch (e) {
           debugPrint('onNewCameraSelected: failed to start image stream: $e');
@@ -428,7 +431,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
           await cameraController.stopImageStream();
           await Future<void>.delayed(const Duration(milliseconds: 50));
           await cameraController.startImageStream(
-              (CameraImage image) => processImageStream(image, currentVersion));
+            (CameraImage image) => processImageStream(image, currentVersion),
+          );
         } catch (e) {
           debugPrint('onNewCameraSelected: stream restart failed: $e');
         }
@@ -439,8 +443,10 @@ class _ReaderWidgetState extends State<ReaderWidget>
           _isFlashAvailable = false;
         });
       }
-      widget.onControllerCreated
-          ?.call(null, e is Exception ? e : Exception(e.toString()));
+      widget.onControllerCreated?.call(
+        null,
+        e is Exception ? e : Exception(e.toString()),
+      );
     } finally {
       _isInitializing = false;
       if (_initializationCompleter != null &&
@@ -466,23 +472,28 @@ class _ReaderWidgetState extends State<ReaderWidget>
       _isProcessing = true;
       try {
         final double cropPercent = widget.isMultiScan ? 0 : widget.cropPercent;
-        final int cropSize =
-            (min(image.width, image.height) * cropPercent).round();
+        final int cropSize = (min(image.width, image.height) * cropPercent)
+            .round();
 
-        final bool swapAxes = isAndroid() &&
+        final bool swapAxes =
+            isAndroid() &&
             MediaQuery.of(context).orientation == Orientation.portrait;
-        final double horizontalOffset =
-            swapAxes ? widget.verticalCropOffset : widget.horizontalCropOffset;
-        final double verticalOffset =
-            swapAxes ? -widget.horizontalCropOffset : widget.verticalCropOffset;
-        final int cropLeft = ((image.width - cropSize) ~/ 2 +
-                (horizontalOffset * (image.width - cropSize) / 2))
-            .round()
-            .clamp(0, image.width - cropSize);
-        final int cropTop = ((image.height - cropSize) ~/ 2 +
-                (verticalOffset * (image.height - cropSize) / 2))
-            .round()
-            .clamp(0, image.height - cropSize);
+        final double horizontalOffset = swapAxes
+            ? widget.verticalCropOffset
+            : widget.horizontalCropOffset;
+        final double verticalOffset = swapAxes
+            ? -widget.horizontalCropOffset
+            : widget.verticalCropOffset;
+        final int cropLeft =
+            ((image.width - cropSize) ~/ 2 +
+                    (horizontalOffset * (image.width - cropSize) / 2))
+                .round()
+                .clamp(0, image.width - cropSize);
+        final int cropTop =
+            ((image.height - cropSize) ~/ 2 +
+                    (verticalOffset * (image.height - cropSize) / 2))
+                .round()
+                .clamp(0, image.height - cropSize);
 
         final DecodeParams params = DecodeParams(
           imageFormat: _imageFormat(image.format.group),
@@ -549,7 +560,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   @override
   Widget build(BuildContext context) {
-    final bool isCameraReady = cameras.isNotEmpty &&
+    final bool isCameraReady =
+        cameras.isNotEmpty &&
         _isCameraOn &&
         controller != null &&
         controller!.value.isInitialized;
@@ -563,38 +575,40 @@ class _ReaderWidgetState extends State<ReaderWidget>
           _ when _controllerVersion.startsWith('disposed_') =>
             const DecoratedBox(decoration: BoxDecoration(color: Colors.black)),
           _ => SizedBox(
-              width: cameraMaxSize,
-              height: cameraMaxSize,
-              child: ClipRRect(
-                child: OverflowBox(
-                  child: FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: cameraMaxSize,
-                      child: CameraPreview(
-                        controller!,
-                        child: widget.showScannerOverlay &&
-                                results.codes.isNotEmpty &&
-                                widget.cropPercent == 0
-                            ? MultiResultOverlay(
-                                results: results.codes,
-                                onCodeTap: widget.onScan,
-                                controller: controller,
-                              )
-                            : null,
-                      ),
+            width: cameraMaxSize,
+            height: cameraMaxSize,
+            child: ClipRRect(
+              child: OverflowBox(
+                child: FittedBox(
+                  fit: BoxFit.cover,
+                  child: SizedBox(
+                    width: cameraMaxSize,
+                    child: CameraPreview(
+                      controller!,
+                      child:
+                          widget.showScannerOverlay &&
+                              results.codes.isNotEmpty &&
+                              widget.cropPercent == 0
+                          ? MultiResultOverlay(
+                              results: results.codes,
+                              onCodeTap: widget.onScan,
+                              controller: controller,
+                            )
+                          : null,
                     ),
                   ),
                 ),
               ),
             ),
+          ),
         },
         if (widget.showScannerOverlay &&
             widget.cropPercent != 0 &&
             !widget.isMultiScan)
           Container(
             decoration: ShapeDecoration(
-              shape: widget.scannerOverlay ??
+              shape:
+                  widget.scannerOverlay ??
                   ScannerOverlayBorder(
                     cutOutSize: cropSize,
                     horizontalOffset: widget.horizontalCropOffset,
@@ -616,8 +630,10 @@ class _ReaderWidgetState extends State<ReaderWidget>
               if (!_isCameraOn) {
                 return;
               }
-              _scaleFactor =
-                  (_zoom * details.scale).clamp(_minZoomLevel, _maxZoomLevel);
+              _scaleFactor = (_zoom * details.scale).clamp(
+                _minZoomLevel,
+                _maxZoomLevel,
+              );
               controller?.setZoomLevel(_scaleFactor);
             },
           ),
@@ -627,7 +643,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
             child: Padding(
               padding: widget.actionButtonsPadding,
               child: ClipRRect(
-                borderRadius: widget.actionButtonsBackgroundBorderRadius ??
+                borderRadius:
+                    widget.actionButtonsBackgroundBorderRadius ??
                     BorderRadius.circular(10.0),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -636,7 +653,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
                     ClipRRect(
                       borderRadius:
                           widget.actionButtonsBackgroundBorderRadius ??
-                              BorderRadius.circular(10.0),
+                          BorderRadius.circular(10.0),
                       child: ColoredBox(
                         color: widget.actionButtonsBackgroundColor,
                         child: Row(
@@ -646,8 +663,9 @@ class _ReaderWidgetState extends State<ReaderWidget>
                               IconButton(
                                 onPressed: _onFlashButtonTapped,
                                 color: Colors.white,
-                                icon: _flashIcon(controller?.value.flashMode ??
-                                    FlashMode.off),
+                                icon: _flashIcon(
+                                  controller?.value.flashMode ?? FlashMode.off,
+                                ),
                               ),
                             if (widget.showGallery)
                               IconButton(
@@ -669,11 +687,13 @@ class _ReaderWidgetState extends State<ReaderWidget>
                         widget.actionSecondButtonIcon != null) ...<Widget>[
                       Container(
                         margin: EdgeInsets.only(
-                            bottom: (widget.onMultiScanModeChanged != null &&
-                                    widget.multiScanModeAlignment ==
-                                        Alignment.bottomRight)
-                                ? 55.0
-                                : 0),
+                          bottom:
+                              (widget.onMultiScanModeChanged != null &&
+                                  widget.multiScanModeAlignment ==
+                                      Alignment.bottomRight)
+                              ? 55.0
+                              : 0,
+                        ),
                         child: IconButton.filled(
                           padding: widget.actionButtonsPadding,
                           onPressed: widget.onActionSecondButton,
@@ -681,16 +701,16 @@ class _ReaderWidgetState extends State<ReaderWidget>
                           style: IconButton.styleFrom(
                             backgroundColor:
                                 widget.actionSecondButtonIconBackgroundColor ??
-                                    widget.actionButtonsBackgroundColor,
+                                widget.actionButtonsBackgroundColor,
                             shape: RoundedRectangleBorder(
                               borderRadius:
                                   widget.actionButtonsBackgroundBorderRadius ??
-                                      BorderRadius.zero,
+                                  BorderRadius.zero,
                             ),
                           ),
                         ),
-                      )
-                    ]
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -731,8 +751,9 @@ class _ReaderWidgetState extends State<ReaderWidget>
   }
 
   Future<void> _onGalleryButtonTapped() async {
-    final XFile? file =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
+    final XFile? file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
     if (file != null) {
       final DecodeParams params = DecodeParams(
         imageFormat: zxing.ImageFormat.rgb,

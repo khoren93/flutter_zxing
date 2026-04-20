@@ -21,10 +21,7 @@ class SettingTile extends StatelessWidget {
     return Card(
       child: ListTile(
         leading: leading != null
-            ? Icon(
-                leading,
-                color: Theme.of(context).colorScheme.secondary,
-              )
+            ? Icon(leading, color: Theme.of(context).colorScheme.secondary)
             : null,
         title: Text(title ?? ''),
         trailing: trailing,

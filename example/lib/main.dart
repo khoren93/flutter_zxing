@@ -52,7 +52,8 @@ class _DemoPageState extends State<DemoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isCameraSupported = defaultTargetPlatform == TargetPlatform.iOS ||
+    final isCameraSupported =
+        defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.android;
     return DefaultTabController(
       length: 2,
@@ -71,9 +72,7 @@ class _DemoPageState extends State<DemoPage> {
             if (kIsWeb)
               const UnsupportedPlatformWidget()
             else if (!isCameraSupported)
-              const Center(
-                child: Text('Camera not supported on this platform'),
-              )
+              const Center(child: Text('Camera not supported on this platform'))
             else if (result != null && result?.isValid == true)
               ScanResultWidget(
                 result: result,
@@ -111,10 +110,12 @@ class _DemoPageState extends State<DemoPage> {
                     flashAutoIcon: const Icon(Icons.flash_auto),
                     galleryIcon: const Icon(Icons.photo_library),
                     toggleCameraIcon: const Icon(Icons.switch_camera),
-                    actionButtonsBackgroundBorderRadius:
-                        BorderRadius.circular(10),
-                    actionButtonsBackgroundColor:
-                        Colors.black.withValues(alpha: 0.5),
+                    actionButtonsBackgroundBorderRadius: BorderRadius.circular(
+                      10,
+                    ),
+                    actionButtonsBackgroundColor: Colors.black.withValues(
+                      alpha: 0.5,
+                    ),
                   ),
                   if (showDebugInfo)
                     DebugInfoWidget(
@@ -142,9 +143,7 @@ class _DemoPageState extends State<DemoPage> {
                 child: Column(
                   children: [
                     WriterWidget(
-                      messages: const Messages(
-                        createButton: 'Create Code',
-                      ),
+                      messages: const Messages(createButton: 'Create Code'),
                       onSuccess: (result, bytes) {
                         setState(() {
                           createdCodeBytes = bytes;
@@ -214,9 +213,9 @@ class _DemoPageState extends State<DemoPage> {
 
   void _showMessage(BuildContext context, String message) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _onReset() {

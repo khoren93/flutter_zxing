@@ -22,24 +22,28 @@ class LanguageWidget extends StatelessWidget {
       },
       selectedItemBuilder: (BuildContext context) {
         return S.delegate.supportedLocales
-            .map((Locale e) => DropdownMenuItem<Locale>(
-                  value: e,
-                  child: SizedBox(
-                    width: 80,
-                    child: Text(
-                      e.countryCode?.toLangIcon() ?? '',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                      textAlign: TextAlign.right,
-                    ),
+            .map(
+              (Locale e) => DropdownMenuItem<Locale>(
+                value: e,
+                child: SizedBox(
+                  width: 80,
+                  child: Text(
+                    e.countryCode?.toLangIcon() ?? '',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.right,
                   ),
-                ))
+                ),
+              ),
+            )
             .toList();
       },
       items: S.delegate.supportedLocales
-          .map((Locale e) => DropdownMenuItem<Locale>(
-                value: e,
-                child: Text(e.countryCode?.toLangName() ?? ''),
-              ))
+          .map(
+            (Locale e) => DropdownMenuItem<Locale>(
+              value: e,
+              child: Text(e.countryCode?.toLangName() ?? ''),
+            ),
+          )
           .toList(),
     );
   }

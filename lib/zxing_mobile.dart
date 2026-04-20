@@ -29,8 +29,7 @@ class ZxingMobile implements Zxing {
   Encode encodeBarcode({
     required String contents,
     required EncodeParams params,
-  }) =>
-      zxingEncodeBarcode(contents: contents, params: params);
+  }) => zxingEncodeBarcode(contents: contents, params: params);
 
   @override
   Future<void> startCameraProcessing() => zxingStartCameraProcessing();
@@ -40,13 +39,15 @@ class ZxingMobile implements Zxing {
 
   @override
   Future<Code> processCameraImage(
-          CameraImage image, DecodeParams params) async =>
-      await zxingProcessCameraImage(image, params) as Code;
+    CameraImage image,
+    DecodeParams params,
+  ) async => await zxingProcessCameraImage(image, params) as Code;
 
   @override
   Future<Codes> processCameraImageMulti(
-          CameraImage image, DecodeParams params) async =>
-      await zxingProcessCameraImage(image, params) as Codes;
+    CameraImage image,
+    DecodeParams params,
+  ) async => await zxingProcessCameraImage(image, params) as Codes;
 
   @override
   Future<Code> readBarcodeImagePathString(String path, DecodeParams params) =>

@@ -24,8 +24,9 @@ mixin _$AppStore on AppStoreBase, Store {
     });
   }
 
-  final Atom _$colorSchemeIndexAtom =
-      Atom(name: 'AppStoreBase.colorSchemeIndex');
+  final Atom _$colorSchemeIndexAtom = Atom(
+    name: 'AppStoreBase.colorSchemeIndex',
+  );
 
   @override
   int get colorSchemeIndex {
@@ -70,8 +71,9 @@ mixin _$AppStore on AppStoreBase, Store {
     });
   }
 
-  final Atom _$selectedLanguageAtom =
-      Atom(name: 'AppStoreBase.selectedLanguage');
+  final Atom _$selectedLanguageAtom = Atom(
+    name: 'AppStoreBase.selectedLanguage',
+  );
 
   @override
   String get selectedLanguage {
@@ -86,43 +88,51 @@ mixin _$AppStore on AppStoreBase, Store {
     });
   }
 
-  final AsyncAction _$setThemeModeAsyncAction =
-      AsyncAction('AppStoreBase.setThemeMode');
+  final AsyncAction _$setThemeModeAsyncAction = AsyncAction(
+    'AppStoreBase.setThemeMode',
+  );
 
   @override
   Future<void> setThemeMode(ThemeMode value) {
     return _$setThemeModeAsyncAction.run(() => super.setThemeMode(value));
   }
 
-  final AsyncAction _$setColorSchemeIndexAsyncAction =
-      AsyncAction('AppStoreBase.setColorSchemeIndex');
+  final AsyncAction _$setColorSchemeIndexAsyncAction = AsyncAction(
+    'AppStoreBase.setColorSchemeIndex',
+  );
 
   @override
   Future<void> setColorSchemeIndex(int value) {
-    return _$setColorSchemeIndexAsyncAction
-        .run(() => super.setColorSchemeIndex(value));
+    return _$setColorSchemeIndexAsyncAction.run(
+      () => super.setColorSchemeIndex(value),
+    );
   }
 
-  final AsyncAction _$toggleSoundModeAsyncAction =
-      AsyncAction('AppStoreBase.toggleSoundMode');
+  final AsyncAction _$toggleSoundModeAsyncAction = AsyncAction(
+    'AppStoreBase.toggleSoundMode',
+  );
 
   @override
   Future<void> toggleSoundMode({bool? value}) {
-    return _$toggleSoundModeAsyncAction
-        .run(() => super.toggleSoundMode(value: value));
+    return _$toggleSoundModeAsyncAction.run(
+      () => super.toggleSoundMode(value: value),
+    );
   }
 
-  final AsyncAction _$toggleVibrationModeAsyncAction =
-      AsyncAction('AppStoreBase.toggleVibrationMode');
+  final AsyncAction _$toggleVibrationModeAsyncAction = AsyncAction(
+    'AppStoreBase.toggleVibrationMode',
+  );
 
   @override
   Future<void> toggleVibrationMode({bool? value}) {
-    return _$toggleVibrationModeAsyncAction
-        .run(() => super.toggleVibrationMode(value: value));
+    return _$toggleVibrationModeAsyncAction.run(
+      () => super.toggleVibrationMode(value: value),
+    );
   }
 
-  final AsyncAction _$setLanguageAsyncAction =
-      AsyncAction('AppStoreBase.setLanguage');
+  final AsyncAction _$setLanguageAsyncAction = AsyncAction(
+    'AppStoreBase.setLanguage',
+  );
 
   @override
   Future<void> setLanguage(String aLanguage) {

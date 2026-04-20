@@ -23,8 +23,9 @@ class DebugInfoWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    TextStyle? style =
-        Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white);
+    TextStyle? style = Theme.of(
+      context,
+    ).textTheme.bodySmall?.copyWith(color: Colors.white);
     return Align(
       alignment: Alignment.topCenter,
       child: Container(
@@ -35,8 +36,10 @@ class DebugInfoWidget extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               child: Container(
                 color: Colors.black54,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 0,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -57,10 +60,7 @@ class DebugInfoWidget extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    TextButton(
-                      onPressed: onReset,
-                      child: const Text('Reset'),
-                    ),
+                    TextButton(onPressed: onReset, child: const Text('Reset')),
                   ],
                 ),
               ),

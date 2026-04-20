@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
 class ScanResultWidget extends StatelessWidget {
-  const ScanResultWidget({
-    super.key,
-    this.result,
-    this.onScanAgain,
-  });
+  const ScanResultWidget({super.key, this.result, this.onScanAgain});
 
   final Code? result;
   final Function()? onScanAgain;

@@ -51,28 +51,28 @@ extension CodeExt on CodeResult {
 
 extension EncodeExt on EncodeResult {
   Encode toEncode(final String text) => Encode(
-        isValid,
-        format,
-        text,
-        copyUint8ListFromOwnedFfiPtr(data, length),
-        length,
-        copyStringFromOwnedFfiPtr(error),
-      );
+    isValid,
+    format,
+    text,
+    copyUint8ListFromOwnedFfiPtr(data, length),
+    length,
+    copyStringFromOwnedFfiPtr(error),
+  );
 }
 
 extension PosExt on Pos {
   Position toPosition() => Position(
-        imageWidth,
-        imageHeight,
-        topLeftX,
-        topLeftY,
-        topRightX,
-        topRightY,
-        bottomLeftX,
-        bottomLeftY,
-        bottomRightX,
-        bottomRightY,
-      );
+    imageWidth,
+    imageHeight,
+    topLeftX,
+    topLeftY,
+    topRightX,
+    topRightY,
+    bottomLeftX,
+    bottomLeftY,
+    bottomRightX,
+    bottomRightY,
+  );
 }
 
 extension EncodeParamsExt on EncodeParams {

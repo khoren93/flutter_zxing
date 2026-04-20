@@ -22,8 +22,7 @@ class ZxingWeb implements Zxing {
   Encode encodeBarcode({
     required String contents,
     required EncodeParams params,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<void> startCameraProcessing() => throw UnimplementedError();
@@ -37,8 +36,9 @@ class ZxingWeb implements Zxing {
 
   @override
   Future<Codes> processCameraImageMulti(
-          CameraImage image, DecodeParams params) =>
-      throw UnimplementedError();
+    CameraImage image,
+    DecodeParams params,
+  ) => throw UnimplementedError();
 
   @override
   Future<Code> readBarcodeImagePathString(String path, DecodeParams params) =>

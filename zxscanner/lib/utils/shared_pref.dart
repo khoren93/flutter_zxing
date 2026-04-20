@@ -14,7 +14,8 @@ Future<void> initializePrefs() async {
   );
   await appStore.setThemeMode(
     ThemeMode.values.firstWhere(
-        (ThemeMode element) => element.toString() == themeModeString),
+      (ThemeMode element) => element.toString() == themeModeString,
+    ),
   );
   await appStore.setColorSchemeIndex(
     getPrefInt(colorSchemeIndexPref, defaultValue: appStore.colorSchemeIndex),
@@ -31,8 +32,11 @@ Future<void> initializePrefs() async {
 }
 
 // Add a value in SharedPref based on their type - Must be a String, int, bool, double, Map<String, dynamic> or StringList
-Future<bool> setPrefValue(String key, dynamic value,
-    {bool print = true}) async {
+Future<bool> setPrefValue(
+  String key,
+  dynamic value, {
+  bool print = true,
+}) async {
   if (value is String) {
     return sharedPreferences.setString(key, value);
   } else if (value is int) {
@@ -84,8 +88,10 @@ String getPrefString(String key, {String defaultValue = ''}) =>
     sharedPreferences.getString(key) ?? defaultValue;
 
 /// Returns a JSON if exists in SharedPref
-Map<String, dynamic> getPrefJSON(String key,
-    {Map<String, dynamic>? defaultValue}) {
+Map<String, dynamic> getPrefJSON(
+  String key, {
+  Map<String, dynamic>? defaultValue,
+}) {
   if (sharedPreferences.containsKey(key)) {
     return jsonDecode(sharedPreferences.getString(key) ?? '');
   } else {

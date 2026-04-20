@@ -15,9 +15,7 @@ const double _kWidthOfScrollItem = 71.6;
 //
 // The theme is controlled via the passed in ThemeController.
 class ThemeSelector extends StatefulWidget {
-  const ThemeSelector({
-    super.key,
-  });
+  const ThemeSelector({super.key});
 
   @override
   State<ThemeSelector> createState() => _ThemeSelectorState();
@@ -47,9 +45,11 @@ class _ThemeSelectorState extends State<ThemeSelector> {
     // Index got updated in popup and deps changed, animate it to new index.
     if (appStore.colorSchemeIndex != schemeIndex) {
       schemeIndex = appStore.colorSchemeIndex;
-      scrollController.animateTo(_kWidthOfScrollItem * schemeIndex,
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.easeOutCubic);
+      scrollController.animateTo(
+        _kWidthOfScrollItem * schemeIndex,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
     }
     super.didChangeDependencies();
   }

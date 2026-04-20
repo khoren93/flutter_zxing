@@ -6,7 +6,9 @@ extension LocaleParsing on String {
     final String languageCode = split('_').first;
     final String countryCode = split('_').last;
     return Locale.fromSubtags(
-        languageCode: languageCode, countryCode: countryCode);
+      languageCode: languageCode,
+      countryCode: countryCode,
+    );
   }
 
   String toLangIcon() {

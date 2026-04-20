@@ -35,10 +35,7 @@ class Code {
 
 // Represents a list of barcode codes
 class Codes {
-  Codes({
-    this.codes = const <Code>[],
-    this.duration = 0,
-  });
+  Codes({this.codes = const <Code>[], this.duration = 0});
 
   List<Code> codes; // The list of codes
   int duration; // The duration of the decoding in milliseconds

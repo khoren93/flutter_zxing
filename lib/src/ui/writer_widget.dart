@@ -48,19 +48,20 @@ class _WriterWidgetState extends State<WriterWidget>
 
   Messages get messages => widget.messages;
   Map<EccLevel, String> get _eccTitlesMap => <EccLevel, String>{
-        EccLevel.low: messages.lowEccLevel,
-        EccLevel.medium: messages.mediumEccLevel,
-        EccLevel.quartile: messages.quartileEccLevel,
-        EccLevel.high: messages.highEccLevel,
-      };
+    EccLevel.low: messages.lowEccLevel,
+    EccLevel.medium: messages.mediumEccLevel,
+    EccLevel.quartile: messages.quartileEccLevel,
+    EccLevel.high: messages.highEccLevel,
+  };
 
   @override
   void initState() {
     _codeFormat = widget.format;
     _eccLevel = widget.eccLevel;
     _textController.text = widget.text ?? _codeFormat.demoText;
-    _widthController.text =
-        (widget.height * _codeFormat.ratio).round().toString();
+    _widthController.text = (widget.height * _codeFormat.ratio)
+        .round()
+        .toString();
     _heightController.text = widget.height.toString();
     _marginController.text = widget.margin.toString();
     super.initState();
@@ -123,10 +124,12 @@ class _WriterWidgetState extends State<WriterWidget>
                         labelText: messages.formatLabel,
                       ),
                       items: _supportedFormats
-                          .map((int format) => DropdownMenuItem<int>(
-                                value: format,
-                                child: Text(zx.barcodeFormatName(format)),
-                              ))
+                          .map(
+                            (int format) => DropdownMenuItem<int>(
+                              value: format,
+                              child: Text(zx.barcodeFormatName(format)),
+                            ),
+                          )
                           .toList(),
                       onChanged: (int? format) {
                         setState(() {
@@ -152,11 +155,13 @@ class _WriterWidgetState extends State<WriterWidget>
                           labelText: messages.eccLevelLabel,
                         ),
                         items: _eccTitlesMap.entries
-                            .map((MapEntry<EccLevel, String> entry) =>
-                                DropdownMenuItem<EccLevel>(
-                                  value: entry.key,
-                                  child: Text(entry.value),
-                                ))
+                            .map(
+                              (MapEntry<EccLevel, String> entry) =>
+                                  DropdownMenuItem<EccLevel>(
+                                    value: entry.key,
+                                    child: Text(entry.value),
+                                  ),
+                            )
                             .toList(),
                         onChanged: (EccLevel? ecc) {
                           setState(() {
@@ -165,7 +170,7 @@ class _WriterWidgetState extends State<WriterWidget>
                         },
                       ),
                     ),
-                  ]
+                  ],
                 ],
               ),
               const SizedBox(height: 20),
@@ -189,8 +194,8 @@ class _WriterWidgetState extends State<WriterWidget>
                         // use format ratio to calculate height
                         final int? width = int.tryParse(value);
                         if (width != null) {
-                          final int height =
-                              (width / _codeFormat.ratio).round();
+                          final int height = (width / _codeFormat.ratio)
+                              .round();
                           _heightController.text = height.toString();
                         }
                       },
@@ -215,8 +220,8 @@ class _WriterWidgetState extends State<WriterWidget>
                         // use format ratio to calculate width
                         final int? height = int.tryParse(value);
                         if (height != null) {
-                          final int width =
-                              (height * _codeFormat.ratio).round();
+                          final int width = (height * _codeFormat.ratio)
+                              .round();
                           _widthController.text = width.toString();
                         }
                       },
@@ -276,8 +281,11 @@ class _WriterWidgetState extends State<WriterWidget>
       String? error;
       if (result.isValid && result.data != null) {
         try {
-          final Uint8List encodedBytes =
-              pngFromBytes(result.data!, width, height);
+          final Uint8List encodedBytes = pngFromBytes(
+            result.data!,
+            width,
+            height,
+          );
           widget.onSuccess?.call(result, encodedBytes);
         } catch (e) {
           error = e.toString();

@@ -2,8 +2,9 @@ part of 'zxing.dart';
 
 /// Reads barcode from String image path
 Future<Code> zxingReadBarcodeImagePathString(
-        String path, DecodeParams params) =>
-    zxingReadBarcodeImagePath(XFile(path), params);
+  String path,
+  DecodeParams params,
+) => zxingReadBarcodeImagePath(XFile(path), params);
 
 /// Reads barcode from XFile image path
 Future<Code> zxingReadBarcodeImagePath(XFile path, DecodeParams params) async {
@@ -20,8 +21,9 @@ Future<Code> zxingReadBarcodeImagePath(XFile path, DecodeParams params) async {
 
 /// Reads barcode from image url
 Future<Code> zxingReadBarcodeImageUrl(String url, DecodeParams params) async {
-  final Uint8List imageBytes =
-      (await NetworkAssetBundle(Uri.parse(url)).load(url)).buffer.asUint8List();
+  final Uint8List imageBytes = (await NetworkAssetBundle(
+    Uri.parse(url),
+  ).load(url)).buffer.asUint8List();
   imglib.Image? image = imglib.decodeImage(imageBytes);
   if (image == null) {
     return Code(error: 'Failed to decode image');

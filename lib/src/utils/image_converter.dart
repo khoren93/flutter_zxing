@@ -20,7 +20,11 @@ Uint8List tightlyPackedYPlaneFromCameraImage(CameraImage image) {
     final int srcOffset = row * bytesPerRow;
     final int dstOffset = row * image.width;
     packed.setRange(
-        dstOffset, dstOffset + image.width, yPlane.bytes, srcOffset);
+      dstOffset,
+      dstOffset + image.width,
+      yPlane.bytes,
+      srcOffset,
+    );
   }
   return packed;
 }
@@ -45,8 +49,10 @@ imglib.Image resizeToMaxSize(imglib.Image image, int? maxSize) {
   }
   if (image.width > maxSize || image.height > maxSize) {
     final double scaleFactor = maxSize / max(image.width, image.height);
-    image =
-        imglib.copyResize(image, width: (image.width * scaleFactor).toInt());
+    image = imglib.copyResize(
+      image,
+      width: (image.width * scaleFactor).toInt(),
+    );
   }
   return image;
 }

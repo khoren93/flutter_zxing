@@ -88,10 +88,12 @@ class MultiScanPainter extends CustomPainter {
       // position to points
       final List<Offset> points = positionToPoints(position);
       final List<Offset> scaledPoints = points
-          .map((Offset point) => Offset(
-                point.dx * scale + offset.dx,
-                point.dy * scale + offset.dy,
-              ))
+          .map(
+            (Offset point) => Offset(
+              point.dx * scale + offset.dx,
+              point.dy * scale + offset.dy,
+            ),
+          )
           .toList();
       canvas.drawPoints(PointMode.polygon, scaledPoints, paint);
 
@@ -100,10 +102,7 @@ class MultiScanPainter extends CustomPainter {
       final TextPainter textPainter = TextPainter(
         text: TextSpan(
           text: code.text,
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-          ),
+          style: TextStyle(color: color, fontSize: 12),
         ),
         maxLines: 2,
         textDirection: TextDirection.ltr,

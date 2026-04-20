@@ -10,9 +10,7 @@ class HelpPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Help'),
-      ),
+      appBar: AppBar(title: const Text('Help')),
       body: ContainerX(
         child: Column(
           children: <Widget>[
@@ -45,19 +43,13 @@ class HelpPage extends StatelessWidget {
     );
   }
 
-  Widget createSlide(
-    BuildContext context, {
-    String? title,
-    String? body,
-  }) {
+  Widget createSlide(BuildContext context, {String? title, String? body}) {
     return Card(
       margin: const EdgeInsets.all(8.0),
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Theme(
-          data: Theme.of(context).copyWith(
-            dividerColor: Colors.transparent,
-          ),
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
           child: ExpansionTile(
             title: Text(title ?? ''),
             children: <Widget>[

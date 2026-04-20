@@ -22,7 +22,8 @@ abstract class Format {
   static const int microQRCode = 1 << 16; // Micro QR Code
   static const int rmqrCode = 1 << 17; // Rectangular Micro QR Code
 
-  static const int linearCodes = codabar |
+  static const int linearCodes =
+      codabar |
       code39 |
       code93 |
       code128 |
@@ -47,9 +48,7 @@ extension CodeFormat on int {
   int get maxTextLength => barcodeMaxTextLengths[this] ?? 0;
   bool get isSupportedEccLevel => eccSupported.contains(this);
 
-  static final List<int> eccSupported = <int>[
-    Format.qrCode,
-  ];
+  static final List<int> eccSupported = <int>[Format.qrCode];
 
   static final List<int> supportedEncodeFormats = <int>[
     Format.qrCode,

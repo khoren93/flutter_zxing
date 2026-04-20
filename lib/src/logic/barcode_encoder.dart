@@ -4,7 +4,6 @@ part of 'zxing.dart';
 Encode zxingEncodeBarcode({
   required String contents,
   required EncodeParams params,
-}) =>
-    bindings
-        .encodeBarcode(params.toEncodeBarcodeParams(contents))
-        .toEncode(contents);
+}) => bindings
+    .encodeBarcode(params.toEncodeBarcodeParams(contents))
+    .toEncode(contents);

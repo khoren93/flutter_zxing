@@ -69,9 +69,9 @@ class ScannerOverlayBorder extends ShapeBorder {
     );
 
     // Return the path for the cut-out with rounded corners
-    return Path()
-      ..addRRect(
-          RRect.fromRectAndRadius(cutOutRect, Radius.circular(borderRadius)));
+    return Path()..addRRect(
+      RRect.fromRectAndRadius(cutOutRect, Radius.circular(borderRadius)),
+    );
   }
 
   @override
@@ -103,7 +103,8 @@ class ScannerOverlayBorder extends ShapeBorder {
     // Path for the cut-out with rounded corners
     final Path cutOutPath = Path()
       ..addRRect(
-          RRect.fromRectAndRadius(cutOutRect, Radius.circular(borderRadius)));
+        RRect.fromRectAndRadius(cutOutRect, Radius.circular(borderRadius)),
+      );
 
     // Return the difference: everything minus the cut-out
     return Path.combine(PathOperation.difference, outer, cutOutPath);
@@ -151,14 +152,8 @@ class ScannerOverlayBorder extends ShapeBorder {
       ..style = PaintingStyle.fill
       ..blendMode = BlendMode.dstOut;
     canvas
-      ..saveLayer(
-        rect,
-        backgroundPaint,
-      )
-      ..drawRect(
-        rect,
-        backgroundPaint,
-      )
+      ..saveLayer(rect, backgroundPaint)
+      ..drawRect(rect, backgroundPaint)
       // Draw top right corner
       ..drawRRect(
         RRect.fromLTRBAndCorners(
@@ -204,10 +199,7 @@ class ScannerOverlayBorder extends ShapeBorder {
         borderPaint,
       )
       ..drawRRect(
-        RRect.fromRectAndRadius(
-          cutOutRect,
-          Radius.circular(borderRadius),
-        ),
+        RRect.fromRectAndRadius(cutOutRect, Radius.circular(borderRadius)),
         boxPaint,
       )
       ..restore();
