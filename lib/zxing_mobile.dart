@@ -42,7 +42,7 @@ class ZxingMobile implements Zxing {
     CameraImage image,
     DecodeParams params,
   ) async {
-    final Code code =await zxingProcessCameraImage(image, params) as Code;
+    final Code code = await zxingProcessCameraImage(image, params) as Code;
     code.source = CodeSource.camera;
     return code;
   }

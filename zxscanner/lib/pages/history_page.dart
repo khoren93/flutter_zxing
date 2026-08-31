@@ -45,7 +45,7 @@ class _HistoryPageState extends State<HistoryPage> {
                           children: <Widget>[
                             // Copy button
                             IconButton(
-                              icon: const Icon(FontAwesomeIcons.copy),
+                              icon: Icon(FontAwesomeIcons.copy.data),
                               onPressed: () {
                                 Clipboard.setData(
                                   ClipboardData(text: result.text ?? ''),
@@ -54,8 +54,8 @@ class _HistoryPageState extends State<HistoryPage> {
                             ),
                             // Remove button
                             IconButton(
-                              icon: const Icon(
-                                FontAwesomeIcons.trash,
+                              icon: Icon(
+                                FontAwesomeIcons.trash.data,
                                 color: Colors.red,
                               ),
                               onPressed: () {

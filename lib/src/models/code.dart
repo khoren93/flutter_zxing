@@ -53,9 +53,4 @@ class Codes {
   }
 }
 
-enum CodeSource {
-  camera,
-  localImageFile,
-  remoteImageFile,
-  byteStream,
-}
+enum CodeSource { camera, localImageFile, remoteImageFile, byteStream }

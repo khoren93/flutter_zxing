@@ -22,7 +22,7 @@ class _BarcodesPageState extends State<BarcodesPage> {
       appBar: AppBar(title: const Text('Barcodes')),
       body: _buildResultList(),
       floatingActionButton: FloatingActionButton(
-        child: const Icon(FontAwesomeIcons.plus),
+        child: Icon(FontAwesomeIcons.plus.data),
         onPressed: () {
           Navigator.of(context).pushNamed(AppRoutes.creator);
         },
@@ -59,7 +59,7 @@ class _BarcodesPageState extends State<BarcodesPage> {
                           children: <Widget>[
                             // Copy button
                             IconButton(
-                              icon: const Icon(FontAwesomeIcons.copy),
+                              icon: Icon(FontAwesomeIcons.copy.data),
                               onPressed: () {
                                 Clipboard.setData(
                                   ClipboardData(text: result.text ?? ''),
@@ -68,8 +68,8 @@ class _BarcodesPageState extends State<BarcodesPage> {
                             ),
                             // Remove button
                             IconButton(
-                              icon: const Icon(
-                                FontAwesomeIcons.trash,
+                              icon: Icon(
+                                FontAwesomeIcons.trash.data,
                                 color: Colors.red,
                               ),
                               onPressed: () {

@@ -33,11 +33,11 @@ class _HomePageState extends State<HomePage> {
   ];
 
   dynamic tabItems() => <TabItem<IconData>>[
-    const TabItem<IconData>(icon: FontAwesomeIcons.barcode),
-    const TabItem<IconData>(icon: FontAwesomeIcons.clockRotateLeft),
+    TabItem<IconData>(icon: FontAwesomeIcons.barcode.data),
+    TabItem<IconData>(icon: FontAwesomeIcons.clockRotateLeft.data),
     const TabItem<IconData>(icon: Icons.qr_code_scanner),
-    const TabItem<IconData>(icon: FontAwesomeIcons.circleQuestion),
-    const TabItem<IconData>(icon: FontAwesomeIcons.gear),
+    TabItem<IconData>(icon: FontAwesomeIcons.circleQuestion.data),
+    TabItem<IconData>(icon: FontAwesomeIcons.gear.data),
   ];
 
   @override
