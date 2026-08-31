@@ -28,6 +28,8 @@
 .packages
 build/
 
-# iOS and MacOS src folders
+# iOS and MacOS src and .build folders
 ios/flutter_zxing/Sources/
+ios/flutter_zxing/.build/
 macos/flutter_zxing/Sources/
+macos/flutter_zxing/.build/

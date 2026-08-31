@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.3.1
+
+* Fixed iOS/macOS barcode detection failing in stripped archives after the SPM migration.
+
 ## 2.3.0
 
 * Migrated iOS and macOS projects from CocoaPods to Swift Package Manager (SPM).

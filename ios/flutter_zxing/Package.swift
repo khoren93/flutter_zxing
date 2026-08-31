@@ -9,7 +9,13 @@ let package = Package(
         .iOS("13.0")
     ],
     products: [
-        .library(name: "flutter-zxing", targets: ["flutter_zxing"])
+        // Must be a dynamic library. The Dart side resolves the FFI entry
+        // points at runtime via `DynamicLibrary.process()`. As a static library
+        // these symbols are linked into the app's executable, where the App
+        // Store archive's `strip` step removes them, breaking barcode detection.
+        // A dynamic framework keeps them in its export table, which `strip`
+        // preserves and `dlsym` can still find.
+        .library(name: "flutter-zxing", type: .dynamic, targets: ["flutter_zxing"])
     ],
     dependencies: [
         .package(name: "FlutterFramework", path: "../FlutterFramework")
