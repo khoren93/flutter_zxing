@@ -11,12 +11,14 @@ Future<Code> zxingReadBarcodeImagePath(XFile path, DecodeParams params) async {
   final Uint8List imageBytes = await path.readAsBytes();
   imglib.Image? image = imglib.decodeImage(imageBytes);
   if (image == null) {
-    return Code();
+    return Code(source: CodeSource.localImageFile);
   }
   image = resizeToMaxSize(image, params.maxSize);
   params.width = image.width;
   params.height = image.height;
-  return zxingReadBarcode(rgbBytes(image), params);
+  final Code code = zxingReadBarcode(rgbBytes(image), params);
+  code.source = CodeSource.localImageFile;
+  return code;
 }
 
 /// Reads barcode from image url
@@ -26,17 +28,25 @@ Future<Code> zxingReadBarcodeImageUrl(String url, DecodeParams params) async {
   ).load(url)).buffer.asUint8List();
   imglib.Image? image = imglib.decodeImage(imageBytes);
   if (image == null) {
-    return Code(error: 'Failed to decode image');
+    return Code(
+      error: 'Failed to decode image',
+      source: CodeSource.remoteImageFile,
+    );
   }
   image = resizeToMaxSize(image, params.maxSize);
   params.width = image.width;
   params.height = image.height;
-  return zxingReadBarcode(rgbBytes(image), params);
+  final Code code = zxingReadBarcode(rgbBytes(image), params);
+  code.source = CodeSource.remoteImageFile;
+  return code;
 }
 
 // Reads barcode from Uint8List image bytes
-Code zxingReadBarcode(Uint8List bytes, DecodeParams params) =>
-    _readBarcode(bytes, params);
+Code zxingReadBarcode(Uint8List bytes, DecodeParams params) {
+  final Code code = _readBarcode(bytes, params);
+  code.source = CodeSource.byteStream;
+  return code;
+}
 
 Code _readBarcode(Uint8List bytes, DecodeParams params) =>
     bindings.readBarcode(params.toDecodeBarcodeParams(bytes)).toCode();

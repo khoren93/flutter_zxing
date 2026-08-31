@@ -17,6 +17,7 @@ class Code {
     this.imageBytes,
     this.imageWidth,
     this.imageHeight,
+    this.source,
   });
 
   String? text; // The text of the code
@@ -31,6 +32,7 @@ class Code {
   Uint8List? imageBytes; // The processed image bytes of the code
   int? imageWidth; // The width of the processed image
   int? imageHeight; // The height of the processed image
+  CodeSource? source; // Where das the code come from
 }
 
 // Represents a list of barcode codes
@@ -49,4 +51,11 @@ class Codes {
     }
     return null;
   }
+}
+
+enum CodeSource {
+  camera,
+  localImageFile,
+  remoteImageFile,
+  byteStream,
 }

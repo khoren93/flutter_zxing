@@ -41,7 +41,11 @@ class ZxingMobile implements Zxing {
   Future<Code> processCameraImage(
     CameraImage image,
     DecodeParams params,
-  ) async => await zxingProcessCameraImage(image, params) as Code;
+  ) async {
+    final Code code =await zxingProcessCameraImage(image, params) as Code;
+    code.source = CodeSource.camera;
+    return code;
+  }
 
   @override
   Future<Codes> processCameraImageMulti(
