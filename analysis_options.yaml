@@ -29,6 +29,13 @@ analyzer:
     - "lib/generated_bindings.dart"
     - "example/**"
     - "zxscanner/**"
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
     
 linter:
   rules:
