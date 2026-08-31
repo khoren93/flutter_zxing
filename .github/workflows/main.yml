@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Checkout the repository
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Install Flutter SDK
       - uses: subosito/flutter-action@v2
@@ -63,7 +63,7 @@ jobs:
           - target: windows
             os: windows
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -151,7 +151,7 @@ jobs:
             os: windows
             device: windows
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -222,7 +222,7 @@ jobs:
             target: google_apis
             arch: x86_64
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
