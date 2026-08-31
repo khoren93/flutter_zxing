@@ -425,16 +425,15 @@ class _ReaderWidgetState extends State<ReaderWidget>
         setState(() => _isCameraOn = true);
       }
 
-      // Force restart stream after initialization to ensure it works
-      if (cameraController.value.isStreamingImages) {
+      // Restart only if interrupted (e.g. by flash mode); unconditional
+      // stop-then-start risks silently leaving the stream stopped on some devices.
+      if (!cameraController.value.isStreamingImages) {
         try {
-          await cameraController.stopImageStream();
-          await Future<void>.delayed(const Duration(milliseconds: 50));
           await cameraController.startImageStream(
             (CameraImage image) => processImageStream(image, currentVersion),
           );
         } catch (e) {
-          debugPrint('onNewCameraSelected: stream restart failed: $e');
+          debugPrint('onNewCameraSelected: failed to restart image stream: $e');
         }
       }
     } catch (e) {
