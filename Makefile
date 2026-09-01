@@ -2,33 +2,28 @@
 # publishing is never the default goal, so a bare `make` cannot release by
 # accident.
 #
-# Publishing goes through scripts/publish.sh, which bumps the version in
-# pubspec.yaml and both podspecs, refreshes the generated iOS/macOS sources and
-# then runs `flutter pub publish`.
+# Publishing goes through scripts/publish.sh, which checks that the version is
+# consistent and documented, refreshes the generated iOS/macOS sources and then
+# runs `flutter pub publish`. It does not change the version: bump pubspec.yaml
+# and both podspecs alongside the CHANGELOG entry before releasing.
 
 .DEFAULT_GOAL := help
 
-# Which part of the version a publish target increments, and any extra flags
-# passed straight through to scripts/publish.sh.
-LEVEL ?= patch
-ARGS  ?=
+# Extra flags passed straight through to scripts/publish.sh.
+ARGS ?=
 
-.PHONY: help publish publish-dry publish-minor publish-major sync test analyze
+.PHONY: help publish publish-dry sync test analyze
 
 help:
 	@echo "Publishing:"
-	@echo "  make publish         Publish a patch release (3.0.0 -> 3.0.1)"
-	@echo "  make publish-minor   Publish a minor release (3.0.0 -> 3.1.0)"
-	@echo "  make publish-major   Publish a major release (3.0.0 -> 4.0.0)"
+	@echo "  make publish         Publish the version currently in pubspec.yaml"
 	@echo "  make publish-dry     Validate the package without publishing anything"
 	@echo ""
-	@echo "  ARGS=--commit        Commit the version bump before publishing, so the"
-	@echo "                       release is in git history and pub.dev has no"
-	@echo "                       uncommitted changes to warn about."
-	@echo "  ARGS=--force         Skip pub.dev's interactive confirmation."
-	@echo "  LEVEL=minor          Change the bump of any publish target."
+	@echo "  Bump the version in pubspec.yaml and both podspecs, and add the"
+	@echo "  matching '## <version>' section to CHANGELOG.md, before publishing."
 	@echo ""
-	@echo "  e.g. make publish ARGS=--commit"
+	@echo "  ARGS=--force         Skip pub.dev's interactive confirmation."
+	@echo "                       e.g. make publish ARGS=--force"
 	@echo ""
 	@echo "Development:"
 	@echo "  make sync            Regenerate the iOS/macOS sources from src/"
@@ -36,16 +31,10 @@ help:
 	@echo "  make analyze         Run the analyzer"
 
 publish:
-	./scripts/publish.sh $(LEVEL) $(ARGS)
+	./scripts/publish.sh $(ARGS)
 
 publish-dry:
-	./scripts/publish.sh $(LEVEL) --dry-run $(ARGS)
-
-publish-minor:
-	@$(MAKE) --no-print-directory publish LEVEL=minor
-
-publish-major:
-	@$(MAKE) --no-print-directory publish LEVEL=major
+	./scripts/publish.sh --dry-run $(ARGS)
 
 sync:
 	./scripts/update_ios_macos_src.sh

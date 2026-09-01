@@ -44,10 +44,11 @@ flutter:
         ffiPlugin: true
 
 # Publish to pub.dev
-# ./scripts/publish.sh [major|minor|patch] [--commit] [--dry-run] [--force]
-# Bumps this version and both podspecs, refreshes the generated iOS/macOS
-# sources -- they are git-ignored, and without them the released package does
-# not build on those platforms -- then publishes. Defaults to a patch bump.
+# make publish        (or: ./scripts/publish.sh [--dry-run] [--force])
+# Bump this version and `s.version` in both podspecs together with the
+# CHANGELOG entry first; the script checks all three agree, refreshes the
+# generated iOS/macOS sources -- they are git-ignored, and without them the
+# released package does not build on those platforms -- then publishes.
 
 # Update zxing-cpp submodule
 # git submodule update --remote
