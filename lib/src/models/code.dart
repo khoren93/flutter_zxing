@@ -30,9 +30,23 @@ class Code {
   bool isInverted; // Whether the code is inverted
   bool isMirrored; // Whether the code is mirrored
   int duration; // The duration of the decoding in milliseconds
-  Uint8List? imageBytes; // The processed image bytes of the code
-  int? imageWidth; // The width of the processed image
-  int? imageHeight; // The height of the processed image
+  /// The image the decoder actually scanned, as one byte per pixel.
+  ///
+  /// This is a debugging aid, not a copy of the source image: it is the
+  /// luminance the decoder worked on, already cropped to the scan rect, whatever
+  /// pixel format the input had. Use it to see what the decoder saw when a scan
+  /// is failing — [pngFromBytes] renders it directly.
+  ///
+  /// Only populated while logging is on (`zx.setLogEnabled(true)`); it is null
+  /// otherwise, so that scanning does not copy a full frame per result.
+  Uint8List? imageBytes;
+
+  /// Width of [imageBytes], which is the scanned (cropped) region, not
+  /// necessarily the width of the image that was passed in.
+  int? imageWidth;
+
+  /// Height of [imageBytes]. See [imageWidth].
+  int? imageHeight;
   CodeSource? source; // Where did the code come from
 
   @override

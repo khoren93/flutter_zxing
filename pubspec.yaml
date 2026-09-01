@@ -8,7 +8,11 @@ environment:
   flutter: ">=3.41.0"
 
 dependencies:
-  camera: ">=0.10.5 <0.13.0"
+  # 0.11.0 is the floor on purpose: it is where `camera` switched Android over
+  # to CameraX. The older camera2 implementation crashed inside
+  # `io.flutter.plugins.camera.Camera` on a number of devices, and nothing in
+  # this plugin can work around that.
+  camera: ">=0.11.0 <0.13.0"
   ffi: ^2.0.0
   flutter:
     sdk: flutter

@@ -267,6 +267,56 @@ void main() {
     expect(platform.disposedCameras, isNotEmpty, reason: 'camera released');
   });
 
+  testWidgets('the crop overlay follows the widget box, not the screen', (
+    WidgetTester tester,
+  ) async {
+    // Regression test for a non-full-screen ReaderWidget: the cut-out used to
+    // be sized and centred against `MediaQuery.size`, so inside a smaller box
+    // it was drawn in the wrong place and did not match where scanning happens.
+    tester.view.physicalSize = const Size(1000, 2000);
+    addTearDown(tester.view.reset);
+
+    const double boxWidth = 300;
+    const double boxHeight = 400;
+    await pumpReader(
+      tester,
+      widget: const Center(
+        child: SizedBox(
+          width: boxWidth,
+          height: boxHeight,
+          child: ReaderWidget(cropPercent: 0.4),
+        ),
+      ),
+    );
+
+    final Finder overlay = find.byWidgetPredicate(
+      (Widget w) =>
+          w is Container &&
+          w.decoration is ShapeDecoration &&
+          (w.decoration! as ShapeDecoration).shape is ScannerOverlayBorder,
+    );
+    expect(overlay, findsOneWidget);
+
+    final ScannerOverlayBorder border =
+        ((tester.widget<Container>(overlay).decoration!) as ShapeDecoration)
+                .shape
+            as ScannerOverlayBorder;
+
+    // 40% of the widget's shorter side (300), not of the screen's (1000).
+    expect(border.cutOutSize, closeTo(120, 0.01));
+
+    // And the painted cut-out sits in the middle of the widget.
+    final Rect overlayRect = tester.getRect(overlay);
+    final Rect cutOut = border
+        .getInnerPath(Offset.zero & overlayRect.size)
+        .getBounds();
+    expect(cutOut.center.dx, closeTo(boxWidth / 2, 0.01));
+    expect(cutOut.center.dy, closeTo(boxHeight / 2, 0.01));
+    expect(cutOut.width, closeTo(120, 0.01));
+
+    await disposeReader(tester);
+  });
+
   testWidgets('a device without flash still initializes the camera', (
     WidgetTester tester,
   ) async {

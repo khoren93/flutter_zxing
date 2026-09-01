@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -463,6 +464,13 @@ class _ReaderWidgetState extends State<ReaderWidget>
       cameraDescription,
       widget.resolution,
       enableAudio: false,
+      // Request a specific frame layout rather than letting the platform pick.
+      // Left unset, CameraX reports whatever the device happens to produce --
+      // on some devices that is NV21 rather than YUV420 -- and the scanner then
+      // has to guess how to read the buffer. Both of these give a first plane
+      // the decoder can read directly: luminance on Android, interleaved BGRA
+      // on iOS.
+      imageFormatGroup: _preferredImageFormatGroup(),
     );
     controller = cameraController;
 
@@ -650,12 +658,30 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   @override
   Widget build(BuildContext context) {
+    // Sized from this widget's own box, not from the screen: a `ReaderWidget`
+    // that is not full screen (inside a `SizedBox`, or a `Scaffold` body under
+    // an app bar) would otherwise lay the preview out for the whole display and
+    // draw the cut-out overlay somewhere other than where it actually scans.
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final Size media = MediaQuery.sizeOf(context);
+        // Fall back to the screen when a constraint is unbounded, for example
+        // inside a scrollable, where `biggest` would be infinite.
+        final Size size = Size(
+          constraints.hasBoundedWidth ? constraints.maxWidth : media.width,
+          constraints.hasBoundedHeight ? constraints.maxHeight : media.height,
+        );
+        return _buildScanner(context, size);
+      },
+    );
+  }
+
+  Widget _buildScanner(BuildContext context, Size size) {
     final bool isCameraReady =
         cameras.isNotEmpty &&
         _isCameraOn &&
         controller != null &&
         controller!.value.isInitialized;
-    final Size size = MediaQuery.sizeOf(context);
     final double cameraMaxSize = max(size.width, size.height);
     // Multi-scan always scans the whole frame, so the crop rect (and the cut-out
     // overlay that advertises it) must be suppressed in that mode.
@@ -920,6 +946,21 @@ class _ReaderWidgetState extends State<ReaderWidget>
         return widget.flashAlwaysIcon;
       case FlashMode.auto:
         return widget.flashAutoIcon;
+    }
+  }
+
+  /// The frame layout to ask the camera for, per platform.
+  ImageFormatGroup _preferredImageFormatGroup() {
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return ImageFormatGroup.yuv420;
+      case TargetPlatform.iOS:
+        return ImageFormatGroup.bgra8888;
+      case TargetPlatform.fuchsia:
+      case TargetPlatform.linux:
+      case TargetPlatform.macOS:
+      case TargetPlatform.windows:
+        return ImageFormatGroup.unknown;
     }
   }
 

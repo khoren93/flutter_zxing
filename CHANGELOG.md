@@ -43,6 +43,17 @@ Bug-fix and correctness release. Every fix below is covered by the unit tests in
 * **A failure to start the decoding isolate left the preview black forever.**
   Camera setup no longer waits on the isolate, and errors from either are
   reported through `onControllerCreated` instead of being swallowed.
+* **The crop overlay was drawn against the screen, not the widget (#196).**
+  `ReaderWidget` sized its preview and cut-out from `MediaQuery.size`, so any
+  instance that is not full screen — inside a `SizedBox`, or a `Scaffold` body
+  under an app bar — drew the indicator at the wrong size and off-centre. It now
+  lays out from its own constraints.
+* **A gallery image could crash the app on Android (#187).** Same out-of-bounds
+  read as #213: a picked image whose pixel layout is not 8-bit RGB produced a
+  buffer smaller than the decoder was told to read (`SIGSEGV / SEGV_ACCERR`).
+* **Android frame layout is now requested explicitly (#197).** `ReaderWidget`
+  asks for `ImageFormatGroup.yuv420` on Android and `bgra8888` on iOS instead of
+  letting the platform choose, so the buffer layout no longer varies by device.
 * **`type 'ArgumentError' is not a subtype of type 'Code'` (#221).** Errors
   raised inside the decoding isolate — including the missing-native-library
   error behind that report — were sent back raw and then cast to `Code`. The
@@ -124,6 +135,12 @@ Bug-fix and correctness release. Every fix below is covered by the unit tests in
 * `MultiScanPainter` no longer takes `context` or `onCodeTap`; tap handling
   moved to `MultiResultOverlay`, and `shouldRepaint` no longer returns `true`
   unconditionally.
+* The `camera` dependency floor is raised to `>=0.11.0`, the release where
+  Android moved to CameraX. The camera2 implementation it replaced crashed
+  inside `io.flutter.plugins.camera.Camera` on several devices (#205, #206),
+  which nothing in this plugin could work around.
+* `Code.imageBytes` is documented: it is the luminance the decoder scanned,
+  cropped to the scan rect, and only populated while logging is enabled (#207).
 * Android `compileSdk` raised to 36 and Java compatibility to 11, matching the
   current Flutter defaults. The NDK stays pinned to 27.0.12077973, which is
   required: zxing-cpp v2.3.0 does not build against the libc++ in NDK 28+.
