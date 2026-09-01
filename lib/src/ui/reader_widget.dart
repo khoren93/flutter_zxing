@@ -215,12 +215,43 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   bool isAndroid() => Theme.of(context).platform == TargetPlatform.android;
 
+  /// The multi-scan mode actually in effect: [ReaderWidget.isMultiScan] unless
+  /// the built-in mode dropdown has since changed it.
+  bool get _multiScanEnabled => _isMultiScan;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _isMultiScan = widget.isMultiScan;
     initStateAsync();
+  }
+
+  @override
+  void didUpdateWidget(ReaderWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // A parent that drives `isMultiScan` (for example from
+    // `onMultiScanModeChanged`) must win over the dropdown's local state.
+    if (oldWidget.isMultiScan != widget.isMultiScan) {
+      _isMultiScan = widget.isMultiScan;
+    }
+
+    // These two can only take effect by rebuilding the controller.
+    if (oldWidget.lensDirection != widget.lensDirection ||
+        oldWidget.resolution != widget.resolution) {
+      final CameraDescription? camera = cameras.isEmpty
+          ? null
+          : cameras.firstWhere(
+              (CameraDescription camera) =>
+                  camera.lensDirection == widget.lensDirection,
+              orElse: () => cameras.first,
+            );
+      if (camera != null) {
+        selectedCamera = camera;
+        onNewCameraSelected(camera);
+      }
+    }
   }
 
   Future<void> initStateAsync() async {
@@ -303,16 +334,20 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
       oldController.removeListener(rebuildOnMount);
 
-      // Aggressively stop image stream
+      // Stop the image stream, retrying briefly: the platform side may still be
+      // delivering a frame and reject the first attempt.
+      const int stopStreamAttempts = 5;
       if (oldController.value.isStreamingImages) {
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < stopStreamAttempts; i++) {
           try {
             await oldController.stopImageStream();
             break;
           } catch (e) {
-            if (i < 2) {
-              await Future<void>.delayed(const Duration(milliseconds: 50));
+            if (i == stopStreamAttempts - 1) {
+              debugPrint('_disposeController stopImageStream error: $e');
+              break;
             }
+            await Future<void>.delayed(const Duration(milliseconds: 50));
           }
         }
       }
@@ -470,13 +505,14 @@ class _ReaderWidgetState extends State<ReaderWidget>
     if (!_isProcessing) {
       _isProcessing = true;
       try {
-        final double cropPercent = widget.isMultiScan ? 0 : widget.cropPercent;
+        final bool isMultiScan = _multiScanEnabled;
+        final double cropPercent = isMultiScan ? 0 : widget.cropPercent;
         final int cropSize = (min(image.width, image.height) * cropPercent)
             .round();
 
         final bool swapAxes =
             isAndroid() &&
-            MediaQuery.of(context).orientation == Orientation.portrait;
+            MediaQuery.orientationOf(context) == Orientation.portrait;
         final double horizontalOffset = swapAxes
             ? widget.verticalCropOffset
             : widget.horizontalCropOffset;
@@ -508,9 +544,9 @@ class _ReaderWidgetState extends State<ReaderWidget>
           tryInverted: widget.tryInverted,
           tryDownscale: widget.tryDownscale,
           maxNumberOfSymbols: widget.maxNumberOfSymbols,
-          isMultiScan: widget.isMultiScan,
+          isMultiScan: isMultiScan,
         );
-        if (widget.isMultiScan) {
+        if (isMultiScan) {
           final Codes result = await zx.processCameraImageMulti(image, params);
           if (result.codes.isNotEmpty) {
             results = result;
@@ -518,12 +554,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
             if (!mounted) {
               return;
             }
-            if (mounted) {
-              setState(() {});
-            }
-            if (!widget.isMultiScan) {
-              await Future<void>.delayed(widget.scanDelaySuccess);
-            }
+            setState(() {});
           } else {
             results = Codes();
             widget.onMultiScanFailure?.call(result);
@@ -536,9 +567,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
             if (!mounted) {
               return;
             }
-            if (mounted) {
-              setState(() {});
-            }
+            setState(() {});
             await Future<void>.delayed(widget.scanDelaySuccess);
           } else {
             results = Codes();
@@ -564,9 +593,12 @@ class _ReaderWidgetState extends State<ReaderWidget>
         _isCameraOn &&
         controller != null &&
         controller!.value.isInitialized;
-    final Size size = MediaQuery.of(context).size;
+    final Size size = MediaQuery.sizeOf(context);
     final double cameraMaxSize = max(size.width, size.height);
-    final double cropSize = min(size.width, size.height) * widget.cropPercent;
+    // Multi-scan always scans the whole frame, so the crop rect (and the cut-out
+    // overlay that advertises it) must be suppressed in that mode.
+    final double cropPercent = _multiScanEnabled ? 0 : widget.cropPercent;
+    final double cropSize = min(size.width, size.height) * cropPercent;
     return Stack(
       children: <Widget>[
         switch (true) {
@@ -587,7 +619,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
                       child:
                           widget.showScannerOverlay &&
                               results.codes.isNotEmpty &&
-                              widget.cropPercent == 0
+                              cropPercent == 0
                           ? MultiResultOverlay(
                               results: results.codes,
                               onCodeTap: widget.onScan,
@@ -601,9 +633,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
             ),
           ),
         },
-        if (widget.showScannerOverlay &&
-            widget.cropPercent != 0 &&
-            !widget.isMultiScan)
+        if (widget.showScannerOverlay && cropPercent != 0)
           Container(
             decoration: ShapeDecoration(
               shape:
@@ -736,14 +766,25 @@ class _ReaderWidgetState extends State<ReaderWidget>
     );
   }
 
-  void _onFlashButtonTapped() {
-    FlashMode mode = controller?.value.flashMode ?? FlashMode.off;
-    if (mode == FlashMode.torch) {
-      mode = FlashMode.off;
-    } else {
-      mode = FlashMode.torch;
+  Future<void> _onFlashButtonTapped() async {
+    final CameraController? cameraController = controller;
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
     }
-    controller?.setFlashMode(mode);
+    final FlashMode mode = cameraController.value.flashMode == FlashMode.torch
+        ? FlashMode.off
+        : FlashMode.torch;
+    try {
+      await cameraController.setFlashMode(mode);
+    } catch (e) {
+      // Some devices report a torch they cannot actually drive; hide the button
+      // rather than leaving it stuck on a mode that never applies.
+      debugPrint('setFlashMode error: $e');
+      if (mounted) {
+        setState(() => _isFlashAvailable = false);
+      }
+      return;
+    }
     if (mounted) {
       setState(() {});
     }
@@ -754,14 +795,20 @@ class _ReaderWidgetState extends State<ReaderWidget>
       source: ImageSource.gallery,
     );
     if (file != null) {
+      final bool isMultiScan = _multiScanEnabled;
+      // Mirror every decoding option used for the camera stream, so a picture
+      // from the gallery is scanned exactly the same way a frame would be.
       final DecodeParams params = DecodeParams(
         imageFormat: zxing.ImageFormat.rgb,
         format: widget.codeFormat,
         tryHarder: widget.tryHarder,
+        tryRotate: widget.tryRotate,
         tryInverted: widget.tryInverted,
-        isMultiScan: widget.isMultiScan,
+        tryDownscale: widget.tryDownscale,
+        maxNumberOfSymbols: widget.maxNumberOfSymbols,
+        isMultiScan: isMultiScan,
       );
-      if (widget.isMultiScan) {
+      if (isMultiScan) {
         final Codes result = await zx.readBarcodesImagePath(file, params);
         if (result.codes.isNotEmpty) {
           results = result;
@@ -769,9 +816,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
           if (!mounted) {
             return;
           }
-          if (mounted) {
-            setState(() {});
-          }
+          setState(() {});
         } else {
           results = Codes();
           widget.onMultiScanFailure?.call(result);
@@ -779,8 +824,14 @@ class _ReaderWidgetState extends State<ReaderWidget>
       } else {
         final Code result = await zx.readBarcodeImagePath(file, params);
         if (result.isValid) {
+          results = Codes(codes: <Code>[result]);
           widget.onScan?.call(result);
+          if (!mounted) {
+            return;
+          }
+          setState(() {});
         } else {
+          results = Codes();
           widget.onScanFailure?.call(result);
         }
       }
@@ -810,18 +861,22 @@ class _ReaderWidgetState extends State<ReaderWidget>
     }
   }
 
+  /// Maps a camera frame layout onto the pixel format the decoder is handed.
+  ///
+  /// Only the first plane of the frame is scanned. For YUV420 and NV21 that
+  /// plane is the luminance (Y) channel — exactly what a barcode decoder wants —
+  /// while BGRA8888 frames are a single interleaved plane. JPEG frames hold
+  /// compressed data that cannot be scanned as raw pixels.
   int _imageFormat(ImageFormatGroup group) {
     switch (group) {
-      case ImageFormatGroup.unknown:
-        return zxing.ImageFormat.none;
       case ImageFormatGroup.bgra8888:
         return zxing.ImageFormat.bgrx;
       case ImageFormatGroup.yuv420:
+      case ImageFormatGroup.nv21:
         return zxing.ImageFormat.lum;
       case ImageFormatGroup.jpeg:
-        return zxing.ImageFormat.rgb;
-      case ImageFormatGroup.nv21:
-        return zxing.ImageFormat.rgb;
+      case ImageFormatGroup.unknown:
+        return zxing.ImageFormat.none;
     }
   }
 }

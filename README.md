@@ -18,6 +18,7 @@ Flutter ZXing is a high-performance Flutter plugin for scanning and generating Q
   - [Getting Started](#getting-started)
     - [Cloning the flutter\_zxing project](#cloning-the-flutter_zxing-project)
     - [Installing dependencies](#installing-dependencies)
+    - [Use with dependency\_overrides](#use-with-dependency_overrides)
   - [Usage](#usage)
     - [To read barcode](#to-read-barcode)
     - [To create barcode](#to-create-barcode)
@@ -65,9 +66,9 @@ Flutter ZXing is a high-performance Flutter plugin for scanning and generating Q
 
 | Platform   | Status               | Notes                                     |
 |------------|----------------------|-------------------------------------------|
-| Android    | ✅ Fully Supported   | Minimum API level 21                      |
-| iOS        | ✅ Fully Supported   | Minimum iOS 11.0                          |
-| MacOS      | ⚠️ Beta              | Without Camera support                    |
+| Android    | ✅ Fully Supported   | Minimum API level 23 (Android 6.0)        |
+| iOS        | ✅ Fully Supported   | Minimum iOS 13.0                          |
+| MacOS      | ⚠️ Beta              | Minimum macOS 10.15, without camera support |
 | Linux      | ⚠️ Beta              | Without Camera support                    |
 | Windows    | ⚠️ Beta              | Without Camera support                    |
 | Web        | ❌ Not Supported     | Dart FFI is not available on the web      |
@@ -168,6 +169,9 @@ Referencing your forked repo as a direct `git` reference in the `depenency_overr
 
 ### To read barcode
 
+`flutter_zxing` re-exports the `camera` types that appear in its own API
+(`CameraImage`, `XFile`, `CameraController`, ...), so a single import is enough.
+
 ```dart
 import 'package:flutter_zxing/flutter_zxing.dart';
 
@@ -183,40 +187,62 @@ Widget build(BuildContext context) {
   );
 }
 
-// Or use flutter_zxing plugin methods 
+// Or use flutter_zxing plugin methods
 // To read barcode from camera image directly
 await zx.startCameraProcessing(); // Call this in initState
 
 cameraController?.startImageStream((image) async {
-    Code result = await zx.processCameraImage(image);
+    final Code result = await zx.processCameraImage(
+        image,
+        DecodeParams(
+            imageFormat: ImageFormat.lum, // the luminance plane of a YUV420/NV21 frame
+            format: Format.any,
+            width: image.width,
+            height: image.height,
+        ),
+    );
     if (result.isValid) {
         debugPrint(result.text);
     }
-    return null;
 });
 
 zx.stopCameraProcessing(); // Call this in dispose
 
-// To read barcode from XFile, String, url or Uint8List bytes
+// To read a barcode from an XFile, a path, a URL or raw bytes.
+// Every method takes a DecodeParams; the defaults are a good starting point.
 XFile xFile = XFile('Your image path');
-Code? resultFromXFile = await zx.readBarcodeImagePath(xFile);
+Code resultFromXFile = await zx.readBarcodeImagePath(xFile, DecodeParams());
 
 String path = 'Your local image path';
-Code? resultFromPath = await zx.readBarcodeImagePathString(path);
+Code resultFromPath = await zx.readBarcodeImagePathString(path, DecodeParams());
 
 String url = 'Your remote image url';
-Code? resultFromUrl = await zx.readBarcodeImageUrl(url);
+Code resultFromUrl = await zx.readBarcodeImageUrl(url, DecodeParams());
 
+// `readBarcode` is synchronous and takes already-decoded pixels, so the image
+// dimensions and pixel format have to be described explicitly.
 Uint8List bytes = Uint8List.fromList(yourImageBytes);
-Code? resultFromBytes = await zx.readBarcode(bytes);
+Code resultFromBytes = zx.readBarcode(
+    bytes,
+    DecodeParams(imageFormat: ImageFormat.rgb, width: width, height: height),
+);
+
+// The reading methods never throw: a failure is reported on the result.
+if (!resultFromPath.isValid) {
+    debugPrint(resultFromPath.error);
+}
+
+// Every method above has a `readBarcodes...` counterpart that returns `Codes`
+// with every symbol found in the image.
+Codes allCodes = await zx.readBarcodesImagePath(xFile, DecodeParams());
 ```
 
 ### To create barcode
 
 ```dart
-import 'package:flutter_zxing/flutter_zxing.dart';
 import 'dart:typed_data';
-import 'package:image/image.dart' as imglib;
+
+import 'package:flutter_zxing/flutter_zxing.dart';
 
 // Use WriterWidget to quickly create barcode
 @override
@@ -237,7 +263,7 @@ Widget build(BuildContext context) {
 final Encode result = zx.encodeBarcode(
     contents: 'Text to encode',
     params: EncodeParams(
-        format: Format.QRCode,
+        format: Format.qrCode,
         width: 120,
         height: 120,
         margin: 10,
@@ -245,9 +271,18 @@ final Encode result = zx.encodeBarcode(
     ),
 );
 if (result.isValid && result.data != null) {
-    final img = imglib.Image.fromBytes(width, height, result.data!.buffer, numChannels: 1);
-    final Uint8List encodedBytes = imglib.encodePng(img);
-    // use encodedBytes as you wish
+    // `result.data` holds one byte per pixel. Always render it with the size
+    // the encoder reports: when the symbol does not fit the requested box,
+    // zxing enlarges it, so `result.width`/`result.height` may differ from the
+    // width and height that were asked for.
+    final Uint8List encodedBytes = pngFromBytes(
+        result.data!,
+        result.width!,
+        result.height!,
+    );
+    // use encodedBytes as you wish, for example Image.memory(encodedBytes)
+} else {
+    debugPrint(result.error);
 }
 ```
 

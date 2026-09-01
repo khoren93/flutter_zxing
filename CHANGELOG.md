@@ -1,5 +1,99 @@
 # Changelog
 
+## 2.4.0
+
+Bug-fix and correctness release. Every fix below is covered by the unit tests in
+`test/` or the FFI integration tests in `example/integration_test/`.
+
+### Fixed
+
+* **Generated barcodes could come out scrambled.** zxing enlarges a symbol that
+  does not fit the requested box (a long Code128 asked for 240x120 is emitted at
+  915x120), but the encoder only returned the pixel buffer, so it was rendered
+  with the requested size and produced an unreadable image. `EncodeResult` now
+  reports the bitmap it actually produced and `Encode` exposes it as
+  `width`/`height`; `WriterWidget` and `pngFromBytes` use those values.
+* **NV21 camera frames were decoded as RGB.** `ReaderWidget` mapped
+  `ImageFormatGroup.nv21` to `ImageFormat.rgb`, so the luminance plane was read
+  as RGB pixels and nothing scanned. NV21 and YUV420 now both map to
+  `ImageFormat.lum`, and JPEG frames report `ImageFormat.none` instead of being
+  scanned as raw pixels.
+* **Reading an image file with default params produced garbage.** The file and
+  URL readers always decode to RGB but left `DecodeParams.imageFormat` at its
+  `lum` default, so `readBarcodeImagePath(file, DecodeParams())` handed the
+  decoder mismatched pixels. The pixel format is now set to match the data.
+* **A too-small image buffer was read out of bounds.** `readBarcode`/
+  `readBarcodes` trusted the caller's `width`/`height` and read past the end of
+  a buffer that was smaller than `width * height * pixStride`. The buffer length
+  is now passed to the native side, which reports an error instead.
+* **Barcode positions were wrong when a crop rect was used.** Positions are
+  reported by zxing relative to the cropped view; they are now translated back
+  into full-image coordinates so overlays line up.
+* **`processCameraImage` hung forever** when called before
+  `startCameraProcessing()`, or when the decoding isolate was stopped while a
+  frame was in flight. Both now complete with a `StateError`.
+* **Errors raised inside the decoding isolate surfaced as an unrelated
+  `TypeError`.** The raw error object was sent back and then cast to `Code`.
+  Errors are now wrapped and rethrown with their original message.
+* **`processCameraImage`/`processCameraImageMulti` threw a cast error** when
+  `DecodeParams.isMultiScan` did not match the method that was called. The flag
+  is now forced to match, and `processCameraImageMulti` sets `Code.source`.
+* **Disposing one `ReaderWidget` broke every other one on screen.** The decoding
+  isolate is shared, and `stopCameraProcessing()` tore it down unconditionally.
+  It is now reference counted.
+* **The result overlay never appeared in multi-scan mode** with the default
+  `cropPercent`, and the crop cut-out was still drawn even though multi-scan
+  scans the whole frame. Both overlays now follow the crop actually applied.
+* **The built-in scan-mode dropdown did not change how frames were scanned.**
+  `ReaderWidget` read `widget.isMultiScan` while the dropdown updated internal
+  state. It now uses the effective mode and syncs it in `didUpdateWidget`, which
+  also makes changes to `lensDirection` and `resolution` take effect.
+* **Camera rows with padding were misread.** Only the YUV420 luminance plane had
+  its row stride handled; BGRA8888 frames with `bytesPerRow > width * 4` were
+  passed through shifted.
+* **`pngFromBytes` produced a wrong image for a `Uint8List` view** into a larger
+  buffer, and read past the end of a buffer that was too small. It now honours
+  the view's offset and rejects inconsistent input with an `ArgumentError`.
+* **The debug image on a `Code` was garbage for non-luminance input.** It was
+  copied assuming one byte per pixel regardless of the source format; it is now
+  converted to luminance, matching what `pngFromBytes` expects.
+* **A memory leak in `readBarcodes`** when zxing found candidates but all of
+  them failed validation: the native result array was allocated and never freed.
+* **`WriterWidget` accepted invalid input.** A null text passed validation, and
+  zero or negative width/height and negative margins reached the encoder.
+* **Tapping a code in `MultiResultOverlay` fired on any pointer event**, because
+  the callback was invoked from `CustomPainter.hitTest`. It now uses a real tap
+  gesture.
+* **The web stub threw from `stopCameraProcessing`**, so disposing a widget on
+  web raised; teardown calls are now no-ops and the rest report a descriptive
+  `UnsupportedError`.
+* **Web/WasmGC resolution.** The conditional import used the legacy
+  `dart.library.html`, which is absent when compiling to WasmGC, so the
+  unsupported-platform stub was selected. It now uses `dart.library.js_interop`.
+
+### Changed
+
+* `XFile` and `CameraImage` are re-exported: they appear in this package's own
+  signatures, and importing `package:camera` for them collided with this
+  package's `ImageFormat`.
+* `DecodeParams` gained `copyWith`, and the file/URL readers no longer mutate
+  the `DecodeParams` instance passed to them.
+* The file and URL readers report failures as a `Code`/`Codes` carrying an
+  `error` instead of throwing.
+* `Code`, `Codes`, `Position` and `Encode` implement `toString()`.
+* `MultiScanPainter` no longer takes `context` or `onCodeTap`; tap handling
+  moved to `MultiResultOverlay`, and `shouldRepaint` no longer returns `true`
+  unconditionally.
+* Android `compileSdk` raised to 36 and Java compatibility to 11, matching the
+  current Flutter defaults. The NDK stays pinned to 27.0.12077973, which is
+  required: zxing-cpp v2.3.0 does not build against the libc++ in NDK 28+.
+* iOS podspec deployment target aligned with `Package.swift` (13.0), and the
+  placeholder metadata in both podspecs replaced.
+* README: every code sample was corrected -- none of them compiled against the
+  real API -- and the platform minimums now match the build files.
+* Replaced the empty unit-test file with real coverage, and extended the FFI
+  integration tests to cover the fixes above.
+
 ## 2.3.1
 
 * Fixed iOS/macOS barcode detection failing in stripped archives after the SPM migration.

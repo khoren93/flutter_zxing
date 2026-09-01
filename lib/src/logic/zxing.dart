@@ -1,10 +1,11 @@
 import 'dart:ffi';
 import 'dart:io';
-import 'dart:isolate';
 // ignore: unnecessary_import
 import 'dart:typed_data';
 
-import 'package:camera/camera.dart';
+// `ImageFormat` is hidden so it does not collide with this package's own
+// `ImageFormat` constants, which is what the decoder params expect.
+import 'package:camera/camera.dart' hide ImageFormat;
 import 'package:ffi/ffi.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as imglib;
@@ -12,7 +13,6 @@ import 'package:image/image.dart' as imglib;
 import '../../generated_bindings.dart';
 import '../models/models.dart';
 import '../utils/extentions.dart';
-// import '../utils/image_converter.dart';
 import '../utils/image_converter.dart';
 import '../utils/isolate_utils.dart';
 
@@ -21,6 +21,7 @@ part 'barcode_reader.dart';
 part 'barcodes_reader.dart';
 part 'bindings.dart';
 part 'camera_stream.dart';
+part 'image_decoder.dart';
 
 /// Returns a version of the zxing library
 String zxingVersion() => bindings.version().cast<Utf8>().toDartString();

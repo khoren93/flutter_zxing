@@ -81,20 +81,38 @@ extern "C"
 // Helper functions
 //
 
-ImageView createCroppedImageView(const DecodeBarcodeParams& params)
+/// An `ImageView` together with the origin of the crop rect it was taken from,
+/// so decoded positions can be mapped back onto the full image.
+struct CroppedImageView
 {
+    ImageView image;
+    int offsetX;
+    int offsetY;
+};
+
+CroppedImageView createCroppedImageView(const DecodeBarcodeParams& params)
+{
+    // Use the bounds-checking `ImageView` constructor: `params.bytes` comes from
+    // Dart and a buffer that is too small for `width * height * pixStride` would
+    // otherwise be read out of bounds.
     ImageView image {
         reinterpret_cast<const uint8_t*>(params.bytes),
+        params.length,
         params.width,
         params.height,
         ImageFormat(params.imageFormat),
     };
-    if (params.cropWidth > 0 && params.cropHeight > 0
-        && params.cropWidth < params.width && params.cropHeight < params.height)
+
+    if (params.cropWidth <= 0 || params.cropHeight <= 0)
     {
-        image = image.cropped(params.cropLeft, params.cropTop, params.cropWidth, params.cropHeight);
+        return {image, 0, 0};
     }
-    return image;
+
+    // `ImageView::cropped` clamps the rect into the image; mirror that clamping
+    // here so the reported offsets describe the view we actually decode.
+    int left = std::clamp(params.cropLeft, 0, params.width - 1);
+    int top = std::clamp(params.cropTop, 0, params.height - 1);
+    return {image.cropped(left, top, params.cropWidth, params.cropHeight), left, top};
 }
 
 ReaderOptions createReaderOptions(const DecodeBarcodeParams& params)
@@ -151,29 +169,54 @@ uint8_t* dartBytesFromMatrix(const Matrix<uint8_t>& matrix)
     return data;
 }
 
-/// Returns an owned byte buffer `uint8_t*` copied from a `ImageView&`.
+/// Returns an owned, tightly packed luminance buffer `uint8_t*` (one byte per
+/// pixel) copied from an `ImageView`.
+///
+/// The source may be in any supported pixel format and may be row-padded or a
+/// crop of a larger image, so every pixel is addressed through `ImageView::data`
+/// and converted to luminance. For `Lum` input the conversion is the identity,
+/// so this stays a plain copy in the common case.
 /// The owned pointer is safe to send back to Dart.
-uint8_t* dartBytesFromImageView(const ImageView& image)
+uint8_t* dartLumBytesFromImageView(const ImageView& image)
 {
-    int w = image.width();
-    int h = image.height();
-    int stride = image.rowStride(); // stride in bytes
-    const uint8_t* src = image.data();
+    const int w = image.width();
+    const int h = image.height();
+    const int pixStride = image.pixStride();
+    const ImageFormat format = image.format();
+    const int redIndex = RedIndex(format);
+    const int greenIndex = GreenIndex(format);
+    const int blueIndex = BlueIndex(format);
 
-    auto* out = dart_malloc<uint8_t>(w * h);
+    // `ImageFormat::None` has no pixel stride, so there is nothing to read.
+    if (w <= 0 || h <= 0 || pixStride <= 0) {
+        return nullptr;
+    }
+
+    auto* out = dart_malloc<uint8_t>(static_cast<size_t>(w) * h);
     for (int y = 0; y < h; ++y) {
-        std::copy(src + y * stride, src + y * stride + w, out + y * w);
+        const uint8_t* src = image.data(0, y);
+        uint8_t* dst = out + static_cast<size_t>(y) * w;
+        for (int x = 0; x < w; ++x, src += pixStride) {
+            dst[x] = RGBToLum(src[redIndex], src[greenIndex], src[blueIndex]);
+        }
     }
     return out;
 }
 
 // Construct a `CodeResult` from a zxing barcode decode `Result` from within an image.
+//
+// `width`/`height` are the dimensions of the *full* image and `offsetX`/`offsetY`
+// the origin of the decoded crop within it. zxing reports positions relative to
+// the (possibly cropped) view it was handed, so the offset is added back to make
+// every coordinate refer to the full image the caller passed in.
 CodeResult codeResultFromResult(
     const Result& result,
     int duration,
     int width,
     int height,
-    const ImageView image 
+    int offsetX,
+    int offsetY,
+    const ImageView& image
 ) {
     auto p = result.position();
     auto tl = p.topLeft();
@@ -188,16 +231,24 @@ CodeResult codeResultFromResult(
     code.error = result.isValid() ? nullptr : dartCstrFromString(result.error().msg());
     code.length = static_cast<int>(result.bytes().size());
     code.format = static_cast<int>(result.format());
-    code.pos = Pos{width, height, tl.x, tl.y, tr.x, tr.y, bl.x, bl.y, br.x, br.y};
+    code.pos = Pos{
+        width, height,
+        tl.x + offsetX, tl.y + offsetY,
+        tr.x + offsetX, tr.y + offsetY,
+        bl.x + offsetX, bl.y + offsetY,
+        br.x + offsetX, br.y + offsetY,
+    };
     code.isInverted = result.isInverted();
     code.isMirrored = result.isMirrored();
     code.duration = duration;
 
     if (isLoggingEnabled()) {
-        code.imageLength = image.width() * image.height();
-        code.imageWidth = image.width();
-        code.imageHeight = image.height();
-        code.imageBytes = dartBytesFromImageView(image);
+        code.imageBytes = dartLumBytesFromImageView(image);
+        if (code.imageBytes != nullptr) {
+            code.imageLength = image.width() * image.height();
+            code.imageWidth = image.width();
+            code.imageHeight = image.height();
+        }
     }
 
     return code;
@@ -222,13 +273,16 @@ CodeResult _readBarcode(const DecodeBarcodeParams& params) noexcept
     {
         auto start = steady_clock::now();
 
-        ImageView image = createCroppedImageView(params);
+        CroppedImageView cropped = createCroppedImageView(params);
         ReaderOptions hints = createReaderOptions(params);
-        Result result = ReadBarcode(image, hints);
+        Result result = ReadBarcode(cropped.image, hints);
 
         int duration = elapsed_ms(start);
         platform_log("Read Barcode in: %d ms\n", duration);
-        return codeResultFromResult(result, duration, params.width, params.height, image);
+        return codeResultFromResult(
+            result, duration, params.width, params.height,
+            cropped.offsetX, cropped.offsetY, cropped.image
+        );
     }
     catch (const exception& e)
     {
@@ -247,9 +301,9 @@ CodeResults _readBarcodes(const DecodeBarcodeParams& params) noexcept
     {
         auto start = steady_clock::now();
 
-        ImageView image = createCroppedImageView(params);
+        CroppedImageView cropped = createCroppedImageView(params);
         ReaderOptions hints = createReaderOptions(params);
-        Results results = ReadBarcodes(image, hints);
+        Results results = ReadBarcodes(cropped.image, hints);
 
         int duration = elapsed_ms(start);
         platform_log("Read Barcodes in: %d ms\n", duration);
@@ -268,9 +322,21 @@ CodeResults _readBarcodes(const DecodeBarcodeParams& params) noexcept
             {
                 continue;
             }
-            codes[i] = codeResultFromResult(result, duration, params.width, params.height, image);
+            codes[i] = codeResultFromResult(
+                result, duration, params.width, params.height,
+                cropped.offsetX, cropped.offsetY, cropped.image
+            );
             i++;
         }
+
+        // Every result was invalid. Dart only frees the array when `count > 0`,
+        // so release it here instead of handing back a buffer nobody owns.
+        if (i == 0)
+        {
+            dart_free(codes);
+            return CodeResults {0, nullptr, duration};
+        }
+
         return CodeResults {i, codes, duration};
     }
     catch (const exception& e)
@@ -301,6 +367,10 @@ EncodeResult _encodeBarcode(const EncodeBarcodeParams& params) noexcept
         // We need to return an owned pointer across the ffi boundary. Copy.
         result.data = dartBytesFromMatrix(matrix);
         result.length = matrix.size();
+        // zxing enlarges the symbol when the requested size is too small to hold
+        // it, so the caller cannot assume `params.width` x `params.height`.
+        result.width = bitMatrix.width();
+        result.height = bitMatrix.height();
 
         int duration = elapsed_ms(start);
         platform_log("Encode Barcode in: %d ms\n", duration);

@@ -43,6 +43,44 @@ class DecodeParams {
   int
   maxSize; // Resize the image to a smaller size before scanning to improve performance. Default is 768.
   bool isMultiScan; // Whether to scan multiple barcodes
+
+  /// Returns a copy of these params with the given fields replaced.
+  ///
+  /// Used to apply the decoded image size without mutating the instance the
+  /// caller passed in, so a single [DecodeParams] can safely be reused.
+  DecodeParams copyWith({
+    int? imageFormat,
+    int? format,
+    int? width,
+    int? height,
+    int? cropLeft,
+    int? cropTop,
+    int? cropWidth,
+    int? cropHeight,
+    bool? tryHarder,
+    bool? tryRotate,
+    bool? tryInverted,
+    bool? tryDownscale,
+    int? maxNumberOfSymbols,
+    int? maxSize,
+    bool? isMultiScan,
+  }) => DecodeParams(
+    imageFormat: imageFormat ?? this.imageFormat,
+    format: format ?? this.format,
+    width: width ?? this.width,
+    height: height ?? this.height,
+    cropLeft: cropLeft ?? this.cropLeft,
+    cropTop: cropTop ?? this.cropTop,
+    cropWidth: cropWidth ?? this.cropWidth,
+    cropHeight: cropHeight ?? this.cropHeight,
+    tryHarder: tryHarder ?? this.tryHarder,
+    tryRotate: tryRotate ?? this.tryRotate,
+    tryInverted: tryInverted ?? this.tryInverted,
+    tryDownscale: tryDownscale ?? this.tryDownscale,
+    maxNumberOfSymbols: maxNumberOfSymbols ?? this.maxNumberOfSymbols,
+    maxSize: maxSize ?? this.maxSize,
+    isMultiScan: isMultiScan ?? this.isMultiScan,
+  );
 }
 
 // Represents the parameters for encoding a barcode

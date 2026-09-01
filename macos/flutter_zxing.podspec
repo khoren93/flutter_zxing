@@ -4,14 +4,14 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'flutter_zxing'
-  s.version          = '0.0.1'
-  s.summary          = 'A new Flutter FFI plugin project.'
+  s.version          = '2.4.0'
+  s.summary          = 'A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing.'
   s.description      = <<-DESC
-A new Flutter FFI plugin project.
+A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing.
                        DESC
-  s.homepage         = 'http://example.com'
+  s.homepage         = 'https://github.com/khoren93/flutter_zxing'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.author           = { 'Khoren Markosyan' => 'khoren.markosyan@gmail.com' }
 
   # This will ensure the source files in Classes/ are included in the native
   # builds of apps using this FFI plugin. Podspec does not support relative

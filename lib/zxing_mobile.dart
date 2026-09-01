@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:camera/camera.dart';
-
+// `CameraImage` and `XFile` come through the `flutter_zxing.dart` re-export.
 import 'flutter_zxing.dart';
 import 'src/logic/zxing.dart';
 
@@ -42,16 +41,37 @@ class ZxingMobile implements Zxing {
     CameraImage image,
     DecodeParams params,
   ) async {
-    final Code code = await zxingProcessCameraImage(image, params) as Code;
-    code.source = CodeSource.camera;
-    return code;
+    // The isolate picks single vs. multi decoding from `params.isMultiScan`, so
+    // force it to match the method that was called instead of returning a
+    // `Codes` that would fail an unrelated cast at the call site.
+    final Object? result = await zxingProcessCameraImage(
+      image,
+      params.isMultiScan ? params.copyWith(isMultiScan: false) : params,
+    );
+    if (result is! Code) {
+      throw StateError('Expected a Code from the decoder, got $result');
+    }
+    result.source = CodeSource.camera;
+    return result;
   }
 
   @override
   Future<Codes> processCameraImageMulti(
     CameraImage image,
     DecodeParams params,
-  ) async => await zxingProcessCameraImage(image, params) as Codes;
+  ) async {
+    final Object? result = await zxingProcessCameraImage(
+      image,
+      params.isMultiScan ? params : params.copyWith(isMultiScan: true),
+    );
+    if (result is! Codes) {
+      throw StateError('Expected Codes from the decoder, got $result');
+    }
+    for (final Code code in result.codes) {
+      code.source = CodeSource.camera;
+    }
+    return result;
+  }
 
   @override
   Future<Code> readBarcodeImagePathString(String path, DecodeParams params) =>

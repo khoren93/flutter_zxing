@@ -21,8 +21,10 @@ if (ANDROID)
     target_link_libraries(flutter_zxing ${log-lib})
 
     # The max-page-size linker option is required to enable support for 16KB page
-    # size on Android with NDK 27.x.
-    # TODO: This can be removed when NDK 28+ is used, as it defaults to 16KB.
+    # size on Android with NDK 27.x, which is what this plugin pins (NDK 28+
+    # cannot build zxing-cpp v2.3.0 -- see android/build.gradle). NDK 28+
+    # defaults to 16KB, where this option is simply a no-op, so it is also safe
+    # for anyone overriding the NDK version.
     target_link_options(flutter_zxing PRIVATE "-Wl,-z,max-page-size=16384")
 endif (ANDROID)
 

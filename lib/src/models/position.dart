@@ -24,4 +24,11 @@ class Position {
   int bottomLeftY; // y coordinate of bottom left corner of barcode
   int bottomRightX; // x coordinate of bottom right corner of barcode
   int bottomRightY; // y coordinate of bottom right corner of barcode
+
+  @override
+  String toString() =>
+      'Position(image: ${imageWidth}x$imageHeight, '
+      'topLeft: ($topLeftX, $topLeftY), topRight: ($topRightX, $topRightY), '
+      'bottomLeft: ($bottomLeftX, $bottomLeftY), '
+      'bottomRight: ($bottomRightX, $bottomRightY))';
 }

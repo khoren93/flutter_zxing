@@ -3,12 +3,23 @@ import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'src/models/models.dart';
 
+// `dart.library.js_interop` (not the legacy `dart.library.html`) is the flag
+// that is also set when compiling to WasmGC, where `dart:html` does not exist.
 import 'zxing_cross.dart'
     if (dart.library.io) 'zxing_mobile.dart'
-    if (dart.library.html) 'zxing_web.dart';
+    if (dart.library.js_interop) 'zxing_web.dart';
 
+// `CameraImage` and `XFile` appear in this package's own public signatures, so
+// they are re-exported: without them callers had to import `package:camera`
+// directly, whose `ImageFormat` then collided with the `ImageFormat` constants
+// this package expects in `DecodeParams`.
 export 'package:camera/camera.dart'
-    show ResolutionPreset, CameraLensDirection, CameraController;
+    show
+        CameraController,
+        CameraImage,
+        CameraLensDirection,
+        ResolutionPreset,
+        XFile;
 export 'src/models/models.dart';
 export 'src/ui/ui.dart';
 export 'src/utils/image_converter.dart';

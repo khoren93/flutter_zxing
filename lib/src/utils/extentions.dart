@@ -57,6 +57,8 @@ extension EncodeExt on EncodeResult {
     copyUint8ListFromOwnedFfiPtr(data, length),
     length,
     copyStringFromOwnedFfiPtr(error),
+    width: width,
+    height: height,
   );
 }
 
@@ -92,6 +94,9 @@ extension DecodeParamsExt on DecodeParams {
   Pointer<DecodeBarcodeParams> toDecodeBarcodeParams(Uint8List bytes) {
     final Pointer<DecodeBarcodeParams> p = calloc<DecodeBarcodeParams>();
     p.ref.bytes = bytes.copyToNativePointer();
+    // Native code bounds-checks the buffer against `width * height * pixStride`
+    // instead of trusting the caller's dimensions.
+    p.ref.length = bytes.length;
     p.ref.imageFormat = imageFormat;
     p.ref.format = format;
     p.ref.width = width;

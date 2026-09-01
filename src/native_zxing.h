@@ -30,6 +30,7 @@ extern "C"
     struct DecodeBarcodeParams
     {
         uint8_t* bytes;  ///< Image bytes. Owned pointer, freed in destructor.
+        int length;      ///< Size of the `bytes` buffer, in bytes. Used to reject out-of-bounds reads.
         int imageFormat; ///< Image format
         int format;      ///< Specify a set of BarcodeFormats that should be searched for
         int width;       ///< Image width in pixels
@@ -141,9 +142,11 @@ extern "C"
     {
         bool isValid;  ///< Whether the barcode was successfully encoded
         int format;    ///< The format of the barcode
-        uint8_t* data; ///< The encoded data. Owned pointer. Must be freed by Dart code if not null.
-        int length;    ///< The length of the encoded data
+        uint8_t* data; ///< The encoded data, one byte per pixel. Owned pointer. Must be freed by Dart code if not null.
+        int length;    ///< The length of the encoded data, equal to `width * height`
         char* error;   ///< The error message. Owned pointer. Must be freed by Dart code if not null.
+        int width;     ///< The width of the encoded bitmap in pixels. May be larger than the requested width if the symbol does not fit.
+        int height;    ///< The height of the encoded bitmap in pixels. May differ from the requested height if the symbol does not fit.
     };
 
     /**

@@ -126,13 +126,7 @@ class _DemoPageState extends State<DemoPage> {
                           ? multiResult?.duration ?? 0
                           : result?.duration ?? 0,
                       onReset: _onReset,
-                      imageBytes: !isMultiScan && result?.imageBytes != null
-                          ? pngFromBytes(
-                              result?.imageBytes ?? Uint8List(0),
-                              result?.imageWidth ?? 0,
-                              result?.imageHeight ?? 0,
-                            )
-                          : null,
+                      imageBytes: isMultiScan ? null : _debugImage(result),
                     ),
                 ],
               ),
@@ -162,6 +156,18 @@ class _DemoPageState extends State<DemoPage> {
         ),
       ),
     );
+  }
+
+  /// The image the decoder actually scanned, if `zx.setLogEnabled(true)`
+  /// attached one. Rendered as a grayscale PNG for the debug panel.
+  Uint8List? _debugImage(Code? code) {
+    final bytes = code?.imageBytes;
+    final width = code?.imageWidth ?? 0;
+    final height = code?.imageHeight ?? 0;
+    if (bytes == null || width <= 0 || height <= 0) {
+      return null;
+    }
+    return pngFromBytes(bytes, width, height);
   }
 
   void _onControllerCreated(CameraController? controller, Exception? error) {

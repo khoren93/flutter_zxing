@@ -105,7 +105,7 @@ class _WriterWidgetState extends State<WriterWidget>
                       '${_textController.value.text.length} / ${_codeFormat.maxTextLength}',
                 ),
                 validator: (String? value) {
-                  if (value?.isEmpty ?? false) {
+                  if (value == null || value.trim().isEmpty) {
                     return messages.invalidText;
                   }
                   return null;
@@ -185,7 +185,7 @@ class _WriterWidgetState extends State<WriterWidget>
                       ),
                       validator: (String? value) {
                         final int? width = int.tryParse(value ?? '');
-                        if (width == null) {
+                        if (width == null || width <= 0) {
                           return messages.invalidWidth;
                         }
                         return null;
@@ -210,8 +210,8 @@ class _WriterWidgetState extends State<WriterWidget>
                         labelText: messages.heightLabel,
                       ),
                       validator: (String? value) {
-                        final int? width = int.tryParse(value ?? '');
-                        if (width == null) {
+                        final int? height = int.tryParse(value ?? '');
+                        if (height == null || height <= 0) {
                           return messages.invalidHeight;
                         }
                         return null;
@@ -235,8 +235,8 @@ class _WriterWidgetState extends State<WriterWidget>
                         labelText: messages.marginLabel,
                       ),
                       validator: (String? value) {
-                        final int? width = int.tryParse(value ?? '');
-                        if (width == null) {
+                        final int? margin = int.tryParse(value ?? '');
+                        if (margin == null || margin < 0) {
                           return messages.invalidMargin;
                         }
                         return null;
@@ -281,10 +281,13 @@ class _WriterWidgetState extends State<WriterWidget>
       String? error;
       if (result.isValid && result.data != null) {
         try {
+          // zxing enlarges a symbol that does not fit the requested box, so the
+          // bitmap must be read with the size the encoder reports, not the one
+          // that was asked for -- otherwise the PNG comes out scrambled.
           final Uint8List encodedBytes = pngFromBytes(
             result.data!,
-            width,
-            height,
+            result.width ?? width,
+            result.height ?? height,
           );
           widget.onSuccess?.call(result, encodedBytes);
         } catch (e) {
