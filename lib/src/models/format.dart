@@ -22,6 +22,14 @@ abstract class Format {
   static const int microQRCode = 1 << 16; // Micro QR Code
   static const int rmqrCode = 1 << 17; // Rectangular Micro QR Code
 
+  // Read-only formats: zxing-cpp can detect these but cannot generate them with
+  // the writer this plugin uses, so they are absent from
+  // `CodeFormat.supportedEncodeFormats`.
+  static const int dxFilmEdge = 1 << 18; // DX Film Edge (1D)
+  static const int dataBarLimited = 1 << 19; // GS1 DataBar Limited (1D)
+  static const int telepen = 1 << 20; // Telepen (1D)
+  static const int microPdf417 = 1 << 21; // MicroPDF417 (2D)
+
   static const int linearCodes =
       codabar |
       code39 |
@@ -32,10 +40,20 @@ abstract class Format {
       itf |
       dataBar |
       dataBarExpanded |
+      dataBarLimited |
+      dxFilmEdge |
+      telepen |
       upca |
       upce;
   static const int matrixCodes =
-      aztec | dataMatrix | maxiCode | pdf417 | qrCode | microQRCode | rmqrCode;
+      aztec |
+      dataMatrix |
+      maxiCode |
+      pdf417 |
+      microPdf417 |
+      qrCode |
+      microQRCode |
+      rmqrCode;
   static const int any = linearCodes | matrixCodes;
 }
 
@@ -92,6 +110,10 @@ final Map<int, String> barcodeNames = <int, String>{
   Format.upce: 'UPCE',
   Format.microQRCode: 'Micro QR Code',
   Format.rmqrCode: 'Rectangular Micro QR Code',
+  Format.dxFilmEdge: 'DX Film Edge',
+  Format.dataBarLimited: 'DataBarLimited',
+  Format.telepen: 'Telepen',
+  Format.microPdf417: 'MicroPDF417',
   Format.linearCodes: 'OneD',
   Format.matrixCodes: 'TwoD',
   Format.any: 'Any',
@@ -116,6 +138,10 @@ final Map<int, double> barcodeRatios = <int, double>{
   Format.upce: 1.0 / 1.0, // recommended ratio: 1:1 (square)
   Format.microQRCode: 3.0 / 3.0, // recommended ratio: 3:3 (square)
   Format.rmqrCode: 3.0 / 3.0, // recommended ratio: 3:3 (square)
+  Format.dxFilmEdge: 3.0 / 1.0, // recommended ratio: 3:1
+  Format.dataBarLimited: 3.0 / 1.0, // recommended ratio: 3:1
+  Format.telepen: 3.0 / 1.0, // recommended ratio: 3:1
+  Format.microPdf417: 3.0 / 1.0, // recommended ratio: 3:1
 };
 
 final Map<int, String> barcodeDemoText = <int, String>{

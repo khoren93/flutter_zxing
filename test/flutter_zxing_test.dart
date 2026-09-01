@@ -30,6 +30,10 @@ void main() {
         Format.upce,
         Format.microQRCode,
         Format.rmqrCode,
+        Format.dxFilmEdge,
+        Format.dataBarLimited,
+        Format.telepen,
+        Format.microPdf417,
       ];
       expect(formats.toSet().length, formats.length);
       for (final int format in formats) {
@@ -62,6 +66,17 @@ void main() {
           lessThanOrEqualTo(format.maxTextLength),
           reason: '${format.name} demo text is longer than it can encode',
         );
+      }
+    });
+
+    test('every readable format has a name', () {
+      for (final int format in <int>[
+        Format.dxFilmEdge,
+        Format.dataBarLimited,
+        Format.telepen,
+        Format.microPdf417,
+      ]) {
+        expect(format.name, isNot('Unknown'), reason: 'name for $format');
       }
     });
 

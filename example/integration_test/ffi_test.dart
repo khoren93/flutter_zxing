@@ -112,7 +112,7 @@ void main() async {
 
     // Decode the image (no multiscan)
     final decodeParams = DecodeParams(
-      imageFormat: ImageFormat.rgbx,
+      imageFormat: ImageFormat.rgba,
       format: Format.qrCode,
       width: width,
       height: height,
@@ -130,7 +130,7 @@ void main() async {
 
     // Decode the image (multiscan)
     final decodeParams2 = DecodeParams(
-      imageFormat: ImageFormat.rgbx,
+      imageFormat: ImageFormat.rgba,
       format: Format.qrCode,
       width: width,
       height: height,

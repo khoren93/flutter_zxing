@@ -7,7 +7,10 @@ cmake_minimum_required(VERSION 3.14)
 # Project-level configuration.
 set(PROJECT_NAME "flutter_zxing")
 project(${PROJECT_NAME} LANGUAGES CXX)
-set(CMAKE_CXX_STANDARD 17)
+# zxing-cpp 3.x requires C++20 to build (`std::u8string_view`, `using enum`,
+# concepts). This is set before `add_subdirectory` below, so it also governs the
+# zxing core target, which would otherwise pick its own default.
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Invoke the build for native code shared with the other target platforms.

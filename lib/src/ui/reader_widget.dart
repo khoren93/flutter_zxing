@@ -1038,7 +1038,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
   int _imageFormat(ImageFormatGroup group) {
     switch (group) {
       case ImageFormatGroup.bgra8888:
-        return zxing.ImageFormat.bgrx;
+        return zxing.ImageFormat.bgra;
       case ImageFormatGroup.yuv420:
       case ImageFormatGroup.nv21:
         return zxing.ImageFormat.lum;

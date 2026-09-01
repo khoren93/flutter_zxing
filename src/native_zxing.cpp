@@ -18,6 +18,7 @@
 
 #include "zxcommon.h"
 #include "dart_alloc.h"
+#include "format_bridge.h"
 #include "ReadBarcode.h"
 #include "MultiFormatWriter.h"
 #include "BitMatrix.h"
@@ -25,6 +26,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -117,13 +119,19 @@ CroppedImageView createCroppedImageView(const DecodeBarcodeParams& params)
 
 ReaderOptions createReaderOptions(const DecodeBarcodeParams& params)
 {
+    // `maxNumberOfSymbols` is a `uint8_t` in zxing, so an unclamped `int` from
+    // Dart would wrap around: 256 would ask for no symbol at all.
+    auto maxNumberOfSymbols = static_cast<uint8_t>(
+        std::clamp(params.maxNumberOfSymbols, 1, 255)
+    );
+
     return ReaderOptions()
         .setTryHarder(params.tryHarder)
         .setTryRotate(params.tryRotate)
-        .setFormats(BarcodeFormat(params.format))
+        .setFormats(flutter_zxing::readFormats(params.format))
         .setTryInvert(params.tryInvert)
         .setTryDownscale(params.tryDownscale)
-        .setMaxNumberOfSymbols(params.maxNumberOfSymbols)
+        .setMaxNumberOfSymbols(maxNumberOfSymbols)
         .setReturnErrors(true);
 }
 
@@ -203,14 +211,14 @@ uint8_t* dartLumBytesFromImageView(const ImageView& image)
     return out;
 }
 
-// Construct a `CodeResult` from a zxing barcode decode `Result` from within an image.
+// Construct a `CodeResult` from a zxing `Barcode` decoded from within an image.
 //
 // `width`/`height` are the dimensions of the *full* image and `offsetX`/`offsetY`
 // the origin of the decoded crop within it. zxing reports positions relative to
 // the (possibly cropped) view it was handed, so the offset is added back to make
 // every coordinate refer to the full image the caller passed in.
 CodeResult codeResultFromResult(
-    const Result& result,
+    const Barcode& result,
     int duration,
     int width,
     int height,
@@ -230,7 +238,7 @@ CodeResult codeResultFromResult(
     code.bytes = result.isValid() ? dartBytesFromVector(result.bytes()) : nullptr;
     code.error = result.isValid() ? nullptr : dartCstrFromString(result.error().msg());
     code.length = static_cast<int>(result.bytes().size());
-    code.format = static_cast<int>(result.format());
+    code.format = flutter_zxing::dartFormat(result.format());
     code.pos = Pos{
         width, height,
         tl.x + offsetX, tl.y + offsetY,
@@ -274,8 +282,8 @@ CodeResult _readBarcode(const DecodeBarcodeParams& params) noexcept
         auto start = steady_clock::now();
 
         CroppedImageView cropped = createCroppedImageView(params);
-        ReaderOptions hints = createReaderOptions(params);
-        Result result = ReadBarcode(cropped.image, hints);
+        ReaderOptions options = createReaderOptions(params);
+        Barcode result = ReadBarcode(cropped.image, options);
 
         int duration = elapsed_ms(start);
         platform_log("Read Barcode in: %d ms\n", duration);
@@ -302,8 +310,8 @@ CodeResults _readBarcodes(const DecodeBarcodeParams& params) noexcept
         auto start = steady_clock::now();
 
         CroppedImageView cropped = createCroppedImageView(params);
-        ReaderOptions hints = createReaderOptions(params);
-        Results results = ReadBarcodes(cropped.image, hints);
+        ReaderOptions options = createReaderOptions(params);
+        Barcodes results = ReadBarcodes(cropped.image, options);
 
         int duration = elapsed_ms(start);
         platform_log("Read Barcodes in: %d ms\n", duration);
@@ -346,6 +354,20 @@ CodeResults _readBarcodes(const DecodeBarcodeParams& params) noexcept
     }
 }
 
+// zxing-cpp 3.x deprecated `MultiFormatWriter` in favour of
+// `CreateBarcodeFromText()`. The replacement renders through libzint and brings
+// its own sizing rules -- `margin` collapses into a boolean quiet zone and
+// linear symbols get a height derived from their width -- which would silently
+// change what `EncodeParams` means. Keep the old writer until that migration is
+// made deliberately.
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
+
 EncodeResult _encodeBarcode(const EncodeBarcodeParams& params) noexcept
 {
     // Absolutely ensure we don't unwind across the FFI boundary.
@@ -353,8 +375,13 @@ EncodeResult _encodeBarcode(const EncodeBarcodeParams& params) noexcept
     {
         auto start = steady_clock::now();
 
-        // DataMatrixWriter
-        auto writer = MultiFormatWriter(BarcodeFormat(params.format))
+        BarcodeFormat format = flutter_zxing::writeFormat(params.format);
+        if (format == BarcodeFormat::None)
+        {
+            throw std::invalid_argument("Unsupported barcode format for encoding");
+        }
+
+        auto writer = MultiFormatWriter(format)
            .setMargin(params.margin)
            .setEccLevel(params.eccLevel)
            .setEncoding(CharacterSet::UTF8);
@@ -390,3 +417,9 @@ EncodeResult _encodeBarcode(const EncodeBarcodeParams& params) noexcept
         return result;
     }
 }
+
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif

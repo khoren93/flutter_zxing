@@ -1,5 +1,57 @@
 # Changelog
 
+## 3.0.0
+
+Updates the bundled [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp) from
+v2.3.0 to **v3.1.1** — 633 upstream commits, including a major release that
+reworked the format API. `Format`, `DecodeParams`, `EncodeParams` and `Code` are
+unchanged on the Dart side; the two behaviour changes below are the only ones
+that can affect existing code.
+
+### Breaking
+
+* **UPC-A and UPC-E now decode to 13 digits.** ISO/IEC 15420 requires the `]E0`
+  content to be a 13-digit number, so a UPC-A that used to read as
+  `"725272730706"` now reads as `"0725272730706"`, and a UPC-E that used to read
+  as its 8-digit form is expanded to the equivalent EAN-13. `Code.format` still
+  reports `Format.upca` / `Format.upce`. Strip the leading zero if you need the
+  old form.
+* **Asking for a symbology now also matches its variants.** zxing-cpp 3.x splits
+  formats into symbologies and variants, and a request for the symbology covers
+  all of them. In practice: `Format.qrCode` also detects Micro QR and rMQR
+  symbols (reported as `Format.microQRCode` / `Format.rmqrCode`), and
+  `Format.pdf417` also detects MicroPDF417 (reported as `Format.microPdf417`).
+  Filter on `Code.format` if you need to accept only one of them.
+
+### Added
+
+* Four formats that zxing-cpp can detect but the plugin never exposed:
+  `Format.dxFilmEdge`, `Format.dataBarLimited`, `Format.telepen` and
+  `Format.microPdf417`. All four are read-only, so they are absent from
+  `CodeFormat.supportedEncodeFormats`, and all four are part of
+  `Format.any`.
+* `ImageFormat.lumA`, for 8-bit grayscale with an alpha byte.
+
+### Changed
+
+* `ImageFormat.rgbx`, `.xrgb`, `.bgrx` and `.xbgr` follow the upstream rename to
+  `.rgba`, `.argb`, `.bgra` and `.abgr`. The old names still work and keep their
+  values, but are deprecated.
+* Detection quality and speed from upstream: better Aztec and DataMatrix
+  detectors, improved QR Code detection (notably Version 1 and multiple small
+  symbols in one frame), and 10–40% faster scanning on ARM.
+* The Android NDK is no longer pinned to 27.0.12077973. That pin existed because
+  zxing-cpp v2.3.0 could not compile against the libc++ in NDK 28+; v3.1.1 can,
+  and the plugin now builds with NDK 27, 28 and 29.
+* Windows builds as C++20, which zxing-cpp 3.x requires.
+
+### Fixed
+
+* `DecodeParams.maxNumberOfSymbols` is clamped to 1–255. zxing takes a
+  `uint8_t`, so a larger value silently wrapped — 256 asked for no symbols at
+  all.
+* Upstream fix for an out-of-bounds read in the MicroPDF417 decoder.
+
 ## 2.4.0
 
 Bug-fix and correctness release. Every fix below is covered by the unit tests in

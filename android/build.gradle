@@ -29,11 +29,6 @@ android {
     // Keep in step with the Flutter SDK default so apps do not fail to build
     // with "dependency requires a higher compileSdk".
     compileSdk 36
-    // Pinned deliberately: zxing-cpp v2.3.0 does not compile with the libc++
-    // that ships in NDK 28+, which dropped `std::char_traits<unsigned char>`
-    // (`Utf.cpp` instantiates `std::basic_string_view<unsigned char>`).
-    // Bumping this requires updating the `src/zxing` submodule first.
-    ndkVersion "27.0.12077973"
 
     externalNativeBuild {
         cmake {

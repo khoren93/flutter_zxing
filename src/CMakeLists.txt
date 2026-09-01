@@ -6,10 +6,15 @@ add_library(
     flutter_zxing
     SHARED
     zxcommon.cpp
+    format_bridge.cpp
     native_zxing.cpp
 )
 
-set (ZXING_WRITERS ON)
+# zxing-cpp 3.x redefined this option: `ON` now selects the *new*, libzint based
+# writer backend, where it used to mean `MultiFormatWriter`. `BOTH` builds both,
+# so `encodeBarcode` can keep using `MultiFormatWriter` while the new
+# `CreateBarcodeFromText` API stays available for the formats it cannot write.
+set (ZXING_WRITERS BOTH)
 
 add_subdirectory(zxing/core EXCLUDE_FROM_ALL)
 
@@ -20,15 +25,12 @@ if (ANDROID)
     find_library(log-lib log)
     target_link_libraries(flutter_zxing ${log-lib})
 
-    # The max-page-size linker option is required to enable support for 16KB page
-    # size on Android with NDK 27.x, which is what this plugin pins (NDK 28+
-    # cannot build zxing-cpp v2.3.0 -- see android/build.gradle). NDK 28+
-    # defaults to 16KB, where this option is simply a no-op, so it is also safe
-    # for anyone overriding the NDK version.
+    # Required for 16KB page size support on NDK 27.x. NDK 28+ already defaults
+    # to 16KB, where this option is simply a no-op, so it is safe either way.
     target_link_options(flutter_zxing PRIVATE "-Wl,-z,max-page-size=16384")
 endif (ANDROID)
 
 # Command to update zxing submodule
 # cd src/zxing
-# git checkout v2.2.0
+# git checkout v3.1.1
 # git submodule update --init --recursive

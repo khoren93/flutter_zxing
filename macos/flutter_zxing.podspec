@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'flutter_zxing'
-  s.version          = '2.4.0'
+  s.version          = '3.0.0'
   s.summary          = 'A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing.'
   s.description      = <<-DESC
 A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing.
@@ -26,6 +26,13 @@ A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
   s.swift_version = '5.0'
 
+  # zxing-cpp expects ZXING_INTERNAL while its own sources are being compiled.
+  # ZXING_READERS / ZXING_WRITERS / ZXING_USE_ZINT and the ZXING_ENABLE_*
+  # switches come from the Version.h that scripts/update_ios_macos_src.sh
+  # generates, so they must not be repeated here. ZINT_NO_PNG matches the
+  # COMPILE_OPTIONS the zxing CMake build sets on the bundled libzint sources.
+  s.compiler_flags = ['-DZXING_INTERNAL', '-DZINT_NO_PNG']
+
   # zxing-cpp guards internal invariants with `assert`, which aborts a shipped
   # app when one trips. Compile them out for non-debug builds, matching the
   # CMake release build used on the other platforms.
@@ -36,6 +43,8 @@ A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing
 
   s.xcconfig = {
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20',
+    # <zint.h>, included by CreateBarcode.cpp and WriteBarcode.cpp
+    'HEADER_SEARCH_PATHS' => '$(inherited) "$(PODS_TARGET_SRCROOT)/flutter_zxing/Sources/flutter_zxing/src/zxing/libzint"',
   }
 
   s.library = 'c++'

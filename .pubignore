@@ -36,3 +36,13 @@ src/zxing/*
 !src/zxing/CMakeLists.txt
 !src/zxing/zxing.cmake
 !src/zxing/core/
+
+# core/src/libzint is a set of one-line forwarders into the nested `zint`
+# submodule, so its backend has to ship as well for the CMake platforms to
+# build. Its tests and tools are 13 MB of fixtures we never compile.
+!src/zxing/zint/
+src/zxing/zint/*
+!src/zxing/zint/LICENSE
+!src/zxing/zint/backend/
+src/zxing/zint/backend/tests/
+src/zxing/zint/backend/tools/

@@ -47,7 +47,7 @@ jobs:
   build-example:
     name: 'Build example (${{ matrix.target }}, ${{ matrix.os }})'
     runs-on: ${{ matrix.os }}-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -133,7 +133,7 @@ jobs:
   test-example:
     name: 'Test example (${{ matrix.target }}, ${{ matrix.os }})'
     runs-on: ${{ matrix.os }}-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -207,7 +207,7 @@ jobs:
   test-example-android:
     name: 'Test example on Android API level ${{ matrix.api-level }}'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:

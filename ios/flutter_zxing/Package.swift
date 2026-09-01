@@ -27,8 +27,22 @@ let package = Package(
                 .product(name: "FlutterFramework", package: "FlutterFramework")
             ],
             publicHeadersPath: "src",
+            cSettings: [
+                // libzint, the backend behind zxing-cpp's writer API. Matches
+                // the COMPILE_OPTIONS the zxing CMake build sets on these files.
+                .define("ZINT_NO_PNG"),
+                .define("NDEBUG", .when(configuration: .release)),
+                .headerSearchPath("src"),
+                .headerSearchPath("src/zxing"),
+                .headerSearchPath("src/zxing/libzint"),
+            ],
             cxxSettings: [
-                .define("ZXING_READERS"),
+                // ZXING_READERS / ZXING_WRITERS / ZXING_USE_ZINT and the
+                // ZXING_ENABLE_* switches come from the Version.h that
+                // scripts/update_ios_macos_src.sh generates, so they must not be
+                // repeated here. ZXING_INTERNAL is the one zxing-cpp expects to
+                // be set while building the library itself.
+                .define("ZXING_INTERNAL"),
                 // zxing-cpp guards internal geometry invariants with `assert`,
                 // which aborts the whole app when one trips on an awkward
                 // frame -- for example
@@ -40,6 +54,8 @@ let package = Package(
                 .define("NDEBUG", .when(configuration: .release)),
                 .headerSearchPath("src"),
                 .headerSearchPath("src/zxing"),
+                // <zint.h>, included by CreateBarcode.cpp and WriteBarcode.cpp
+                .headerSearchPath("src/zxing/libzint"),
             ],
             linkerSettings: [
                 .linkedLibrary("c++")

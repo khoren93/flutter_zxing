@@ -50,15 +50,20 @@ Flutter ZXing is a high-performance Flutter plugin for scanning and generating Q
 
 ## Supported Formats
 
-| Linear product | Linear industrial | Matrix             |
-|----------------|-------------------|--------------------|
-| UPC-A          | Code 39           | QR Code            |
-| UPC-E          | Code 93           | Micro QR Code      |
-| EAN-8          | Code 128          | rMQR Code          |
-| EAN-13         | Codabar           | Aztec              |
-| DataBar        | DataBar Expanded  | DataMatrix         |
-|                | ITF               | PDF417             |
-|                |                   | MaxiCode (partial) |
+| Linear product    | Linear industrial | Matrix             |
+|-------------------|-------------------|--------------------|
+| UPC-A             | Code 39           | QR Code            |
+| UPC-E             | Code 93           | Micro QR Code ᴿ    |
+| EAN-8             | Code 128          | rMQR Code ᴿ        |
+| EAN-13            | Codabar           | Aztec              |
+| DataBar           | DataBar Expanded  | DataMatrix         |
+| DataBar Limited ᴿ | ITF               | PDF417             |
+|                   | Telepen ᴿ         | MicroPDF417 ᴿ      |
+|                   | DX Film Edge ᴿ    | MaxiCode ᴿ         |
+
+> ᴿ read only — these can be scanned but not generated.
+
+Powered by [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp) v3.1.1.
 
 ---
 
