@@ -4,10 +4,12 @@
 /// (android, macos, ios, linux, windows) end-to-end.
 library;
 
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart'
     show expect, group, isNot, isNotNull, isTrue, lessThan, setUpAll, test;
+import 'package:image/image.dart' as imglib;
 import 'package:flutter_zxing/flutter_zxing.dart'
     show
         Code,
@@ -342,6 +344,123 @@ void main() async {
     } finally {
       zx.setLogEnabled(false);
     }
+  });
+
+  group('reading barcodes from image files', () {
+    // A QR code rendered into a file, in a variety of pixel layouts. Sub-byte
+    // and palette images store far fewer bytes than `width * height * 3`, so
+    // handing their raw buffer to the decoder as RGB used to read past the end
+    // of the allocation (a hard crash on Windows).
+    late Directory dir;
+    late imglib.Image symbol;
+
+    setUpAll(() {
+      dir = Directory.systemTemp.createTempSync('flutter_zxing_test');
+      final enc = zx.encodeBarcode(
+        contents: 'file scan',
+        params: EncodeParams(format: Format.qrCode, width: 120, height: 120),
+      );
+      expect(enc.isValid, isTrue);
+      symbol = imglib.Image(width: enc.width!, height: enc.height!);
+      for (var y = 0; y < enc.height!; y++) {
+        for (var x = 0; x < enc.width!; x++) {
+          final v = enc.data![y * enc.width! + x];
+          symbol.setPixelRgb(x, y, v, v, v);
+        }
+      }
+    });
+
+    Future<void> expectScans(String name, List<int> bytes) async {
+      final file = File('${dir.path}/$name');
+      file.writeAsBytesSync(bytes);
+
+      final code = await zx.readBarcodeImagePathString(
+        file.path,
+        DecodeParams(format: Format.qrCode),
+      );
+      expect(code.isValid, isTrue, reason: '$name: ${code.error}');
+      expect(code.text, 'file scan', reason: name);
+      expect(code.source, CodeSource.localImageFile, reason: name);
+
+      final codes = await zx.readBarcodesImagePathString(
+        file.path,
+        DecodeParams(format: Format.qrCode),
+      );
+      expect(codes.codes.length, 1, reason: name);
+      expect(codes.codes.first.text, 'file scan', reason: name);
+    }
+
+    test('png (rgb)', () => expectScans('rgb.png', imglib.encodePng(symbol)));
+
+    test(
+      'png (grayscale)',
+      () => expectScans(
+        'gray.png',
+        imglib.encodePng(
+          symbol.convert(format: imglib.Format.uint8, numChannels: 1),
+        ),
+      ),
+    );
+
+    test(
+      'png (1 bit)',
+      () => expectScans(
+        'bw.png',
+        imglib.encodePng(
+          symbol.convert(format: imglib.Format.uint1, numChannels: 1),
+        ),
+      ),
+    );
+
+    test(
+      'png (16 bit)',
+      () => expectScans(
+        'deep.png',
+        imglib.encodePng(
+          symbol.convert(format: imglib.Format.uint16, numChannels: 3),
+        ),
+      ),
+    );
+
+    test(
+      'gif (palette)',
+      () => expectScans(
+        'palette.gif',
+        imglib.encodeGif(symbol.convert(numChannels: 3, withPalette: true)),
+      ),
+    );
+
+    test('jpg', () => expectScans('symbol.jpg', imglib.encodeJpg(symbol)));
+
+    test('bmp', () => expectScans('symbol.bmp', imglib.encodeBmp(symbol)));
+
+    test('a file that is not an image reports an error', () async {
+      final file = File('${dir.path}/not-an-image.png');
+      file.writeAsBytesSync(<int>[1, 2, 3, 4, 5]);
+
+      final code = await zx.readBarcodeImagePathString(
+        file.path,
+        DecodeParams(),
+      );
+      expect(code.isValid, false);
+      expect(code.error, isNotNull);
+
+      final codes = await zx.readBarcodesImagePathString(
+        file.path,
+        DecodeParams(),
+      );
+      expect(codes.codes, <Code>[]);
+      expect(codes.error, isNotNull);
+    });
+
+    test('a missing file reports an error', () async {
+      final code = await zx.readBarcodeImagePathString(
+        '${dir.path}/nope.png',
+        DecodeParams(),
+      );
+      expect(code.isValid, false);
+      expect(code.error, isNotNull);
+    });
   });
 
   test('decoding duration is measured', () {

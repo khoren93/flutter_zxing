@@ -49,6 +49,10 @@ class IsolateUtils {
 
   Future<void>? _starting;
 
+  /// Set by [stopReadingBarcode]. A spawn that is still in flight at that point
+  /// has to kill its isolate once it lands, or the worker outlives its owner.
+  bool _stopped = false;
+
   /// Requests that have been sent but not answered yet. Tracked so that
   /// stopping the isolate can fail them instead of leaving their callers
   /// waiting forever on an isolate that no longer exists.
@@ -63,13 +67,23 @@ class IsolateUtils {
   Future<void> _start() async {
     final ReceivePort receivePort = ReceivePort();
     _receivePort = receivePort;
+    _stopped = false;
     try {
-      _isolate = await Isolate.spawn<SendPort>(
+      final Isolate isolate = await Isolate.spawn<SendPort>(
         readBarcodeEntryPoint,
         receivePort.sendPort,
         debugName: kDebugName,
       );
+      if (_stopped) {
+        isolate.kill(priority: Isolate.immediate);
+        receivePort.close();
+        return;
+      }
+      _isolate = isolate;
       _sendPort = await receivePort.first as SendPort;
+      if (_stopped) {
+        stopReadingBarcode();
+      }
     } catch (_) {
       // `first` closes the port on success; on failure we have to close it
       // ourselves or the isolate handshake port leaks.
@@ -82,6 +96,7 @@ class IsolateUtils {
   }
 
   void stopReadingBarcode() {
+    _stopped = true;
     _isolate?.kill(priority: Isolate.immediate);
     _isolate = null;
     _sendPort = null;

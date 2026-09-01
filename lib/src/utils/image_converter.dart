@@ -83,8 +83,23 @@ imglib.Image resizeToMaxSize(imglib.Image image, int? maxSize) {
   );
 }
 
+/// Returns [image] as a tightly packed 8-bit RGB buffer of
+/// `width * height * 3` bytes.
+///
+/// [imglib.Image.getBytes] hands back the image's own storage, which for a
+/// palette image, a 1/2/4-bit image or a 16-bit image is not 8-bit RGB and can
+/// be a small fraction of the expected size — a 1-bit PNG stores 8 pixels per
+/// byte. Passing such a buffer to the decoder while telling it the image is RGB
+/// makes it read far past the end of the allocation. Convert first so the
+/// buffer always matches the dimensions the decoder is given.
 Uint8List rgbBytes(imglib.Image image) {
-  return image.getBytes(order: imglib.ChannelOrder.rgb);
+  final imglib.Image rgb =
+      image.hasPalette ||
+          image.format != imglib.Format.uint8 ||
+          image.numChannels < 3
+      ? image.convert(format: imglib.Format.uint8, numChannels: 3)
+      : image;
+  return rgb.getBytes(order: imglib.ChannelOrder.rgb);
 }
 
 /// Encodes a single-channel (grayscale) buffer as a PNG.

@@ -255,8 +255,17 @@ class _ReaderWidgetState extends State<ReaderWidget>
   }
 
   Future<void> initStateAsync() async {
+    // Warm up the decoding isolate, but do not make the camera wait on it: the
+    // two are independent, and if spawning the isolate is slow or fails the
+    // preview must still come up rather than staying black forever. Frames that
+    // arrive before it is ready are skipped and the next one is scanned.
+    unawaited(
+      zx.startCameraProcessing().catchError((Object e) {
+        debugPrint('flutter_zxing: failed to start camera processing: $e');
+      }),
+    );
+
     try {
-      await zx.startCameraProcessing();
       final List<CameraDescription> cameras = await availableCameras();
 
       if (!mounted) {
@@ -274,6 +283,12 @@ class _ReaderWidgetState extends State<ReaderWidget>
       }
     } catch (e) {
       debugPrint('initStateAsync error: $e');
+      if (mounted) {
+        widget.onControllerCreated?.call(
+          null,
+          e is Exception ? e : Exception(e.toString()),
+        );
+      }
     }
   }
 
@@ -308,7 +323,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
       _initializationCompleter!.complete();
     }
 
-    _stopCamera();
+    // Not awaited: `dispose` is synchronous. `_disposeController` stops the
+    // image stream itself, so calling `_stopCamera` here too would only race it.
     _disposeController();
     zx.stopCameraProcessing();
     WidgetsBinding.instance.removeObserver(this);
@@ -322,7 +338,18 @@ class _ReaderWidgetState extends State<ReaderWidget>
     }
   }
 
-  Future<void> _disposeController() async {
+  /// How long each step of tearing a controller down may take before it is
+  /// abandoned. Disposal blocks opening the next camera, so it must not be able
+  /// to wait forever on an unresponsive platform.
+  static const Duration _teardownTimeout = Duration(seconds: 2);
+
+  /// Tears down the current controller.
+  ///
+  /// Pass `notify: true` from anywhere except [dispose]: `CameraPreview`
+  /// subscribes to the controller through a `ValueListenableBuilder`, and that
+  /// subscription has to leave the tree before the controller dies. See the
+  /// comment on the `setState` below.
+  Future<void> _disposeController({bool notify = false}) async {
     final CameraController? oldController = controller;
 
     if (oldController != null) {
@@ -334,26 +361,55 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
       oldController.removeListener(rebuildOnMount);
 
+      // `CameraPreview` renders through a `ValueListenableBuilder` bound to the
+      // controller. `stopImageStream()` below writes to `controller.value`,
+      // which marks that builder dirty; the controller is then disposed before
+      // the scheduled frame runs, and the rebuild calls `buildPreview()` on a
+      // dead controller:
+      //
+      //   CameraException(Disposed CameraController, buildPreview() was called
+      //   on a disposed CameraController.)
+      //
+      // Rebuilding here fixes that: this element sits above the builder, and a
+      // frame flushes dirty elements from the top down, so the preview (and the
+      // subscription it holds) is unmounted before the builder's own pending
+      // rebuild can run. Without it nothing marks this widget dirty at all,
+      // since `controller` is mutated outside of `setState`.
+      //
+      // During `dispose()` the element is already being torn down, so
+      // `setState` is neither needed nor allowed there.
+      if (notify && mounted) {
+        setState(() {});
+      }
+
       // Stop the image stream, retrying briefly: the platform side may still be
       // delivering a frame and reject the first attempt.
+      //
+      // Every step is bounded by a timeout. A platform that never answers must
+      // not wedge teardown: `onNewCameraSelected` waits for this to finish
+      // before opening the next camera, so a hang here leaves the widget with
+      // no camera at all and no way to recover.
       const int stopStreamAttempts = 5;
-      if (oldController.value.isStreamingImages) {
-        for (int i = 0; i < stopStreamAttempts; i++) {
-          try {
-            await oldController.stopImageStream();
+      for (int i = 0; i < stopStreamAttempts; i++) {
+        // Re-checked every round: a call that timed out may still have stopped
+        // the stream, and retrying then only raises "no camera is streaming".
+        if (!oldController.value.isStreamingImages) {
+          break;
+        }
+        try {
+          await oldController.stopImageStream().timeout(_teardownTimeout);
+          break;
+        } catch (e) {
+          if (i == stopStreamAttempts - 1) {
+            debugPrint('_disposeController stopImageStream error: $e');
             break;
-          } catch (e) {
-            if (i == stopStreamAttempts - 1) {
-              debugPrint('_disposeController stopImageStream error: $e');
-              break;
-            }
-            await Future<void>.delayed(const Duration(milliseconds: 50));
           }
+          await Future<void>.delayed(const Duration(milliseconds: 50));
         }
       }
 
       try {
-        await oldController.dispose();
+        await oldController.dispose().timeout(_teardownTimeout);
       } catch (e) {
         debugPrint('_disposeController dispose error: $e');
       }
@@ -393,7 +449,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
     _isInitializing = true;
     _initializationCompleter = Completer<void>();
 
-    await _disposeController();
+    await _disposeController(notify: true);
 
     // Reset processing state and create new version
     _isProcessing = false;
@@ -530,8 +586,14 @@ class _ReaderWidgetState extends State<ReaderWidget>
                 .round()
                 .clamp(0, image.height - cropSize);
 
+        final int imageFormat = _imageFormat(image.format.group);
+        if (imageFormat == zxing.ImageFormat.none) {
+          _reportUnscannableFormat(image.format.group);
+          return;
+        }
+
         final DecodeParams params = DecodeParams(
-          imageFormat: _imageFormat(image.format.group),
+          imageFormat: imageFormat,
           format: widget.codeFormat,
           width: image.width,
           height: image.height,
@@ -859,6 +921,31 @@ class _ReaderWidgetState extends State<ReaderWidget>
       case FlashMode.auto:
         return widget.flashAutoIcon;
     }
+  }
+
+  /// Camera frame layouts already reported as unscannable, so the warning is
+  /// logged once per layout instead of once per frame.
+  final Set<ImageFormatGroup> _reportedUnscannableFormats =
+      <ImageFormatGroup>{};
+
+  /// Reports a camera frame layout the decoder cannot read.
+  ///
+  /// Without this the scanner just returns nothing, forever, with no error --
+  /// the hardest kind of failure to diagnose from a bug report.
+  void _reportUnscannableFormat(ImageFormatGroup group) {
+    if (_reportedUnscannableFormats.add(group)) {
+      debugPrint(
+        'flutter_zxing: this camera delivers $group frames, which cannot be '
+        'scanned as raw pixels. Pass a CameraController configured with '
+        'ImageFormatGroup.yuv420 (Android) or ImageFormatGroup.bgra8888 (iOS).',
+      );
+    }
+    widget.onScanFailure?.call(
+      Code(
+        error: 'Unsupported camera image format: $group',
+        source: CodeSource.camera,
+      ),
+    );
   }
 
   /// Maps a camera frame layout onto the pixel format the decoder is handed.

@@ -29,6 +29,15 @@ let package = Package(
             publicHeadersPath: "src",
             cxxSettings: [
                 .define("ZXING_READERS"),
+                // zxing-cpp guards internal geometry invariants with `assert`,
+                // which aborts the whole app when one trips on an awkward
+                // frame -- for example
+                // "Assertion failed: (l1.isValid() && l2.isValid()), function
+                // intersect, file RegressionLine.h". A library must not take a
+                // shipped app down over that, so release builds compile the
+                // asserts out, exactly as the CMake release build does for
+                // Android, Linux and Windows. Debug builds keep them.
+                .define("NDEBUG", .when(configuration: .release)),
                 .headerSearchPath("src"),
                 .headerSearchPath("src/zxing"),
             ],

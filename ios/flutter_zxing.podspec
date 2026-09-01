@@ -21,6 +21,14 @@ A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
   s.swift_version = '5.0'
 
+  # zxing-cpp guards internal invariants with `assert`, which aborts a shipped
+  # app when one trips. Compile them out for non-debug builds, matching the
+  # CMake release build used on the other platforms.
+  s.pod_target_xcconfig = s.pod_target_xcconfig.merge({
+    'GCC_PREPROCESSOR_DEFINITIONS[config=Release]' => '$(inherited) NDEBUG=1',
+    'GCC_PREPROCESSOR_DEFINITIONS[config=Profile]' => '$(inherited) NDEBUG=1',
+  })
+
   s.xcconfig = { 
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20',
   }

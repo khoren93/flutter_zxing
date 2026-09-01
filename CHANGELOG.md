@@ -7,6 +7,46 @@ Bug-fix and correctness release. Every fix below is covered by the unit tests in
 
 ### Fixed
 
+* **Reading some image files crashed the app (#213).** `rgbBytes` handed the
+  decoder the image's own storage, which for a palette, 1/2/4-bit or 16-bit
+  image is not 8-bit RGB and is a fraction of `width * height * 3` — a 1-bit PNG
+  packs eight pixels per byte. The decoder then read far past the end of the
+  allocation (`EXCEPTION_ACCESS_VIOLATION_READ` on Windows). Such images are now
+  converted first, so they scan instead of crashing.
+* **A corrupt or truncated image file threw instead of reporting an error.**
+  `decodeImage` probes each format in turn and a malformed file can make one of
+  those probes throw rather than decline.
+* **iOS/macOS release builds could abort inside zxing (#237).** The Swift
+  Package Manager build never defined `NDEBUG`, so zxing's internal
+  `assert`s stayed live in shipped apps — `Assertion failed: (l1.isValid() &&
+  l2.isValid()), function intersect, file RegressionLine.h`. Release and profile
+  builds now compile them out, matching the CMake build used elsewhere. Debug
+  builds keep the asserts.
+* **Scanning silently never succeeded on some Android devices (#197).** CameraX
+  reports the device's actual frame layout, and on some devices that is NV21;
+  `ReaderWidget` mapped NV21 to `ImageFormat.rgb`, so the luminance plane was
+  decoded as RGB and nothing ever matched — with no error to show for it. A
+  frame layout that cannot be scanned at all is now reported through
+  `onScanFailure` and logged, instead of failing silently forever.
+* **`CameraPreview` could be rebuilt against a disposed controller (#238, #212,
+  #204).** `CameraPreview` renders through a `ValueListenableBuilder` bound to
+  the controller, and nothing marked the widget dirty when the controller was
+  swapped, so the preview stayed subscribed to a controller that was about to be
+  disposed and the pending rebuild called `buildPreview()` on it.
+* **A wedged camera teardown left the widget with no camera at all.** Stopping
+  the image stream and disposing the controller are now bounded by a timeout;
+  previously an unresponsive platform call blocked the next camera from opening,
+  with no way to recover.
+* **A device without a torch aborted camera setup (#219).** Verified by a new
+  widget test: `setFlashMode` failing now hides the flash button and leaves the
+  camera running.
+* **A failure to start the decoding isolate left the preview black forever.**
+  Camera setup no longer waits on the isolate, and errors from either are
+  reported through `onControllerCreated` instead of being swallowed.
+* **`type 'ArgumentError' is not a subtype of type 'Code'` (#221).** Errors
+  raised inside the decoding isolate — including the missing-native-library
+  error behind that report — were sent back raw and then cast to `Code`. The
+  real error is now rethrown with its own message.
 * **Generated barcodes could come out scrambled.** zxing enlarges a symbol that
   does not fit the requested box (a long Code128 asked for 240x120 is emitted at
   915x120), but the encoder only returned the pixel buffer, so it was rendered
@@ -92,7 +132,10 @@ Bug-fix and correctness release. Every fix below is covered by the unit tests in
 * README: every code sample was corrected -- none of them compiled against the
   real API -- and the platform minimums now match the build files.
 * Replaced the empty unit-test file with real coverage, and extended the FFI
-  integration tests to cover the fixes above.
+  integration tests to cover the fixes above, including reading a barcode from
+  PNG (8-bit, grayscale, 1-bit, 16-bit), GIF, JPEG and BMP files.
+* Added widget tests for the camera lifecycle — start-up, switching cameras,
+  disposal and devices without a torch — driven by a fake camera platform.
 
 ## 2.3.1
 

@@ -192,6 +192,106 @@ void main() {
     });
   });
 
+  group('rgbBytes', () {
+    // The decoder is told the buffer is `width * height * 3` bytes of RGB.
+    // `Image.getBytes` returns the image's own storage, which for palette,
+    // sub-byte and 16-bit images is nothing of the sort -- a 1-bit PNG packs
+    // eight pixels into one byte -- so handing it over unconverted makes the
+    // decoder read past the end of the allocation.
+    void expectRgbSized(String label, imglib.Image image) {
+      expect(
+        rgbBytes(image).length,
+        image.width * image.height * 3,
+        reason: label,
+      );
+    }
+
+    test('is width * height * 3 for every in-memory pixel layout', () {
+      expectRgbSized(
+        'grayscale',
+        imglib.Image(width: 8, height: 4, numChannels: 1),
+      );
+      expectRgbSized(
+        'gray+alpha',
+        imglib.Image(width: 8, height: 4, numChannels: 2),
+      );
+      expectRgbSized('rgb', imglib.Image(width: 8, height: 4));
+      expectRgbSized('rgba', imglib.Image(width: 8, height: 4, numChannels: 4));
+      expectRgbSized(
+        '1 bit',
+        imglib.Image(
+          width: 8,
+          height: 4,
+          numChannels: 1,
+          format: imglib.Format.uint1,
+        ),
+      );
+      expectRgbSized(
+        '4 bit',
+        imglib.Image(width: 8, height: 4, format: imglib.Format.uint4),
+      );
+      expectRgbSized(
+        '16 bit',
+        imglib.Image(width: 8, height: 4, format: imglib.Format.uint16),
+      );
+      expectRgbSized(
+        'palette',
+        imglib.Image(width: 8, height: 4, withPalette: true),
+      );
+    });
+
+    test('is width * height * 3 for every decoded file format', () {
+      final imglib.Image src = imglib.Image(width: 9, height: 5);
+      final Map<String, List<int>> files = <String, List<int>>{
+        'png': imglib.encodePng(src),
+        'jpg': imglib.encodeJpg(src),
+        'bmp': imglib.encodeBmp(src),
+        'tga': imglib.encodeTga(src),
+        'png grayscale': imglib.encodePng(
+          imglib.Image(width: 9, height: 5, numChannels: 1),
+        ),
+        'png rgba': imglib.encodePng(
+          imglib.Image(width: 9, height: 5, numChannels: 4),
+        ),
+        'png 1 bit': imglib.encodePng(
+          imglib.Image(
+            width: 9,
+            height: 5,
+            numChannels: 1,
+            format: imglib.Format.uint1,
+          ),
+        ),
+        'png 16 bit': imglib.encodePng(
+          imglib.Image(width: 9, height: 5, format: imglib.Format.uint16),
+        ),
+        'gif palette': imglib.encodeGif(
+          imglib.Image(width: 9, height: 5, withPalette: true),
+        ),
+      };
+
+      for (final MapEntry<String, List<int>> file in files.entries) {
+        final imglib.Image? decoded = imglib.decodeImage(
+          Uint8List.fromList(file.value),
+        );
+        expect(decoded, isNotNull, reason: file.key);
+        expectRgbSized(file.key, decoded!);
+      }
+    });
+
+    test('preserves the pixels of a black and white image', () {
+      final imglib.Image image = imglib.Image(
+        width: 2,
+        height: 1,
+        numChannels: 1,
+        format: imglib.Format.uint1,
+      );
+      image.setPixelRgb(0, 0, 0, 0, 0);
+      image.setPixelRgb(1, 0, 1, 1, 1);
+
+      expect(rgbBytes(image), <int>[0, 0, 0, 255, 255, 255]);
+    });
+  });
+
   group('pngFromBytes', () {
     test('encodes a grayscale buffer into a decodable PNG', () {
       final Uint8List bytes = Uint8List.fromList(<int>[0, 255, 255, 0]);
