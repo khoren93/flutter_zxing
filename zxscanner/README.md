@@ -4,17 +4,23 @@
   <img src="https://user-images.githubusercontent.com/11523360/178162663-57ec28ac-7075-43ab-ac31-35058298c73e.png" alt="ZXScanner logo" height="100" >
 </p>
 
-<p align="center">
-  <a href="https://apps.apple.com/am/app/zxscanner/id1629106248">
-    <img alt="Download on the App Store" title="App Store" src="https://user-images.githubusercontent.com/11523360/178162313-182568ae-c9a2-48bd-9a51-883562788d9e.png" height="50">
-  </a>
-  
-  <a href="https://play.google.com/store/apps/details?id=com.markosyan.zxscanner">
-    <img alt="Download on the Google Play" title="Google Play" src="https://user-images.githubusercontent.com/11523360/178162318-533a29de-750f-4d4b-b117-f3d01c2c9340.png" height="50">
-  </a>
-</p>
-
 ZXScanner is a free QR code and barcode scanner app for Android and iOS. It is built using Flutter and the [flutter_zxing](https://github.com/khoren93/flutter_zxing) plugin.
+
+> **Note:** ZXScanner is not currently published on the App Store or Google Play.
+> Build it from source to try it out.
+
+## Running the app
+
+From the repository root:
+
+```bash
+melos bootstrap
+cd zxscanner
+flutter run
+```
+
+On iOS and macOS, run `./scripts/update_ios_macos_src.sh` from the repository
+root first, so the native zxing-cpp sources are in place.
 
 ## Demo Screenshots
 

@@ -43,6 +43,13 @@ Bug-fix and correctness release. Every fix below is covered by the unit tests in
 * **A failure to start the decoding isolate left the preview black forever.**
   Camera setup no longer waits on the isolate, and errors from either are
   reported through `onControllerCreated` instead of being swallowed.
+* **Reopening the scanner could leave it with no camera (#160, #179, #163,
+  #153).** After `initialize()`, `getMaxZoomLevel()` was the one unguarded
+  platform call, and several awaits ran before it. If the controller was
+  disposed or replaced in that window it threw `Uninitialized CameraController`,
+  which aborted the rest of setup. Every step now re-checks that the controller
+  is still current, and a failing zoom query falls back to no zoom instead of
+  taking camera setup down with it.
 * **The crop overlay was drawn against the screen, not the widget (#196).**
   `ReaderWidget` sized its preview and cut-out from `MediaQuery.size`, so any
   instance that is not full screen — inside a `SizedBox`, or a `Scaffold` body
@@ -141,6 +148,12 @@ Bug-fix and correctness release. Every fix below is covered by the unit tests in
   which nothing in this plugin could work around.
 * `Code.imageBytes` is documented: it is the luminance the decoder scanned,
   cropped to the scan rect, and only populated while logging is enabled (#207).
+* `cropPercent` is documented as the fraction of the frame that is *kept*, not
+  the fraction cropped away (#151).
+* The zoom level is reset when switching cameras, instead of carrying the
+  previous camera's factor over to one that may not support it.
+* ZXScanner's README no longer links to App Store and Google Play pages that
+  return 404; it explains how to build the app from source instead (#180).
 * Android `compileSdk` raised to 36 and Java compatibility to 11, matching the
   current Flutter defaults. The NDK stays pinned to 27.0.12077973, which is
   required: zxing-cpp v2.3.0 does not build against the libc++ in NDK 28+.

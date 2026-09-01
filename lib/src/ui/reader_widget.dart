@@ -158,7 +158,16 @@ class ReaderWidget extends StatefulWidget {
   /// Delay between scans when no code is detected
   final Duration scanDelay;
 
-  /// Crop percent of the screen, will be ignored if isMultiScan is true
+  /// How much of the frame is scanned, as a fraction that is **kept** — not
+  /// the fraction cropped away.
+  ///
+  /// `0.5` (the default) scans a centred square half the size of the shorter
+  /// side; `1.0` scans the largest centred square that fits; `0` disables
+  /// cropping and scans the whole frame. Smaller values are faster and reject
+  /// codes near the edges, larger values are more forgiving.
+  ///
+  /// Ignored when scanning in multi-scan mode, which always uses the whole
+  /// frame.
   final double cropPercent;
 
   /// Move the crop rect vertically, using a value from -1 (top) to 1 (bottom); ignored if [isMultiScan] is true
@@ -474,9 +483,21 @@ class _ReaderWidgetState extends State<ReaderWidget>
     );
     controller = cameraController;
 
+    // True while `cameraController` is still the controller this widget is
+    // using, and this call is still the most recent selection.
+    bool isCurrent() =>
+        mounted &&
+        identical(controller, cameraController) &&
+        _controllerVersion == currentVersion;
+
     try {
       await cameraController.initialize();
-      if (!mounted) {
+      // The controller can be disposed or replaced while any of the awaits in
+      // this method are in flight -- a lifecycle change, a camera toggle, the
+      // widget being rebuilt. Driving one that is no longer current throws
+      // "Uninitialized/Disposed CameraController", and because that lands in the
+      // catch below it used to abort setup entirely and leave no camera at all.
+      if (!isCurrent()) {
         return;
       }
 
@@ -502,8 +523,26 @@ class _ReaderWidgetState extends State<ReaderWidget>
         }
       }
 
-      _maxZoomLevel = await cameraController.getMaxZoomLevel();
-      _minZoomLevel = await cameraController.getMinZoomLevel();
+      if (!isCurrent()) {
+        return;
+      }
+
+      try {
+        _maxZoomLevel = await cameraController.getMaxZoomLevel();
+        _minZoomLevel = await cameraController.getMinZoomLevel();
+      } catch (e) {
+        // Not worth failing camera setup over: fall back to no zoom.
+        debugPrint('onNewCameraSelected: zoom levels unavailable: $e');
+        _minZoomLevel = 1.0;
+        _maxZoomLevel = 1.0;
+      }
+      // A new camera has its own zoom range; carrying the previous one over
+      // would apply a factor this camera may not support.
+      _scaleFactor = _minZoomLevel;
+
+      if (!isCurrent()) {
+        return;
+      }
 
       try {
         await cameraController.setFlashMode(FlashMode.off);
@@ -520,9 +559,10 @@ class _ReaderWidgetState extends State<ReaderWidget>
         }
       }
 
-      if (mounted) {
-        setState(() => _isCameraOn = true);
+      if (!isCurrent()) {
+        return;
       }
+      setState(() => _isCameraOn = true);
 
       // Restart only if interrupted (e.g. by flash mode); unconditional
       // stop-then-start risks silently leaving the stream stopped on some devices.

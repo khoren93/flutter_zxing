@@ -12,10 +12,16 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 /// drives: two lenses, an image stream, a preview widget and zoom/flash.
 class FakeCameraPlatform extends CameraPlatform
     with MockPlatformInterfaceMixin {
-  FakeCameraPlatform({this.flashModeSupported = true});
+  FakeCameraPlatform({
+    this.flashModeSupported = true,
+    this.zoomLevelsSupported = true,
+  });
 
   /// Devices without a torch make `setFlashMode` throw `setFlashModeFailed`.
   final bool flashModeSupported;
+
+  /// Some devices reject the zoom queries, which used to abort camera setup.
+  final bool zoomLevelsSupported;
 
   int _nextId = 1;
   final Set<int> disposedCameras = <int>{};
@@ -124,10 +130,26 @@ class FakeCameraPlatform extends CameraPlatform
   }) => _frames[cameraId]?.stream ?? const Stream<CameraImageData>.empty();
 
   @override
-  Future<double> getMaxZoomLevel(int cameraId) async => 4.0;
+  Future<double> getMaxZoomLevel(int cameraId) async {
+    if (!zoomLevelsSupported) {
+      throw CameraException(
+        'Uninitialized CameraController',
+        'getMaxZoomLevel() was called on an uninitialized CameraController.',
+      );
+    }
+    return 4.0;
+  }
 
   @override
-  Future<double> getMinZoomLevel(int cameraId) async => 1.0;
+  Future<double> getMinZoomLevel(int cameraId) async {
+    if (!zoomLevelsSupported) {
+      throw CameraException(
+        'Uninitialized CameraController',
+        'getMinZoomLevel() was called on an uninitialized CameraController.',
+      );
+    }
+    return 1.0;
+  }
 
   @override
   Future<void> setZoomLevel(int cameraId, double zoom) async {}
@@ -265,6 +287,40 @@ void main() {
     expect(find.byType(CameraPreview), findsNothing);
     expect(platform.previewsBuiltForDisposedCamera, 0);
     expect(platform.disposedCameras, isNotEmpty, reason: 'camera released');
+  });
+
+  testWidgets('a failing zoom query does not abort camera setup', (
+    WidgetTester tester,
+  ) async {
+    // Regression test: `getMaxZoomLevel()` was the one unguarded platform call
+    // after several awaits, so when it threw
+    // "getMaxZoomLevel() was called on an uninitialized CameraController"
+    // the whole setup was abandoned and the widget ended up with no camera.
+    platform = FakeCameraPlatform(zoomLevelsSupported: false);
+    CameraPlatform.instance = platform;
+
+    await pumpReader(tester);
+
+    expect(find.byType(CameraPreview), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await disposeReader(tester);
+  });
+
+  testWidgets('opening the reader a second time brings the camera back', (
+    WidgetTester tester,
+  ) async {
+    await pumpReader(tester);
+    expect(find.byType(CameraPreview), findsOneWidget);
+
+    await disposeReader(tester);
+
+    await pumpReader(tester);
+    expect(find.byType(CameraPreview), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    expect(platform.createdCameras, 2);
+
+    await disposeReader(tester);
   });
 
   testWidgets('the crop overlay follows the widget box, not the screen', (
