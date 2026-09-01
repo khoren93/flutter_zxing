@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstring>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -151,7 +152,7 @@ char* dartCstrFromString(const std::string& s)
 char* dartCstrFromException(const exception& e) noexcept
 {
     auto* s = e.what();
-    auto len = strlen(s);
+    auto len = std::strlen(s);
     auto* out = dart_malloc<char>(len + 1);
     std::copy_n(s, len, out);
     out[len] = '\0';
