@@ -44,11 +44,10 @@ flutter:
         ffiPlugin: true
 
 # Publish to pub.dev
-# The iOS/macOS sources are generated and git-ignored, so they must be refreshed
-# before publishing or the released package will not build on those platforms:
-# ./scripts/update_ios_macos_src.sh
-# flutter pub publish --dry-run
-# flutter pub publish
+# ./scripts/publish.sh [major|minor|patch] [--commit] [--dry-run] [--force]
+# Bumps this version and both podspecs, refreshes the generated iOS/macOS
+# sources -- they are git-ignored, and without them the released package does
+# not build on those platforms -- then publishes. Defaults to a patch bump.
 
 # Update zxing-cpp submodule
 # git submodule update --remote
