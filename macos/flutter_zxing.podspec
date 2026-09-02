@@ -23,7 +23,6 @@ A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing
   s.dependency 'FlutterMacOS'
 
   s.platform = :osx, '10.15'
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
   s.swift_version = '5.0'
 
   # zxing-cpp expects ZXING_INTERNAL while its own sources are being compiled.
@@ -36,10 +35,14 @@ A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing
   # zxing-cpp guards internal invariants with `assert`, which aborts a shipped
   # app when one trips. Compile them out for non-debug builds, matching the
   # CMake release build used on the other platforms.
-  s.pod_target_xcconfig = s.pod_target_xcconfig.merge({
+  #
+  # Pod::Specification only defines a writer for pod_target_xcconfig (no
+  # reader), so the whole hash has to be assigned in one place.
+  s.pod_target_xcconfig = {
+    'DEFINES_MODULE' => 'YES',
     'GCC_PREPROCESSOR_DEFINITIONS[config=Release]' => '$(inherited) NDEBUG=1',
     'GCC_PREPROCESSOR_DEFINITIONS[config=Profile]' => '$(inherited) NDEBUG=1',
-  })
+  }
 
   s.xcconfig = {
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20',

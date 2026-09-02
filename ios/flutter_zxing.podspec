@@ -17,8 +17,6 @@ A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing
   s.dependency 'Flutter'
   s.platform = :ios, '13.0'
 
-  # Flutter.framework does not contain a i386 slice.
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
   s.swift_version = '5.0'
 
   # zxing-cpp expects ZXING_INTERNAL while its own sources are being compiled.
@@ -31,10 +29,16 @@ A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing
   # zxing-cpp guards internal invariants with `assert`, which aborts a shipped
   # app when one trips. Compile them out for non-debug builds, matching the
   # CMake release build used on the other platforms.
-  s.pod_target_xcconfig = s.pod_target_xcconfig.merge({
+  #
+  # Pod::Specification only defines a writer for pod_target_xcconfig (no
+  # reader), so the whole hash has to be assigned in one place.
+  s.pod_target_xcconfig = {
+    'DEFINES_MODULE' => 'YES',
+    # Flutter.framework does not contain a i386 slice.
+    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
     'GCC_PREPROCESSOR_DEFINITIONS[config=Release]' => '$(inherited) NDEBUG=1',
     'GCC_PREPROCESSOR_DEFINITIONS[config=Profile]' => '$(inherited) NDEBUG=1',
-  })
+  }
 
   s.xcconfig = {
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20',
