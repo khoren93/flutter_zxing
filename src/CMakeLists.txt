@@ -27,7 +27,7 @@ if (ANDROID)
 
     # Required for 16KB page size support on NDK 27.x. NDK 28+ already defaults
     # to 16KB, where this option is simply a no-op, so it is safe either way.
-    target_link_options(flutter_zxing PRIVATE "-Wl,-z,max-page-size=16384")
+    target_link_options(flutter_zxing PRIVATE "-Wl,-z,max-page-size=16384,--build-id=none")
 endif (ANDROID)
 
 # Command to update zxing submodule
