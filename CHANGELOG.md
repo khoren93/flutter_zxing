@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.0.1
+
+* Fixed `pod install` failing with "undefined method `pod_target_xcconfig' for an
+  instance of Pod::Specification" while loading the iOS and macOS podspecs.
+  `Pod::Specification` only defines a writer for `pod_target_xcconfig`, so reading
+  the value back to merge the `NDEBUG` settings into it raised a `NoMethodError`.
+  All the settings are now assigned in a single hash. This affected 2.4.0 and
+  3.0.0; apps that build through Swift Package Manager were never affected.
+* Android builds no longer write a `NT_GNU_BUILD_ID` note into
+  `libflutter_zxing.so`. The note is derived from the build environment, which
+  kept the resulting APK from being byte-for-byte reproducible — something
+  F-Droid now requires. Note that Firebase Crashlytics for NDK relies on that
+  note to symbolicate native crashes, so a crash inside this library will now be
+  reported without symbols. Thanks to [@quandangv](https://github.com/quandangv)
+  (#247).
+
 ## 3.0.0
 
 Updates the bundled [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp) from

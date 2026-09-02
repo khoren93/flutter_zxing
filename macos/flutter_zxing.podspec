@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'flutter_zxing'
-  s.version          = '3.0.0'
+  s.version          = '3.0.1'
   s.summary          = 'A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing.'
   s.description      = <<-DESC
 A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing.
