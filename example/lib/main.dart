@@ -54,7 +54,9 @@ class _DemoPageState extends State<DemoPage> {
   Widget build(BuildContext context) {
     final isCameraSupported =
         defaultTargetPlatform == TargetPlatform.iOS ||
-        defaultTargetPlatform == TargetPlatform.android;
+        defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.macOS;
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -102,7 +104,7 @@ class _DemoPageState extends State<DemoPage> {
                     tryDownscale: true,
                     maxNumberOfSymbols: 5,
                     scanDelay: Duration(milliseconds: isMultiScan ? 50 : 500),
-                    resolution: ResolutionPreset.high,
+                    resolution: ResolutionPreset.low,
                     lensDirection: CameraLensDirection.back,
                     flashOnIcon: const Icon(Icons.flash_on),
                     flashOffIcon: const Icon(Icons.flash_off),
