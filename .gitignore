@@ -33,3 +33,6 @@ ios/flutter_zxing/Sources/
 ios/flutter_zxing/.build/
 macos/flutter_zxing/Sources/
 macos/flutter_zxing/.build/
+
+# FVM Version Cache
+.fvm/
