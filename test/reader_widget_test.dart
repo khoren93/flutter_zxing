@@ -15,6 +15,8 @@ class FakeCameraPlatform extends CameraPlatform
   FakeCameraPlatform({
     this.flashModeSupported = true,
     this.zoomLevelsSupported = true,
+    this.minZoomLevel = 1.0,
+    this.maxZoomLevel = 4.0,
   });
 
   /// Devices without a torch make `setFlashMode` throw `setFlashModeFailed`.
@@ -22,6 +24,13 @@ class FakeCameraPlatform extends CameraPlatform
 
   /// Some devices reject the zoom queries, which used to abort camera setup.
   final bool zoomLevelsSupported;
+
+  /// The zoom range every camera reports.
+  final double minZoomLevel;
+  final double maxZoomLevel;
+
+  /// The zoom level last applied to each camera.
+  final Map<int, double> zoomLevels = <int, double>{};
 
   int _nextId = 1;
   final Set<int> disposedCameras = <int>{};
@@ -137,7 +146,7 @@ class FakeCameraPlatform extends CameraPlatform
         'getMaxZoomLevel() was called on an uninitialized CameraController.',
       );
     }
-    return 4.0;
+    return maxZoomLevel;
   }
 
   @override
@@ -148,11 +157,13 @@ class FakeCameraPlatform extends CameraPlatform
         'getMinZoomLevel() was called on an uninitialized CameraController.',
       );
     }
-    return 1.0;
+    return minZoomLevel;
   }
 
   @override
-  Future<void> setZoomLevel(int cameraId, double zoom) async {}
+  Future<void> setZoomLevel(int cameraId, double zoom) async {
+    zoomLevels[cameraId] = zoom;
+  }
 
   @override
   Future<void> setFlashMode(int cameraId, FlashMode mode) async {
@@ -303,6 +314,56 @@ void main() {
 
     expect(find.byType(CameraPreview), findsOneWidget);
     expect(tester.takeException(), isNull);
+
+    await disposeReader(tester);
+  });
+
+  testWidgets('a reversed zoom range does not abort camera setup', (
+    WidgetTester tester,
+  ) async {
+    // `clamp` throws when its lower bound is above its upper one.
+    platform = FakeCameraPlatform(minZoomLevel: 4.0, maxZoomLevel: 1.0);
+    CameraPlatform.instance = platform;
+
+    await pumpReader(tester);
+
+    expect(find.byType(CameraPreview), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    expect(platform.zoomLevels[1], 1.0);
+
+    await disposeReader(tester);
+  });
+
+  testWidgets('switching cameras keeps the zoom level', (
+    WidgetTester tester,
+  ) async {
+    await pumpReader(tester);
+
+    // Pinch out.
+    final Offset center = tester.getCenter(find.byType(ReaderWidget));
+    final TestGesture first = await tester.startGesture(
+      center - const Offset(20, 0),
+    );
+    final TestGesture second = await tester.startGesture(
+      center + const Offset(20, 0),
+      pointer: 2,
+    );
+    for (int i = 0; i < 4; i++) {
+      await first.moveBy(const Offset(-10, 0));
+      await second.moveBy(const Offset(10, 0));
+      await tester.pump();
+    }
+    await first.up();
+    await second.up();
+    await tester.pump();
+
+    final double zoom = platform.zoomLevels[1]!;
+    expect(zoom, greaterThan(1.0));
+
+    await tester.tap(find.byIcon(Icons.switch_camera));
+    await settle(tester);
+
+    expect(platform.zoomLevels[2], zoom);
 
     await disposeReader(tester);
   });

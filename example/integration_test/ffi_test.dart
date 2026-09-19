@@ -8,7 +8,16 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart'
-    show expect, group, isNot, isNotNull, isTrue, lessThan, setUpAll, test;
+    show
+        expect,
+        group,
+        isFalse,
+        isNot,
+        isNotNull,
+        isTrue,
+        lessThan,
+        setUpAll,
+        test;
 import 'package:image/image.dart' as imglib;
 import 'package:flutter_zxing/flutter_zxing.dart'
     show
@@ -302,6 +311,110 @@ void main() async {
       for (final Code code in codes.codes) {
         expect(code.isValid, isTrue);
       }
+    }
+  });
+
+  group('a symbol that cannot be decoded does not hide one that can', () {
+    // zxing reports a symbol it found but failed to decode -- one whose
+    // checksum does not match, say -- as an error result. Such a result used to
+    // take the place of a symbol, so the search stopped at it and a readable
+    // code further on was never looked at (#251).
+    const gap = 20;
+
+    Encode encode() {
+      final enc = zx.encodeBarcode(
+        contents: 'readable',
+        params: EncodeParams(
+          format: Format.dataMatrix,
+          width: 120,
+          height: 120,
+          margin: 0,
+        ),
+      );
+      expect(enc.isValid, isTrue);
+      return enc;
+    }
+
+    /// The symbol with the middle of its data region inverted: still found by
+    /// its finder pattern, but with more damage than error correction repairs.
+    Uint8List damaged(Encode enc) {
+      final int w = enc.width!;
+      final int h = enc.height!;
+      final pixels = Uint8List.fromList(enc.data!);
+      for (var y = h * 3 ~/ 10; y < h * 7 ~/ 10; y++) {
+        for (var x = w * 3 ~/ 10; x < w * 7 ~/ 10; x++) {
+          pixels[y * w + x] = 255 - pixels[y * w + x];
+        }
+      }
+      return pixels;
+    }
+
+    /// Both symbols on one white canvas, [first] on the left.
+    Uint8List sideBySide(Encode enc, Uint8List first, Uint8List second) {
+      final int w = enc.width!;
+      final int h = enc.height!;
+      final int width = 2 * w + 3 * gap;
+      final canvas = Uint8List(width * (h + 2 * gap))
+        ..fillRange(0, width * (h + 2 * gap), 255);
+      for (var y = 0; y < h; y++) {
+        for (var x = 0; x < w; x++) {
+          canvas[(y + gap) * width + x + gap] = first[y * w + x];
+          canvas[(y + gap) * width + x + w + 2 * gap] = second[y * w + x];
+        }
+      }
+      return canvas;
+    }
+
+    DecodeParams params(Encode enc, {required bool isMultiScan}) =>
+        DecodeParams(
+          imageFormat: ImageFormat.lum,
+          format: Format.dataMatrix,
+          width: 2 * enc.width! + 3 * gap,
+          height: enc.height! + 2 * gap,
+          maxNumberOfSymbols: 1,
+          isMultiScan: isMultiScan,
+        );
+
+    test('the damaged symbol alone is reported as an error', () {
+      final enc = encode();
+      final code = zx.readBarcode(
+        damaged(enc),
+        DecodeParams(
+          imageFormat: ImageFormat.lum,
+          format: Format.dataMatrix,
+          width: enc.width!,
+          height: enc.height!,
+        ),
+      );
+      // `onScanFailure` still learns what was seen.
+      expect(code.isValid, isFalse);
+      expect(code.format, Format.dataMatrix);
+    });
+
+    // Both orders, so the test does not depend on which symbol zxing finds
+    // first.
+    for (final damagedFirst in <bool>[true, false]) {
+      final String order = damagedFirst ? 'first' : 'second';
+
+      test('readBarcode, damaged symbol $order', () {
+        final enc = encode();
+        final image = damagedFirst
+            ? sideBySide(enc, damaged(enc), enc.data!)
+            : sideBySide(enc, enc.data!, damaged(enc));
+        final code = zx.readBarcode(image, params(enc, isMultiScan: false));
+        expect(code.isValid, isTrue);
+        expect(code.text, 'readable');
+      });
+
+      test('readBarcodes, damaged symbol $order', () {
+        final enc = encode();
+        final image = damagedFirst
+            ? sideBySide(enc, damaged(enc), enc.data!)
+            : sideBySide(enc, enc.data!, damaged(enc));
+        final codes = zx.readBarcodes(image, params(enc, isMultiScan: true));
+        expect(codes.codes.length, 1);
+        expect(codes.codes.single.text, 'readable');
+      });
     }
   });
 

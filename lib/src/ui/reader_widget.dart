@@ -527,15 +527,35 @@ class _ReaderWidgetState extends State<ReaderWidget>
         return;
       }
 
+      double minZoomLevel = 1.0;
+      double maxZoomLevel = 1.0;
       try {
-        _maxZoomLevel = await cameraController.getMaxZoomLevel();
-        _minZoomLevel = await cameraController.getMinZoomLevel();
+        maxZoomLevel = await cameraController.getMaxZoomLevel();
+        minZoomLevel = await cameraController.getMinZoomLevel();
       } catch (e) {
         // Not worth failing camera setup over: fall back to no zoom.
         debugPrint('onNewCameraSelected: zoom levels unavailable: $e');
-        _minZoomLevel = 1.0;
-        _maxZoomLevel = 1.0;
+        minZoomLevel = 1.0;
+        maxZoomLevel = 1.0;
       }
+
+      // Only the current camera may touch the zoom state: a superseded call
+      // would overwrite the range and the factor of the camera that replaced it.
+      if (!isCurrent()) {
+        return;
+      }
+
+      // `clamp` throws on reversed bounds, which would abort camera setup.
+      if (maxZoomLevel < minZoomLevel) {
+        debugPrint(
+          'onNewCameraSelected: invalid zoom range '
+          '[$minZoomLevel, $maxZoomLevel], zoom disabled',
+        );
+        minZoomLevel = 1.0;
+        maxZoomLevel = 1.0;
+      }
+      _minZoomLevel = minZoomLevel;
+      _maxZoomLevel = maxZoomLevel;
       // A new camera has its own zoom range; carrying the previous one over
       // unconditionally would apply a factor this camera may not support.
       _scaleFactor = _scaleFactor.clamp(_minZoomLevel, _maxZoomLevel);
@@ -543,10 +563,10 @@ class _ReaderWidgetState extends State<ReaderWidget>
       try {
         await cameraController.setZoomLevel(_scaleFactor);
       } catch (e) {
-        debugPrint(
-          'Failed to set camera zoom level. Resetting scale factor to 1.0',
-        );
-        _scaleFactor = 1.0;
+        debugPrint('onNewCameraSelected: failed to set zoom level: $e');
+        if (isCurrent()) {
+          _scaleFactor = 1.0;
+        }
       }
 
       if (!isCurrent()) {

@@ -132,8 +132,7 @@ ReaderOptions createReaderOptions(const DecodeBarcodeParams& params)
         .setFormats(flutter_zxing::readFormats(params.format))
         .setTryInvert(params.tryInvert)
         .setTryDownscale(params.tryDownscale)
-        .setMaxNumberOfSymbols(maxNumberOfSymbols)
-        .setReturnErrors(true);
+        .setMaxNumberOfSymbols(maxNumberOfSymbols);
 }
 
 /// Returns an owned C-string `char*` copied from a `std::string&`.
@@ -238,6 +237,13 @@ CodeResult codeResultFromResult(
     code.text = result.isValid() ? dartCstrFromString(result.text()) : nullptr;
     code.bytes = result.isValid() ? dartBytesFromVector(result.bytes()) : nullptr;
     code.error = result.isValid() ? nullptr : dartCstrFromString(result.error().msg());
+    // `msg()` alone is empty for most errors -- a failed checksum has none -- so
+    // the log also gets the type and where it was raised, e.g.
+    // "ChecksumError @ DMDecoder.cpp:410".
+    if (result.error() && isLoggingEnabled())
+    {
+        platform_log("Barcode error: %s\n", ToString(result.error()).c_str());
+    }
     code.length = static_cast<int>(result.bytes().size());
     code.format = flutter_zxing::dartFormat(result.format());
     code.pos = Pos{
@@ -283,8 +289,24 @@ CodeResult _readBarcode(const DecodeBarcodeParams& params) noexcept
         auto start = steady_clock::now();
 
         CroppedImageView cropped = createCroppedImageView(params);
-        ReaderOptions options = createReaderOptions(params);
+        // Errors are returned so a symbol that was found but not decoded still
+        // reaches `onScanFailure`. But `ReadBarcode()` stops at the first symbol,
+        // and that can be such an error -- the full-size pass fails a checksum
+        // and the downscaled or inverted passes that would read it never run.
+        // In that case look at every candidate and prefer one that decoded
+        // (#251). A frame whose first symbol decodes costs no more than before.
+        ReaderOptions options = createReaderOptions(params).setReturnErrors(true);
         Barcode result = ReadBarcode(cropped.image, options);
+        if (result.error())
+        {
+            Barcodes results = ReadBarcodes(cropped.image, options.setMaxNumberOfSymbols(0xff));
+            auto valid = std::find_if(results.begin(), results.end(),
+                [](const Barcode& barcode) { return barcode.isValid(); });
+            if (valid != results.end())
+            {
+                result = *valid;
+            }
+        }
 
         int duration = elapsed_ms(start);
         platform_log("Read Barcode in: %d ms\n", duration);
@@ -311,6 +333,8 @@ CodeResults _readBarcodes(const DecodeBarcodeParams& params) noexcept
         auto start = steady_clock::now();
 
         CroppedImageView cropped = createCroppedImageView(params);
+        // Errors are not asked for: they would be dropped below anyway, and each
+        // one would use up a place in `maxNumberOfSymbols`.
         ReaderOptions options = createReaderOptions(params);
         Barcodes results = ReadBarcodes(cropped.image, options);
 

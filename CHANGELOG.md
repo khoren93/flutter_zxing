@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+* Single-scan mode no longer gives up on a code because of a symbol it could not
+  decode. `readBarcode` asks zxing for errors too, so that `onScanFailure` can
+  report a symbol that was found but not read, and zxing stopped at the first
+  symbol it found — even when that was an error. A code that failed its checksum
+  in the full-size pass was then reported as a failure, and the downscaled and
+  inverted passes that would have read it never ran; a dense GS1 DataMatrix
+  almost never scanned. When the first symbol is an error, the whole frame is now
+  searched and a code that decoded is preferred. Frames whose first symbol
+  decodes cost no more than before. Thanks to
+  [@walkerkz-netizen](https://github.com/walkerkz-netizen) for the detailed
+  report (#251).
+* With `zx.setLogEnabled(true)`, the native log now says why a symbol could not
+  be decoded, e.g. `Barcode error: ChecksumError @ DMDecoder.cpp:410`. `Code.error`
+  is unchanged, and stays empty for most such failures.
+* Multi-scan mode no longer asks zxing for errors. They were dropped before
+  reaching `onMultiScan` anyway, but each one still used up a place in
+  `maxNumberOfSymbols`, so symbols that could not be decoded could crowd out
+  codes that could.
+* `ReaderWidget` keeps the zoom level when switching cameras, clamped to what the
+  new camera supports, instead of resetting it. Thanks to
+  [@FrankenApps](https://github.com/FrankenApps) (#248).
+
 ## 3.0.1
 
 * Fixed `pod install` failing with "undefined method `pod_target_xcconfig' for an
