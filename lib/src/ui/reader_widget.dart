@@ -537,8 +537,17 @@ class _ReaderWidgetState extends State<ReaderWidget>
         _maxZoomLevel = 1.0;
       }
       // A new camera has its own zoom range; carrying the previous one over
-      // would apply a factor this camera may not support.
-      _scaleFactor = _minZoomLevel;
+      // unconditionally would apply a factor this camera may not support.
+      _scaleFactor = _scaleFactor.clamp(_minZoomLevel, _maxZoomLevel);
+
+      try {
+        await cameraController.setZoomLevel(_scaleFactor);
+      } catch (e) {
+        debugPrint(
+          'Failed to set camera zoom level. Resetting scale factor to 1.0',
+        );
+        _scaleFactor = 1.0;
+      }
 
       if (!isCurrent()) {
         return;
