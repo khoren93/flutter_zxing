@@ -1,25 +1,28 @@
 name: Flutter CI
 
-# Trigger CI on (1) pull requests and (2) pushes to main branch
+# Trigger CI on (1) pull requests, (2) pushes to main branch and (3) manually
 on:
   pull_request:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 # Cancel previous workflows for the same pull request to save resources
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
-# Grant read-all permissions to this workflow
-permissions: read-all
+# The workflow only ever reads the repository
+permissions:
+  contents: read
 
 jobs:
-  # Job for linting and formatting Dart code
+  # Job for linting, formatting and unit testing Dart code
   lint:
     name: "Lint and Format Dart Code"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       # Checkout the repository
       - uses: actions/checkout@v7
@@ -43,11 +46,27 @@ jobs:
       - name: Analyze Dart code
         run: melos exec -- dart analyze .
 
-  # Build the example application across all supported platforms
+      # Unit and widget tests of the plugin itself. They mock the camera and
+      # never call into FFI, so they need no native build and run in seconds.
+      # example/ and zxscanner/ only hold placeholder test files, so `melos exec`
+      # is deliberately not used here.
+      - name: Run unit tests
+        run: flutter test
+
+  # Build the example application for the targets whose build is NOT already
+  # covered by the test jobs below:
+  #   * android - `flutter build appbundle` compiles the native code for every
+  #     ABI (arm64-v8a, armeabi-v7a, x86_64), while the emulator tests only ever
+  #     build x86_64.
+  #   * ios - this builds the device (iphoneos) slice, while the integration
+  #     tests only build for the simulator (iphonesimulator).
+  # macOS, Linux and Windows are intentionally missing: `flutter test
+  # integration_test -d <device>` performs the very same debug build there, so a
+  # separate build job would only burn CI minutes.
   build-example:
     name: 'Build example (${{ matrix.target }}, ${{ matrix.os }})'
     runs-on: ${{ matrix.os }}-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -56,20 +75,14 @@ jobs:
             os: ubuntu
           - target: ios
             os: macos
-          - target: macos
-            os: macos
-          - target: linux
-            os: ubuntu
-          - target: windows
-            os: windows
     steps:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
 
-      # iOS and macOS specific setup
-      - name: Copy ZXing source files for iOS/macOS
-        if: matrix.target == 'ios' || matrix.target == 'macos'
+      # iOS specific setup
+      - name: Copy ZXing source files for iOS
+        if: matrix.target == 'ios'
         run: ./scripts/update_ios_macos_src.sh
 
       # Android-specific setup
@@ -80,15 +93,11 @@ jobs:
           java-version: 17
           distribution: temurin
 
-      # Linux-specific setup
-      - name: Install dependencies for Flutter on Linux (${{ matrix.target }}, ${{ matrix.os }})
-        if: matrix.target == 'linux' && matrix.os == 'ubuntu'
-        run: |
-          sudo apt update
-          sudo apt install -y \
-            cmake dbus libblkid-dev libgtk-3-dev liblzma-dev ninja-build \
-            pkg-config xvfb network-manager upower \
-            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+      # Reuse the Gradle cache between runs, the appbundle build is the slowest
+      # job in this workflow
+      - name: Setup Gradle cache for Android
+        if: matrix.target == 'android'
+        uses: gradle/actions/setup-gradle@v6
 
       # Install Flutter SDK
       - uses: subosito/flutter-action@v2
@@ -112,17 +121,8 @@ jobs:
             ios)
               flutter build ios --debug --no-codesign
               ;;
-            macos)
-              flutter build macos --debug
-              ;;
             android)
               flutter build appbundle --debug
-              ;;
-            linux)
-              flutter build linux --debug
-              ;;
-            windows)
-              flutter build windows --debug
               ;;
             *)
               echo "Unknown target: $TARGET"
@@ -130,11 +130,14 @@ jobs:
               ;;
           esac
 
-  # Integration tests for all platforms except Android (handled separately)
+  # Integration tests for all platforms except Android (handled separately).
+  # These also compile the example app from scratch, which is why macOS, Linux
+  # and Windows have no separate build job.
   test-example:
     name: 'Test example (${{ matrix.target }}, ${{ matrix.os }})'
     runs-on: ${{ matrix.os }}-latest
-    timeout-minutes: 15
+    # The iOS simulator run alone needs ~12 minutes, so 15 leaves no headroom
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -174,7 +177,7 @@ jobs:
           enforce-lockfile: true
 
       # Linux-specific dependencies
-      - name: Install dependencies for Flutter on Linux (${{ matrix.target }}, ${{ matrix.os }})'
+      - name: Install dependencies for Flutter on Linux (${{ matrix.target }}, ${{ matrix.os }})
         if: matrix.target == 'linux' && matrix.os == 'ubuntu'
         run: |
           sudo apt update
@@ -187,12 +190,25 @@ jobs:
       - name: Launch iOS Simulator for ${{ matrix.target }}
         if: matrix.target == 'ios'
         run: |
-          RUNTIME_ID=$(xcrun simctl list runtimes | grep -o "com.apple.CoreSimulator.SimRuntime.iOS-[0-9-]*" | sort -r | head -n 1)
-          echo "Using runtime: $RUNTIME_ID"
-          simulator_id=$(xcrun simctl create iphone-zxing \
-            com.apple.CoreSimulator.SimDeviceType.iPhone-15 \
-            $RUNTIME_ID)
-          xcrun simctl boot ${simulator_id}
+          RUNTIME_ID=$(xcrun simctl list runtimes \
+            | grep -o "com.apple.CoreSimulator.SimRuntime.iOS-[0-9-]*" \
+            | sort -V | tail -n 1)
+
+          # Pick the newest plain iPhone shipped with the installed Xcode
+          # instead of hardcoding a model Apple can drop at any time
+          DEVICE_TYPES=$(xcrun simctl list devicetypes \
+            | grep -o "com.apple.CoreSimulator.SimDeviceType.iPhone-[0-9A-Za-z-]*")
+          DEVICE_TYPE=$(echo "$DEVICE_TYPES" | grep -E "iPhone-[0-9]+$" | sort -V | tail -n 1)
+          if [ -z "$DEVICE_TYPE" ]; then
+            DEVICE_TYPE=$(echo "$DEVICE_TYPES" | sort -V | tail -n 1)
+          fi
+
+          echo "Using runtime: $RUNTIME_ID, device type: $DEVICE_TYPE"
+          simulator_id=$(xcrun simctl create iphone-zxing "$DEVICE_TYPE" "$RUNTIME_ID")
+          xcrun simctl boot "$simulator_id"
+          # Wait for the boot to finish, otherwise the tests may attach to a
+          # simulator that is not ready yet
+          xcrun simctl bootstatus "$simulator_id" -b
 
       # Run tests
       - name: Run tests for ${{ matrix.target }} on ${{ matrix.os }}
@@ -209,7 +225,8 @@ jobs:
   test-example-android:
     name: 'Test example on Android API level ${{ matrix.api-level }}'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Creating the AVD snapshot on a cache miss can eat most of the budget
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -228,7 +245,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Java for Android (${{ matrix.api-level }})'
+      - name: Setup Java for Android (${{ matrix.api-level }})
         uses: actions/setup-java@v6.0.0
         with:
           java-version: 17
@@ -247,7 +264,7 @@ jobs:
           enforce-lockfile: true
 
       # Enable KVM for Android emulators
-      - name: Enable KVM for Android emulators (${{ matrix.api-level }})'
+      - name: Enable KVM for Android emulators (${{ matrix.api-level }})
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
@@ -263,7 +280,9 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-          key: avd-${{ matrix.api-level }}
+          # target and arch are part of the key, a cached AVD is only valid for
+          # the exact image it was created from
+          key: avd-${{ matrix.api-level }}-${{ matrix.target }}-${{ matrix.arch }}
 
       - name: Create and cache AVD snapshot
         if: steps.avd-cache.outputs.cache-hit != 'true'
