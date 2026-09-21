@@ -42,6 +42,7 @@ flutter:
         ffiPlugin: true
       windows:
         ffiPlugin: true
+
 # Publish to pub.dev
 # make publish        (or: ./scripts/publish.sh [--dry-run] [--force])
 # Bump this version and `s.version` in both podspecs together with the

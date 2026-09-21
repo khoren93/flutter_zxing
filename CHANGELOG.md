@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+* **The camera now works on macOS and Linux.** The `camera` package ships
+  implementations for Android, iOS and the web only; adding
+  [`camera_desktop`](https://pub.dev/packages/camera_desktop) to your app makes
+  `ReaderWidget` and `zx.processCameraImage` work on the desktop too. See
+  [Camera on desktop](README.md#camera-on-desktop) for what each platform needs.
+  Thanks to [@bart-iconica](https://github.com/bart-iconica) (#250), who also
+  asked for it (#249).
+* New `cameraImageFormat(CameraImage)`, which returns the `DecodeParams.imageFormat`
+  a camera frame should be decoded with. Frames that say `bgra8888` but carry
+  RGBA — what `camera_desktop` delivers on Linux and Windows — used to be read
+  as BGRA, swapping red and blue in the luminance the decoder works from.
+* `ReaderWidget` no longer tears the camera down when a desktop window merely
+  loses focus, and hides its flash button on desktop, where there is no torch to
+  drive.
 * Single-scan mode no longer gives up on a code because of a symbol it could not
   decode. `readBarcode` asks zxing for errors too, so that `onScanFailure` can
   report a symbol that was found but not read, and zxing stopped at the first

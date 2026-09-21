@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:camera/camera.dart' show CameraPreview;
+import 'package:camera/camera.dart' show CameraController, CameraPreview;
 import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -433,6 +433,67 @@ void main() {
 
     await disposeReader(tester);
   });
+
+  testWidgets('a desktop window losing focus keeps scanning', (
+    WidgetTester tester,
+  ) async {
+    // A desktop window goes inactive as soon as it is not the focused one, and
+    // opening the camera again takes about a second.
+    CameraController? created;
+    await pumpReader(
+      tester,
+      widget: ReaderWidget(
+        onControllerCreated: (CameraController? controller, Exception? _) =>
+            created = controller,
+      ),
+    );
+    expect(created?.value.isStreamingImages, isTrue);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await settle(tester);
+
+    expect(created?.value.isStreamingImages, isTrue);
+    expect(find.byType(CameraPreview), findsOneWidget);
+
+    await disposeReader(tester);
+  }, variant: TargetPlatformVariant.desktop());
+
+  testWidgets('a mobile app going inactive stops scanning', (
+    WidgetTester tester,
+  ) async {
+    // On a phone `inactive` means the app is on its way to the background,
+    // where it must let go of the camera.
+    CameraController? created;
+    await pumpReader(
+      tester,
+      widget: ReaderWidget(
+        onControllerCreated: (CameraController? controller, Exception? _) =>
+            created = controller,
+      ),
+    );
+    expect(created?.value.isStreamingImages, isTrue);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await settle(tester);
+
+    expect(created?.value.isStreamingImages, isFalse);
+
+    await disposeReader(tester);
+  }, variant: TargetPlatformVariant.mobile());
+
+  testWidgets('the flash button is hidden on desktop', (
+    WidgetTester tester,
+  ) async {
+    // Desktop cameras have no torch, but asking to turn one off succeeds, so
+    // the widget cannot find out by trying.
+    await pumpReader(tester);
+
+    expect(find.byType(CameraPreview), findsOneWidget);
+    expect(find.byIcon(Icons.flash_off), findsNothing);
+    expect(find.byIcon(Icons.flash_on), findsNothing);
+
+    await disposeReader(tester);
+  }, variant: TargetPlatformVariant.desktop());
 
   testWidgets('a device without flash still initializes the camera', (
     WidgetTester tester,

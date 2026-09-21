@@ -5,6 +5,10 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as imglib;
 
+// `camera` exports an `ImageFormat` of its own, so the decoder's formats are
+// reached through a prefix here.
+import '../models/image_format.dart' as zxing;
+
 /// Copies [plane] into a tightly packed buffer of `width * height * pixelStride`
 /// bytes, dropping the row padding the camera may add.
 ///
@@ -37,6 +41,33 @@ Uint8List _tightlyPackedPlane(
     );
   }
   return packed;
+}
+
+/// The pixel format to tell the decoder a camera frame is in, for
+/// [DecodeParams.imageFormat].
+///
+/// Only the first plane of the frame is scanned. For YUV420 and NV21 that plane
+/// is the luminance (Y) channel — exactly what a barcode decoder wants — while
+/// BGRA8888 frames are a single interleaved plane. Returns
+/// [zxing.ImageFormat.none] for frames that cannot be scanned as raw pixels,
+/// such as JPEG.
+int cameraImageFormat(CameraImage image) {
+  switch (image.format.group) {
+    case ImageFormatGroup.bgra8888:
+      // `camera_desktop` hands out RGBA frames on Linux and Windows while still
+      // reporting them as bgra8888; the byte order it actually used is only in
+      // `raw`. Reading those as BGRA swaps red and blue, which skews the
+      // luminance the decoder works from.
+      return image.format.raw == 'RGBA'
+          ? zxing.ImageFormat.rgba
+          : zxing.ImageFormat.bgra;
+    case ImageFormatGroup.yuv420:
+    case ImageFormatGroup.nv21:
+      return zxing.ImageFormat.lum;
+    case ImageFormatGroup.jpeg:
+    case ImageFormatGroup.unknown:
+      return zxing.ImageFormat.none;
+  }
 }
 
 /// Returns the luminance (Y) plane of [image] without its row padding.

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../flutter_zxing.dart' as zxing;
@@ -225,6 +226,14 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
   bool isAndroid() => Theme.of(context).platform == TargetPlatform.android;
 
+  /// Whether this is a desktop platform, where the camera comes from a
+  /// non-endorsed `camera` implementation such as `camera_desktop`.
+  bool get _isDesktop =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.linux ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.windows);
+
   /// The multi-scan mode actually in effect: [ReaderWidget.isMultiScan] unless
   /// the built-in mode dropdown has since changed it.
   bool get _multiScanEnabled => _isMultiScan;
@@ -293,6 +302,15 @@ class _ReaderWidgetState extends State<ReaderWidget>
       }
     } catch (e) {
       debugPrint('initStateAsync error: $e');
+      if (_isDesktop &&
+          (e is MissingPluginException || e is UnimplementedError)) {
+        debugPrint(
+          'flutter_zxing: no camera implementation is registered for this '
+          'platform. The `camera` package does not ship one for macOS, Linux '
+          'or Windows -- add `camera_desktop` to the pubspec.yaml of your app '
+          'to scan from the camera there.',
+        );
+      }
       if (mounted) {
         widget.onControllerCreated?.call(
           null,
@@ -316,9 +334,16 @@ class _ReaderWidgetState extends State<ReaderWidget>
         }
         break;
       case AppLifecycleState.paused:
-      case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
         _stopCamera();
+        break;
+      case AppLifecycleState.inactive:
+        // A desktop window goes inactive as soon as it loses focus, and opening
+        // the camera again takes about a second; scanning would stop every time
+        // the user clicked another window.
+        if (!_isDesktop) {
+          _stopCamera();
+        }
         break;
       case AppLifecycleState.detached:
         break;
@@ -663,7 +688,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
                 .round()
                 .clamp(0, image.height - cropSize);
 
-        final int imageFormat = _imageFormat(image.format.group);
+        final int imageFormat = cameraImageFormat(image);
         if (imageFormat == zxing.ImageFormat.none) {
           _reportUnscannableFormat(image.format.group);
           return;
@@ -845,7 +870,12 @@ class _ReaderWidgetState extends State<ReaderWidget>
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
-                            if (widget.showFlashlight && _isFlashAvailable)
+                            // Desktop cameras have no torch, and asking for one
+                            // is not an error there, so the button would just
+                            // sit and do nothing.
+                            if (widget.showFlashlight &&
+                                _isFlashAvailable &&
+                                !_isDesktop)
                               IconButton(
                                 onPressed: _onFlashButtonTapped,
                                 color: Colors.white,
@@ -1047,7 +1077,8 @@ class _ReaderWidgetState extends State<ReaderWidget>
       debugPrint(
         'flutter_zxing: this camera delivers $group frames, which cannot be '
         'scanned as raw pixels. Pass a CameraController configured with '
-        'ImageFormatGroup.yuv420 (Android) or ImageFormatGroup.bgra8888 (iOS).',
+        'ImageFormatGroup.yuv420 (Android) or ImageFormatGroup.bgra8888 '
+        '(iOS and desktop).',
       );
     }
     widget.onScanFailure?.call(
@@ -1056,24 +1087,5 @@ class _ReaderWidgetState extends State<ReaderWidget>
         source: CodeSource.camera,
       ),
     );
-  }
-
-  /// Maps a camera frame layout onto the pixel format the decoder is handed.
-  ///
-  /// Only the first plane of the frame is scanned. For YUV420 and NV21 that
-  /// plane is the luminance (Y) channel — exactly what a barcode decoder wants —
-  /// while BGRA8888 frames are a single interleaved plane. JPEG frames hold
-  /// compressed data that cannot be scanned as raw pixels.
-  int _imageFormat(ImageFormatGroup group) {
-    switch (group) {
-      case ImageFormatGroup.bgra8888:
-        return zxing.ImageFormat.bgra;
-      case ImageFormatGroup.yuv420:
-      case ImageFormatGroup.nv21:
-        return zxing.ImageFormat.lum;
-      case ImageFormatGroup.jpeg:
-      case ImageFormatGroup.unknown:
-        return zxing.ImageFormat.none;
-    }
   }
 }

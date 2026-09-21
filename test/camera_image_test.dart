@@ -138,4 +138,61 @@ void main() {
       expect(bytes.length, 16);
     });
   });
+
+  group('cameraImageFormat', () {
+    CameraImage formatted(ImageFormatGroup group, Object? raw) =>
+        CameraImage.fromPlatformInterface(
+          CameraImageData(
+            format: CameraImageFormat(group, raw: raw),
+            planes: <CameraImagePlane>[
+              CameraImagePlane(bytes: Uint8List(4), bytesPerRow: 4),
+            ],
+            width: 2,
+            height: 2,
+          ),
+        );
+
+    test('a YUV420 or NV21 frame is scanned as its luminance plane', () {
+      expect(
+        cameraImageFormat(formatted(ImageFormatGroup.yuv420, 35)),
+        ImageFormat.lum,
+      );
+      expect(
+        cameraImageFormat(formatted(ImageFormatGroup.nv21, 17)),
+        ImageFormat.lum,
+      );
+    });
+
+    test('a BGRA frame is scanned as BGRA', () {
+      expect(
+        cameraImageFormat(formatted(ImageFormatGroup.bgra8888, 1111970369)),
+        ImageFormat.bgra,
+      );
+      expect(
+        cameraImageFormat(formatted(ImageFormatGroup.bgra8888, 'BGRA')),
+        ImageFormat.bgra,
+      );
+    });
+
+    test('a frame that says bgra8888 but carries RGBA is scanned as RGBA', () {
+      // What `camera_desktop` delivers on Linux and Windows: the group is
+      // bgra8888 for every platform, and only `raw` says which order it used.
+      // Reading these as BGRA swaps red and blue.
+      expect(
+        cameraImageFormat(formatted(ImageFormatGroup.bgra8888, 'RGBA')),
+        ImageFormat.rgba,
+      );
+    });
+
+    test('frames that cannot be scanned as raw pixels report no format', () {
+      expect(
+        cameraImageFormat(formatted(ImageFormatGroup.jpeg, 0)),
+        ImageFormat.none,
+      );
+      expect(
+        cameraImageFormat(formatted(ImageFormatGroup.unknown, 0)),
+        ImageFormat.none,
+      );
+    });
+  });
 }

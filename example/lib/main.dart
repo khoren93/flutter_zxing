@@ -52,11 +52,19 @@ class _DemoPageState extends State<DemoPage> {
 
   @override
   Widget build(BuildContext context) {
+    // macOS and Linux get their camera from `camera_desktop`, which this app
+    // depends on. Windows is left out until someone verifies its image stream.
     final isCameraSupported =
         defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.linux ||
         defaultTargetPlatform == TargetPlatform.macOS;
+    // `camera_desktop` fails to initialize above `low` on Linux
+    // (https://github.com/hugocornellier/camera_desktop/issues/8). Everywhere
+    // else a higher resolution reads dense codes from further away.
+    final resolution = defaultTargetPlatform == TargetPlatform.linux
+        ? ResolutionPreset.low
+        : ResolutionPreset.high;
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -104,7 +112,7 @@ class _DemoPageState extends State<DemoPage> {
                     tryDownscale: true,
                     maxNumberOfSymbols: 5,
                     scanDelay: Duration(milliseconds: isMultiScan ? 50 : 500),
-                    resolution: ResolutionPreset.low,
+                    resolution: resolution,
                     lensDirection: CameraLensDirection.back,
                     flashOnIcon: const Icon(Icons.flash_on),
                     flashOffIcon: const Icon(Icons.flash_off),

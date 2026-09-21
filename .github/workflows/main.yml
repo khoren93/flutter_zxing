@@ -180,7 +180,8 @@ jobs:
           sudo apt update
           sudo apt install -y \
             cmake dbus libblkid-dev libgtk-3-dev liblzma-dev ninja-build \
-            pkg-config xvfb network-manager upower
+            pkg-config xvfb network-manager upower \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
 
       # Launch iOS Simulator for iOS tests
       - name: Launch iOS Simulator for ${{ matrix.target }}

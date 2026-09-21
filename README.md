@@ -21,6 +21,7 @@ Flutter ZXing is a high-performance Flutter plugin for scanning and generating Q
     - [Use with dependency\_overrides](#use-with-dependency_overrides)
   - [Usage](#usage)
     - [To read barcode](#to-read-barcode)
+    - [Camera on desktop](#camera-on-desktop)
     - [To create barcode](#to-create-barcode)
   - [License](#license)
 
@@ -40,8 +41,8 @@ Flutter ZXing is a high-performance Flutter plugin for scanning and generating Q
 
 ## Features
 
-- Scan QR codes and barcodes from the camera stream (on mobile platforms only), image file, or URL.
-- Scan multiple barcodes at once from the camera stream (on mobile platforms only), image file, or URL.
+- Scan QR codes and barcodes from the camera stream, an image file, or a URL. On desktop the camera needs [`camera_desktop`](#camera-on-desktop).
+- Scan multiple barcodes at once from the camera stream, an image file, or a URL.
 - Generate QR codes with customizable content and size.
 - Return the position points of the scanned barcode.
 - Customizable scanner frame size and color, and the ability to enable or disable features like torch and pinch to zoom.
@@ -73,12 +74,12 @@ Powered by [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp) v3.1.1.
 |------------|----------------------|-------------------------------------------|
 | Android    | ✅ Fully Supported   | Minimum API level 23 (Android 6.0)        |
 | iOS        | ✅ Fully Supported   | Minimum iOS 13.0                          |
-| MacOS      | ⚠️ Beta              | Minimum macOS 10.15, without camera support |
-| Linux      | ⚠️ Beta              | Without Camera support                    |
+| MacOS      | ⚠️ Beta              | Minimum macOS 10.15, camera needs [`camera_desktop`](#camera-on-desktop) |
+| Linux      | ⚠️ Beta              | Camera needs [`camera_desktop`](#camera-on-desktop) |
 | Windows    | ⚠️ Beta              | Without Camera support                    |
 | Web        | ❌ Not Supported     | Dart FFI is not available on the web      |
 
-> Note: Flutter ZXing relies on the Dart FFI feature, making it unsupported on the web. Camera-based scanning is only available on mobile platforms.
+> Note: Flutter ZXing relies on the Dart FFI feature, making it unsupported on the web.
 
 ---
 
@@ -200,7 +201,9 @@ cameraController?.startImageStream((image) async {
     final Code result = await zx.processCameraImage(
         image,
         DecodeParams(
-            imageFormat: ImageFormat.lum, // the luminance plane of a YUV420/NV21 frame
+            // Maps the frame's layout onto what the decoder expects, including
+            // the RGBA frames `camera_desktop` reports as bgra8888 on desktop.
+            imageFormat: cameraImageFormat(image),
             format: Format.any,
             width: image.width,
             height: image.height,
@@ -241,6 +244,42 @@ if (!resultFromPath.isValid) {
 // with every symbol found in the image.
 Codes allCodes = await zx.readBarcodesImagePath(xFile, DecodeParams());
 ```
+
+### Camera on desktop
+
+Reading barcodes from images and generating them work on desktop out of the box.
+Scanning from the camera needs one more step, because the `camera` package ships
+camera implementations for Android, iOS and the web only.
+
+Add [`camera_desktop`](https://pub.dev/packages/camera_desktop) to the
+`pubspec.yaml` of your app — it implements the same `camera` interface, so
+`ReaderWidget` and `zx.processCameraImage` then work unchanged:
+
+```yaml
+dependencies:
+  camera_desktop: ^1.2.1
+```
+
+**Linux** additionally needs the GStreamer development packages at build time:
+
+```bash
+# Ubuntu/Debian
+sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good
+```
+
+Its camera currently fails to initialize above `ResolutionPreset.low` on Linux
+([camera_desktop#8](https://github.com/hugocornellier/camera_desktop/issues/8)).
+
+**macOS** needs camera access declared by the app: add
+`NSCameraUsageDescription` to `macos/Runner/Info.plist`, and, for a sandboxed
+app, `com.apple.security.device.camera` to both entitlements files. See
+`example/macos/Runner` for what that looks like.
+
+**Windows** is not covered yet: `camera_windows` has no image stream, and
+`camera_desktop`'s Windows stream has not been verified with this plugin.
+
+Desktop cameras have no torch and no zoom, so `ReaderWidget` hides its flash
+button there and pinch-to-zoom does nothing.
 
 ### To create barcode
 
