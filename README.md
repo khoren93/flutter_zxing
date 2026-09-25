@@ -21,6 +21,7 @@ Flutter ZXing is a high-performance Flutter plugin for scanning and generating Q
     - [Use with dependency\_overrides](#use-with-dependency_overrides)
   - [Usage](#usage)
     - [To read barcode](#to-read-barcode)
+    - [Small or dense codes](#small-or-dense-codes)
     - [Camera on desktop](#camera-on-desktop)
     - [To create barcode](#to-create-barcode)
   - [License](#license)
@@ -139,6 +140,10 @@ cd example
 flutter test integration_test
 ```
 
+On macOS, Linux and Windows, run one file at a time
+(`flutter test integration_test/ffi_test.dart -d macos`). A desktop app cannot be
+started twice within one `flutter test` run.
+
 Now you can run the flutter_zxing example app on your device or emulator.
 
 ### Use with dependency_overrides
@@ -244,6 +249,30 @@ if (!resultFromPath.isValid) {
 // with every symbol found in the image.
 Codes allCodes = await zx.readBarcodesImagePath(xFile, DecodeParams());
 ```
+
+### Small or dense codes
+
+`ReaderWidget` scans only the square cut-out in the middle of the frame:
+`cropPercent` (0.5 by default) of the frame's shorter side. With the default
+`ResolutionPreset.high`, which is 720p, the decoder gets 360×360 pixels. That is
+plenty for a QR code on a phone screen, but not for a dense symbol, such as a
+GS1 DataMatrix on a label, which needs a few pixels per module to decode.
+
+For such codes, ask for more pixels, at the cost of a longer decode per frame:
+
+```dart
+ReaderWidget(
+  resolution: ResolutionPreset.ultraHigh, // 2160p; veryHigh is 1080p
+  cropPercent: 0.7,
+  onScan: (code) {},
+)
+```
+
+The camera may deliver a smaller frame than the preset asks for. On Android,
+`ResolutionPreset.max` has been seen to give a 1080p stream where `ultraHigh`
+gave 2160p (#251). Check what arrives: `code.position?.imageWidth` and
+`imageHeight` are the size of the whole frame, on failed scans as well
+(`onScanFailure`).
 
 ### Camera on desktop
 

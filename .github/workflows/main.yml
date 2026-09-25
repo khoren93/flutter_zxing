@@ -215,11 +215,15 @@ jobs:
         shell: bash
         run: |
           cd ./example
-          if [ "${{ matrix.target }}" == "linux" ]; then
-            xvfb-run flutter test integration_test -d "${{ matrix.device }}"
-          else
-            flutter test integration_test -d "${{ matrix.device }}"
-          fi
+          # One file per run: a desktop app cannot be started a second time
+          # within one `flutter test` ("Unable to start the app on the device").
+          for test in integration_test/*_test.dart; do
+            if [ "${{ matrix.target }}" == "linux" ]; then
+              xvfb-run flutter test "$test" -d "${{ matrix.device }}"
+            else
+              flutter test "$test" -d "${{ matrix.device }}"
+            fi
+          done
 
   # Integration tests on Android emulator
   test-example-android:

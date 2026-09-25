@@ -293,18 +293,17 @@ CodeResult _readBarcode(const DecodeBarcodeParams& params) noexcept
         // reaches `onScanFailure`. But `ReadBarcode()` stops at the first symbol,
         // and that can be such an error -- the full-size pass fails a checksum
         // and the downscaled or inverted passes that would read it never run.
-        // In that case look at every candidate and prefer one that decoded
-        // (#251). A frame whose first symbol decodes costs no more than before.
-        ReaderOptions options = createReaderOptions(params).setReturnErrors(true);
-        Barcode result = ReadBarcode(cropped.image, options);
+        // In that case search again without errors, which stops at the first
+        // symbol that decodes rather than going through every candidate (#251).
+        // A frame whose first symbol decodes costs no more than before.
+        ReaderOptions options = createReaderOptions(params);
+        Barcode result = ReadBarcode(cropped.image, ReaderOptions(options).setReturnErrors(true));
         if (result.error())
         {
-            Barcodes results = ReadBarcodes(cropped.image, options.setMaxNumberOfSymbols(0xff));
-            auto valid = std::find_if(results.begin(), results.end(),
-                [](const Barcode& barcode) { return barcode.isValid(); });
-            if (valid != results.end())
+            Barcode valid = ReadBarcode(cropped.image, options);
+            if (valid.isValid())
             {
-                result = *valid;
+                result = valid;
             }
         }
 

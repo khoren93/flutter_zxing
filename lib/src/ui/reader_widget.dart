@@ -720,7 +720,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
             }
             setState(() {});
           } else {
-            results = Codes();
+            _clearResults();
             widget.onMultiScanFailure?.call(result);
           }
         } else {
@@ -734,7 +734,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
             setState(() {});
             await Future<void>.delayed(widget.scanDelaySuccess);
           } else {
-            results = Codes();
+            _clearResults();
             widget.onScanFailure?.call(result);
           }
         }
@@ -747,6 +747,22 @@ class _ReaderWidgetState extends State<ReaderWidget>
         }
         _isProcessing = false;
       }
+    }
+  }
+
+  /// Forgets the codes of the last scan and takes their overlay off the screen.
+  ///
+  /// Clearing [results] alone left the outline and text painted over whatever
+  /// the camera turned to next, until something else rebuilt the widget (#252).
+  /// Only rebuilds when there was something to take down, so the frames between
+  /// two scans do not rebuild the preview.
+  void _clearResults() {
+    if (results.codes.isEmpty) {
+      return;
+    }
+    results = Codes();
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -1005,7 +1021,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
           }
           setState(() {});
         } else {
-          results = Codes();
+          _clearResults();
           widget.onMultiScanFailure?.call(result);
         }
       } else {
@@ -1018,7 +1034,7 @@ class _ReaderWidgetState extends State<ReaderWidget>
           }
           setState(() {});
         } else {
-          results = Codes();
+          _clearResults();
           widget.onScanFailure?.call(result);
         }
       }
