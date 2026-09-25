@@ -286,7 +286,7 @@ Add [`camera_desktop`](https://pub.dev/packages/camera_desktop) to the
 
 ```yaml
 dependencies:
-  camera_desktop: ^1.2.1
+  camera_desktop: ^1.2.2
 ```
 
 **Linux** additionally needs the GStreamer development packages at build time:
@@ -304,8 +304,9 @@ Its camera currently fails to initialize above `ResolutionPreset.low` on Linux
 app, `com.apple.security.device.camera` to both entitlements files. See
 `example/macos/Runner` for what that looks like.
 
-**Windows** is not covered yet: `camera_windows` has no image stream, and
-`camera_desktop`'s Windows stream has not been verified with this plugin.
+**Windows** is not covered yet: `camera_windows` has no image stream.
+`camera_desktop` streams frames on Windows too, but that has not been verified
+with this plugin.
 
 Desktop cameras have no torch and no zoom, so `ReaderWidget` hides its flash
 button there and pinch-to-zoom does nothing.

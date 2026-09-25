@@ -53,10 +53,10 @@ packages:
     dependency: "direct main"
     description:
       name: camera_desktop
-      sha256: bea6ba51ecfa1afa24c543f26a66f10ca9f43ce8525207de7675ebcb4402d66f
+      sha256: "4070ab1e2422c293a3d21a48b8bc361e0e1ce1682f404088b21ef414b921d4aa"
       url: "https://pub.dev"
     source: hosted
-    version: "1.2.1"
+    version: "1.2.2"
   camera_platform_interface:
     dependency: "direct dev"
     description:

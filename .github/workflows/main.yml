@@ -219,7 +219,8 @@ jobs:
           # within one `flutter test` ("Unable to start the app on the device").
           for test in integration_test/*_test.dart; do
             if [ "${{ matrix.target }}" == "linux" ]; then
-              xvfb-run flutter test "$test" -d "${{ matrix.device }}"
+              # `-a` picks a free display: the previous Xvfb may still hold :99.
+              xvfb-run -a flutter test "$test" -d "${{ matrix.device }}"
             else
               flutter test "$test" -d "${{ matrix.device }}"
             fi
