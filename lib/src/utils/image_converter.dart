@@ -54,10 +54,11 @@ Uint8List _tightlyPackedPlane(
 int cameraImageFormat(CameraImage image) {
   switch (image.format.group) {
     case ImageFormatGroup.bgra8888:
-      // `camera_desktop` hands out RGBA frames on Linux and Windows while still
-      // reporting them as bgra8888; the byte order it actually used is only in
-      // `raw`. Reading those as BGRA swaps red and blue, which skews the
-      // luminance the decoder works from.
+      // `camera_desktop` 1.x hands out RGBA frames on Linux and Windows while
+      // still reporting them as bgra8888; the byte order it actually used is
+      // only in `raw`. Reading those as BGRA swaps red and blue, which skews
+      // the luminance the decoder works from. From 2.0 every platform sends
+      // BGRA, labelled as such.
       return image.format.raw == 'RGBA'
           ? zxing.ImageFormat.rgba
           : zxing.ImageFormat.bgra;

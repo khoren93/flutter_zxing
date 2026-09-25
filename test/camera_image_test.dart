@@ -175,7 +175,7 @@ void main() {
     });
 
     test('a frame that says bgra8888 but carries RGBA is scanned as RGBA', () {
-      // What `camera_desktop` delivers on Linux and Windows: the group is
+      // What `camera_desktop` 1.x delivers on Linux and Windows: the group is
       // bgra8888 for every platform, and only `raw` says which order it used.
       // Reading these as BGRA swaps red and blue.
       expect(

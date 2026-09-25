@@ -80,6 +80,15 @@ jobs:
         with:
           submodules: recursive
 
+      # The example app builds through Swift Package Manager, so no step here
+      # ever loads the podspecs, while apps that still use CocoaPods do. A broken
+      # podspec shipped twice that way (#246); evaluating both catches it.
+      - name: Check the iOS and macOS podspecs
+        if: matrix.target == 'ios'
+        run: |
+          pod ipc spec ios/flutter_zxing.podspec > /dev/null
+          pod ipc spec macos/flutter_zxing.podspec > /dev/null
+
       # iOS specific setup
       - name: Copy ZXing source files for iOS
         if: matrix.target == 'ios'

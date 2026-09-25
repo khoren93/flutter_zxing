@@ -208,7 +208,7 @@ cameraController?.startImageStream((image) async {
         image,
         DecodeParams(
             // Maps the frame's layout onto what the decoder expects, including
-            // the RGBA frames `camera_desktop` reports as bgra8888 on desktop.
+            // the RGBA frames `camera_desktop` 1.x reports as bgra8888.
             imageFormat: cameraImageFormat(image),
             format: Format.any,
             width: image.width,
@@ -287,7 +287,7 @@ Add [`camera_desktop`](https://pub.dev/packages/camera_desktop) to the
 
 ```yaml
 dependencies:
-  camera_desktop: ^1.2.2
+  camera_desktop: ^2.0.0
 ```
 
 **Linux** additionally needs the GStreamer development packages at build time:

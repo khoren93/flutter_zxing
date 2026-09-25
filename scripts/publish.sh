@@ -141,6 +141,7 @@ echo ""
 if [ "$DRY_RUN" -eq 1 ]; then
     echo "Dry run passed. Re-run without --dry-run to publish $VERSION."
 else
+    # Pushed by name: `git push --follow-tags` skips lightweight tags.
     echo "Published $VERSION. Tag it:"
-    echo "  git tag v$VERSION && git push --follow-tags"
+    echo "  git tag -a v$VERSION -m \"v$VERSION\" && git push origin v$VERSION"
 fi
