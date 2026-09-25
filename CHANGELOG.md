@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+* The cut-out of `ReaderWidget`'s scanner overlay now marks the area that is
+  actually scanned. `cropPercent` is a fraction of the camera frame, and the
+  frame is drawn covering the widget, but the cut-out was sized and moved within
+  the widget. Whenever the camera and the widget were shaped differently, which
+  on a phone is the usual case, the scanned area was larger than the cut-out,
+  and the crop offsets moved the two apart. On such screens the cut-out is now
+  larger than before. Thanks to [@frankmer](https://github.com/frankmer) for
+  the report (#151).
+
 ## 3.1.0
 
 * **The camera now works on macOS and Linux.** The `camera` package ships

@@ -434,6 +434,71 @@ void main() {
     await disposeReader(tester);
   });
 
+  testWidgets('the crop overlay marks the area the decoder scans', (
+    WidgetTester tester,
+  ) async {
+    // Regression test for #151: the decoder scans `cropPercent` of the camera
+    // frame's shorter side, and the frame is drawn covering the widget. In a
+    // widget shaped differently from the camera the preview spills over two
+    // edges, and a cut-out sized and moved within the widget marked a smaller
+    // area than the one actually scanned.
+    tester.view.physicalSize = const Size(1000, 2000);
+    addTearDown(tester.view.reset);
+
+    const double boxWidth = 300;
+    const double boxHeight = 600;
+    const double cropPercent = 0.4;
+    const double horizontalOffset = 0.3;
+    const double verticalOffset = -0.5;
+    await pumpReader(
+      tester,
+      widget: const Center(
+        child: SizedBox(
+          width: boxWidth,
+          height: boxHeight,
+          child: ReaderWidget(
+            cropPercent: cropPercent,
+            horizontalCropOffset: horizontalOffset,
+            verticalCropOffset: verticalOffset,
+          ),
+        ),
+      ),
+    );
+
+    final Finder overlay = find.byWidgetPredicate(
+      (Widget w) =>
+          w is Container &&
+          w.decoration is ShapeDecoration &&
+          (w.decoration! as ShapeDecoration).shape is ScannerOverlayBorder,
+    );
+    final ScannerOverlayBorder border =
+        ((tester.widget<Container>(overlay).decoration!) as ShapeDecoration)
+                .shape
+            as ScannerOverlayBorder;
+    final Rect overlayRect = tester.getRect(overlay);
+    final Rect cutOut = border
+        .getInnerPath(Offset.zero & overlayRect.size)
+        .getBounds()
+        .shift(overlayRect.topLeft);
+
+    // The scanned square, worked out from where the preview is drawn.
+    final Rect preview = tester.getRect(find.byType(CameraPreview));
+    expect(preview.width, greaterThan(boxWidth));
+    final double scanned = cropPercent * preview.shortestSide;
+    final Offset scannedCenter =
+        preview.center +
+        Offset(
+          horizontalOffset * (preview.width - scanned) / 2,
+          verticalOffset * (preview.height - scanned) / 2,
+        );
+
+    expect(cutOut.width, closeTo(scanned, 0.01));
+    expect(cutOut.center.dx, closeTo(scannedCenter.dx, 0.01));
+    expect(cutOut.center.dy, closeTo(scannedCenter.dy, 0.01));
+
+    await disposeReader(tester);
+  });
+
   testWidgets('a desktop window losing focus keeps scanning', (
     WidgetTester tester,
   ) async {

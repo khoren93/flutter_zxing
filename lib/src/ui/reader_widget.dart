@@ -162,10 +162,14 @@ class ReaderWidget extends StatefulWidget {
   /// How much of the frame is scanned, as a fraction that is **kept** — not
   /// the fraction cropped away.
   ///
-  /// `0.5` (the default) scans a centred square half the size of the shorter
-  /// side; `1.0` scans the largest centred square that fits; `0` disables
-  /// cropping and scans the whole frame. Smaller values are faster and reject
-  /// codes near the edges, larger values are more forgiving.
+  /// `0.5` (the default) scans a centred square half the size of the camera
+  /// frame's shorter side; `1.0` scans the largest centred square that fits;
+  /// `0` disables cropping and scans the whole frame. Smaller values are faster
+  /// and reject codes near the edges, larger values are more forgiving.
+  ///
+  /// The sizes are relative to the camera frame, not to this widget. The
+  /// cut-out of the scanner overlay marks the scanned square as it lands on the
+  /// preview, capped at the widget's shorter side.
   ///
   /// Ignored when scanning in multi-scan mode, which always uses the whole
   /// frame.
@@ -786,6 +790,47 @@ class _ReaderWidgetState extends State<ReaderWidget>
     );
   }
 
+  /// The size the camera preview is drawn at inside a widget of [size].
+  ///
+  /// The preview keeps the camera's aspect ratio and covers the widget
+  /// (`BoxFit.cover`), centred. The aspect ratio follows the orientation the
+  /// same way `CameraPreview` picks it.
+  Size _previewSizeIn(Size size) {
+    final CameraValue value = controller!.value;
+    final DeviceOrientation orientation =
+        value.previewPauseOrientation ??
+        value.lockedCaptureOrientation ??
+        value.deviceOrientation;
+    final bool isLandscape =
+        orientation == DeviceOrientation.landscapeLeft ||
+        orientation == DeviceOrientation.landscapeRight;
+    final double aspectRatio = isLandscape
+        ? value.aspectRatio
+        : 1 / value.aspectRatio;
+    return size.width / size.height > aspectRatio
+        ? Size(size.width, size.width / aspectRatio)
+        : Size(size.height * aspectRatio, size.height);
+  }
+
+  /// The offset that puts a cut-out of [cutOut] over the spot the decoder
+  /// scans.
+  ///
+  /// A crop offset moves the scanned square across the preview, which spans
+  /// [previewExtent] along this axis, while the overlay moves its cut-out across
+  /// the widget's [extent].
+  static double _cutOutOffset(
+    double offset,
+    double previewExtent,
+    double extent,
+    double cutOut,
+  ) {
+    final double room = extent - cutOut;
+    if (room <= 0) {
+      return 0;
+    }
+    return (offset * (previewExtent - cutOut) / room).clamp(-1.0, 1.0);
+  }
+
   Widget _buildScanner(BuildContext context, Size size) {
     final bool isCameraReady =
         cameras.isNotEmpty &&
@@ -796,7 +841,16 @@ class _ReaderWidgetState extends State<ReaderWidget>
     // Multi-scan always scans the whole frame, so the crop rect (and the cut-out
     // overlay that advertises it) must be suppressed in that mode.
     final double cropPercent = _multiScanEnabled ? 0 : widget.cropPercent;
-    final double cropSize = min(size.width, size.height) * cropPercent;
+    // The decoder scans `cropPercent` of the camera frame's shorter side, so the
+    // cut-out is measured on the preview as drawn, not on this widget. The two
+    // differ whenever the camera and the widget are shaped differently: the
+    // preview then spills over two edges, and a cut-out sized from the widget
+    // was smaller than the area actually scanned (#151).
+    final Size preview = isCameraReady ? _previewSizeIn(size) : size;
+    final double cropSize = min(
+      min(preview.width, preview.height) * cropPercent,
+      min(size.width, size.height),
+    );
     return Stack(
       children: <Widget>[
         switch (true) {
@@ -838,8 +892,18 @@ class _ReaderWidgetState extends State<ReaderWidget>
                   widget.scannerOverlay ??
                   ScannerOverlayBorder(
                     cutOutSize: cropSize,
-                    horizontalOffset: widget.horizontalCropOffset,
-                    verticalOffset: widget.verticalCropOffset,
+                    horizontalOffset: _cutOutOffset(
+                      widget.horizontalCropOffset,
+                      preview.width,
+                      size.width,
+                      cropSize,
+                    ),
+                    verticalOffset: _cutOutOffset(
+                      widget.verticalCropOffset,
+                      preview.height,
+                      size.height,
+                      cropSize,
+                    ),
                     borderColor: Theme.of(context).primaryColor,
                     overlayColor: Colors.black45,
                     borderRadius: 4,
