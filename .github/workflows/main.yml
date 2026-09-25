@@ -136,8 +136,9 @@ jobs:
   test-example:
     name: 'Test example (${{ matrix.target }}, ${{ matrix.os }})'
     runs-on: ${{ matrix.os }}-latest
-    # The iOS simulator run alone needs ~12 minutes, so 15 leaves no headroom
-    timeout-minutes: 30
+    # The iOS simulator run alone needs ~12 minutes, and a run that hangs is
+    # stopped after 12 more and retried (see scripts/run_integration_tests.sh)
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -214,17 +215,7 @@ jobs:
       - name: Run tests for ${{ matrix.target }} on ${{ matrix.os }}
         shell: bash
         run: |
-          cd ./example
-          # One file per run: a desktop app cannot be started a second time
-          # within one `flutter test` ("Unable to start the app on the device").
-          for test in integration_test/*_test.dart; do
-            if [ "${{ matrix.target }}" == "linux" ]; then
-              # `-a` picks a free display: the previous Xvfb may still hold :99.
-              xvfb-run -a flutter test "$test" -d "${{ matrix.device }}"
-            else
-              flutter test "$test" -d "${{ matrix.device }}"
-            fi
-          done
+          scripts/run_integration_tests.sh "${{ matrix.device }}"
 
   # Integration tests on Android emulator
   test-example-android:
@@ -313,4 +304,4 @@ jobs:
           disable-animations: true
           script: |
             flutter devices
-            cd ./example && flutter test integration_test
+            scripts/run_integration_tests.sh

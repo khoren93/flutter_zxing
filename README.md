@@ -142,7 +142,8 @@ flutter test integration_test
 
 On macOS, Linux and Windows, run one file at a time
 (`flutter test integration_test/ffi_test.dart -d macos`). A desktop app cannot be
-started twice within one `flutter test` run.
+started twice within one `flutter test` run. `scripts/run_integration_tests.sh
+<device>` runs every file that way, as CI does.
 
 Now you can run the flutter_zxing example app on your device or emulator.
 
