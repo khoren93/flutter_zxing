@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.1.0
 
 * **The camera now works on macOS and Linux.** The `camera` package ships
   implementations for Android, iOS and the web only; adding
