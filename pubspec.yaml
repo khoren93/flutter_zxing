@@ -22,7 +22,7 @@ dependencies:
 dev_dependencies:
   # Used by the tests to build synthetic camera frames.
   camera_platform_interface: ^2.7.0
-  ffigen: ">=12.0.0 <22.0.0" # dart run ffigen --config ffigen.yaml
+  ffigen: ">=12.0.0 <23.0.0" # dart run ffigen --config ffigen.yaml
   flutter_lints: ">=4.0.0 <7.0.0"
   flutter_test:
     sdk: flutter
