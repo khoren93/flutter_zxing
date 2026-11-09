@@ -36,3 +36,6 @@ macos/flutter_zxing/.build/
 
 # FVM Version Cache
 .fvm/
+
+# Local 4.0 roadmap and progress notes, never committed
+PROGRESS.md

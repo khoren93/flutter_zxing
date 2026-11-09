@@ -1,7 +1,12 @@
 # Changelog
 
-## Unreleased
+## 3.1.1
 
+* The cut-out of `ReaderWidget`'s scanner overlay is now centred on the camera
+  preview wherever the widget sits on screen. It was placed as if the reader
+  started at the top-left corner of the screen, so inside a `Padding`, below an
+  app bar or further down a `Column` it was shifted up and to the left by that
+  distance, partly outside the darkened area (#257).
 * The cut-out of `ReaderWidget`'s scanner overlay now marks the area that is
   actually scanned. `cropPercent` is a fraction of the camera frame, and the
   frame is drawn covering the widget, but the cut-out was sized and moved within
