@@ -402,6 +402,31 @@ void main() {
       expect(outer.contains(const Offset(5, 5)), isTrue);
       expect(outer.contains(rect.center), isFalse);
     });
+
+    // Regression test for #257: the paint rect is in the canvas's coordinate
+    // space, so its origin is not always (0, 0).
+    test('the cut-out follows a rect that is not at the origin', () {
+      const Rect shifted = Rect.fromLTWH(24, 150, 400, 800);
+      const ScannerOverlayBorder border = ScannerOverlayBorder(cutOutSize: 0.5);
+
+      final Rect cutOut = border.getInnerPath(shifted).getBounds();
+      expect(cutOut.center.dx, closeTo(shifted.center.dx, 0.01));
+      expect(cutOut.center.dy, closeTo(shifted.center.dy, 0.01));
+      expect(cutOut.width, closeTo(200, 0.01));
+
+      final Path outer = border.getOuterPath(shifted);
+      expect(outer.contains(shifted.center), isFalse);
+      expect(outer.contains(shifted.topLeft + const Offset(5, 5)), isTrue);
+
+      const ScannerOverlayBorder bottomRight = ScannerOverlayBorder(
+        cutOutSize: 0.5,
+        horizontalOffset: 1,
+        verticalOffset: 1,
+      );
+      final Rect corner = bottomRight.getInnerPath(shifted).getBounds();
+      expect(corner.right, closeTo(shifted.right, 0.01));
+      expect(corner.bottom, closeTo(shifted.bottom, 0.01));
+    });
   });
 
   group('codeHitRegions', () {

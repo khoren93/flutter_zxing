@@ -45,32 +45,35 @@ class ScannerOverlayBorder extends ShapeBorder {
   @override
   ShapeBorder scale(double t) => this;
 
-  @override
-  Path getInnerPath(Rect rect, {TextDirection? textDirection}) {
-    // Calculate width and height of the available area
-    final double width = rect.width;
-    final double height = rect.height;
+  /// Computes the cut-out rectangle inside [rect].
+  ///
+  /// The cut-out is centered on [rect.center] (not on the origin), because
+  /// [rect] is given in the canvas's coordinate space and its top-left corner
+  /// is not necessarily at (0, 0).
+  Rect _cutOutRect(Rect rect) {
+    final double shortestSide = rect.shortestSide;
 
     // Determine the size of the cut-out
     final double cutOut = cutOutSize > 1
-        ? cutOutSize.clamp(0.0, width < height ? width : height)
-        : (width < height ? width : height) * cutOutSize;
+        ? cutOutSize.clamp(0.0, shortestSide)
+        : shortestSide * cutOutSize;
 
     // Calculate offsets for the cut-out center
-    final double dx = horizontalOffset * ((width - cutOut) / 2);
-    final double dy = verticalOffset * ((height - cutOut) / 2);
+    final double dx = horizontalOffset * ((rect.width - cutOut) / 2);
+    final double dy = verticalOffset * ((rect.height - cutOut) / 2);
 
-    // Define the cut-out rectangle
-    final Rect cutOutRect = Rect.fromLTWH(
-      width / 2 - cutOut / 2 + dx,
-      height / 2 - cutOut / 2 + dy,
-      cutOut,
-      cutOut,
+    return Rect.fromCenter(
+      center: rect.center + Offset(dx, dy),
+      width: cutOut,
+      height: cutOut,
     );
+  }
 
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) {
     // Return the path for the cut-out with rounded corners
     return Path()..addRRect(
-      RRect.fromRectAndRadius(cutOutRect, Radius.circular(borderRadius)),
+      RRect.fromRectAndRadius(_cutOutRect(rect), Radius.circular(borderRadius)),
     );
   }
 
@@ -79,32 +82,8 @@ class ScannerOverlayBorder extends ShapeBorder {
     // Outer rectangle (entire area)
     final Path outer = Path()..addRect(rect);
 
-    // Calculate width and height of the available area
-    final double width = rect.width;
-    final double height = rect.height;
-
-    // Determine the size of the cut-out
-    final double cutOut = cutOutSize > 1
-        ? cutOutSize.clamp(0.0, width < height ? width : height)
-        : (width < height ? width : height) * cutOutSize;
-
-    // Calculate offsets for the cut-out center
-    final double dx = horizontalOffset * ((width - cutOut) / 2);
-    final double dy = verticalOffset * ((height - cutOut) / 2);
-
-    // Define the cut-out rectangle
-    final Rect cutOutRect = Rect.fromLTWH(
-      width / 2 - cutOut / 2 + dx,
-      height / 2 - cutOut / 2 + dy,
-      cutOut,
-      cutOut,
-    );
-
     // Path for the cut-out with rounded corners
-    final Path cutOutPath = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(cutOutRect, Radius.circular(borderRadius)),
-      );
+    final Path cutOutPath = getInnerPath(rect, textDirection: textDirection);
 
     // Return the difference: everything minus the cut-out
     return Path.combine(PathOperation.difference, outer, cutOutPath);
@@ -112,22 +91,8 @@ class ScannerOverlayBorder extends ShapeBorder {
 
   @override
   void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
-    final double width = rect.width;
-    final double height = rect.height;
-
-    final double cutOut = cutOutSize > 1
-        ? cutOutSize.clamp(0.0, width < height ? width : height)
-        : (width < height ? width : height) * cutOutSize;
-
-    final double dx = horizontalOffset * ((width - cutOut) / 2);
-    final double dy = verticalOffset * ((height - cutOut) / 2);
-
-    final Rect cutOutRect = Rect.fromLTWH(
-      width / 2 - cutOut / 2 + dx,
-      height / 2 - cutOut / 2 + dy,
-      cutOut,
-      cutOut,
-    );
+    final Rect cutOutRect = _cutOutRect(rect);
+    final double cutOut = cutOutRect.width;
 
     // Draw the overlay outside the cut-out
     final Paint overlayPaint = Paint()
