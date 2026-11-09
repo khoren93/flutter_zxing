@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../models/models.dart' as model;
 import '../utils/db_service.dart';

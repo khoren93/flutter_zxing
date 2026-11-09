@@ -10,6 +10,24 @@
   and the crop offsets moved the two apart. On such screens the cut-out is now
   larger than before. Thanks to [@frankmer](https://github.com/frankmer) for
   the report (#151).
+* `ReaderWidget` no longer leaves the camera open when it is disposed while the
+  camera is still starting, for example when the user leaves the scanner right
+  after opening it.
+* `ReaderWidget` restarts scanning when the app comes back to the foreground
+  even if the camera reported an event, such as an orientation change, while
+  the app was in the background. Before, the preview came back but nothing was
+  scanned until the widget was rebuilt.
+* A change of `lensDirection` or `resolution`, or a tap on the camera toggle,
+  made while the camera is still starting is applied once it has started,
+  instead of being dropped.
+* `cropPercent` must now be between 0 and 1. A larger value used to make every
+  frame fail to decode without telling anyone; release builds now clamp it.
+* Multi-scan outlines are drawn the right way up on Android devices held upside
+  down (`portraitDown`).
+* A decoded code with an empty payload no longer leaks a small native buffer on
+  every frame.
+* The Android build of the plugin uses Android Gradle Plugin 9.1 and Java 17,
+  matching the current Flutter templates.
 
 ## 3.1.0
 

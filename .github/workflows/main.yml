@@ -33,23 +33,28 @@ jobs:
           channel: "stable"
           cache: true
 
-      # Setup Melos for workspace management
-      - uses: bluefireteam/melos-action@v3
-        with:
-          run-bootstrap: true
-          enforce-lockfile: true
+      # The apps resolve against their committed lockfiles; the plugin's own
+      # lockfile is git-ignored, as it should be for a published package.
+      - name: Get dependencies
+        run: |
+          flutter pub get
+          (cd example && flutter pub get --enforce-lockfile)
+          (cd zxscanner && flutter pub get --enforce-lockfile)
 
       # Format code and check for issues
       - name: Run Dart format
         run: dart format --set-exit-if-changed .
 
       - name: Analyze Dart code
-        run: melos exec -- dart analyze .
+        run: |
+          for dir in . example zxscanner; do
+            (cd "$dir" && flutter analyze --no-pub)
+          done
 
       # Unit and widget tests of the plugin itself. They mock the camera and
       # never call into FFI, so they need no native build and run in seconds.
-      # example/ and zxscanner/ only hold placeholder test files, so `melos exec`
-      # is deliberately not used here.
+      # example/ and zxscanner/ only hold placeholder test files, so they are
+      # deliberately not run here.
       - name: Run unit tests
         run: flutter test
 
@@ -114,11 +119,12 @@ jobs:
           channel: "stable"
           cache: true
 
-      # Setup Melos for workspace management
-      - uses: bluefireteam/melos-action@v3
-        with:
-          run-bootstrap: true
-          enforce-lockfile: true
+      # The example resolves against its committed lockfile; the plugin's own
+      # lockfile is git-ignored.
+      - name: Get dependencies
+        run: |
+          flutter pub get
+          cd example && flutter pub get --enforce-lockfile
 
       - name: Build example for ${{ matrix.target }} on ${{ matrix.os }}
         shell: bash
@@ -180,11 +186,12 @@ jobs:
           channel: "stable"
           cache: true
 
-      # Setup Melos
-      - uses: bluefireteam/melos-action@v3
-        with:
-          run-bootstrap: true
-          enforce-lockfile: true
+      # The example resolves against its committed lockfile; the plugin's own
+      # lockfile is git-ignored.
+      - name: Get dependencies
+        run: |
+          flutter pub get
+          cd example && flutter pub get --enforce-lockfile
 
       # Linux-specific dependencies
       - name: Install dependencies for Flutter on Linux (${{ matrix.target }}, ${{ matrix.os }})
@@ -262,11 +269,12 @@ jobs:
           channel: "stable"
           cache: true
 
-      # Setup Melos
-      - uses: bluefireteam/melos-action@v3
-        with:
-          run-bootstrap: true
-          enforce-lockfile: true
+      # The example resolves against its committed lockfile; the plugin's own
+      # lockfile is git-ignored.
+      - name: Get dependencies
+        run: |
+          flutter pub get
+          cd example && flutter pub get --enforce-lockfile
 
       # Enable KVM for Android emulators
       - name: Enable KVM for Android emulators (${{ matrix.api-level }})

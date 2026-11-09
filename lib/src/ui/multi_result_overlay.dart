@@ -112,7 +112,7 @@ class MultiResultOverlay extends StatelessWidget {
     const Map<DeviceOrientation, int> turns = <DeviceOrientation, int>{
       DeviceOrientation.portraitUp: 1,
       DeviceOrientation.landscapeRight: 2,
-      DeviceOrientation.portraitDown: 1,
+      DeviceOrientation.portraitDown: 3,
       DeviceOrientation.landscapeLeft: 0,
     };
     return turns[_getApplicableOrientation()] ?? 0;

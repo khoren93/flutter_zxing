@@ -1,8 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'configs/app_store.dart';
 import 'configs/app_theme.dart';
@@ -42,10 +41,14 @@ class _MyAppState extends State<MyApp> {
         themeMode: appStore.themeMode,
         localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
           loc.S.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
+          ...GlobalMaterialLocalizations.delegates,
         ],
+        // flutter_zxing and convex_bottom_bar still build on
+        // package:flutter/material.dart; the bridge hands them this app's
+        // material_ui theme and localizations.
+        builder: (BuildContext context, Widget? child) =>
+            // ignore: deprecated_member_use
+            MaterialUiCompatibilityBridge(child: child!),
         supportedLocales: loc.S.delegate.supportedLocales,
         locale: appStore.selectedLanguage.parseLocale(),
         onGenerateRoute: _appRouter.onGenerateRoute,

@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:camera/camera.dart' show CameraController, CameraPreview;
 import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -545,6 +545,88 @@ void main() {
 
     await disposeReader(tester);
   }, variant: TargetPlatformVariant.mobile());
+
+  testWidgets('resuming restarts a stream that a controller event re-flagged', (
+    WidgetTester tester,
+  ) async {
+    // While paused, any controller event (here an orientation change) used to
+    // mark the camera as on again, so resuming never restarted the stream.
+    CameraController? created;
+    await pumpReader(
+      tester,
+      widget: ReaderWidget(
+        onControllerCreated: (CameraController? controller, Exception? _) =>
+            created = controller,
+      ),
+    );
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await settle(tester);
+    expect(created?.value.isStreamingImages, isFalse);
+
+    platform._orientation.add(
+      const DeviceOrientationChangedEvent(DeviceOrientation.landscapeLeft),
+    );
+    await settle(tester);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await settle(tester);
+
+    expect(created?.value.isStreamingImages, isTrue);
+    expect(tester.takeException(), isNull);
+
+    await disposeReader(tester);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
+  testWidgets('a lens change made during startup is not dropped', (
+    WidgetTester tester,
+  ) async {
+    CameraController? created;
+    void onCreated(CameraController? controller, Exception? _) =>
+        created = controller;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: ReaderWidget(onControllerCreated: onCreated)),
+      ),
+    );
+    // The back camera is still being set up when the parent asks for the front.
+    await tester.pump(const Duration(milliseconds: 10));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReaderWidget(
+            onControllerCreated: onCreated,
+            lensDirection: CameraLensDirection.front,
+          ),
+        ),
+      ),
+    );
+    await settle(tester);
+
+    expect(created?.description.lensDirection, CameraLensDirection.front);
+    expect(created?.value.isStreamingImages, isTrue);
+    expect(tester.takeException(), isNull);
+
+    await disposeReader(tester);
+  });
+
+  testWidgets('disposing during startup does not leave a camera open', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: ReaderWidget())),
+    );
+    // Cameras are listed, but the controller is not created yet.
+    await tester.pump(const Duration(milliseconds: 10));
+    await disposeReader(tester);
+
+    expect(
+      platform.disposedCameras.length,
+      platform.createdCameras,
+      reason: 'every camera that was opened was released',
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('the flash button is hidden on desktop', (
     WidgetTester tester,

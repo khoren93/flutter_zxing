@@ -8,7 +8,13 @@ import '../../zxing_mobile.dart';
 /// From an owned pointer allocated in native code, copy the data into the Dart
 /// VM Heap as a [Uint8List] and then immediately `free` the owned ffi pointer.
 Uint8List? copyUint8ListFromOwnedFfiPtr(Pointer<Uint8> data, int length) {
-  if (data == nullptr || length == 0) {
+  if (data == nullptr) {
+    return null;
+  }
+  // Native code hands over a buffer even for an empty payload (`malloc(0)` is
+  // not null on most platforms), so it still has to be freed here.
+  if (length == 0) {
+    malloc.free(data);
     return null;
   }
 

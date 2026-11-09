@@ -59,7 +59,10 @@ class ReaderWidget extends StatefulWidget {
     this.onActionSecondButton,
     this.actionSecondButtonIcon,
     this.actionSecondButtonIconBackgroundColor,
-  });
+  }) : assert(
+         cropPercent >= 0 && cropPercent <= 1,
+         'cropPercent must be between 0 and 1',
+       );
 
   /// Called when a code is detected
   final Function(Code)? onScan;
@@ -221,6 +224,11 @@ class _ReaderWidgetState extends State<ReaderWidget>
   String _controllerVersion = '';
   Completer<void>? _initializationCompleter;
 
+  /// The most recent camera requested while another one was still being set
+  /// up. It is opened as soon as that setup finishes, so a selection made
+  /// during startup (a lens or resolution change, a toggle tap) is not lost.
+  CameraDescription? _pendingCamera;
+
   double _zoom = 1.0;
   double _scaleFactor = 1.0;
   double _maxZoomLevel = 1.0;
@@ -333,7 +341,12 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
     switch (state) {
       case AppLifecycleState.resumed:
-        if (cameras.isNotEmpty && !_isCameraOn) {
+        // `_isCameraOn` alone is not enough: controller events that arrive
+        // while paused (orientation, errors) set it back to true through
+        // `rebuildOnMount`, and the stopped stream would then never restart.
+        if (cameras.isNotEmpty &&
+            !_isInitializing &&
+            (!_isCameraOn || !cameraController.value.isStreamingImages)) {
           onNewCameraSelected(selectedCamera ?? cameras.first);
         }
         break;
@@ -478,11 +491,11 @@ class _ReaderWidgetState extends State<ReaderWidget>
       _initializationCompleter!.complete();
     }
 
+    // One setup at a time: remember the latest request and run it once the
+    // setup in flight has finished (see the `finally` below).
     if (_isInitializing) {
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      if (_isInitializing) {
-        return;
-      }
+      _pendingCamera = cameraDescription;
+      return;
     }
 
     _isInitializing = true;
@@ -497,6 +510,14 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
     // Small delay to ensure complete disposal
     await Future<void>.delayed(const Duration(milliseconds: 100));
+
+    // `dispose()` may have run during the awaits above. It found no controller
+    // to tear down, so one created now would hold the camera open for good.
+    if (!mounted) {
+      _isInitializing = false;
+      _initializationCompleter = null;
+      return;
+    }
 
     final CameraController cameraController = CameraController(
       cameraDescription,
@@ -634,6 +655,9 @@ class _ReaderWidgetState extends State<ReaderWidget>
         }
       }
     } catch (e) {
+      if (!mounted) {
+        return;
+      }
       if (e is CameraException && e.code == 'setFlashModeFailed') {
         setState(() {
           _isFlashAvailable = false;
@@ -650,6 +674,12 @@ class _ReaderWidgetState extends State<ReaderWidget>
         _initializationCompleter!.complete();
       }
       _initializationCompleter = null;
+
+      final CameraDescription? next = _pendingCamera;
+      _pendingCamera = null;
+      if (next != null && mounted) {
+        unawaited(onNewCameraSelected(next));
+      }
     }
   }
 
@@ -668,7 +698,12 @@ class _ReaderWidgetState extends State<ReaderWidget>
       _isProcessing = true;
       try {
         final bool isMultiScan = _multiScanEnabled;
-        final double cropPercent = isMultiScan ? 0 : widget.cropPercent;
+        // Clamped for release builds, where the constructor assert is gone: a
+        // crop larger than the frame makes the offset clamps below throw on
+        // every frame, and nothing would ever be scanned.
+        final double cropPercent = isMultiScan
+            ? 0
+            : widget.cropPercent.clamp(0.0, 1.0);
         final int cropSize = (min(image.width, image.height) * cropPercent)
             .round();
 
