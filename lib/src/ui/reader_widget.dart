@@ -535,8 +535,11 @@ class _ReaderWidgetState extends State<ReaderWidget>
 
     // True while `cameraController` is still the controller this widget is
     // using, and this call is still the most recent selection.
+    // A camera queued in `_pendingCamera` supersedes this one too: finishing
+    // the setup would only delay it and announce a controller about to die.
     bool isCurrent() =>
         mounted &&
+        _pendingCamera == null &&
         identical(controller, cameraController) &&
         _controllerVersion == currentVersion;
 
@@ -875,7 +878,11 @@ class _ReaderWidgetState extends State<ReaderWidget>
     final double cameraMaxSize = max(size.width, size.height);
     // Multi-scan always scans the whole frame, so the crop rect (and the cut-out
     // overlay that advertises it) must be suppressed in that mode.
-    final double cropPercent = _multiScanEnabled ? 0 : widget.cropPercent;
+    // Clamped like in `processImageStream`, so in release builds (no assert) the
+    // overlay still shows the area that is actually scanned.
+    final double cropPercent = _multiScanEnabled
+        ? 0
+        : widget.cropPercent.clamp(0.0, 1.0);
     // The decoder scans `cropPercent` of the camera frame's shorter side, so the
     // cut-out is measured on the preview as drawn, not on this widget. The two
     // differ whenever the camera and the widget are shaped differently: the
@@ -960,7 +967,11 @@ class _ReaderWidgetState extends State<ReaderWidget>
                 _minZoomLevel,
                 _maxZoomLevel,
               );
-              controller?.setZoomLevel(_scaleFactor);
+              // Not awaited, so a rejection (camera being switched or torn
+              // down mid-gesture) must be caught here, not left unhandled.
+              controller?.setZoomLevel(_scaleFactor).catchError((Object e) {
+                debugPrint('setZoomLevel error: $e');
+              });
             },
           ),
         SafeArea(
@@ -1141,10 +1152,16 @@ class _ReaderWidgetState extends State<ReaderWidget>
   }
 
   void _onCameraButtonTapped() {
-    if (cameras.isEmpty || controller == null) {
+    if (cameras.isEmpty) {
       return;
     }
-    final int cameraIndex = cameras.indexOf(controller!.description);
+    // Step from the last *selected* camera, not from `controller`: while a
+    // switch is in flight the controller still describes the previous camera
+    // (or is null), so a second tap would pick the same camera again or be
+    // dropped.
+    final CameraDescription? current =
+        selectedCamera ?? controller?.description;
+    final int cameraIndex = current == null ? -1 : cameras.indexOf(current);
     final int nextCameraIndex = (cameraIndex + 1) % cameras.length;
     selectedCamera = cameras[nextCameraIndex];
     onNewCameraSelected(selectedCamera);
