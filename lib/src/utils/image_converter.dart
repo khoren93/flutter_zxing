@@ -2,6 +2,9 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
+// material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
+// which needs Flutter 3.47; this package still supports Flutter 3.41.
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as imglib;
 

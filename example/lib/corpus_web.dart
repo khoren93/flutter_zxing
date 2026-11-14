@@ -5,6 +5,9 @@
 // (integration_test/corpus_test.dart).
 import 'dart:convert';
 
+// material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
+// which needs Flutter 3.47; this package still supports Flutter 3.41.
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
