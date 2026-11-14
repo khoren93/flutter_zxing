@@ -20,6 +20,8 @@ export 'package:camera/camera.dart'
         CameraLensDirection,
         ResolutionPreset,
         XFile;
+// flutter_zxing 4 API.
+export 'src/api.dart';
 export 'src/models/models.dart';
 export 'src/ui/ui.dart';
 export 'src/utils/image_converter.dart';

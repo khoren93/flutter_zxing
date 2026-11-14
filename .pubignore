@@ -50,3 +50,4 @@ src/zxing/zint/backend/tools/
 # Local 4.0 roadmap and progress notes. .gitignore is not read once a
 # .pubignore exists, so the rule has to be repeated here.
 PROGRESS.md
+API_REVIEW.md
