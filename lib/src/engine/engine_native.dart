@@ -1,9 +1,13 @@
 // The engine on native platforms: one fzx context on a long-lived isolate.
 //
 // Input bytes are copied once, on the calling isolate, into native memory
-// that the engine isolate reads in place; the calling isolate frees it when
-// the reply arrives (or when the engine isolate dies). Results are parsed on
-// the engine isolate, so the calling isolate only receives Dart objects.
+// that the engine isolate reads in place. Once sent, that memory belongs to
+// the engine isolate, which frees it after the call: the caller must not,
+// even if its call fails early (shutdown, crash), because the engine may
+// still be reading it. (Freeing it on the caller's side crashed Linux, where
+// large blocks go back to the OS at once.) A request still queued when the
+// engine isolate dies leaks its input. Results are parsed on the engine
+// isolate, so the calling isolate only receives Dart objects.
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:isolate';
@@ -24,7 +28,7 @@ Future<EngineBackend> spawnBackend(String name) => NativeBackend.spawn(name);
 
 /// The engine on a long-lived isolate of this isolate group.
 final class NativeBackend implements EngineBackend {
-  NativeBackend._(this._isolate, this._requests, this._replies) {
+  NativeBackend._(this._requests, this._replies) {
     _replies.handler = (Object? message) {
       final _Reply reply = message! as _Reply;
       _pending.remove(reply.id)?.complete(reply);
@@ -62,14 +66,14 @@ final class NativeBackend implements EngineBackend {
       }
     };
     try {
-      final Isolate isolate = await Isolate.spawn(
+      await Isolate.spawn(
         _engineMain,
         (control.sendPort, replies.sendPort),
         debugName: name,
         onError: control.sendPort,
         onExit: control.sendPort,
       );
-      backend = NativeBackend._(isolate, await ready.future, replies);
+      backend = NativeBackend._(await ready.future, replies);
       return backend;
     } on Object {
       replies.close();
@@ -78,7 +82,6 @@ final class NativeBackend implements EngineBackend {
     }
   }
 
-  final Isolate _isolate;
   final SendPort _requests;
   final RawReceivePort _replies;
   final Map<int, Completer<_Reply>> _pending = <int, Completer<_Reply>>{};
@@ -101,8 +104,8 @@ final class NativeBackend implements EngineBackend {
     }
   }
 
-  /// Sends a request; [input] (native memory owned by this call) is freed
-  /// once the engine isolate is done with it.
+  /// Sends a request. Its [input] passes to the engine isolate, which frees
+  /// it; it is freed here only if the request cannot be sent.
   Future<_Reply> _call(
     _Request Function(int id) request, [
     Pointer<Uint8>? input,
@@ -117,17 +120,11 @@ final class NativeBackend implements EngineBackend {
     final Completer<_Reply> completer = Completer<_Reply>();
     _pending[id] = completer;
     _requests.send(request(id));
-    try {
-      final _Reply reply = await completer.future;
-      if (reply.code < 0) {
-        throwFzxError(reply.code, reply.error);
-      }
-      return reply;
-    } finally {
-      if (input != null) {
-        malloc.free(input);
-      }
+    final _Reply reply = await completer.future;
+    if (reply.code < 0) {
+      throwFzxError(reply.code, reply.error);
     }
+    return reply;
   }
 
   static Pointer<Uint8> _copy(Uint8List bytes) {
@@ -203,12 +200,11 @@ final class NativeBackend implements EngineBackend {
     if (_done.isCompleted) {
       return;
     }
-    // Lets the isolate free its context and exit after the current call.
+    // The isolate finishes what it was sent (freeing the inputs), then frees
+    // its context and exits. Not Isolate.kill(): it cannot stop a call in C
+    // anyway, and would skip freeing the inputs and the context.
     _requests.send(null);
     _stopped(const EngineException('The barcode engine was shut down'));
-    // Safety net if the isolate is stuck in a long call: kill it once that
-    // call returns to Dart.
-    _isolate.kill();
   }
 }
 
@@ -337,6 +333,23 @@ final class _Engine {
     _stopwatch
       ..reset()
       ..start();
+    try {
+      return _handle(request);
+    } finally {
+      // The input belongs to this isolate once sent, see the file header.
+      final int address = switch (request) {
+        final _ReadImage r => r.address,
+        final _ReadPixels r => r.address,
+        final _Write r => r.address,
+        _Version() => 0,
+      };
+      if (address != 0) {
+        malloc.free(Pointer<Uint8>.fromAddress(address));
+      }
+    }
+  }
+
+  _Reply _handle(_Request request) {
     try {
       return switch (request) {
         final _ReadImage r => _read(

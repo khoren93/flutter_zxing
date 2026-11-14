@@ -115,7 +115,7 @@ Future<List<CorpusFixture>> loadCorpus(
     final Uint8List? result = await sibling('.result.txt');
     fixtures.add(
       CorpusFixture(
-        stem.split('/').last,
+        stem.split(RegExp(r'[/\\]')).last,
         await load(file),
         text: text == null ? null : _normalizeText(utf8.decode(text)),
         bytes: await sibling('.bin'),

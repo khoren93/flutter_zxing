@@ -20,6 +20,14 @@ add_subdirectory(../third_party/zxing-cpp/core "${CMAKE_CURRENT_BINARY_DIR}/zxin
 
 target_link_libraries(flutter_zxing ZXing)
 
+# Linux: keep the C++ runtime inside the library, symbols hidden. Flutter
+# 3.50's Linux engine exports _Unwind_RaiseException from its own libunwind;
+# with a shared libstdc++ the first C++ exception thrown here binds to it and
+# aborts the app (std::terminate).
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_options(flutter_zxing PRIVATE -static-libstdc++ -static-libgcc -Wl,--exclude-libs,ALL)
+endif ()
+
 # use log-lib only for android platform
 if (ANDROID)
     find_library(log-lib log)

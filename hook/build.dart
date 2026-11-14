@@ -122,12 +122,23 @@ void main(List<String> args) async {
         if (!apple && !windows) '-Wl,--exclude-libs,ALL',
         // 16 KB pages (Android 15+). NDK 28 and later already default to it.
         if (os == OS.android) '-Wl,-z,max-page-size=16384',
+        // Linux: the unwinder linked in as well, see cppLinkStdLib.
+        if (os == OS.linux) '-static-libgcc',
       ],
       language: Language.cpp,
       std: 'c++20',
-      // One self-contained library: no libc++_shared.so to ship on Android
-      // (dlopen fails without it otherwise).
-      cppLinkStdLib: os == OS.android ? 'c++_static' : null,
+      // One self-contained library, with the C++ runtime inside and its
+      // symbols hidden (--exclude-libs above).
+      // - Android: no libc++_shared.so to ship (dlopen fails without it).
+      // - Linux: static libstdc++ (`-l:libstdc++.a`) and libgcc. Flutter
+      //   3.50's Linux engine exports _Unwind_RaiseException from its own
+      //   libunwind; a shared libstdc++ binds to it, and the first C++
+      //   exception zxing-cpp throws (and catches) crashes the app.
+      cppLinkStdLib: switch (os) {
+        OS.android => 'c++_static',
+        OS.linux => ':libstdc++.a',
+        _ => null,
+      },
       libraries: <String>[
         ...libraries,
         // GNU ld (Linux) scans each archive once, in order, so references
@@ -137,6 +148,10 @@ void main(List<String> args) async {
         // libm explicitly: Android's dlopen fails with `cannot locate symbol
         // "atan2"` otherwise.
         if (os == OS.android || os == OS.linux) 'm',
+        // Again after the objects: the C builder puts cppLinkStdLib before
+        // them, and GNU ld takes from an archive only what is undefined when
+        // it gets there.
+        if (os == OS.linux) ':libstdc++.a',
       ],
       libraryDirectories: libraryDirectories,
     ).run(input: input, output: output, logger: logger);
