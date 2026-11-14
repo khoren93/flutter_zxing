@@ -7,8 +7,8 @@ export 'errors.dart';
 export 'reading/barcode_reader.dart';
 export 'reading/pixel_buffer.dart';
 export 'reading/reader_options.dart';
-export 'scanning/barcode_scanner.dart';
 export 'scanning/scan_window.dart';
-export 'scanning/scanner_controller.dart';
+export 'scanning/scanner_controller.dart'
+    hide ScannerControllerDebug, ScannerFrameSample;
 export 'writing/barcode_view.dart';
 export 'writing/barcode_writer.dart';

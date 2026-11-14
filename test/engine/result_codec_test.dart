@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui' show Size;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
@@ -125,6 +126,23 @@ void main() {
           bottomLeft: Offset(1, 31),
         ),
       );
+    });
+
+    test('moves the positions of a decoded part into the whole image', () {
+      final _Buffer b = _header(1)
+        ..i32(40)
+        ..i32(30)
+        ..i32(1);
+      _barcode(b, text: 'cropped');
+      final EngineReadResult r = decodeBarcodes(
+        b.bytes,
+        offset: const Offset(100, 200),
+        imageSize: const Size(640, 480),
+      );
+      expect(r.imageWidth, 640);
+      expect(r.imageHeight, 480);
+      expect(r.barcodes.single.position.topLeft, const Offset(101, 202));
+      expect(r.barcodes.single.position.bottomRight, const Offset(130, 231));
     });
 
     // Regression: skipping the trailing `extra` string lost four bytes,

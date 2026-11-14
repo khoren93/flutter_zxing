@@ -56,6 +56,8 @@ native/CMakeLists.txt
 example/assets/fixtures/
 example/lib/corpus/
 example/lib/corpus_web.dart
+example/lib/scanner_web.dart
+example/lib/scanner_dev.dart
 example/integration_test/corpus_test.dart
 
 # Local 4.0 roadmap and progress notes. .gitignore is not read once a

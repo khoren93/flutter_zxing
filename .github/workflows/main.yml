@@ -173,8 +173,9 @@ jobs:
       - name: Run engine tests
         run: flutter test --tags native
 
-  # The engine in the browser: the example's corpus runner, built with
-  # dart2js and with dart2wasm, in headless Chrome.
+  # The engine in the browser: the example's corpus runner and the scanner
+  # (a video file as the camera), built with dart2js and with dart2wasm, in
+  # headless Chrome.
   web:
     name: "Web (Chrome)"
     needs: fixtures
@@ -222,6 +223,21 @@ jobs:
         run: |
           (cd example && flutter build web --wasm -t lib/corpus_web.dart)
           node tool/web_corpus_test.mjs example/build/web dart2wasm
+
+      # ffmpeg turns a zxing-cpp sample into the y4m video Chrome's fake
+      # camera plays.
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Scanner (dart2js)
+        run: |
+          (cd example && flutter build web -t lib/scanner_web.dart)
+          node tool/web_scanner_test.mjs example/build/web dart2js
+
+      - name: Scanner (dart2wasm)
+        run: |
+          (cd example && flutter build web --wasm -t lib/scanner_web.dart)
+          node tool/web_scanner_test.mjs example/build/web dart2wasm
 
   # Build the example application for the targets whose build is NOT already
   # covered by the test jobs below:

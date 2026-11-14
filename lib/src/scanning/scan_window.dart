@@ -15,7 +15,7 @@ import 'package:flutter/painting.dart';
 @immutable
 final class ScanWindow {
   /// The whole visible preview.
-  const ScanWindow.full() : this._(null, 1, 1);
+  const ScanWindow.full() : this._(const Rect.fromLTRB(0, 0, 1, 1), 0, 0);
 
   /// A window in the centre: [width] as a fraction of the preview width,
   /// height from [aspectRatio] (width / height), shrunk to fit if needed.

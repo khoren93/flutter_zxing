@@ -9,9 +9,10 @@
 // engine isolate dies leaks its input. Results are parsed on the engine
 // isolate, so the calling isolate only receives Dart objects.
 import 'dart:async';
-import 'dart:ffi';
+import 'dart:ffi' hide Size;
 import 'dart:isolate';
-import 'dart:ui' show Rect;
+import 'dart:math' as math;
+import 'dart:ui' show Offset, Rect, Size;
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
@@ -151,24 +152,30 @@ final class NativeBackend implements EngineBackend {
     PixelBuffer image,
     EngineReadOptions options,
   ) async {
-    final Pointer<Uint8> input = _copy(image.bytes);
-    final Rect? crop = image.crop;
+    // Only the crop is copied: for a camera frame with a scan window that
+    // is a fraction of the frame, once, straight into native memory.
+    final _Crop crop = _Crop.of(image);
+    final int bpp = image.layout.bytesPerPixel;
+    final int rowBytes = crop.width * bpp;
+    final int stride = image.rowStride ?? image.width * bpp;
+    final Pointer<Uint8> input = malloc<Uint8>(rowBytes * crop.height);
+    final Uint8List dst = input.asTypedList(rowBytes * crop.height);
+    final Uint8List src = image.bytes;
+    for (int y = 0; y < crop.height; y++) {
+      final int from = (crop.top + y) * stride + crop.left * bpp;
+      dst.setRange(y * rowBytes, (y + 1) * rowBytes, src, from);
+    }
     final _Reply reply = await _call(
       (int id) => _ReadPixels(
         id,
         input.address,
+        crop.width,
+        crop.height,
+        image.layout.index,
+        crop.left,
+        crop.top,
         image.width,
         image.height,
-        image.rowStride ?? 0,
-        image.layout.index,
-        crop == null
-            ? null
-            : <int>[
-                crop.left.round(),
-                crop.top.round(),
-                crop.width.round(),
-                crop.height.round(),
-              ],
         options,
       ),
       input,
@@ -228,18 +235,52 @@ final class _ReadPixels extends _Request {
     this.address,
     this.width,
     this.height,
-    this.rowStride,
     this.layout,
-    this.crop,
+    this.left,
+    this.top,
+    this.imageWidth,
+    this.imageHeight,
     this.options,
   );
+
+  /// Tightly packed pixels of the crop, [width] x [height].
   final int address;
   final int width;
   final int height;
-  final int rowStride;
   final int layout;
-  final List<int>? crop;
+
+  /// Where the crop starts in the image, and the size of the image.
+  final int left;
+  final int top;
+  final int imageWidth;
+  final int imageHeight;
   final EngineReadOptions options;
+}
+
+/// The part of a [PixelBuffer] that is decoded: its crop clamped into the
+/// image as zxing-cpp's `ImageView::cropped` clamps it, or the whole image.
+final class _Crop {
+  const _Crop(this.left, this.top, this.width, this.height);
+
+  factory _Crop.of(PixelBuffer image) {
+    final Rect? crop = image.crop;
+    if (crop == null || crop.width <= 0 || crop.height <= 0) {
+      return _Crop(0, 0, image.width, image.height);
+    }
+    final int left = crop.left.round().clamp(0, image.width - 1);
+    final int top = crop.top.round().clamp(0, image.height - 1);
+    return _Crop(
+      left,
+      top,
+      math.max(1, math.min(image.width - left, crop.width.round())),
+      math.max(1, math.min(image.height - top, crop.height.round())),
+    );
+  }
+
+  final int left;
+  final int top;
+  final int width;
+  final int height;
 }
 
 final class _Write extends _Request {
@@ -372,18 +413,20 @@ final class _Engine {
             Pointer<Uint8>.fromAddress(r.address),
             r.width,
             r.height,
-            r.rowStride,
+            0,
             r.layout,
-            r.crop?[0] ?? 0,
-            r.crop?[1] ?? 0,
-            r.crop?[2] ?? 0,
-            r.crop?[3] ?? 0,
+            0,
+            0,
+            0,
+            0,
             _formatsPointer(r.options.formats),
             r.options.flags,
             r.options.binarizer,
             r.options.maxSymbols,
             r.options.minLineCount,
           ),
+          offset: Offset(r.left.toDouble(), r.top.toDouble()),
+          imageSize: Size(r.imageWidth.toDouble(), r.imageHeight.toDouble()),
         ),
         final _Write r => _write(r),
         final _Version r => _Reply(
@@ -396,12 +439,24 @@ final class _Engine {
     }
   }
 
-  _Reply _read(int id, int code) {
+  _Reply _read(
+    int id,
+    int code, {
+    Offset offset = Offset.zero,
+    Size? imageSize,
+  }) {
     if (code < 0) {
       return _Reply(id, code: code, error: _error());
     }
     final int micros = _stopwatch.elapsedMicroseconds;
-    return _Reply(id, read: decodeBarcodes(_result()).withEngineMicros(micros));
+    return _Reply(
+      id,
+      read: decodeBarcodes(
+        _result(),
+        offset: offset,
+        imageSize: imageSize,
+      ).withEngineMicros(micros),
+    );
   }
 
   _Reply _write(_Write r) {
