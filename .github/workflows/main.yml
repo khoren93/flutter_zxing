@@ -25,8 +25,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      # Checkout the repository
+      # Checkout the repository. With zxing-cpp: `flutter test` runs the
+      # package's build hook even for tests that never call the engine.
       - uses: actions/checkout@v7
+        with:
+          submodules: recursive
 
       # Install Flutter SDK
       - uses: subosito/flutter-action@v2
