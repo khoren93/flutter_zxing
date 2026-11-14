@@ -52,6 +52,7 @@ third_party/zxing-cpp/zint/backend/tools/
 # native/generated/Version.h, and the WebAssembly modules ship prebuilt in
 # assets/web/.
 tool/
+benchmark/
 native/CMakeLists.txt
 example/assets/fixtures/
 example/lib/corpus/
