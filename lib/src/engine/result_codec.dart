@@ -21,13 +21,16 @@ const int _kindSymbol = 2;
 ///
 /// When only a part of an image was decoded, [offset] is where that part
 /// starts and [imageSize] the size of the whole image: positions are moved
-/// into the whole image and the result reports its size.
+/// into the whole image and the result reports its size. [mirrorWidth] is
+/// the width of a part that was flipped left to right before decoding:
+/// positions are flipped back first.
 EngineReadResult decodeBarcodes(
   Uint8List buffer, {
   Offset offset = Offset.zero,
   Size? imageSize,
+  double? mirrorWidth,
 }) {
-  final _Reader r = _Reader(buffer, _kindBarcodes, offset);
+  final _Reader r = _Reader(buffer, _kindBarcodes, offset, mirrorWidth);
   final int decodedWidth = r.i32();
   final int decodedHeight = r.i32();
   final int imageWidth = imageSize?.width.round() ?? decodedWidth;
@@ -130,8 +133,12 @@ EngineSymbol decodeSymbol(Uint8List buffer) {
 }
 
 class _Reader {
-  _Reader(this._buffer, int kind, [this._shift = Offset.zero])
-    : _data = ByteData.sublistView(_buffer) {
+  _Reader(
+    this._buffer,
+    int kind, [
+    this._shift = Offset.zero,
+    this._mirrorWidth,
+  ]) : _data = ByteData.sublistView(_buffer) {
     final int abi = u32();
     if (abi != fzxExpectedAbiVersion) {
       throw StateError(
@@ -148,6 +155,8 @@ class _Reader {
   final ByteData _data;
   // Added to every position: where the decoded part starts in the image.
   final Offset _shift;
+  // Width of a decoded part that was mirrored, to flip positions back.
+  final double? _mirrorWidth;
   int _offset = 0;
 
   int u8() => _data.getUint8(_offset++);
@@ -164,8 +173,14 @@ class _Reader {
     return v;
   }
 
-  /// A position, moved by the offset of the decoded part.
-  Offset point() => Offset(i32().toDouble(), i32().toDouble()) + _shift;
+  /// A position, flipped back if the decoded part was mirrored and moved by
+  /// its offset.
+  Offset point() {
+    final double x = i32().toDouble();
+    final double y = i32().toDouble();
+    final double? w = _mirrorWidth;
+    return Offset(w == null ? x : w - x, y) + _shift;
+  }
 
   Uint8List _view() {
     final int n = u32();

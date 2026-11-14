@@ -10,6 +10,7 @@ import 'package:flutter/widgets.dart';
 import '../../engine/engine.dart';
 import '../../engine/engine_protocol.dart';
 import '../../errors.dart';
+import '../../reading/pixel_buffer.dart';
 import '../frame_geometry.dart';
 import '../scanner_controller.dart';
 import 'camera_source_stub.dart'
@@ -91,6 +92,10 @@ abstract class CameraSource {
 abstract class CameraFrame {
   /// The frame's size as delivered, and how it is shown.
   FrameTransform get transform;
+
+  /// The frame's pixels where they are in memory (native platforms), for
+  /// saving a frame while debugging; `null` on the web.
+  PixelBuffer? get pixels;
 
   /// Decodes [crop] of the frame (pixels of the delivered frame, `null` for
   /// all of it). Positions in the result are in the delivered frame.

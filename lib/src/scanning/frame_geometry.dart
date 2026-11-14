@@ -234,3 +234,20 @@ int androidFrameRotation({
       ? (sensorOrientation - degrees + 360) % 360
       : (sensorOrientation + degrees) % 360;
 }
+
+/// Clockwise rotation from an iOS camera frame to the UI.
+///
+/// iOS turns frames to the capture orientation itself, so a frame of the
+/// UI's shape needs nothing. The front camera of an iPhone 17 Pro Max turns
+/// them the wrong way: asked for a rotation of a degrees it applies 90 - a,
+/// so its frames come in the other shape (landscape in portrait, portrait in
+/// landscape), and the rest of the turn is a quarter turn clockwise in a
+/// portrait UI and three quarters in a landscape one (found on the device).
+int iosFrameRotation(Size frame, DeviceOrientation ui) {
+  final bool frameLandscape = frame.width > frame.height;
+  final bool uiLandscape = orientationDegrees(ui) % 180 != 0;
+  if (frameLandscape == uiLandscape) {
+    return 0;
+  }
+  return uiLandscape ? 270 : 90;
+}

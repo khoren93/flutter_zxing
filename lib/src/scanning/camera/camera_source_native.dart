@@ -144,8 +144,17 @@ final class NativeCameraSource implements CameraSource {
   }
 
   void _onImage(CameraImage image) {
+    final CameraImage? previous = _latest;
     _latest = image;
     _received++;
+    // On iOS the preview shows these very buffers, so their shape decides
+    // how it is turned.
+    if (_ios &&
+        (previous == null ||
+            previous.width != image.width ||
+            previous.height != image.height)) {
+      _updatePreview();
+    }
     final Completer<void>? waiter = _waiter;
     _waiter = null;
     waiter?.complete();
@@ -187,6 +196,10 @@ final class NativeCameraSource implements CameraSource {
         return _NativeFrame(
           image,
           _transformOf(Size(image.width.toDouble(), image.height.toDouble())),
+          // iOS mirrors the front camera's frames themselves; flipped back,
+          // codes that are not read mirrored (Data Matrix) are read too.
+          mirrored:
+              _ios && description.lensDirection == CameraLensDirection.front,
         );
       }
       await (_waiter ??= Completer<void>()).future;
@@ -194,15 +207,24 @@ final class NativeCameraSource implements CameraSource {
   }
 
   void _updatePreview() {
+    if (_description == null) {
+      _preview.value = null;
+      return;
+    }
+    if (_ios) {
+      // Known from the first frame on (see _transformOf).
+      final CameraImage? image = _latest;
+      _preview.value = image == null
+          ? null
+          : _transformOf(Size(image.width.toDouble(), image.height.toDouble()));
+      return;
+    }
     final Size? size = _camera?.value.previewSize;
-    _preview.value = size == null || _description == null
-        ? null
-        : _transformOf(size, preview: true);
+    _preview.value = size == null ? null : _transformOf(size);
   }
 
-  /// How a frame (or, with [preview], the preview) of [size] as delivered
-  /// is shown.
-  FrameTransform _transformOf(Size size, {bool preview = false}) {
+  /// How a frame (and the preview) of [size] as delivered is shown.
+  FrameTransform _transformOf(Size size) {
     final CameraDescription description = _description!;
     final bool front = description.lensDirection == CameraLensDirection.front;
     if (_android) {
@@ -218,14 +240,14 @@ final class NativeCameraSource implements CameraSource {
         mirrored: front,
       );
     }
-    if (_ios && preview) {
-      // iOS delivers frames already turned to the UI (and mirrored for the
-      // front camera), and the preview shows those frames; but previewSize
-      // is reported in the sensor's landscape shape.
-      final bool landscape = orientationDegrees(_ui) % 180 != 0;
-      final double long = size.longestSide;
-      final double short = size.shortestSide;
-      return FrameTransform(landscape ? Size(long, short) : Size(short, long));
+    if (_ios) {
+      // iOS turns the frames to the locked capture orientation itself (and
+      // mirrors the front camera), and the preview shows those frames as
+      // they are. Except when the connection cannot be turned: the front
+      // camera of an iPhone 17 Pro Max sends landscape frames to a portrait
+      // UI. So the frame's shape decides, not the orientation asked for
+      // (rule 5 of the prototype); this preview then turns them too.
+      return FrameTransform(size, rotation: iosFrameRotation(size, _ui));
     }
     return FrameTransform(size);
   }
@@ -233,7 +255,18 @@ final class NativeCameraSource implements CameraSource {
   @override
   Widget buildPreview() {
     final CameraController? camera = _camera;
-    return camera == null ? const SizedBox.shrink() : CameraPreview(camera);
+    if (camera == null) {
+      return const SizedBox.shrink();
+    }
+    final int rotation = _ios ? (_preview.value?.rotation ?? 0) : 0;
+    // Android's preview turns itself; on iOS a frame the system did not turn
+    // is turned here, as the scanner turns its frames.
+    return rotation == 0
+        ? CameraPreview(camera)
+        : RotatedBox(
+            quarterTurns: rotation ~/ 90,
+            child: CameraPreview(camera),
+          );
   }
 
   @override
@@ -274,12 +307,40 @@ final class NativeCameraSource implements CameraSource {
 }
 
 final class _NativeFrame implements CameraFrame {
-  _NativeFrame(this._image, this.transform);
+  _NativeFrame(this._image, this.transform, {this.mirrored = false});
 
   final CameraImage _image;
 
+  /// Whether the pixels are a mirror image of the scene.
+  final bool mirrored;
+
   @override
   final FrameTransform transform;
+
+  @override
+  PixelBuffer? get pixels {
+    final Plane plane = _image.planes.first;
+    return PixelBuffer(
+      plane.bytes,
+      width: _image.width,
+      height: _image.height,
+      layout: _layout,
+      rowStride: plane.bytesPerRow,
+    );
+  }
+
+  PixelLayout get _layout => switch (_image.format.group) {
+    ImageFormatGroup.yuv420 || ImageFormatGroup.nv21 => PixelLayout.luminance,
+    // camera_desktop 1.x sends RGBA on Linux and Windows while labelling
+    // it bgra8888; the byte order it used is only in `raw`.
+    ImageFormatGroup.bgra8888 =>
+      _image.format.raw == 'RGBA' ? PixelLayout.rgba : PixelLayout.bgra,
+    ImageFormatGroup.jpeg ||
+    ImageFormatGroup.unknown => throw CameraFailureException(
+      'The camera sends ${_image.format.group.name} frames, which cannot '
+      'be scanned',
+    ),
+  };
 
   @override
   Future<EngineReadResult> read(
@@ -287,18 +348,7 @@ final class _NativeFrame implements CameraFrame {
     Rect? crop,
     EngineReadOptions options,
   ) {
-    final PixelLayout layout = switch (_image.format.group) {
-      ImageFormatGroup.yuv420 || ImageFormatGroup.nv21 => PixelLayout.luminance,
-      // camera_desktop 1.x sends RGBA on Linux and Windows while labelling
-      // it bgra8888; the byte order it used is only in `raw`.
-      ImageFormatGroup.bgra8888 =>
-        _image.format.raw == 'RGBA' ? PixelLayout.rgba : PixelLayout.bgra,
-      ImageFormatGroup.jpeg ||
-      ImageFormatGroup.unknown => throw CameraFailureException(
-        'The camera sends ${_image.format.group.name} frames, which cannot '
-        'be scanned',
-      ),
-    };
+    final PixelLayout layout = _layout;
     final Plane plane = _image.planes.first;
     return engine.readPixels(
       PixelBuffer(
@@ -310,6 +360,7 @@ final class _NativeFrame implements CameraFrame {
         crop: crop,
       ),
       options,
+      mirrored: mirrored,
     );
   }
 }

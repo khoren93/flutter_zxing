@@ -169,6 +169,19 @@ void main() {
       );
     });
 
+    test('iOS frames are turned only when iOS did not turn them', () {
+      const Size portrait = Size(720, 1280);
+      const Size landscape = Size(1280, 720);
+      expect(iosFrameRotation(portrait, DeviceOrientation.portraitUp), 0);
+      expect(iosFrameRotation(landscape, DeviceOrientation.landscapeLeft), 0);
+      // The front camera of an iPhone 17 Pro Max turns the wrong way:
+      // landscape frames in portrait, portrait ones in landscape.
+      expect(iosFrameRotation(landscape, DeviceOrientation.portraitUp), 90);
+      expect(iosFrameRotation(landscape, DeviceOrientation.portraitDown), 90);
+      expect(iosFrameRotation(portrait, DeviceOrientation.landscapeRight), 270);
+      expect(iosFrameRotation(portrait, DeviceOrientation.landscapeLeft), 270);
+    });
+
     test('the UI follows the device unless it is locked', () {
       expect(
         uiOrientation(DeviceOrientation.landscapeLeft, Orientation.landscape),

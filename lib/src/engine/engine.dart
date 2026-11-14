@@ -21,11 +21,15 @@ abstract interface class EngineBackend {
     EngineReadOptions options,
   );
 
-  /// Reads the barcodes in raw pixels.
+  /// Reads the barcodes in raw pixels. With [mirrored], the pixels show a
+  /// mirror image (the front camera on iOS) and are flipped back before
+  /// decoding, which some symbologies need (Data Matrix); positions are
+  /// still in the pixels as given.
   Future<EngineReadResult> readPixels(
     PixelBuffer image,
-    EngineReadOptions options,
-  );
+    EngineReadOptions options, {
+    bool mirrored = false,
+  });
 
   /// Encodes [data] into a symbol of [format] (a zxing-cpp format name)
   /// with zxing-cpp creator [options].
@@ -117,10 +121,11 @@ final class BarcodeEngine {
   /// is smaller than its geometry says.
   Future<EngineReadResult> readPixels(
     PixelBuffer image,
-    EngineReadOptions options,
-  ) async {
+    EngineReadOptions options, {
+    bool mirrored = false,
+  }) async {
     checkPixelBuffer(image);
-    return (await backend).readPixels(image, options);
+    return (await backend).readPixels(image, options, mirrored: mirrored);
   }
 
   /// See [EngineBackend.write].

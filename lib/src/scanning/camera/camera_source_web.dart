@@ -16,6 +16,7 @@ import '../../engine/engine.dart';
 import '../../engine/engine_protocol.dart';
 import '../../engine/engine_web.dart';
 import '../../errors.dart';
+import '../../reading/pixel_buffer.dart';
 import '../frame_geometry.dart';
 import '../scanner_controller.dart';
 import 'camera_source.dart';
@@ -257,6 +258,9 @@ final class _WebFrame implements CameraFrame {
 
   @override
   final FrameTransform transform;
+
+  @override
+  PixelBuffer? get pixels => null;
 
   @override
   Future<EngineReadResult> read(

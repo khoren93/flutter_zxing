@@ -43,8 +43,9 @@ class _FakeBackend implements EngineBackend {
   @override
   Future<EngineReadResult> readPixels(
     PixelBuffer image,
-    EngineReadOptions options,
-  ) => readImage(image.bytes, options);
+    EngineReadOptions options, {
+    bool mirrored = false,
+  }) => readImage(image.bytes, options);
 
   @override
   Future<EngineSymbol> write(
@@ -189,7 +190,7 @@ void main() {
     test('camera options', () {
       expect(
         EngineReadOptions.from(null, const ReaderOptions.camera()).flags,
-        FzxFlags.tryRotate | FzxFlags.tryDownscale,
+        FzxFlags.tryHarder | FzxFlags.tryRotate | FzxFlags.tryDownscale,
       );
     });
 

@@ -144,9 +144,40 @@ final class WebBackend implements EngineBackend {
     return reply;
   }
 
-  EngineReadResult _readResult(_Message reply) => decodeBarcodes(
-    reply.buffer!.toDart.asUint8List(),
-  ).withEngineMicros(((reply.ms ?? 0) * 1000).round());
+  EngineReadResult _readResult(_Message reply, {double? mirrorWidth}) =>
+      decodeBarcodes(
+        reply.buffer!.toDart.asUint8List(),
+        mirrorWidth: mirrorWidth,
+      ).withEngineMicros(((reply.ms ?? 0) * 1000).round());
+
+  /// [image] flipped left to right, tightly packed, its crop flipped too.
+  static PixelBuffer _flipped(PixelBuffer image) {
+    final int bpp = image.layout.bytesPerPixel;
+    final int w = image.width;
+    final int stride = image.rowStride ?? w * bpp;
+    final Uint8List out = Uint8List(w * image.height * bpp);
+    for (int y = 0; y < image.height; y++) {
+      for (int x = 0; x < w; x++) {
+        final int from = y * stride + (w - 1 - x) * bpp;
+        out.setRange(
+          (y * w + x) * bpp,
+          (y * w + x + 1) * bpp,
+          image.bytes,
+          from,
+        );
+      }
+    }
+    final Rect? crop = image.crop;
+    return PixelBuffer(
+      out,
+      width: w,
+      height: image.height,
+      layout: image.layout,
+      crop: crop == null
+          ? null
+          : Rect.fromLTRB(w - crop.right, crop.top, w - crop.left, crop.bottom),
+    );
+  }
 
   static JSObject _options(EngineReadOptions o) =>
       <String, Object>{
@@ -177,9 +208,12 @@ final class WebBackend implements EngineBackend {
 
   @override
   Future<EngineReadResult> readPixels(
-    PixelBuffer image,
-    EngineReadOptions options,
-  ) async {
+    PixelBuffer pixels,
+    EngineReadOptions options, {
+    bool mirrored = false,
+  }) async {
+    // Web camera frames are never mirrored; this is for completeness.
+    final PixelBuffer image = mirrored ? _flipped(pixels) : pixels;
     final JSArrayBuffer buffer = _transferable(image.bytes);
     final Rect? crop = image.crop;
     final JSObject request = JSObject()
@@ -201,7 +235,10 @@ final class WebBackend implements EngineBackend {
         ].jsify(),
       );
     }
-    return _readResult(await _call(request, <JSObject>[buffer]));
+    return _readResult(
+      await _call(request, <JSObject>[buffer]),
+      mirrorWidth: mirrored ? image.width.toDouble() : null,
+    );
   }
 
   /// Reads a camera frame captured as an `ImageBitmap`. The bitmap is

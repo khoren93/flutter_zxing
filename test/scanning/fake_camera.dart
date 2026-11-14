@@ -26,7 +26,12 @@ Barcode fakeBarcode(String text, Rect rect) => Barcode(
 
 /// A frame holding [barcodes] (positions in the delivered frame).
 final class FakeFrame implements CameraFrame {
-  FakeFrame(this.transform, [this.barcodes = const <Barcode>[], this.error]);
+  FakeFrame(
+    this.transform, [
+    this.barcodes = const <Barcode>[],
+    this.error,
+    this.hang = false,
+  ]);
 
   @override
   final FrameTransform transform;
@@ -35,8 +40,14 @@ final class FakeFrame implements CameraFrame {
   /// Thrown by [read] instead of decoding.
   final Exception? error;
 
+  /// Whether [read] never completes, like a stuck engine.
+  final bool hang;
+
   /// The crop the controller asked for.
   Rect? crop;
+
+  @override
+  PixelBuffer? get pixels => null;
   bool wasRead = false;
 
   @override
@@ -47,6 +58,9 @@ final class FakeFrame implements CameraFrame {
   ) async {
     this.crop = crop;
     wasRead = true;
+    if (hang) {
+      return Completer<EngineReadResult>().future;
+    }
     if (error != null) {
       throw error!;
     }
@@ -93,8 +107,9 @@ final class FakeCamera implements CameraSource {
   FakeFrame push([
     List<Barcode> barcodes = const <Barcode>[],
     Exception? error,
+    bool hang = false,
   ]) {
-    final FakeFrame frame = FakeFrame(transform, barcodes, error);
+    final FakeFrame frame = FakeFrame(transform, barcodes, error, hang);
     _frames.add(frame);
     final Completer<void>? waiter = _waiter;
     _waiter = null;

@@ -163,6 +163,51 @@ void main() {
       expect(r.barcodes.single.position.topLeft.dy, closeTo(top, 1));
     });
 
+    test('mirrored pixels are flipped back, positions stay', () async {
+      // A Data Matrix mirrored, as the front camera on iOS sends it.
+      // zxing-cpp reads mirrored Data Matrix symbols only in some layouts
+      // without tryHarder; flipped back first, the camera options read it.
+      final EngineSymbol dm = await engine.write(
+        utf8.encode('mirror'),
+        binary: false,
+        format: 'DataMatrix',
+        options: '',
+      );
+      const int width = 120;
+      const int height = 100;
+      final Uint8List lum = Uint8List(width * height)
+        ..fillRange(0, width * height, 255);
+      for (int y = 0; y < dm.height * scale; y++) {
+        for (int x = 0; x < dm.width * scale; x++) {
+          if (dm.modules[(y ~/ scale) * dm.width + x ~/ scale] != 0) {
+            // Mirrored: column x of the symbol at width - 1 - (left + x).
+            lum[(top + y) * width + width - 1 - (left + x)] = 0;
+          }
+        }
+      }
+      final EngineReadOptions camera = EngineReadOptions.from(
+        null,
+        const ReaderOptions.camera(),
+      );
+      final PixelBuffer mirrored = PixelBuffer(
+        lum,
+        width: width,
+        height: height,
+        crop: const Rect.fromLTWH(5, 5, 110, 90),
+      );
+      final EngineReadResult r = await engine.readPixels(
+        mirrored,
+        camera,
+        mirrored: true,
+      );
+      expect(r.barcodes.single.text, 'mirror');
+      // Where the symbol is in the mirrored pixels: its left edge at
+      // width - (left + symbol width).
+      final Rect bounds = r.barcodes.single.position.bounds;
+      expect(bounds.left, closeTo(width - left - dm.width * scale, 2));
+      expect(bounds.top, closeTo(top, 2));
+    });
+
     test('a crop without the barcode finds nothing', () async {
       final EngineReadResult r = await engine.readPixels(
         PixelBuffer(

@@ -137,5 +137,48 @@ void main() {
     expect(controller.value.status, ScannerStatus.idle);
     await controller.start();
     expect(controller.value.isScanning, isTrue);
+    await controller.stop();
+  });
+
+  testWidgets('a camera that stops sending frames is opened again', (
+    WidgetTester tester,
+  ) async {
+    final ScannerController controller = ScannerController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(host(BarcodeScanner(controller: controller)));
+    await tester.pump();
+    expect(camera.opened, hasLength(1));
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pump();
+    expect(camera.opened, hasLength(2));
+    expect(controller.value.isScanning, isTrue);
+    expect(controller.cameraRestarts, 1);
+    await tester.pumpWidget(host(const SizedBox()));
+    await tester.pump();
+  });
+
+  testWidgets('a stuck engine is replaced and scanning goes on', (
+    WidgetTester tester,
+  ) async {
+    final ScannerController controller = ScannerController(
+      detection: DetectionMode.continuous,
+    );
+    addTearDown(controller.dispose);
+    final List<BarcodeCapture> captures = <BarcodeCapture>[];
+    await tester.pumpWidget(
+      host(BarcodeScanner(controller: controller, onDetect: captures.add)),
+    );
+    await tester.pump();
+    camera.push(const <Barcode>[], null, true);
+    await tester.pump(const Duration(seconds: 6));
+    expect(controller.engineRestarts, 1);
+    camera.push(<Barcode>[
+      fakeBarcode('after', const Rect.fromLTWH(200, 200, 80, 80)),
+    ]);
+    await tester.pump();
+    await tester.pump();
+    expect(captures.single.barcode.text, 'after');
+    await tester.pumpWidget(host(const SizedBox()));
+    await tester.pump();
   });
 }

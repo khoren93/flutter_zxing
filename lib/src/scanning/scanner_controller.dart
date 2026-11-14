@@ -15,6 +15,7 @@ import '../barcode/barcode_format.dart';
 import '../engine/engine.dart';
 import '../engine/engine_protocol.dart';
 import '../errors.dart';
+import '../reading/pixel_buffer.dart';
 import '../reading/reader_options.dart';
 import 'camera/camera_source.dart';
 import 'frame_geometry.dart';
@@ -39,6 +40,14 @@ const Duration _outlineHold = Duration(milliseconds: 300);
 
 /// Engine failures in a row after which the scanner gives up.
 const int _maxEngineFailures = 3;
+
+/// A camera that sends no frame for this long has stalled (an interruption,
+/// the system under pressure): it is opened again.
+const Duration _cameraStall = Duration(seconds: 3);
+
+/// An engine that has not decoded a frame in this long is stuck: it is
+/// replaced by a new one.
+const Duration _decodeStall = Duration(seconds: 5);
 
 /// Drives the camera of a `BarcodeScanner` and decodes its frames.
 ///
@@ -140,6 +149,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
   int _session = 0;
   Completer<void>? _resumed;
   int _engineFailures = 0;
+  int _cameraRestarts = 0;
+  int _engineRestarts = 0;
+  (CameraFrame, Rect?)? _lastFrame;
   bool _disposed = false;
 
   final StreamController<BarcodeCapture> _barcodes =
@@ -353,7 +365,20 @@ class ScannerController extends ValueNotifier<ScannerState> {
         await (_resumed ??= Completer<void>()).future;
         continue;
       }
-      final CameraFrame? frame = await source.nextFrame();
+      final CameraFrame? frame;
+      try {
+        frame = await source.nextFrame().timeout(_cameraStall);
+      } on TimeoutException {
+        if (session == _session && value.status == ScannerStatus.running) {
+          debugPrint(
+            'flutter_zxing: the camera sent no frame for '
+            '${_cameraStall.inSeconds} s; opening it again',
+          );
+          _cameraRestarts++;
+          unawaited(_reopen());
+        }
+        return;
+      }
       if (frame == null || session != _session || _disposed) {
         return;
       }
@@ -367,10 +392,22 @@ class ScannerController extends ValueNotifier<ScannerState> {
       final Stopwatch clock = Stopwatch()..start();
       final EngineReadResult result;
       try {
-        result = await frame.read(BarcodeEngine.scanner, crop, _readOptions);
+        result = await frame
+            .read(BarcodeEngine.scanner, crop, _readOptions)
+            .timeout(_decodeStall);
       } on ScannerException catch (e) {
         await _fail(e, session);
         return;
+      } on TimeoutException {
+        // The frame stays with the stuck engine; the next one goes to a new
+        // engine.
+        debugPrint(
+          'flutter_zxing: a frame took more than ${_decodeStall.inSeconds} s '
+          'to decode; starting a new engine',
+        );
+        _engineRestarts++;
+        unawaited(BarcodeEngine.scanner.shutdown());
+        continue;
       } on Object catch (e) {
         // The engine restarts itself on the next call; give up only if it
         // keeps failing.
@@ -387,7 +424,21 @@ class ScannerController extends ValueNotifier<ScannerState> {
       if (session != _session || _disposed) {
         return;
       }
+      _lastFrame = (frame, crop);
       _onFrame(frame.transform, result, crop, clock.elapsedMicroseconds);
+    }
+  }
+
+  /// Opens the camera again, keeping a paused scanner paused.
+  Future<void> _reopen() async {
+    final bool paused = value.status == ScannerStatus.paused;
+    await stop();
+    if (_disposed) {
+      return;
+    }
+    await start();
+    if (paused) {
+      await pause();
     }
   }
 
@@ -645,6 +696,21 @@ extension ScannerControllerDebug on ScannerController {
 
   /// Timing of every decoded frame.
   Stream<ScannerFrameSample> get frameSamples => _samples.stream;
+
+  /// The pixels of the last decoded frame and the part of them that was
+  /// decoded (`null` for all), to save a frame while debugging. `null` before
+  /// the first frame and on the web.
+  (PixelBuffer, Rect?)? get lastFrame {
+    final (CameraFrame, Rect?)? last = _lastFrame;
+    final PixelBuffer? pixels = last?.$1.pixels;
+    return pixels == null ? null : (pixels, last!.$2);
+  }
+
+  /// How often the camera stalled and was opened again.
+  int get cameraRestarts => _cameraRestarts;
+
+  /// How often the engine got stuck and was replaced.
+  int get engineRestarts => _engineRestarts;
 }
 
 /// The camera state of a [ScannerController].

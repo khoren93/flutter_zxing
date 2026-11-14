@@ -150,8 +150,9 @@ final class NativeBackend implements EngineBackend {
   @override
   Future<EngineReadResult> readPixels(
     PixelBuffer image,
-    EngineReadOptions options,
-  ) async {
+    EngineReadOptions options, {
+    bool mirrored = false,
+  }) async {
     // Only the crop is copied: for a camera frame with a scan window that
     // is a fraction of the frame, once, straight into native memory.
     final _Crop crop = _Crop.of(image);
@@ -176,6 +177,7 @@ final class NativeBackend implements EngineBackend {
         crop.top,
         image.width,
         image.height,
+        mirrored,
         options,
       ),
       input,
@@ -240,6 +242,7 @@ final class _ReadPixels extends _Request {
     this.top,
     this.imageWidth,
     this.imageHeight,
+    this.mirrored,
     this.options,
   );
 
@@ -254,6 +257,9 @@ final class _ReadPixels extends _Request {
   final int top;
   final int imageWidth;
   final int imageHeight;
+
+  /// Whether the pixels are a mirror image, to flip before decoding.
+  final bool mirrored;
   final EngineReadOptions options;
 }
 
@@ -408,25 +414,10 @@ final class _Engine {
         ),
         final _ReadPixels r => _read(
           r.id,
-          fzxRead(
-            _ctx,
-            Pointer<Uint8>.fromAddress(r.address),
-            r.width,
-            r.height,
-            0,
-            r.layout,
-            0,
-            0,
-            0,
-            0,
-            _formatsPointer(r.options.formats),
-            r.options.flags,
-            r.options.binarizer,
-            r.options.maxSymbols,
-            r.options.minLineCount,
-          ),
+          _readPixels(r),
           offset: Offset(r.left.toDouble(), r.top.toDouble()),
           imageSize: Size(r.imageWidth.toDouble(), r.imageHeight.toDouble()),
+          mirrorWidth: r.mirrored ? r.width.toDouble() : null,
         ),
         final _Write r => _write(r),
         final _Version r => _Reply(
@@ -439,11 +430,50 @@ final class _Engine {
     }
   }
 
+  /// Decodes a [_ReadPixels] request, flipping its rows first if the pixels
+  /// are mirrored (the input belongs to this isolate).
+  int _readPixels(_ReadPixels r) {
+    final Pointer<Uint8> pixels = Pointer<Uint8>.fromAddress(r.address);
+    if (r.mirrored) {
+      final int bpp = PixelLayout.values[r.layout].bytesPerPixel;
+      final Uint8List data = pixels.asTypedList(r.width * r.height * bpp);
+      for (int y = 0; y < r.height; y++) {
+        int a = y * r.width * bpp;
+        int b = a + (r.width - 1) * bpp;
+        for (; a < b; a += bpp, b -= bpp) {
+          for (int c = 0; c < bpp; c++) {
+            final int t = data[a + c];
+            data[a + c] = data[b + c];
+            data[b + c] = t;
+          }
+        }
+      }
+    }
+    return fzxRead(
+      _ctx,
+      pixels,
+      r.width,
+      r.height,
+      0,
+      r.layout,
+      0,
+      0,
+      0,
+      0,
+      _formatsPointer(r.options.formats),
+      r.options.flags,
+      r.options.binarizer,
+      r.options.maxSymbols,
+      r.options.minLineCount,
+    );
+  }
+
   _Reply _read(
     int id,
     int code, {
     Offset offset = Offset.zero,
     Size? imageSize,
+    double? mirrorWidth,
   }) {
     if (code < 0) {
       return _Reply(id, code: code, error: _error());
@@ -455,6 +485,7 @@ final class _Engine {
         _result(),
         offset: offset,
         imageSize: imageSize,
+        mirrorWidth: mirrorWidth,
       ).withEngineMicros(micros),
     );
   }

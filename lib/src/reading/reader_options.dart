@@ -4,8 +4,7 @@ import 'package:flutter/foundation.dart';
 ///
 /// The defaults are tuned for photos and files (robust, still fast because
 /// `BarcodeReader.read` stops at the first barcode). For camera frames use
-/// [ReaderOptions.camera]: a missed frame costs nothing, the next one arrives
-/// a few milliseconds later.
+/// [ReaderOptions.camera], which leaves out what a camera rarely sees.
 @immutable
 final class ReaderOptions {
   /// Options for photos and files: every search strategy on.
@@ -22,10 +21,18 @@ final class ReaderOptions {
     this.eanAddOn = EanAddOn.ignore,
   });
 
-  /// Options for live camera frames: cheap per frame.
+  /// Options for live camera frames: like the defaults, without looking for
+  /// inverted (light on dark) barcodes.
+  ///
+  /// [tryHarder] stays on: without it zxing-cpp runs only its fast Data
+  /// Matrix detector, which misses a rectangular Data Matrix at some angles
+  /// in every frame, not just in one. With it, a frame takes up to three
+  /// times longer when it has no barcode (a few milliseconds on a 2020
+  /// phone, well inside the time between two camera frames) and is often
+  /// faster when it has one.
   const ReaderOptions.camera()
     : this(
-        tryHarder: false,
+        tryHarder: true,
         tryRotate: true,
         tryInvert: false,
         tryDownscale: true,
