@@ -16,7 +16,7 @@ add_library(
 # `CreateBarcodeFromText` API stays available for the formats it cannot write.
 set (ZXING_WRITERS BOTH)
 
-add_subdirectory(zxing/core EXCLUDE_FROM_ALL)
+add_subdirectory(../third_party/zxing-cpp/core "${CMAKE_CURRENT_BINARY_DIR}/zxing" EXCLUDE_FROM_ALL)
 
 target_link_libraries(flutter_zxing ZXing)
 
@@ -31,6 +31,6 @@ if (ANDROID)
 endif (ANDROID)
 
 # Command to update zxing submodule
-# cd src/zxing
+# cd third_party/zxing-cpp
 # git checkout v3.1.1
 # git submodule update --init --recursive

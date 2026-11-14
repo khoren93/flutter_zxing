@@ -13,11 +13,20 @@ dependencies:
   # `io.flutter.plugins.camera.Camera` on a number of devices, and nothing in
   # this plugin can work around that.
   camera: ">=0.11.0 <0.13.0"
-  ffi: ^2.0.0
+  # Build hooks (hook/build.dart). Ranges, not the latest only: on Flutter
+  # 3.41, which pins meta 1.17, pub resolves code_assets 1.2.1, hooks 2.0.2
+  # and native_toolchain_c 0.19.2 (0.19.3+ and hooks 2.1 need meta ^1.19),
+  # and the hook has to compile with those. CI checks it on Flutter 3.41.0.
+  code_assets: ">=1.2.1 <3.0.0"
+  ffi: ^2.1.0
   flutter:
     sdk: flutter
+  hooks: ">=2.0.2 <3.0.0"
   image: ^4.1.0
   image_picker: ^1.0.0
+  logging: ^1.3.0
+  native_toolchain_c: ">=0.19.2 <0.20.0"
+  web: ^1.1.0
 
 dev_dependencies:
   # Used by the tests to build synthetic camera frames.
@@ -29,6 +38,11 @@ dev_dependencies:
   plugin_platform_interface: ^2.1.0
 
 flutter:
+  # The WebAssembly engine and its worker. Web builds only: the platform
+  # filter keeps them out of Android, iOS and desktop apps.
+  assets:
+    - path: assets/web/
+      platforms: [web]
   plugin:
     platforms:
       android:

@@ -12,7 +12,7 @@
 # Extra flags passed straight through to scripts/publish.sh.
 ARGS ?=
 
-.PHONY: help publish publish-dry sync test analyze
+.PHONY: help publish publish-dry sync test analyze fixtures wasm sources
 
 help:
 	@echo "Publishing:"
@@ -29,6 +29,13 @@ help:
 	@echo "  make sync            Regenerate the iOS/macOS sources from src/"
 	@echo "  make test            Run the Dart tests"
 	@echo "  make analyze         Run the analyzer"
+	@echo ""
+	@echo "Engine (4.0):"
+	@echo "  make fixtures        Generate the test corpus from the zxing-cpp samples"
+	@echo "                       (not committed; needed by the corpus tests)"
+	@echo "  make wasm            Build the WebAssembly engine into assets/web/ (needed"
+	@echo "                       to run the example on the web; not committed)"
+	@echo "  make sources         Regenerate hook/sources.g.dart after a zxing-cpp update"
 
 publish:
 	./scripts/publish.sh $(ARGS)
@@ -44,3 +51,12 @@ test:
 
 analyze:
 	flutter analyze
+
+fixtures:
+	cd tool && dart pub get && dart run make_fixtures.dart
+
+wasm:
+	./tool/build_wasm.sh
+
+sources:
+	cd tool && dart pub get && dart run gen_sources.dart

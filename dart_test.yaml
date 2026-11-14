@@ -1,0 +1,4 @@
+tags:
+  # Runs the real engine, which the build hook compiles for the host (needs a
+  # C/C++ toolchain). CI runs these on Linux, macOS and Windows.
+  native:

@@ -40,3 +40,18 @@ macos/flutter_zxing/.build/
 # Local 4.0 roadmap and progress notes, never committed
 PROGRESS.md
 API_REVIEW.md
+
+# Node tools (tool/package.json)
+tool/node_modules/
+
+# Engine test corpus, generated from the zxing-cpp submodule by
+# tool/make_fixtures.dart (build/fixtures/ is covered by build/ above)
+example/assets/fixtures/corpus/*
+!example/assets/fixtures/corpus/README.md
+
+# The WebAssembly engine, built by tool/build_wasm.sh (`make wasm`); published
+# with the package, never committed. The worker script is source and stays.
+/assets/web/fzx.js
+/assets/web/fzx.wasm
+/assets/web/fzx_reader.js
+/assets/web/fzx_reader.wasm

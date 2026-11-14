@@ -8,7 +8,7 @@ set -euxo pipefail
 REPO_DIR="$(git rev-parse --show-toplevel)"
 
 SRC_DIR="$REPO_DIR/src"
-ZXING_SRC_DIR="$REPO_DIR/src/zxing/core/src"
+ZXING_SRC_DIR="$REPO_DIR/third_party/zxing-cpp/core/src"
 IOS_SRC_DIR="$REPO_DIR/ios/flutter_zxing/Sources/flutter_zxing/src"
 MACOS_SRC_PATH="$REPO_DIR/macos/flutter_zxing/Sources/flutter_zxing/src"
 
@@ -48,7 +48,7 @@ rsync -aLv "${ZXING_EXCLUDES[@]}" "$ZXING_SRC_DIR/" "$MACOS_SRC_PATH/zxing/"
 # (`#include "../../../zint/backend/<file>"`), a relative layout that only
 # resolves inside a zxing-cpp checkout. Substitute the real sources so the
 # copied tree is self-contained. stubs.c is zxing's own file and has no target.
-ZINT_BACKEND_DIR="$REPO_DIR/src/zxing/zint/backend"
+ZINT_BACKEND_DIR="$REPO_DIR/third_party/zxing-cpp/zint/backend"
 if [ ! -f "$ZINT_BACKEND_DIR/zint.h" ]; then
     echo "error: $ZINT_BACKEND_DIR is missing." >&2
     echo "       Run: git submodule update --init --recursive" >&2

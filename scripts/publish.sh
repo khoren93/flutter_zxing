@@ -14,6 +14,8 @@ set -euo pipefail
 # The refresh is the step that must not be forgotten: the sources under ios/ and
 # macos/ are generated from src/ and git-ignored, so publishing without
 # regenerating them ships a package that cannot build on those platforms.
+# The same goes for the WebAssembly engine in assets/web/ (git-ignored, built
+# by tool/build_wasm.sh): without it the package does not work on the web.
 
 usage() {
     cat >&2 <<'USAGE'
@@ -111,6 +113,20 @@ if ! ./scripts/update_ios_macos_src.sh > "$REFRESH_LOG" 2>&1; then
 fi
 rm -f "$REFRESH_LOG"
 echo "    done"
+
+# --- build the WebAssembly engine --------------------------------------------
+
+# Skipped when assets/web/ was already built from the current sources.
+echo "==> Building the WebAssembly engine"
+WASM_LOG="$(mktemp)"
+if ! ./tool/build_wasm.sh > "$WASM_LOG" 2>&1; then
+    echo "error: tool/build_wasm.sh failed:" >&2
+    tail -30 "$WASM_LOG" >&2
+    rm -f "$WASM_LOG"
+    exit 1
+fi
+rm -f "$WASM_LOG"
+echo "    done ($(head -1 assets/web/fzx.js | sed -E 's|// (fzx-sources: [0-9a-f]+).*|\1|'))"
 
 # --- publish -----------------------------------------------------------------
 

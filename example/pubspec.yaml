@@ -26,3 +26,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # The fixture corpus of the engine tests (integration_test/corpus_test.dart
+  # and lib/corpus_web.dart, and the package's test/engine/corpus_test.dart).
+  assets:
+    - assets/fixtures/corpus/
+    - assets/fixtures/corpus_expected.json

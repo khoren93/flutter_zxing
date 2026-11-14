@@ -1,3 +1,5 @@
+import 'engine.dart';
+
 /// The zxing-cpp version inside the engine.
 const String zxingCppVersion = '3.1.1';
 
@@ -6,4 +8,9 @@ const String zxingCppVersion = '3.1.1';
 ///
 /// Optional: the engine starts by itself on first use. On the web this also
 /// downloads and compiles the WebAssembly module.
-Future<void> warmUpBarcodeEngine() => throw UnimplementedError('Stage 2');
+Future<void> warmUpBarcodeEngine() async {
+  await Future.wait(<Future<void>>[
+    BarcodeEngine.shared.warmUp(),
+    BarcodeEngine.scanner.warmUp(),
+  ]);
+}

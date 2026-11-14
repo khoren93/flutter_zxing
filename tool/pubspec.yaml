@@ -1,0 +1,15 @@
+# Development tools of flutter_zxing: engine source list, test fixtures.
+# A package of its own, so that `dart run` here does not run flutter_zxing's
+# build hook, and so that its pubspec.lock (committed) pins the image decoder
+# that turns the WebP samples into fixtures: same pixels on every machine.
+name: flutter_zxing_tool
+publish_to: none
+
+environment:
+  sdk: ">=3.11.0 <4.0.0"
+
+dependencies:
+  image: ^4.12.0
+
+dev_dependencies:
+  flutter_lints: ^6.0.0

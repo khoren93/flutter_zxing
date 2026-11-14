@@ -32,20 +32,33 @@ build/
 zxscanner/
 
 # Ignore ZXing-CPP unneeded files 
-src/zxing/*
-!src/zxing/CMakeLists.txt
-!src/zxing/zxing.cmake
-!src/zxing/core/
+third_party/zxing-cpp/*
+!third_party/zxing-cpp/LICENSE
+!third_party/zxing-cpp/CMakeLists.txt
+!third_party/zxing-cpp/zxing.cmake
+!third_party/zxing-cpp/core/
 
 # core/src/libzint is a set of one-line forwarders into the nested `zint`
 # submodule, so its backend has to ship as well for the CMake platforms to
 # build. Its tests and tools are 13 MB of fixtures we never compile.
-!src/zxing/zint/
-src/zxing/zint/*
-!src/zxing/zint/LICENSE
-!src/zxing/zint/backend/
-src/zxing/zint/backend/tests/
-src/zxing/zint/backend/tools/
+!third_party/zxing-cpp/zint/
+third_party/zxing-cpp/zint/*
+!third_party/zxing-cpp/zint/LICENSE
+!third_party/zxing-cpp/zint/backend/
+third_party/zxing-cpp/zint/backend/tests/
+third_party/zxing-cpp/zint/backend/tools/
+
+# Development only: engine tools (WebAssembly build, source list, fixtures,
+# headless browser tests) and the engine's test corpus with its runners. The
+# build hook needs none of it: it compiles hook/sources.g.dart's list with
+# native/generated/Version.h, and the WebAssembly modules ship prebuilt in
+# assets/web/.
+tool/
+native/CMakeLists.txt
+example/assets/fixtures/
+example/lib/corpus/
+example/lib/corpus_web.dart
+example/integration_test/corpus_test.dart
 
 # Local 4.0 roadmap and progress notes. .gitignore is not read once a
 # .pubignore exists, so the rule has to be repeated here.

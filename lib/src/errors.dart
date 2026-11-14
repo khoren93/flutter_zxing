@@ -8,8 +8,11 @@ sealed class ZxingException implements Exception {
   /// What went wrong, for logs. Not localized.
   final String message;
 
+  // Not `runtimeType`: it is minified in release web builds.
+  String get _name;
+
   @override
-  String toString() => '$runtimeType: $message';
+  String toString() => '$_name: $message';
 }
 
 /// The input is not an image the engine can decode (corrupt file, an
@@ -17,6 +20,9 @@ sealed class ZxingException implements Exception {
 final class ImageDecodeException extends ZxingException {
   /// Creates the exception.
   const ImageDecodeException(super.message);
+
+  @override
+  String get _name => 'ImageDecodeException';
 }
 
 /// The data cannot be encoded in the requested format (e.g. letters in an
@@ -24,6 +30,9 @@ final class ImageDecodeException extends ZxingException {
 final class BarcodeWriteException extends ZxingException {
   /// Creates the exception.
   const BarcodeWriteException(super.message);
+
+  @override
+  String get _name => 'BarcodeWriteException';
 }
 
 /// The engine failed to start or stopped unexpectedly. The next call starts
@@ -31,6 +40,9 @@ final class BarcodeWriteException extends ZxingException {
 final class EngineException extends ZxingException {
   /// Creates the exception.
   const EngineException(super.message);
+
+  @override
+  String get _name => 'EngineException';
 }
 
 /// A camera problem reported by the scanner in `ScannerState.error`.
@@ -42,12 +54,18 @@ sealed class ScannerException extends ZxingException {
 final class CameraPermissionException extends ScannerException {
   /// Creates the exception.
   const CameraPermissionException([super.message = 'Camera access denied']);
+
+  @override
+  String get _name => 'CameraPermissionException';
 }
 
 /// The device has no camera with the requested facing.
 final class CameraNotFoundException extends ScannerException {
   /// Creates the exception.
   const CameraNotFoundException([super.message = 'No camera available']);
+
+  @override
+  String get _name => 'CameraNotFoundException';
 }
 
 /// The camera failed: it is used by another app, or the platform reported
@@ -55,4 +73,7 @@ final class CameraNotFoundException extends ScannerException {
 final class CameraFailureException extends ScannerException {
   /// Creates the exception.
   const CameraFailureException(super.message);
+
+  @override
+  String get _name => 'CameraFailureException';
 }
