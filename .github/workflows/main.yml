@@ -4,8 +4,9 @@ name: Flutter CI
 #
 # Pushes to the 4.0 development branch run a quick subset (about 10 minutes
 # instead of 18+): lint, the engine on every desktop OS, Flutter 3.41.0, web,
-# and the integration tests on Linux and one Android level. Pull requests,
-# main and manual runs ("Run workflow", any branch) run every platform.
+# and the integration tests on Linux and Android. Pull requests, main and
+# manual runs ("Run workflow", any branch) add the iOS, macOS and Windows
+# integration tests and the example builds.
 on:
   pull_request:
   push:
@@ -412,14 +413,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 4.0 pushes: the newest level only (see the top of the file);
-        # otherwise the oldest supported, a common and the newest one.
-        include: >-
-          ${{ fromJSON(github.event_name == 'push' && github.ref_name == '4.0'
-          && '[{"api-level":36,"target":"google_apis","arch":"x86_64"}]'
-          || '[{"api-level":24,"target":"default","arch":"x86_64"},
-          {"api-level":34,"target":"google_apis","arch":"x86_64"},
-          {"api-level":36,"target":"google_apis","arch":"x86_64"}]') }}
+        # One level, the newest: older ones (24, 34) were dropped during 4.0
+        # development to keep CI short.
+        include:
+          - api-level: 36
+            target: google_apis
+            arch: x86_64
     steps:
       - uses: actions/checkout@v7
         with:
