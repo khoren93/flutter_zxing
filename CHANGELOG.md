@@ -1,5 +1,58 @@
 # Changelog
 
+## 4.0.0-beta.1 (unreleased)
+
+A new engine and a new API, with the 3.x API kept working on top of it.
+
+* **One engine on every platform, the web included.** zxing-cpp 3.1.1 is
+  compiled by the package's build hook on Android, iOS, macOS, Linux and
+  Windows, and runs as WebAssembly in a Web Worker on the web. The CMake,
+  CocoaPods/Swift Package Manager and Gradle builds of 3.x are gone. After
+  upgrading, run `flutter clean` once.
+* **New API:** `BarcodeReader` (`read`, `readAll`, `readPixels`,
+  `readAllPixels`), `BarcodeWriter` (`encode`, `encodeBytes`, `toSvg`,
+  `toImage`), `Barcode`, `BarcodeFormat`, `ReaderOptions`, `PixelBuffer`,
+  `BarcodeSymbol`, `BarcodeImage`. Everything runs off the UI thread.
+* **The 3.x API is deprecated** (`zx`, `Code`, `DecodeParams`, `ReaderWidget`,
+  `WriterWidget`, ...): each declaration names its replacement. It keeps
+  working until 5.0, on the new engine, and stays unavailable on the web.
+
+### Behaviour changes of the 3.x API
+
+* Reading image files and URLs (`zx.readBarcodeImagePath`,
+  `readBarcodesImageUrl`, ..., and the gallery button of `ReaderWidget`) no
+  longer blocks the UI: the image is decoded and read on a background isolate.
+  3.x decoded it on the calling isolate, which froze the UI for about a second
+  on a large photo (#74).
+* Image files are read at full resolution. `DecodeParams.maxSize` no longer
+  shrinks the image first; any positive value turns on zxing-cpp's own
+  downscaling instead. Small codes in large photos are found more often, and
+  `Code.position` is now in pixels of the original image (it was in pixels of
+  the shrunk one).
+* JPEG, PNG, GIF and BMP files are decoded by the engine. Other formats that
+  package:image reads (WebP, TIFF, ...) still work, decoded with package:image
+  on a background isolate.
+* Barcodes are created with zxing-cpp's creator instead of its deprecated
+  writer. The codes are valid and read back the same, but the bitmap can
+  differ: symbol sizes are chosen differently, PDF417 is now scaled and
+  centred in the requested `width` x `height` like the other 2D formats (3.x
+  returned a smaller bitmap), and the error correction of Aztec and PDF417
+  follows the four `EccLevel`s (Aztec 10/23/36/50 %, PDF417 levels 2–5).
+  Data Matrix stays square, as in 3.x.
+* `Code.imageBytes` (with `zx.setLogEnabled(true)`) is filled for raw pixels
+  and camera frames only, not for image files. `setLogEnabled` no longer
+  prints native logs.
+* `zx.readBarcodes` and `zx.processCameraImageMulti` report a failure (an
+  invalid buffer, for example) in `Codes.error` instead of returning no codes
+  without a reason.
+* `zx.stopCameraProcessing` keeps the engine's isolate running for the next
+  scanner; frames still being read fail as before.
+* The internal libraries `package:flutter_zxing/zxing_mobile.dart`,
+  `zxing_web.dart`, `zxing_cross.dart` and `generated_bindings.dart` are
+  removed: they were the FFI glue of the removed native library. Everything
+  exported from `package:flutter_zxing/flutter_zxing.dart` is unchanged.
+* Linux: C++ exceptions no longer crash apps built with Flutter 3.50 or newer.
+
 ## 3.1.1
 
 * The cut-out of `ReaderWidget`'s scanner overlay is now centred on the camera

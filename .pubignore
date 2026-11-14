@@ -34,13 +34,11 @@ zxscanner/
 # Ignore ZXing-CPP unneeded files 
 third_party/zxing-cpp/*
 !third_party/zxing-cpp/LICENSE
-!third_party/zxing-cpp/CMakeLists.txt
-!third_party/zxing-cpp/zxing.cmake
 !third_party/zxing-cpp/core/
 
 # core/src/libzint is a set of one-line forwarders into the nested `zint`
-# submodule, so its backend has to ship as well for the CMake platforms to
-# build. Its tests and tools are 13 MB of fixtures we never compile.
+# submodule, so its backend has to ship as well for the build hook. Its tests
+# and tools are 13 MB of fixtures we never compile.
 !third_party/zxing-cpp/zint/
 third_party/zxing-cpp/zint/*
 !third_party/zxing-cpp/zint/LICENSE

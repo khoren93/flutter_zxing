@@ -3,34 +3,33 @@
 # accident.
 #
 # Publishing goes through scripts/publish.sh, which checks that the version is
-# consistent and documented, refreshes the generated iOS/macOS sources and then
-# runs `flutter pub publish`. It does not change the version: bump pubspec.yaml
-# and both podspecs alongside the CHANGELOG entry before releasing.
+# documented, builds the WebAssembly engine and then runs `flutter pub
+# publish`. It does not change the version: bump pubspec.yaml alongside the
+# CHANGELOG entry before releasing.
 
 .DEFAULT_GOAL := help
 
 # Extra flags passed straight through to scripts/publish.sh.
 ARGS ?=
 
-.PHONY: help publish publish-dry sync test analyze fixtures wasm sources
+.PHONY: help publish publish-dry test analyze fixtures wasm sources
 
 help:
 	@echo "Publishing:"
 	@echo "  make publish         Publish the version currently in pubspec.yaml"
 	@echo "  make publish-dry     Validate the package without publishing anything"
 	@echo ""
-	@echo "  Bump the version in pubspec.yaml and both podspecs, and add the"
-	@echo "  matching '## <version>' section to CHANGELOG.md, before publishing."
+	@echo "  Bump the version in pubspec.yaml and add the matching"
+	@echo "  '## <version>' section to CHANGELOG.md before publishing."
 	@echo ""
 	@echo "  ARGS=--force         Skip pub.dev's interactive confirmation."
 	@echo "                       e.g. make publish ARGS=--force"
 	@echo ""
 	@echo "Development:"
-	@echo "  make sync            Regenerate the iOS/macOS sources from src/"
 	@echo "  make test            Run the Dart tests"
 	@echo "  make analyze         Run the analyzer"
 	@echo ""
-	@echo "Engine (4.0):"
+	@echo "Engine:"
 	@echo "  make fixtures        Generate the test corpus from the zxing-cpp samples"
 	@echo "                       (not committed; needed by the corpus tests)"
 	@echo "  make wasm            Build the WebAssembly engine into assets/web/ (needed"
@@ -42,9 +41,6 @@ publish:
 
 publish-dry:
 	./scripts/publish.sh --dry-run $(ARGS)
-
-sync:
-	./scripts/update_ios_macos_src.sh
 
 test:
 	flutter test

@@ -123,11 +123,9 @@ flutter pub get
 (cd zxscanner && flutter pub get)
 ```
 
-To allow the building on iOS and MacOS, you need to run the following command:
-
-```bash
-./scripts/update_ios_macos_src.sh
-```
+The native engine is built by the package's build hook in every app, on every
+platform: nothing else to run. To run the example on the web, build the
+WebAssembly engine first (`make wasm`).
 
 To run the integration tests:
 
@@ -145,9 +143,7 @@ Now you can run the flutter_zxing example app on your device or emulator.
 
 ### Use with dependency_overrides
 
-If you want to use a forked version of the flutter_zxing library in your project, you can specify it using `dependency_overrides` in your `pubspec.yaml`. However, be aware that `flutter_zxing` relies on the ZXing C++ code included as a git submodule. When using `dependency_overrides` with a git repository, these submodules are not automatically included, and the `update_ios_macos_src.sh` script is not run, which can lead to errors, especially on iOS.
-
-Your project might build but encounter runtime errors due to missing library exports that appear as an error like this: `flutter: type 'ArgumentError' is not a subtype of type 'Code' in type cast`
+If you want to use a forked version of the flutter_zxing library in your project, you can specify it using `dependency_overrides` in your `pubspec.yaml`. However, be aware that `flutter_zxing` relies on the ZXing C++ code included as a git submodule. When using `dependency_overrides` with a git repository, these submodules are not automatically included, and the build fails without them.
 
 #### Recommended Approach: Using a Git Submodule
 
@@ -165,13 +161,12 @@ dependency_overrides:
     path: ./flutter_zxing
 ```
 3. Run `flutter pub get` to install the dependencies.
-4. Run the `scripts/update_ios_macos_src.sh` script to update the iOS and MacOS source files. (Or add it to your own projects build process)
-5. Run `flutter clean` to clear the build cache.
-6. Build and run your project.
+4. Run `flutter clean` to clear the build cache.
+5. Build and run your project.
 
 #### Why Not Use a Direct Git Reference?
 
-Referencing your forked repo as a direct `git` reference in the `depenency_overrides` section of the `pubspec.yaml` does not include submodules or run the `update_ios_macos_src.sh` script. Manually running these steps in the `.pub-cache` directory is not practical, since the path changes with each commit.
+Referencing your forked repo as a direct `git` reference in the `dependency_overrides` section of the `pubspec.yaml` does not include submodules. Fetching them by hand in the `.pub-cache` directory is not practical, since the path changes with each commit.
 
 ## Usage
 

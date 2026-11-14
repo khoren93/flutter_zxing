@@ -1,3 +1,5 @@
+// Tests of the deprecated 3.x API, which keeps working until 5.0.
+// ignore_for_file: deprecated_member_use
 /// ReaderWidget integration tests
 ///
 /// Drive `ReaderWidget` with frames from a fake camera, decoded by the real
@@ -10,7 +12,6 @@ import 'dart:typed_data';
 import 'package:camera_platform_interface/camera_platform_interface.dart';
 // material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
 // which needs Flutter 3.47; this package still supports Flutter 3.41.
-// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';

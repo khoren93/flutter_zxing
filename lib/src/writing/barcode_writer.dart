@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import '../barcode/barcode_format.dart';
 import '../engine/engine.dart';
 import '../engine/engine_protocol.dart';
+import 'creator_options.dart' as writing;
 import 'symbol_layout.dart';
 
 /// Creates barcodes from text or binary data.
@@ -127,31 +128,13 @@ final class BarcodeWriter {
   /// The zxing-cpp creator options for this writer: the typed fields, then
   /// [options].
   @visibleForTesting
-  String get creatorOptions => <String>[
-    if (errorCorrection != null)
-      if (_ecLevel(format, errorCorrection!) case final String level)
-        'ecLevel=$level',
-    if (version != null) 'version=$version',
-    if (gs1) 'gs1',
-    if (options != null && options!.trim().isNotEmpty) options!.trim(),
-  ].join(',');
-
-  /// The zxing-cpp ecLevel for [level] in [format]'s terms, `null` where
-  /// error correction is fixed (Data Matrix, linear formats).
-  static String? _ecLevel(BarcodeFormat format, ErrorCorrection level) =>
-      switch (format.symbology) {
-        BarcodeFormat.qrCode => const <String>['L', 'M', 'Q', 'H'][level.index],
-        // Percentages zxing-cpp maps to Aztec's levels.
-        BarcodeFormat.aztec => const <String>[
-          '10%',
-          '23%',
-          '36%',
-          '50%',
-        ][level.index],
-        // PDF417 security levels (0-8): more error correction codewords.
-        BarcodeFormat.pdf417 => const <String>['2', '3', '4', '5'][level.index],
-        _ => null,
-      };
+  String get creatorOptions => writing.creatorOptions(
+    format,
+    errorCorrection: errorCorrection,
+    version: version,
+    gs1: gs1,
+    options: options,
+  );
 
   /// Encodes text and returns it as an SVG document. Same as
   /// `(await encode(data)).toSvg()`.

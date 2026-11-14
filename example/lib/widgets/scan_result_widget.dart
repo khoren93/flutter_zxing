@@ -1,6 +1,7 @@
+// Shows a result of the deprecated 3.x API.
+// ignore_for_file: deprecated_member_use
 // material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
 // which needs Flutter 3.47; this package still supports Flutter 3.41.
-// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 

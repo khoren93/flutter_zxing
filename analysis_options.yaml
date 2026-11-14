@@ -26,16 +26,10 @@ analyzer:
     # Turned off until null-safe rollout is complete.
     unnecessary_null_comparison: warning
   exclude:
-    - "lib/generated_bindings.dart"
     - "example/**"
     - "zxscanner/**"
     - build/**
-    - android/**
-    - ios/**
     - web/**
-    - windows/**
-    - macos/**
-    - linux/**
     
 linter:
   rules:

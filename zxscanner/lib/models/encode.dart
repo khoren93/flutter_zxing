@@ -1,3 +1,5 @@
+// Uses the deprecated flutter_zxing 3.x API, which keeps working until 5.0.
+// ignore_for_file: deprecated_member_use
 import 'dart:typed_data';
 
 import 'package:flutter_zxing/flutter_zxing.dart' as zxing;

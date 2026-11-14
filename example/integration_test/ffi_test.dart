@@ -1,3 +1,5 @@
+// Tests of the deprecated 3.x API, which keeps working until 5.0.
+// ignore_for_file: deprecated_member_use
 /// FFI integration tests
 ///
 /// Ensure each FFI call actually works on each supported platform
@@ -194,7 +196,7 @@ void main() async {
       expect(code.text, 'A' * 80);
     });
 
-    test('when a PDF417 symbol is shorter than the requested box', () {
+    test('when a PDF417 symbol is smaller than the requested box', () {
       final enc = zx.encodeBarcode(
         contents: 'This is a PDF417',
         params: EncodeParams(
@@ -205,7 +207,20 @@ void main() async {
         ),
       );
       expectSelfConsistent(enc);
-      expect(enc.height! < 120, isTrue);
+      // Since 4.0 PDF417 is laid out like the other 2D formats: scaled and
+      // centred in the requested box (3.x returned a smaller bitmap).
+      expect(enc.width, 360);
+      expect(enc.height, 120);
+      final code = zx.readBarcode(
+        enc.data!,
+        DecodeParams(
+          imageFormat: ImageFormat.lum,
+          format: Format.pdf417,
+          width: enc.width!,
+          height: enc.height!,
+        ),
+      );
+      expect(code.text, 'This is a PDF417');
     });
 
     test('when the symbol fits exactly', () {

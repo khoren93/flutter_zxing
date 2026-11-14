@@ -1,3 +1,5 @@
+// Uses the deprecated flutter_zxing 3.x API, which keeps working until 5.0.
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/foundation.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
@@ -47,7 +49,6 @@ class _MyAppState extends State<MyApp> {
         // package:flutter/material.dart; the bridge hands them this app's
         // material_ui theme and localizations.
         builder: (BuildContext context, Widget? child) =>
-            // ignore: deprecated_member_use
             MaterialUiCompatibilityBridge(child: child!),
         supportedLocales: loc.S.delegate.supportedLocales,
         locale: appStore.selectedLanguage.parseLocale(),

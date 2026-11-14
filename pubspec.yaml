@@ -31,7 +31,6 @@ dependencies:
 dev_dependencies:
   # Used by the tests to build synthetic camera frames.
   camera_platform_interface: ^2.7.0
-  ffigen: ">=12.0.0 <24.0.0" # dart run ffigen --config ffigen.yaml
   flutter_lints: ">=4.0.0 <7.0.0"
   flutter_test:
     sdk: flutter
@@ -43,25 +42,13 @@ flutter:
   assets:
     - path: assets/web/
       platforms: [web]
-  plugin:
-    platforms:
-      android:
-        ffiPlugin: true
-      ios:
-        ffiPlugin: true
-      linux:
-        ffiPlugin: true
-      macos:
-        ffiPlugin: true
-      windows:
-        ffiPlugin: true
 
 # Publish to pub.dev
 # make publish        (or: ./scripts/publish.sh [--dry-run] [--force])
-# Bump this version and `s.version` in both podspecs together with the
-# CHANGELOG entry first; the script checks all three agree, refreshes the
-# generated iOS/macOS sources -- they are git-ignored, and without them the
-# released package does not build on those platforms -- then publishes.
+# Bump this version together with the CHANGELOG entry first; the script checks
+# that the CHANGELOG documents it, builds the WebAssembly engine -- it is
+# git-ignored, and without it the released package does not work on the web --
+# then publishes.
 
 # Update zxing-cpp submodule
 # git submodule update --remote
