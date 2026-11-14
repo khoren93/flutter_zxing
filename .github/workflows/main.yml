@@ -1,6 +1,11 @@
 name: Flutter CI
 
-# Trigger CI on (1) pull requests, (2) pushes to main branch and (3) manually
+# Trigger CI on (1) pull requests, (2) pushes to main and 4.0 and (3) manually.
+#
+# Pushes to the 4.0 development branch run a quick subset (about 10 minutes
+# instead of 18+): lint, the engine on every desktop OS, Flutter 3.41.0, web,
+# and the integration tests on Linux and one Android level. Pull requests,
+# main and manual runs ("Run workflow", any branch) run every platform.
 on:
   pull_request:
   push:
@@ -229,6 +234,8 @@ jobs:
   # separate build job would only burn CI minutes.
   build-example:
     name: 'Build example (${{ matrix.target }}, ${{ matrix.os }})'
+    # Not in the quick subset of 4.0 pushes, see the top of the file.
+    if: github.event_name != 'push' || github.ref_name != '4.0'
     runs-on: ${{ matrix.os }}-latest
     timeout-minutes: 20
     strategy:
@@ -317,19 +324,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target: ios
-            os: macos
-            device: iphone
-          - target: macos
-            os: macos
-            device: macos
-          - target: linux
-            os: ubuntu
-            device: linux
-          - target: windows
-            os: windows
-            device: windows
+        # 4.0 pushes: Linux only (see the top of the file); otherwise iOS,
+        # macOS, Linux and Windows.
+        include: >-
+          ${{ fromJSON(github.event_name == 'push' && github.ref_name == '4.0'
+          && '[{"target":"linux","os":"ubuntu","device":"linux"}]'
+          || '[{"target":"ios","os":"macos","device":"iphone"},
+          {"target":"macos","os":"macos","device":"macos"},
+          {"target":"linux","os":"ubuntu","device":"linux"},
+          {"target":"windows","os":"windows","device":"windows"}]') }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -409,16 +412,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - api-level: 24
-            target: default
-            arch: x86_64
-          - api-level: 34
-            target: google_apis
-            arch: x86_64
-          - api-level: 36
-            target: google_apis
-            arch: x86_64
+        # 4.0 pushes: the newest level only (see the top of the file);
+        # otherwise the oldest supported, a common and the newest one.
+        include: >-
+          ${{ fromJSON(github.event_name == 'push' && github.ref_name == '4.0'
+          && '[{"api-level":36,"target":"google_apis","arch":"x86_64"}]'
+          || '[{"api-level":24,"target":"default","arch":"x86_64"},
+          {"api-level":34,"target":"google_apis","arch":"x86_64"},
+          {"api-level":36,"target":"google_apis","arch":"x86_64"}]') }}
     steps:
       - uses: actions/checkout@v7
         with:
