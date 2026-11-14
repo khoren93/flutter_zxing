@@ -19,6 +19,7 @@ final class ReaderOptions {
     this.validateOptionalChecksum = false,
     this.binarizer = Binarizer.localAverage,
     this.minLineCount = 2,
+    this.eanAddOn = EanAddOn.ignore,
   });
 
   /// Options for live camera frames: cheap per frame.
@@ -60,6 +61,10 @@ final class ReaderOptions {
   /// Higher values reduce false positives on noisy images.
   final int minLineCount;
 
+  /// What to do with the EAN-2/EAN-5 add-on symbol printed next to some
+  /// EAN-13 and UPC codes (the price on books, the issue on magazines).
+  final EanAddOn eanAddOn;
+
   /// Creates a copy with the given fields replaced.
   ReaderOptions copyWith({
     bool? tryHarder,
@@ -71,6 +76,7 @@ final class ReaderOptions {
     bool? validateOptionalChecksum,
     Binarizer? binarizer,
     int? minLineCount,
+    EanAddOn? eanAddOn,
   }) => ReaderOptions(
     tryHarder: tryHarder ?? this.tryHarder,
     tryRotate: tryRotate ?? this.tryRotate,
@@ -82,6 +88,7 @@ final class ReaderOptions {
         validateOptionalChecksum ?? this.validateOptionalChecksum,
     binarizer: binarizer ?? this.binarizer,
     minLineCount: minLineCount ?? this.minLineCount,
+    eanAddOn: eanAddOn ?? this.eanAddOn,
   );
 
   @override
@@ -95,7 +102,8 @@ final class ReaderOptions {
       other.returnErrors == returnErrors &&
       other.validateOptionalChecksum == validateOptionalChecksum &&
       other.binarizer == binarizer &&
-      other.minLineCount == minLineCount;
+      other.minLineCount == minLineCount &&
+      other.eanAddOn == eanAddOn;
 
   @override
   int get hashCode => Object.hash(
@@ -108,7 +116,30 @@ final class ReaderOptions {
     validateOptionalChecksum,
     binarizer,
     minLineCount,
+    eanAddOn,
   );
+}
+
+/// What to do with EAN-2/EAN-5 add-on symbols (see
+/// [ReaderOptions.eanAddOn]).
+///
+/// ```dart
+/// // Books: ISBN plus the price add-on, read as one barcode.
+/// const reader = BarcodeReader(
+///   formats: {BarcodeFormat.ean13},
+///   options: ReaderOptions(eanAddOn: EanAddOn.require),
+/// );
+/// final book = await reader.read(bytes); // text: '978073520044951299'
+/// ```
+enum EanAddOn {
+  /// Read the main symbol only, whether or not there is an add-on.
+  ignore,
+
+  /// Append the add-on to the text when there is one.
+  read,
+
+  /// Report EAN/UPC symbols only together with an add-on.
+  require,
 }
 
 /// How an image is turned into black and white before detection.

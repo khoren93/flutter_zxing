@@ -42,10 +42,6 @@ const int corpusPositionTolerance = 2;
 /// Fixtures whose zxing-cpp expectation does not apply: by name prefix, or
 /// by exact name when the key ends with a dot.
 const Map<String, String> corpusExpectationExceptions = <String, String>{
-  // zxing-cpp reads these with eanAddOnSymbol=Read; ReaderOptions has no
-  // such option, so the add-on is not part of the text.
-  'ean13-extension-1__': 'EAN-2/5 add-on symbols are not read',
-  'upca-extension-1__': 'EAN-2/5 add-on symbols are not read',
   // With all formats enabled, zxing-cpp 3.1.1 reads a wrong EAN-13 (valid
   // checksum, a leading digit no UPC-A can have) from these UPC-A photos.
   // zxing-cpp's own tests read these directories as UPC-A only, which rules
@@ -308,67 +304,74 @@ String _fnv1a(Uint8List data) {
 
 const String _photoName = 'synthetic__photo12mp';
 
-/// Builds a 4000 x 3000 grey photo with noise and a small, dense QR code
-/// (version 20+, 3 pixels per module) and reads it: the #74 case that 3.x
-/// could not read with default settings. Generated, so it costs nothing in
-/// git; deterministic, so every platform sees the same pixels.
+/// The text of the QR code in [syntheticPhoto].
+final String syntheticPhotoText =
+    'https://github.com/khoren93/flutter_zxing/issues/74 '
+    '${List<String>.filled(40, 'dense payload').join(' ')}';
+
+/// A 4000 x 3000 grey photo with noise and a small, dense QR code (version
+/// 20+, 3 pixels per module) holding [syntheticPhotoText]: the #74 case
+/// that 3.x could not read with default settings. Generated, so it costs
+/// nothing in git; deterministic, so every platform sees the same pixels.
+Future<PixelBuffer> syntheticPhoto({BarcodeEngine? engine}) async {
+  final EngineSymbol qr = await (engine ?? BarcodeEngine.shared).write(
+    utf8.encode(syntheticPhotoText),
+    binary: false,
+    format: BarcodeFormat.qrCode.zxingName,
+    options: 'ecLevel=M',
+  );
+  const int width = 4000;
+  const int height = 3000;
+  const int scale = 3;
+  const int left = 2300;
+  const int top = 1600;
+  const int quiet = 4 * scale;
+  final Uint8List pixels = Uint8List(width * height);
+  int seed = 0x2545f491;
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      // xorshift32, masked so that the VM, dart2js and dart2wasm agree.
+      seed ^= (seed << 13) & 0xffffffff;
+      seed ^= seed >> 17;
+      seed ^= (seed << 5) & 0xffffffff;
+      final int noise = (seed & 0x3f) - 32;
+      final int qx = x - left;
+      final int qy = y - top;
+      int base;
+      if (qx >= -quiet &&
+          qy >= -quiet &&
+          qx < qr.width * scale + quiet &&
+          qy < qr.height * scale + quiet) {
+        final bool dark =
+            qx >= 0 &&
+            qy >= 0 &&
+            qx < qr.width * scale &&
+            qy < qr.height * scale &&
+            qr.modules[(qy ~/ scale) * qr.width + qx ~/ scale] != 0;
+        base = dark ? 60 : 200;
+      } else {
+        base = 90 + (x * 70 ~/ width) + (y * 40 ~/ height);
+      }
+      pixels[y * width + x] = (base + noise).clamp(0, 255);
+    }
+  }
+  return PixelBuffer(pixels, width: width, height: height);
+}
+
+/// Reads [syntheticPhoto] into the report.
 Future<bool> _runSyntheticPhoto(
   BarcodeEngine engine,
   EngineReadOptions options,
   Map<String, Object> results,
   List<String> problems,
 ) async {
-  final String text =
-      'https://github.com/khoren93/flutter_zxing/issues/74 '
-      '${List<String>.filled(40, 'dense payload').join(' ')}';
   try {
-    final EngineSymbol qr = await engine.write(
-      utf8.encode(text),
-      binary: false,
-      format: BarcodeFormat.qrCode.zxingName,
-      options: 'ecLevel=M',
-    );
-    const int width = 4000;
-    const int height = 3000;
-    const int scale = 3;
-    const int left = 2300;
-    const int top = 1600;
-    const int quiet = 4 * scale;
-    final Uint8List pixels = Uint8List(width * height);
-    int seed = 0x2545f491;
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        // xorshift32, masked so that the VM, dart2js and dart2wasm agree.
-        seed ^= (seed << 13) & 0xffffffff;
-        seed ^= seed >> 17;
-        seed ^= (seed << 5) & 0xffffffff;
-        final int noise = (seed & 0x3f) - 32;
-        final int qx = x - left;
-        final int qy = y - top;
-        int base;
-        if (qx >= -quiet &&
-            qy >= -quiet &&
-            qx < qr.width * scale + quiet &&
-            qy < qr.height * scale + quiet) {
-          final bool dark =
-              qx >= 0 &&
-              qy >= 0 &&
-              qx < qr.width * scale &&
-              qy < qr.height * scale &&
-              qr.modules[(qy ~/ scale) * qr.width + qx ~/ scale] != 0;
-          base = dark ? 60 : 200;
-        } else {
-          base = 90 + (x * 70 ~/ width) + (y * 40 ~/ height);
-        }
-        pixels[y * width + x] = (base + noise).clamp(0, 255);
-      }
-    }
     final List<Barcode> read = (await engine.readPixels(
-      PixelBuffer(pixels, width: width, height: height),
+      await syntheticPhoto(engine: engine),
       options,
     )).barcodes;
     results[_photoName] = read.map(barcodeToJson).toList();
-    final bool ok = read.length == 1 && read.single.text == text;
+    final bool ok = read.length == 1 && read.single.text == syntheticPhotoText;
     if (!ok) {
       problems.add(
         '$_photoName: read ${read.map((Barcode b) => b.text).toList()}',
@@ -398,6 +401,11 @@ Future<CorpusReport> runCorpus(
     flags: defaults.flags | FzxFlags.textPlain,
     minLineCount: defaults.minLineCount,
   );
+  // Like zxing-cpp's tests: the *-extension-* samples with their add-on.
+  final EngineReadOptions withAddOn = EngineReadOptions(
+    flags: options.flags | (EanAddOn.read.index << FzxFlags.eanAddOnShift),
+    minLineCount: options.minLineCount,
+  );
   final Map<String, Object> results = <String, Object>{};
   int expected = 0;
   int correct = 0;
@@ -405,7 +413,10 @@ Future<CorpusReport> runCorpus(
   for (final CorpusFixture f in fixtures) {
     List<Barcode> barcodes;
     try {
-      barcodes = (await e.readImage(f.image, options)).barcodes;
+      barcodes = (await e.readImage(
+        f.image,
+        f.name.contains('-extension-') ? withAddOn : options,
+      )).barcodes;
     } on Object catch (error) {
       results[f.name] = <String, String>{'error': '$error'};
       problems.add('${f.name}: $error');
@@ -427,6 +438,19 @@ Future<CorpusReport> runCorpus(
     final String? mismatch = mismatches.contains(null)
         ? null
         : mismatches.first;
+    // An add-on that was not found: the main symbol alone, a miss rather
+    // than a misread (EanAddOn.read then reports just the main symbol).
+    final String? expectedText = f.text;
+    if (mismatch != null &&
+        f.name.contains('-extension-') &&
+        expectedText != null &&
+        barcodes.any(
+          (Barcode b) =>
+              b.text.length < expectedText.length &&
+              expectedText.startsWith(b.text),
+        )) {
+      continue;
+    }
     if (mismatch == null) {
       correct++;
     } else {

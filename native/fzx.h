@@ -53,6 +53,10 @@ enum {
 	// with zxing-cpp's expected results the way its own blackbox tests do.
 	FZX_TEXT_MODE_SHIFT = 8,
 	FZX_TEXT_MODE_MASK = 0xF << 8,
+	// Bits 12-13: EAN-2/EAN-5 add-on symbols, zxing-cpp EanAddOnSymbol
+	// (0 ignore, 1 read, 2 require).
+	FZX_EAN_ADD_ON_SHIFT = 12,
+	FZX_EAN_ADD_ON_MASK = 0x3 << 12,
 };
 
 // Binarizers, in zxing-cpp's order.

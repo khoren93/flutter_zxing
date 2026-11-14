@@ -25,6 +25,10 @@ abstract final class FzxFlags {
   /// zxing-cpp `TextMode::Plain` instead of the default HRI. Engine
   /// internal: the corpus tests compare text the way zxing-cpp's do.
   static const int textPlain = (0 + 1) << 8;
+
+  /// Shift of the EAN-2/EAN-5 add-on mode, `EanAddOn.index` (zxing-cpp's
+  /// order).
+  static const int eanAddOnShift = 12;
 }
 
 /// Error codes returned by the fzx functions (`FZX_ERR_*`).
@@ -82,7 +86,8 @@ final class EngineReadOptions {
         (options.returnErrors ? FzxFlags.returnErrors : 0) |
         (options.validateOptionalChecksum
             ? FzxFlags.validateOptionalChecksum
-            : 0),
+            : 0) |
+        options.eanAddOn.index << FzxFlags.eanAddOnShift,
     binarizer: options.binarizer.index,
     maxSymbols: maxSymbols,
     minLineCount: options.minLineCount,

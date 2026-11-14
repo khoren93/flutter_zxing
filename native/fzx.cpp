@@ -160,6 +160,9 @@ ReaderOptions readerOptions(fzx_ctx* ctx, const char* formats, uint32_t flags, i
 	const int textMode = static_cast<int>((flags & FZX_TEXT_MODE_MASK) >> FZX_TEXT_MODE_SHIFT);
 	if (textMode > static_cast<int>(TextMode::HexECI) + 1)
 		throw std::invalid_argument("Unknown text mode " + std::to_string(textMode - 1));
+	const int eanAddOn = static_cast<int>((flags & FZX_EAN_ADD_ON_MASK) >> FZX_EAN_ADD_ON_SHIFT);
+	if (eanAddOn > static_cast<int>(EanAddOnSymbol::Require))
+		throw std::invalid_argument("Unknown EAN add-on mode " + std::to_string(eanAddOn));
 	ReaderOptions o;
 	o.formats(ctx->formats)
 		.tryHarder(flags & FZX_TRY_HARDER)
@@ -172,7 +175,8 @@ ReaderOptions readerOptions(fzx_ctx* ctx, const char* formats, uint32_t flags, i
 		.binarizer(static_cast<Binarizer>(binarizer))
 		.maxNumberOfSymbols(maxSymbols > 0 && maxSymbols < 0xFF ? maxSymbols : 0xFF)
 		.minLineCount(minLineCount > 0 ? (minLineCount < 0xFF ? minLineCount : 0xFF) : 2)
-		.textMode(textMode ? static_cast<TextMode>(textMode - 1) : TextMode::HRI);
+		.textMode(textMode ? static_cast<TextMode>(textMode - 1) : TextMode::HRI)
+		.eanAddOnSymbol(static_cast<EanAddOnSymbol>(eanAddOn));
 	return o;
 }
 

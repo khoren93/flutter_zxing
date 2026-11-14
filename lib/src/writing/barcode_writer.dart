@@ -1,8 +1,14 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 
 import '../barcode/barcode_format.dart';
+import '../engine/engine.dart';
+import '../engine/engine_protocol.dart';
+import 'symbol_layout.dart';
 
 /// Creates barcodes from text or binary data.
 ///
@@ -64,16 +70,88 @@ final class BarcodeWriter {
   /// Encodes text into the module matrix (UTF-8, or the character set the
   /// symbology requires).
   ///
-  /// Throws [BarcodeWriteException] if [data] cannot be encoded.
+  /// ```dart
+  /// final BarcodeSymbol symbol = await const BarcodeWriter(BarcodeFormat.dataMatrix).encode('ABC-123');
+  /// print('${symbol.width} x ${symbol.height} modules');
+  /// ```
+  ///
+  /// Throws [BarcodeWriteException] if [data] cannot be encoded, and
+  /// [ArgumentError] if [format] cannot be written.
   Future<BarcodeSymbol> encode(String data) =>
-      throw UnimplementedError('Stage 3');
+      _encode(utf8.encode(data), binary: false);
 
   /// Encodes binary data into the module matrix, byte for byte (formats
   /// with a byte mode: QR, Data Matrix, Aztec, PDF417).
   ///
-  /// Throws [BarcodeWriteException] if [data] cannot be encoded.
+  /// ```dart
+  /// final Uint8List key = Uint8List.fromList([0x00, 0xff, 0x10, 0x80]);
+  /// final String svg = (await const BarcodeWriter(BarcodeFormat.qrCode).encodeBytes(key)).toSvg();
+  /// ```
+  ///
+  /// Throws [BarcodeWriteException] if [data] cannot be encoded, and
+  /// [ArgumentError] if [format] cannot be written.
   Future<BarcodeSymbol> encodeBytes(Uint8List data) =>
-      throw UnimplementedError('Stage 3');
+      _encode(data, binary: true);
+
+  Future<BarcodeSymbol> _encode(Uint8List data, {required bool binary}) async {
+    if (!format.canWrite) {
+      throw ArgumentError.value(
+        format,
+        'format',
+        '${format.displayName} cannot be written',
+      );
+    }
+    final EngineSymbol s = await BarcodeEngine.shared.write(
+      data,
+      binary: binary,
+      format: format.zxingName,
+      options: creatorOptions,
+    );
+    final int quiet = math.max(
+      math.max(s.quietZoneLeft, s.quietZoneRight),
+      math.max(s.quietZoneTop, s.quietZoneBottom),
+    );
+    return BarcodeSymbol(
+      format: s.format == BarcodeFormat.unknown ? format : s.format,
+      width: s.width,
+      height: s.height,
+      modules: s.modules,
+      // One margin on every side: the largest one the symbology needs (left
+      // of an EAN-13: 11 modules), at least one module for 2D symbols
+      // (zint gives Aztec none).
+      quietZone: quietZone ? math.max(quiet, format.isMatrix ? 1 : 0) : 0,
+      text: showText && format.isLinear && s.text.isNotEmpty ? s.text : null,
+    );
+  }
+
+  /// The zxing-cpp creator options for this writer: the typed fields, then
+  /// [options].
+  @visibleForTesting
+  String get creatorOptions => <String>[
+    if (errorCorrection != null)
+      if (_ecLevel(format, errorCorrection!) case final String level)
+        'ecLevel=$level',
+    if (version != null) 'version=$version',
+    if (gs1) 'gs1',
+    if (options != null && options!.trim().isNotEmpty) options!.trim(),
+  ].join(',');
+
+  /// The zxing-cpp ecLevel for [level] in [format]'s terms, `null` where
+  /// error correction is fixed (Data Matrix, linear formats).
+  static String? _ecLevel(BarcodeFormat format, ErrorCorrection level) =>
+      switch (format.symbology) {
+        BarcodeFormat.qrCode => const <String>['L', 'M', 'Q', 'H'][level.index],
+        // Percentages zxing-cpp maps to Aztec's levels.
+        BarcodeFormat.aztec => const <String>[
+          '10%',
+          '23%',
+          '36%',
+          '50%',
+        ][level.index],
+        // PDF417 security levels (0-8): more error correction codewords.
+        BarcodeFormat.pdf417 => const <String>['2', '3', '4', '5'][level.index],
+        _ => null,
+      };
 
   /// Encodes text and returns it as an SVG document. Same as
   /// `(await encode(data)).toSvg()`.
@@ -137,8 +215,9 @@ final class BarcodeWriter {
 /// read. Higher levels make the symbol larger.
 ///
 /// QR codes use the levels directly (L ≈ 7%, M ≈ 15%, Q ≈ 25%, H ≈ 30%).
-/// Aztec and PDF417 map them to the nearest comparable level. Data Matrix
-/// and linear formats have fixed error correction and ignore it.
+/// Aztec maps them to 10%, 23%, 36% and 50% of the symbol, PDF417 to
+/// security levels 2 to 5. Data Matrix and linear formats have fixed error
+/// correction and ignore it.
 enum ErrorCorrection {
   /// About 7% recoverable (QR L).
   low,
@@ -172,11 +251,50 @@ final class BarcodeImage {
   /// One byte per pixel, row by row.
   final Uint8List pixels;
 
-  /// Encodes the image as PNG.
-  Future<Uint8List> toPng() => throw UnimplementedError('Stage 3');
+  /// Encodes the image as PNG (with the Flutter engine's encoder).
+  ///
+  /// ```dart
+  /// final image = await const BarcodeWriter(BarcodeFormat.qrCode).toImage('hello', size: 512);
+  /// await File('qr.png').writeAsBytes(await image.toPng());
+  /// ```
+  Future<Uint8List> toPng() async {
+    final ui.Image image = await toUiImage();
+    try {
+      final ByteData? png = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
+      return png!.buffer.asUint8List(png.offsetInBytes, png.lengthInBytes);
+    } finally {
+      image.dispose();
+    }
+  }
 
-  /// Converts the image for drawing with `Canvas` or `RawImage`.
-  Future<ui.Image> toUiImage() => throw UnimplementedError('Stage 3');
+  /// Converts the image for drawing with `Canvas` or `RawImage`. The caller
+  /// owns the result and should `dispose()` it.
+  ///
+  /// ```dart
+  /// final ui.Image image = await barcodeImage.toUiImage();
+  /// return RawImage(image: image, filterQuality: FilterQuality.none);
+  /// ```
+  Future<ui.Image> toUiImage() {
+    final Uint8List rgba = Uint8List(width * height * 4);
+    for (int i = 0, o = 0; i < pixels.length; i++, o += 4) {
+      final int v = pixels[i];
+      rgba[o] = v;
+      rgba[o + 1] = v;
+      rgba[o + 2] = v;
+      rgba[o + 3] = 255;
+    }
+    final Completer<ui.Image> done = Completer<ui.Image>();
+    ui.decodeImageFromPixels(
+      rgba,
+      width,
+      height,
+      ui.PixelFormat.rgba8888,
+      done.complete,
+    );
+    return done.future;
+  }
 }
 
 /// An encoded barcode: the module matrix plus what is needed to render it.
@@ -219,13 +337,135 @@ final class BarcodeSymbol {
   bool isDark(int x, int y) => modules[y * width + x] != 0;
 
   /// Renders the symbol as an SVG document (one path, crisp at any size).
-  String toSvg() => throw UnimplementedError('Stage 3');
+  ///
+  /// One SVG unit is one module, quiet zone included; scale it with the
+  /// `width`/`height` of the element that shows it.
+  ///
+  /// ```dart
+  /// final symbol = await const BarcodeWriter(BarcodeFormat.qrCode).encode('https://pub.dev');
+  /// await File('qr.svg').writeAsString(symbol.toSvg());
+  /// ```
+  String toSvg() {
+    final SymbolLayout layout = SymbolLayout(this);
+    final StringBuffer path = StringBuffer();
+    for (final ModuleRect r in layout.rects) {
+      path.write('M${r.x} ${r.y}h${r.width}v${r.height}h-${r.width}z');
+    }
+    final String? text = layout.text;
+    final StringBuffer svg = StringBuffer()
+      ..write('<svg xmlns="http://www.w3.org/2000/svg" ')
+      ..write('viewBox="0 0 ${layout.width} ${layout.height}" ')
+      ..write('width="${layout.width}" height="${layout.height}" ')
+      ..write('shape-rendering="crispEdges">')
+      ..write('<rect width="100%" height="100%" fill="#fff"/>')
+      ..write('<path d="$path" fill="#000"/>');
+    if (text != null) {
+      svg
+        ..write('<text x="${layout.textCenter}" ')
+        ..write('y="${layout.textTop + SymbolLayout.textFontSize}" ')
+        ..write('font-family="monospace" ')
+        ..write('font-size="${SymbolLayout.textFontSize}" ')
+        ..write('text-anchor="middle" fill="#000">')
+        ..write(_xmlEscape(text))
+        ..write('</text>');
+    }
+    svg.write('</svg>');
+    return svg.toString();
+  }
 
   /// Renders the symbol as an 8-bit grayscale image.
   ///
   /// Give either [size] (fit into `size` × `size` pixels with whole-pixel
   /// modules) or [moduleSize] (pixels per module). Defaults to 4 pixels per
   /// module. Asynchronous because [text] is drawn with the Flutter engine.
-  Future<BarcodeImage> toImage({int? size, int? moduleSize}) =>
-      throw UnimplementedError('Stage 3');
+  ///
+  /// Throws [ArgumentError] if both are given or one is not positive.
+  ///
+  /// ```dart
+  /// final image = await symbol.toImage(size: 300); // fits 300 x 300
+  /// final png = await image.toPng();
+  /// ```
+  Future<BarcodeImage> toImage({int? size, int? moduleSize}) async {
+    if (size != null && moduleSize != null) {
+      throw ArgumentError('Give either size or moduleSize, not both');
+    }
+    if ((size ?? 1) < 1 || (moduleSize ?? 1) < 1) {
+      throw ArgumentError('size and moduleSize must be positive');
+    }
+    final SymbolLayout layout = SymbolLayout(this);
+    final int m = size != null ? layout.moduleSizeFor(size) : moduleSize ?? 4;
+    final int w = layout.width * m;
+    final int h = layout.height * m;
+    final Uint8List pixels = Uint8List(w * h)..fillRange(0, w * h, 255);
+    for (final ModuleRect r in layout.rects) {
+      for (int y = r.y * m; y < (r.y + r.height) * m; y++) {
+        pixels.fillRange(y * w + r.x * m, y * w + (r.x + r.width) * m, 0);
+      }
+    }
+    final String? text = layout.text;
+    if (text != null) {
+      await _drawText(pixels, w, layout, m, text);
+    }
+    return BarcodeImage(width: w, height: h, pixels: pixels);
+  }
+
+  /// Draws [text] into the text box of [layout] with the Flutter engine.
+  static Future<void> _drawText(
+    Uint8List pixels,
+    int width,
+    SymbolLayout layout,
+    int m,
+    String text,
+  ) async {
+    final int top = layout.textTop * m;
+    final int boxHeight = (SymbolLayout.textFontSize + 1) * m;
+    final ui.ParagraphBuilder builder =
+        ui.ParagraphBuilder(
+            ui.ParagraphStyle(
+              textAlign: ui.TextAlign.center,
+              fontSize: SymbolLayout.textFontSize * m.toDouble(),
+              height: 1,
+              maxLines: 1,
+            ),
+          )
+          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000)))
+          ..addText(text);
+    final ui.Paragraph paragraph = builder.build()
+      ..layout(ui.ParagraphConstraints(width: width.toDouble()));
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    ui.Canvas(recorder)
+      ..drawColor(const ui.Color(0xFFFFFFFF), ui.BlendMode.src)
+      ..drawParagraph(paragraph, ui.Offset.zero);
+    final ui.Picture picture = recorder.endRecording();
+    final ui.Image image = await picture.toImage(width, boxHeight);
+    picture.dispose();
+    paragraph.dispose();
+    try {
+      final ByteData rgba = (await image.toByteData())!;
+      for (int y = 0; y < boxHeight; y++) {
+        for (int x = 0; x < width; x++) {
+          final int o = (y * width + x) * 4;
+          // Luminance of the antialiased text on white.
+          final int v =
+              (306 * rgba.getUint8(o) +
+                  601 * rgba.getUint8(o + 1) +
+                  117 * rgba.getUint8(o + 2) +
+                  0x200) >>
+              10;
+          final int p = (top + y) * width + x;
+          if (v < pixels[p]) {
+            pixels[p] = v;
+          }
+        }
+      }
+    } finally {
+      image.dispose();
+    }
+  }
+
+  static String _xmlEscape(String s) => s
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
 }

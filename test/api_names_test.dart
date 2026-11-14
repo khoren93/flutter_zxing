@@ -25,7 +25,7 @@ const List<Type> _types = <Type>[
   WifiSecurity, EmailContent, PhoneContent, SmsContent, GeoContent,
   ContactContent, EventContent, Gs1Content,
   // Reading
-  BarcodeReader, ReaderOptions, Binarizer, PixelBuffer, PixelLayout,
+  BarcodeReader, ReaderOptions, Binarizer, EanAddOn, PixelBuffer, PixelLayout,
   // Writing
   BarcodeWriter, ErrorCorrection, BarcodeImage, BarcodeSymbol, BarcodeView,
   BarcodeStyle, ModuleShape, FinderShape, BarcodeLogo,
