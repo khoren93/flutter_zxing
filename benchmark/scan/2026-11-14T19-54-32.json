@@ -1,0 +1,63 @@
+{
+  "date": "2026-11-14T19:54:32.816",
+  "device": "Mac (FaceTime HD camera), Safari 27.2",
+  "platform": "web",
+  "build": "release",
+  "pipeline": "getUserMedia <video> -> createImageBitmap(crop) -> fzx wasm worker",
+  "frame": "1280x720",
+  "scan_window": "LTWH 0.2, 0.1, 0.6000000000000001, 0.8",
+  "reader": "ReaderOptions.camera()",
+  "found_frames": 1000,
+  "all_frames": 1398,
+  "camera_frames": null,
+  "camera_fps": null,
+  "skipped_frames": null,
+  "camera_frame_interval": null,
+  "hit_rate": "71.5",
+  "decoded_frames_per_s": "30.0",
+  "duration_s": "46.6",
+  "scan_latency": {
+    "n": 1000,
+    "avg_ms": 9.55,
+    "min_ms": 7,
+    "max_ms": 25,
+    "p50_ms": 9,
+    "p95_ms": 12
+  },
+  "ui_thread": null,
+  "engine": {
+    "n": 1000,
+    "avg_ms": 4.36,
+    "min_ms": 3,
+    "max_ms": 6,
+    "p50_ms": 4,
+    "p95_ms": 5
+  },
+  "ui_frames": {
+    "count": 1140,
+    "over_16ms": 0,
+    "build": {
+      "n": 1140,
+      "avg_ms": 1.19,
+      "min_ms": 0,
+      "max_ms": 4,
+      "p50_ms": 1,
+      "p95_ms": 2
+    },
+    "raster": {
+      "n": 1140,
+      "avg_ms": 1.51,
+      "min_ms": 1,
+      "max_ms": 6,
+      "p50_ms": 2,
+      "p95_ms": 2
+    }
+  },
+  "summary": [
+    "scan latency     avg    9.6  min    7.0  max   25.0  p95   12.0 ms",
+    "engine           avg    4.4  min    3.0  max    6.0  p95    5.0 ms",
+    "UI build         avg    1.2  min    0.0  max    4.0  p95    2.0 ms",
+    "UI frames 1140, over 16 ms: 0"
+  ],
+  "saved_to": null
+}

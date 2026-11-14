@@ -46,6 +46,15 @@ final class FakeFrame implements CameraFrame {
   /// The crop the controller asked for.
   Rect? crop;
 
+  /// The options the controller decoded with.
+  EngineReadOptions? options;
+
+  @override
+  final int arrivalMicros = cameraClock.elapsedMicroseconds;
+
+  @override
+  int get dropped => 0;
+
   @override
   PixelBuffer? get pixels => null;
   bool wasRead = false;
@@ -57,6 +66,7 @@ final class FakeFrame implements CameraFrame {
     EngineReadOptions options,
   ) async {
     this.crop = crop;
+    this.options = options;
     wasRead = true;
     if (hang) {
       return Completer<EngineReadResult>().future;

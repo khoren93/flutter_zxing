@@ -18,6 +18,10 @@ import 'camera_source_stub.dart'
     if (dart.library.ffi) 'camera_source_native.dart'
     as platform;
 
+/// The clock of frame arrival times, shared by the cameras and the
+/// controller (microseconds since the first use).
+final Stopwatch cameraClock = Stopwatch()..start();
+
 /// What an opened camera can do.
 @immutable
 final class CameraCapabilities {
@@ -96,6 +100,13 @@ abstract class CameraFrame {
   /// The frame's pixels where they are in memory (native platforms), for
   /// saving a frame while debugging; `null` on the web.
   PixelBuffer? get pixels;
+
+  /// When the frame reached Dart, on [cameraClock].
+  int get arrivalMicros;
+
+  /// Frames the camera delivered since the previous frame handed out, that
+  /// were replaced before they could be decoded (0 where unknown).
+  int get dropped;
 
   /// Decodes [crop] of the frame (pixels of the delivered frame, `null` for
   /// all of it). Positions in the result are in the delivered frame.

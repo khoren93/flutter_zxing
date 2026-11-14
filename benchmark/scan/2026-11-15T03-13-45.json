@@ -1,0 +1,55 @@
+{
+  "date": "2026-11-15T03:13:45.693648",
+  "device": "Google Pixel 4a, Android 13 (SDK 33)",
+  "platform": "android",
+  "build": "release",
+  "pipeline": "flutter_zxing 4.0: camera plugin (startImageStream) -> window rows into native memory -> fzx isolate",
+  "frame": "1280x720",
+  "scan_window": "LTWH 0.2, 0.1, 0.6, 0.8 of the preview",
+  "reader": "ReaderOptions.camera() (tryHarder), first barcode",
+  "found_frames": 1000,
+  "all_frames": 1000,
+  "camera_frames": 1000,
+  "camera_fps": "24.9",
+  "skipped_frames": 0,
+  "hit_rate": "100.0",
+  "decoded_frames_per_s": "24.9",
+  "duration_s": "40.1",
+  "scan_latency": {
+    "n": 1000,
+    "avg_ms": 2.98,
+    "min_ms": 1.59,
+    "max_ms": 20.23,
+    "p50_ms": 2.12,
+    "p95_ms": 9.5
+  },
+  "engine": {
+    "n": 1000,
+    "avg_ms": 1.56,
+    "min_ms": 1.23,
+    "max_ms": 11.32,
+    "p50_ms": 1.37,
+    "p95_ms": 1.72
+  },
+  "ui_frames": {
+    "count": 1246,
+    "over_16ms": 0,
+    "build": {
+      "n": 1246,
+      "avg_ms": 2.24,
+      "min_ms": 0.08,
+      "max_ms": 12.16,
+      "p50_ms": 2.41,
+      "p95_ms": 3.75
+    },
+    "raster": {
+      "n": 1246,
+      "avg_ms": 1.94,
+      "min_ms": 1.42,
+      "max_ms": 13.84,
+      "p50_ms": 1.72,
+      "p95_ms": 2.27
+    }
+  },
+  "note": "Recovered from the run log: Android logcat cut the line after the numbers (summary and saved_to lost)."
+}

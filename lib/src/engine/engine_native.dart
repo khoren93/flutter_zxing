@@ -128,18 +128,36 @@ final class NativeBackend implements EngineBackend {
     return reply;
   }
 
-  static Pointer<Uint8> _copy(Uint8List bytes) {
+  /// Bytes copied at a time before letting the UI isolate draw a frame.
+  static const int _copyChunk = 1 << 20;
+
+  /// [bytes] copied into new native memory. Large inputs (a 12 MP photo)
+  /// are copied a megabyte at a time with a pause between, so that the
+  /// calling isolate keeps drawing frames: copying 12 MB into fresh memory
+  /// at once held the UI up for 25 ms on a Pixel 4a. Camera windows are a
+  /// fraction of that and are copied at once.
+  static Future<Pointer<Uint8>> _copy(Uint8List bytes) async {
     final Pointer<Uint8> p = malloc<Uint8>(bytes.isEmpty ? 1 : bytes.length);
-    p.asTypedList(bytes.length).setAll(0, bytes);
+    final Uint8List dst = p.asTypedList(bytes.length);
+    for (int at = 0; at < bytes.length; at += _copyChunk) {
+      if (at > 0) {
+        await _yield();
+      }
+      final int end = math.min(bytes.length, at + _copyChunk);
+      dst.setRange(at, end, bytes, at);
+    }
     return p;
   }
+
+  /// Lets the event loop run: pending frames are drawn before going on.
+  static Future<void> _yield() => Future<void>.delayed(Duration.zero);
 
   @override
   Future<EngineReadResult> readImage(
     Uint8List encodedImage,
     EngineReadOptions options,
   ) async {
-    final Pointer<Uint8> input = _copy(encodedImage);
+    final Pointer<Uint8> input = await _copy(encodedImage);
     final _Reply reply = await _call(
       (int id) => _ReadImage(id, input.address, encodedImage.length, options),
       input,
@@ -162,7 +180,12 @@ final class NativeBackend implements EngineBackend {
     final Pointer<Uint8> input = malloc<Uint8>(rowBytes * crop.height);
     final Uint8List dst = input.asTypedList(rowBytes * crop.height);
     final Uint8List src = image.bytes;
+    // A megabyte of rows at a time, like _copy.
+    final int rowsPerChunk = math.max(1, _copyChunk ~/ math.max(1, rowBytes));
     for (int y = 0; y < crop.height; y++) {
+      if (y > 0 && y % rowsPerChunk == 0) {
+        await _yield();
+      }
       final int from = (crop.top + y) * stride + crop.left * bpp;
       dst.setRange(y * rowBytes, (y + 1) * rowBytes, src, from);
     }
@@ -192,7 +215,7 @@ final class NativeBackend implements EngineBackend {
     required String format,
     required String options,
   }) async {
-    final Pointer<Uint8> input = _copy(data);
+    final Pointer<Uint8> input = await _copy(data);
     final _Reply reply = await _call(
       (int id) =>
           _Write(id, input.address, data.length, binary, format, options),

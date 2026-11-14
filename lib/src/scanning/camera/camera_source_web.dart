@@ -203,11 +203,12 @@ final class WebCameraSource implements CameraSource {
       return null;
     }
     await _nextVideoFrame();
+    final int arrivalMicros = cameraClock.elapsedMicroseconds;
     final FrameTransform? transform = _preview.value;
     if (_stream == null || transform == null) {
       return null;
     }
-    return _WebFrame(_video, transform);
+    return _WebFrame(_video, transform, arrivalMicros);
   }
 
   @override
@@ -252,7 +253,14 @@ final class WebCameraSource implements CameraSource {
 }
 
 final class _WebFrame implements CameraFrame {
-  _WebFrame(this._video, this.transform);
+  _WebFrame(this._video, this.transform, this.arrivalMicros);
+
+  @override
+  final int arrivalMicros;
+
+  // The video element shows the newest frame; skipped ones are not counted.
+  @override
+  int get dropped => 0;
 
   final web.HTMLVideoElement _video;
 

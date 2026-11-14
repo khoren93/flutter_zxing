@@ -1,0 +1,66 @@
+{
+  "date": "2026-11-14T18:30:58.109504",
+  "device": "iPhone 17 Pro Max (iPhone18,2), iOS 27.2",
+  "platform": "iOS",
+  "build": "release",
+  "pipeline": "camera plugin 0.12 (startImageStream) -> Y crop copy -> fzx isolate",
+  "frame": "720x1280",
+  "scan_window": "LTWH 0.2, 0.1, 0.6000000000000001, 0.8",
+  "reader": "ReaderOptions.camera()",
+  "found_frames": 1000,
+  "all_frames": 1000,
+  "hit_rate": "100.0",
+  "decoded_frames_per_s": "30.0",
+  "duration_s": "33.3",
+  "scan_latency": {
+    "n": 1000,
+    "avg_ms": 1.77,
+    "min_ms": 1.14,
+    "max_ms": 3.14,
+    "p50_ms": 1.67,
+    "p95_ms": 2.47
+  },
+  "ui_thread": {
+    "n": 1000,
+    "avg_ms": 0.11,
+    "min_ms": 0.06,
+    "max_ms": 0.63,
+    "p50_ms": 0.1,
+    "p95_ms": 0.17
+  },
+  "engine": {
+    "n": 1000,
+    "avg_ms": 1.48,
+    "min_ms": 0.94,
+    "max_ms": 2.62,
+    "p50_ms": 1.4,
+    "p95_ms": 2.09
+  },
+  "ui_frames": {
+    "count": 1094,
+    "over_16ms": 0,
+    "build": {
+      "n": 1094,
+      "avg_ms": 0.48,
+      "min_ms": 0.25,
+      "max_ms": 6.86,
+      "p50_ms": 0.37,
+      "p95_ms": 1.2
+    },
+    "raster": {
+      "n": 1094,
+      "avg_ms": 0.72,
+      "min_ms": 0.28,
+      "max_ms": 2.01,
+      "p50_ms": 0.76,
+      "p95_ms": 0.94
+    }
+  },
+  "summary": [
+    "scan latency     avg    1.8  min    1.1  max    3.1  p95    2.5 ms",
+    "UI thread        avg    0.1  min    0.1  max    0.6  p95    0.2 ms",
+    "engine           avg    1.5  min    0.9  max    2.6  p95    2.1 ms",
+    "UI build         avg    0.5  min    0.2  max    6.9  p95    1.2 ms",
+    "UI frames 1094, over 16 ms: 0"
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "date": "2026-11-14T19:59:00.446",
+  "device": "iPhone 17 Pro Max, Safari 27.2 (iOS 27.2)",
+  "platform": "web",
+  "build": "release",
+  "pipeline": "getUserMedia <video> -> createImageBitmap(crop) -> fzx wasm worker",
+  "frame": "720x1280",
+  "scan_window": "LTWH 0.2, 0.1, 0.6000000000000001, 0.8",
+  "reader": "ReaderOptions.camera()",
+  "found_frames": 1000,
+  "all_frames": 1324,
+  "camera_frames": null,
+  "camera_fps": null,
+  "skipped_frames": null,
+  "camera_frame_interval": null,
+  "hit_rate": "75.5",
+  "decoded_frames_per_s": "30.0",
+  "duration_s": "44.1",
+  "scan_latency": {
+    "n": 1000,
+    "avg_ms": 8.98,
+    "min_ms": 7,
+    "max_ms": 15,
+    "p50_ms": 9,
+    "p95_ms": 12
+  },
+  "ui_thread": null,
+  "engine": {
+    "n": 1000,
+    "avg_ms": 4.34,
+    "min_ms": 3,
+    "max_ms": 6,
+    "p50_ms": 4,
+    "p95_ms": 5
+  },
+  "ui_frames": {
+    "count": 1129,
+    "over_16ms": 0,
+    "build": {
+      "n": 1129,
+      "avg_ms": 1.54,
+      "min_ms": 0,
+      "max_ms": 4,
+      "p50_ms": 1,
+      "p95_ms": 3
+    },
+    "raster": {
+      "n": 1129,
+      "avg_ms": 2.27,
+      "min_ms": 1,
+      "max_ms": 4,
+      "p50_ms": 2,
+      "p95_ms": 3
+    }
+  },
+  "summary": [
+    "scan latency     avg    9.0  min    7.0  max   15.0  p95   12.0 ms",
+    "engine           avg    4.3  min    3.0  max    6.0  p95    5.0 ms",
+    "UI build         avg    1.5  min    0.0  max    4.0  p95    3.0 ms",
+    "UI frames 1129, over 16 ms: 0"
+  ],
+  "saved_to": null
+}

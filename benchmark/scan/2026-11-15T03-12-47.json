@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-15T03:12:47.943859",
+  "device": "iPhone 17 Pro Max (iPhone18,2), iOS 27.2",
+  "platform": "iOS",
+  "build": "release",
+  "pipeline": "flutter_zxing 4.0: camera plugin (startImageStream) -> window rows into native memory -> fzx isolate",
+  "frame": "720x1280",
+  "scan_window": "LTWH 0.2, 0.1, 0.6, 0.8 of the preview",
+  "reader": "ReaderOptions.camera() (tryHarder), first barcode",
+  "found_frames": 1000,
+  "all_frames": 1000,
+  "camera_frames": 1000,
+  "camera_fps": "30.0",
+  "skipped_frames": 0,
+  "hit_rate": "100.0",
+  "decoded_frames_per_s": "30.0",
+  "duration_s": "33.3",
+  "scan_latency": {
+    "n": 1000,
+    "avg_ms": 2.6,
+    "min_ms": 1.42,
+    "max_ms": 4.9,
+    "p50_ms": 2.59,
+    "p95_ms": 3.62
+  },
+  "engine": {
+    "n": 1000,
+    "avg_ms": 1.91,
+    "min_ms": 1.0,
+    "max_ms": 4.15,
+    "p50_ms": 1.9,
+    "p95_ms": 2.69
+  },
+  "ui_frames": {
+    "count": 1073,
+    "over_16ms": 0,
+    "build": {
+      "n": 1073,
+      "avg_ms": 1.61,
+      "min_ms": 0.25,
+      "max_ms": 2.91,
+      "p50_ms": 1.65,
+      "p95_ms": 2.19
+    },
+    "raster": {
+      "n": 1073,
+      "avg_ms": 0.54,
+      "min_ms": 0.3,
+      "max_ms": 5.73,
+      "p50_ms": 0.47,
+      "p95_ms": 0.86
+    }
+  },
+  "summary": [
+    "scan latency     avg 2.6  max 4.9  p95 3.6 ms",
+    "engine           avg 1.9  max 4.2  p95 2.7 ms",
+    "decoded 30.0/s, camera 30.0 fps, skipped 0",
+    "UI build         avg 1.6  max 2.9  p95 2.2 ms",
+    "UI frames 1073, over 16 ms: 0"
+  ]
+}

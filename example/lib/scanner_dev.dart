@@ -19,6 +19,9 @@ import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
     show ScannerControllerDebug, ScannerFrameSample;
 
+import 'scan_benchmark.dart';
+import 'ui_stall.dart';
+
 void main() {
   runApp(
     MaterialApp(
@@ -53,6 +56,9 @@ class _ScannerDevPageState extends State<ScannerDevPage> {
   bool _fullWindow = false;
   final Stopwatch _sinceFrame = Stopwatch()..start();
   late final Timer _ticker;
+  ScanBenchmark? _benchmark;
+  bool _measuring = false;
+  String? _stall;
 
   @override
   void initState() {
@@ -63,6 +69,11 @@ class _ScannerDevPageState extends State<ScannerDevPage> {
       const Duration(seconds: 1),
       (_) => setState(() {}),
     );
+    // --dart-define=MEASURE=ui_stall: read a 12 MP photo once the camera
+    // runs and report how much it held up the UI.
+    if (const String.fromEnvironment('MEASURE') == 'ui_stall') {
+      unawaited(_measureStall());
+    }
   }
 
   void _onSample(ScannerFrameSample sample) {
@@ -172,11 +183,76 @@ class _ScannerDevPageState extends State<ScannerDevPage> {
     }
   }
 
+  /// Runs the prototype's benchmark: hold the camera on a QR code until 1000
+  /// frames with a code are decoded.
+  Future<void> _runBenchmark() async {
+    final ScanBenchmark? running = _benchmark;
+    if (running != null) {
+      running.cancel();
+      setState(() => _benchmark = null);
+      return;
+    }
+    final ScanWindow window = _controller.scanWindow;
+    final DetectionMode detection = _controller.detection;
+    _controller
+      ..scanWindow = benchmarkWindow
+      ..detection = DetectionMode.continuous;
+    final ScanBenchmark benchmark = ScanBenchmark(_controller);
+    setState(() => _benchmark = benchmark);
+    final Map<String, Object?> result = await benchmark.run();
+    _controller
+      ..scanWindow = window
+      ..detection = detection;
+    if (!mounted) {
+      return;
+    }
+    setState(() => _benchmark = null);
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Benchmark'),
+        content: Text(
+          (result['summary']! as List<Object?>).join('\n'),
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _measureStall() async {
+    await Future<void>.delayed(const Duration(seconds: 3));
+    // The camera's frames make garbage on this isolate; without it the
+    // numbers are the reader's alone.
+    await _controller.stop();
+    setState(() => _measuring = true);
+    final Map<String, Object> r = await measureUiStall();
+    await _controller.start();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _measuring = false;
+      _stall = <String>[
+        for (final String k in <String>[
+          'idle',
+          'read',
+          'readAll',
+          'readPixels',
+        ])
+          '$k: ${(r[k]! as Map<String, Object?>).entries.map((MapEntry<String, Object?> e) => '${e.key} ${e.value}').join(', ')}',
+      ].join('\n');
+    });
+  }
+
   String get _health {
     final int seconds = _sinceFrame.elapsed.inSeconds;
+    final ScanBenchmark? benchmark = _benchmark;
     return '${seconds >= 2 ? 'NO FRAMES for $seconds s · ' : ''}'
         'camera restarts ${_controller.cameraRestarts} · '
-        'engine restarts ${_controller.engineRestarts}';
+        'engine restarts ${_controller.engineRestarts}'
+        '${benchmark == null ? '' : '\nBENCHMARK ${benchmark.collected} / ${benchmark.target}'}'
+        '${_measuring ? '\nMEASURING the UI while reading a 12 MP photo...' : ''}'
+        '${_stall == null ? '' : '\n$_stall'}';
   }
 
   @override
@@ -223,6 +299,13 @@ class _ScannerDevPageState extends State<ScannerDevPage> {
                         ),
                   ),
                 ),
+                if (_measuring)
+                  const Padding(
+                    padding: EdgeInsets.all(8),
+                    // Animates every frame, so that Flutter draws frames
+                    // while the photo is read.
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
                 const Spacer(),
                 if (_last != null)
                   _Panel(
@@ -240,6 +323,13 @@ class _ScannerDevPageState extends State<ScannerDevPage> {
                         tooltip: 'Save the frame',
                         icon: const Icon(Icons.save_alt),
                         onPressed: _saveFrame,
+                      ),
+                      IconButton(
+                        tooltip: 'Benchmark 1000',
+                        icon: Icon(
+                          _benchmark == null ? Icons.speed : Icons.stop,
+                        ),
+                        onPressed: _runBenchmark,
                       ),
                       IconButton(
                         tooltip: 'Scan window',

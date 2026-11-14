@@ -182,6 +182,23 @@ void main() {
       );
     });
 
+    test('looks for the first barcode unless told otherwise', () async {
+      final ScannerController c = create();
+      await c.start();
+      final FakeFrame first = camera.push();
+      await pumpEventQueue();
+      expect(first.options!.maxSymbols, 1);
+      c.maxBarcodes = null;
+      final FakeFrame all = camera.push();
+      await pumpEventQueue();
+      expect(all.options!.maxSymbols, 0);
+      c.maxBarcodes = 5;
+      final FakeFrame five = camera.push();
+      await pumpEventQueue();
+      expect(five.options!.maxSymbols, 5);
+      expect(() => c.maxBarcodes = 0, throwsRangeError);
+    });
+
     test('changing the formats applies to the next frame', () async {
       final ScannerController c = create();
       await c.start();

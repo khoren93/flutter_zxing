@@ -27,6 +27,7 @@ final class NativeCameraSource implements CameraSource {
   CameraController? _camera;
   CameraDescription? _description;
   CameraImage? _latest;
+  int _latestAt = 0;
   int _received = 0;
   int _taken = 0;
   Completer<void>? _waiter;
@@ -146,6 +147,7 @@ final class NativeCameraSource implements CameraSource {
   void _onImage(CameraImage image) {
     final CameraImage? previous = _latest;
     _latest = image;
+    _latestAt = cameraClock.elapsedMicroseconds;
     _received++;
     // On iOS the preview shows these very buffers, so their shape decides
     // how it is turned.
@@ -192,10 +194,13 @@ final class NativeCameraSource implements CameraSource {
       }
       final CameraImage? image = _latest;
       if (image != null && _received != _taken) {
+        final int dropped = _taken == 0 ? 0 : _received - _taken - 1;
         _taken = _received;
         return _NativeFrame(
           image,
           _transformOf(Size(image.width.toDouble(), image.height.toDouble())),
+          arrivalMicros: _latestAt,
+          dropped: dropped,
           // iOS mirrors the front camera's frames themselves; flipped back,
           // codes that are not read mirrored (Data Matrix) are read too.
           mirrored:
@@ -307,7 +312,19 @@ final class NativeCameraSource implements CameraSource {
 }
 
 final class _NativeFrame implements CameraFrame {
-  _NativeFrame(this._image, this.transform, {this.mirrored = false});
+  _NativeFrame(
+    this._image,
+    this.transform, {
+    required this.arrivalMicros,
+    required this.dropped,
+    this.mirrored = false,
+  });
+
+  @override
+  final int arrivalMicros;
+
+  @override
+  final int dropped;
 
   final CameraImage _image;
 

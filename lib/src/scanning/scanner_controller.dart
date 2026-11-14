@@ -74,6 +74,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
     ReaderOptions options = const ReaderOptions.camera(),
     DetectionMode detection = DetectionMode.distinct,
     ScanWindow scanWindow = const ScanWindow.centered(),
+    int? maxBarcodes = 1,
     this.facing = CameraFacing.back,
     this.resolution = CameraResolution.hd,
     this.autoStart = true,
@@ -82,9 +83,17 @@ class ScannerController extends ValueNotifier<ScannerState> {
        _options = options,
        _detection = detection,
        _scanWindow = scanWindow,
+       _maxBarcodes = _checkMax(maxBarcodes),
        _facing = facing,
        super(ScannerState(facing: facing)) {
     _readOptions = _engineOptions();
+  }
+
+  static int? _checkMax(int? value) {
+    if (value != null && value < 1) {
+      throw RangeError.range(value, 1, null, 'maxBarcodes');
+    }
+    return value;
   }
 
   /// Formats to look for; `null` means all. Fewer formats decode faster.
@@ -123,6 +132,21 @@ class ScannerController extends ValueNotifier<ScannerState> {
   }
 
   ScanWindow _scanWindow;
+
+  /// How many barcodes to look for in each frame; `null` for all of them.
+  /// Can be changed while scanning.
+  ///
+  /// The default, 1, stops at the first barcode: a frame with a barcode is
+  /// decoded several times faster than when looking for all of them, so it
+  /// is reported sooner. Raise it to scan several codes at once (shelves,
+  /// inventory). Throws [RangeError] below 1.
+  int? get maxBarcodes => _maxBarcodes;
+  set maxBarcodes(int? value) {
+    _maxBarcodes = _checkMax(value);
+    _onConfigChanged();
+  }
+
+  int? _maxBarcodes;
 
   /// The camera opened by [start]. See [switchCamera].
   final CameraFacing facing;
@@ -175,13 +199,8 @@ class ScannerController extends ValueNotifier<ScannerState> {
   AppLifecycleListener? _lifecycle;
   ScannerStatus? _statusBeforeHide;
 
-  EngineReadOptions _engineOptions() => EngineReadOptions.from(
-    _formats,
-    _options,
-    // The first barcode of each frame: on a frame with a code that is often
-    // several times faster than looking for more.
-    maxSymbols: 1,
-  );
+  EngineReadOptions _engineOptions() =>
+      EngineReadOptions.from(_formats, _options, maxSymbols: _maxBarcodes ?? 0);
 
   // Applies changed settings to a running scanner.
   void _onConfigChanged() {
@@ -425,7 +444,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
         return;
       }
       _lastFrame = (frame, crop);
-      _onFrame(frame.transform, result, crop, clock.elapsedMicroseconds);
+      _onFrame(frame, result, crop, clock.elapsedMicroseconds);
     }
   }
 
@@ -480,11 +499,12 @@ class ScannerController extends ValueNotifier<ScannerState> {
   }
 
   void _onFrame(
-    FrameTransform frame,
+    CameraFrame camera,
     EngineReadResult result,
     Rect? crop,
     int micros,
   ) {
+    final FrameTransform frame = camera.transform;
     final Size display = frame.displaySize;
     final List<Barcode> barcodes = <Barcode>[
       for (final Barcode b in result.barcodes)
@@ -497,6 +517,8 @@ class ScannerController extends ValueNotifier<ScannerState> {
           found: barcodes.isNotEmpty,
           engineMicros: result.engineMicros,
           roundTripMicros: micros,
+          latencyMicros: cameraClock.elapsedMicroseconds - camera.arrivalMicros,
+          dropped: camera.dropped,
           frameSize: frame.frameSize,
           crop: crop,
         ),
@@ -665,6 +687,8 @@ final class ScannerFrameSample {
     required this.engineMicros,
     required this.roundTripMicros,
     required this.frameSize,
+    this.latencyMicros = 0,
+    this.dropped = 0,
     this.crop,
   });
 
@@ -676,6 +700,13 @@ final class ScannerFrameSample {
 
   /// From handing the frame to the engine to its result on this isolate.
   final int roundTripMicros;
+
+  /// From the frame reaching Dart to its result on this isolate (the scan
+  /// latency of the prototype's benchmark).
+  final int latencyMicros;
+
+  /// Frames the camera delivered before this one that were not decoded.
+  final int dropped;
 
   /// Size of the frame as delivered.
   final Size frameSize;

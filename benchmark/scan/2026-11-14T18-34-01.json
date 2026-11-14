@@ -1,0 +1,66 @@
+{
+  "date": "2026-11-14T18:34:01.049968",
+  "device": "Google Pixel 4a, Android 13 (SDK 33)",
+  "platform": "android",
+  "build": "release",
+  "pipeline": "camera plugin 0.12 (startImageStream) -> Y crop copy -> fzx isolate",
+  "frame": "720x1280",
+  "scan_window": "LTWH 0.2, 0.1, 0.6000000000000001, 0.8",
+  "reader": "ReaderOptions.camera()",
+  "found_frames": 1000,
+  "all_frames": 1000,
+  "hit_rate": "100.0",
+  "decoded_frames_per_s": "24.9",
+  "duration_s": "40.1",
+  "scan_latency": {
+    "n": 1000,
+    "avg_ms": 4.04,
+    "min_ms": 2.2,
+    "max_ms": 17.61,
+    "p50_ms": 2.89,
+    "p95_ms": 11.68
+  },
+  "ui_thread": {
+    "n": 1000,
+    "avg_ms": 0.16,
+    "min_ms": 0.13,
+    "max_ms": 0.46,
+    "p50_ms": 0.15,
+    "p95_ms": 0.25
+  },
+  "engine": {
+    "n": 1000,
+    "avg_ms": 2.39,
+    "min_ms": 1.78,
+    "max_ms": 12.65,
+    "p50_ms": 2.07,
+    "p95_ms": 3.38
+  },
+  "ui_frames": {
+    "count": 1342,
+    "over_16ms": 1,
+    "build": {
+      "n": 1342,
+      "avg_ms": 1.03,
+      "min_ms": 0.09,
+      "max_ms": 10.2,
+      "p50_ms": 0.89,
+      "p95_ms": 2.08
+    },
+    "raster": {
+      "n": 1342,
+      "avg_ms": 1.96,
+      "min_ms": 1.43,
+      "max_ms": 17.23,
+      "p50_ms": 1.73,
+      "p95_ms": 2.42
+    }
+  },
+  "summary": [
+    "scan latency     avg    4.0  min    2.2  max   17.6  p95   11.7 ms",
+    "UI thread        avg    0.2  min    0.1  max    0.5  p95    0.2 ms",
+    "engine           avg    2.4  min    1.8  max   12.6  p95    3.4 ms",
+    "UI build         avg    1.0  min    0.1  max   10.2  p95    2.1 ms",
+    "UI frames 1342, over 16 ms: 1"
+  ]
+}
