@@ -105,7 +105,9 @@ int formatBitOf(BarcodeFormat format) => switch (format) {
   BarcodeFormat.upcA => Format.upca,
   BarcodeFormat.upcE => Format.upce,
   BarcodeFormat.dxFilmEdge => Format.dxFilmEdge,
-  BarcodeFormat.telepen => Format.telepen,
+  BarcodeFormat.telepen ||
+  BarcodeFormat.telepenAlpha ||
+  BarcodeFormat.telepenNumeric => Format.telepen,
   BarcodeFormat.ean5 ||
   BarcodeFormat.ean2 ||
   BarcodeFormat.unknown => Format.none,

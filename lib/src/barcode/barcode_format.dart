@@ -109,6 +109,18 @@ enum BarcodeFormat {
   /// Telepen, all variants.
   telepen('Telepen', 'Telepen', 'B', ' ', _linear | _read),
 
+  /// Telepen in its full ASCII mode.
+  telepenAlpha('TelepenAlpha', 'Telepen Alpha', 'B', '0', _linear | _read),
+
+  /// Telepen in its numeric mode.
+  telepenNumeric(
+    'TelepenNumeric',
+    'Telepen Numeric',
+    'B',
+    '1',
+    _linear | _read,
+  ),
+
   /// DX film edge code.
   dxFilmEdge('DXFilmEdge', 'DX Film Edge', 'X', 'x', _linear | _read),
 

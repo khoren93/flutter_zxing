@@ -1,9 +1,11 @@
 // The scanner templates, each with its theme, and the codes to try them
 // with. Run it with
 //   flutter run -t lib/showcase.dart
-// Show the test codes on a second screen (a tablet, a laptop) and scan them
-// with the phone. The demo app of stage 8 replaces this launcher.
+// Show the test codes on a second screen (a tablet, a laptop, an emulator:
+// --dart-define=PAGE=codes opens them directly) and scan them with the
+// phone. The demo app of stage 8 replaces this launcher.
 import 'dart:convert';
+import 'dart:ui' show FrameTiming;
 
 // material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
 // which needs Flutter 3.47; the example still supports Flutter 3.41.
@@ -12,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
 void main() {
+  _logFrameTimes();
   // On the web, `?template=content&look=darkGlass` opens a template
   // directly, for screenshots.
   final Map<String, String> query = Uri.base.queryParameters;
@@ -29,7 +32,10 @@ void main() {
         colorSchemeSeed: const Color(0xFF2EE6B5),
         brightness: Brightness.dark,
       ),
-      home: direct == null
+      // --dart-define=PAGE=codes starts on the codes, for a second device.
+      home: const String.fromEnvironment('PAGE') == 'codes'
+          ? const TestCodesPage()
+          : direct == null
           ? const ShowcasePage()
           : Builder(
               builder: (BuildContext context) => ColoredBox(
@@ -42,6 +48,45 @@ void main() {
             ),
     ),
   );
+}
+
+/// Logs every 5 s how many frames took longer than 16 ms to build or to
+/// rasterize (the glass blur costs raster time), for `flutter run` logs.
+void _logFrameTimes() {
+  final List<FrameTiming> frames = <FrameTiming>[];
+  DateTime last = DateTime.now();
+  WidgetsFlutterBinding.ensureInitialized().addTimingsCallback((
+    List<FrameTiming> timings,
+  ) {
+    frames.addAll(timings);
+    final DateTime now = DateTime.now();
+    if (now.difference(last) < const Duration(seconds: 5) || frames.isEmpty) {
+      return;
+    }
+    last = now;
+    const int budget = 16000;
+    final int slow = frames
+        .where(
+          (FrameTiming t) =>
+              t.buildDuration.inMicroseconds > budget ||
+              t.rasterDuration.inMicroseconds > budget,
+        )
+        .length;
+    int worst(Duration Function(FrameTiming) of) => frames
+        .map((FrameTiming t) => of(t).inMicroseconds)
+        .reduce((int a, int b) => a > b ? a : b);
+    final List<int> raster =
+        frames.map((FrameTiming t) => t.rasterDuration.inMicroseconds).toList()
+          ..sort();
+    debugPrint(
+      '[frames] ${frames.length} frames, $slow over 16 ms '
+      '(${(100 * slow / frames.length).toStringAsFixed(1)}%), raster median '
+      '${(raster[raster.length ~/ 2] / 1000).toStringAsFixed(1)} ms, worst '
+      'build ${(worst((FrameTiming t) => t.buildDuration) / 1000).toStringAsFixed(1)} ms, '
+      'worst raster ${(worst((FrameTiming t) => t.rasterDuration) / 1000).toStringAsFixed(1)} ms',
+    );
+    frames.clear();
+  });
 }
 
 /// The templates by name: title, what they show, the template.
@@ -97,7 +142,8 @@ enum _Look {
     'Dark glass',
     ScannerTheme(accent: Color(0xFF4D8DFF), brightness: Brightness.dark),
   ),
-  lightGlass('Light glass', ScannerTheme(brightness: Brightness.light));
+  lightGlass('Light glass', ScannerTheme(brightness: Brightness.light)),
+  noBlur('No blur', ScannerTheme(blur: false));
 
   const _Look(this.label, this.theme);
 
@@ -117,14 +163,17 @@ class ShowcasePage extends StatefulWidget {
 class _ShowcasePageState extends State<ShowcasePage> {
   _Look _look = _Look.template;
 
-  void _open(ScannerTemplate template) => Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (BuildContext context) => ColoredBox(
-        color: Colors.black,
-        child: BarcodeScanner(template: template, theme: _look.theme),
+  void _open(ScannerTemplate template) {
+    debugPrint('[open] ${_look.name}');
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => ColoredBox(
+          color: Colors.black,
+          child: BarcodeScanner(template: template, theme: _look.theme),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

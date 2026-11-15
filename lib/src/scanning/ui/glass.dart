@@ -1,4 +1,4 @@
-import 'dart:ui' show ImageFilter;
+import 'dart:ui' show ClipOp, ImageFilter;
 
 import 'package:flutter/widgets.dart';
 
@@ -70,8 +70,11 @@ class ScannerGlass extends StatelessWidget {
   }
 }
 
-/// The shadow under glass, only outside its shape: the camera seen through
-/// the glass is not darkened (like a CSS `box-shadow`).
+/// The shadow under glass, mostly outside its shape: the camera seen
+/// through the glass is not darkened (like a CSS `box-shadow`).
+///
+/// Drawn as a blurred rounded rectangle, which Impeller draws analytically
+/// in one pass; a blurred path costs an offscreen blur on every camera frame.
 class _ShadowPainter extends CustomPainter {
   const _ShadowPainter(this.shape, this.color, this.direction);
 
@@ -79,25 +82,54 @@ class _ShadowPainter extends CustomPainter {
   final Color color;
   final TextDirection? direction;
 
+  static const Offset _offset = Offset(0, 10);
+  static const MaskFilter _blur = MaskFilter.blur(BlurStyle.normal, 15);
+
+  RRect? _rrect(Rect rect) => switch (shape) {
+    CircleBorder() => RRect.fromRectAndRadius(
+      Rect.fromCircle(center: rect.center, radius: rect.shortestSide / 2),
+      Radius.circular(rect.shortestSide / 2),
+    ),
+    StadiumBorder() => RRect.fromRectAndRadius(
+      rect,
+      Radius.circular(rect.shortestSide / 2),
+    ),
+    final RoundedRectangleBorder r =>
+      r.borderRadius.resolve(direction).toRRect(rect),
+    _ => null,
+  };
+
   @override
   void paint(Canvas canvas, Size size) {
     final Rect rect = Offset.zero & size;
-    final Path outline = shape.getOuterPath(rect, textDirection: direction);
+    final Paint paint = Paint()
+      ..color = color
+      ..maskFilter = _blur;
+    final RRect? rrect = _rrect(rect);
     canvas
       ..save()
-      ..clipPath(
-        Path()
-          ..fillType = PathFillType.evenOdd
-          ..addRect(rect.inflate(80))
-          ..addPath(outline, Offset.zero),
-      )
-      ..drawPath(
-        outline.shift(const Offset(0, 10)),
-        Paint()
-          ..color = color
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15),
-      )
-      ..restore();
+      // Keep the shadow out of the middle of the glass; a rectangle clip is
+      // cheap, the rounded corners let a little of it through.
+      ..clipRect(
+        rrect == null
+            ? rect
+            : Rect.fromLTRB(
+                rect.left + rrect.tlRadiusX * 0.3,
+                rect.top + rrect.tlRadiusY * 0.3,
+                rect.right - rrect.brRadiusX * 0.3,
+                rect.bottom - rrect.brRadiusY * 0.3,
+              ),
+        clipOp: ClipOp.difference,
+      );
+    if (rrect != null) {
+      canvas.drawRRect(rrect.shift(_offset), paint);
+    } else {
+      canvas.drawPath(
+        shape.getOuterPath(rect, textDirection: direction).shift(_offset),
+        paint,
+      );
+    }
+    canvas.restore();
   }
 
   @override

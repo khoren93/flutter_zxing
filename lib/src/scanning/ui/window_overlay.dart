@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter, lerpDouble;
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/widgets.dart';
 
@@ -198,7 +198,10 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
   }
 }
 
-/// The dimmed, slightly blurred camera outside the scan window.
+/// The dimmed camera outside the scan window.
+///
+/// Not blurred: a full-screen backdrop blur has to be computed again for
+/// every camera frame, which a 2020 phone does not manage in a frame's time.
 class WindowScrim extends StatelessWidget {
   /// Creates the scrim around [window], whose corners have [radius].
   const WindowScrim({super.key, required this.window, required this.radius});
@@ -210,25 +213,9 @@ class WindowScrim extends StatelessWidget {
   final double radius;
 
   @override
-  Widget build(BuildContext context) {
-    final ScannerTheme theme = ScannerTheme.of(context);
-    final Widget dim = CustomPaint(
-      painter: _ScrimPainter(window, radius, theme.scrimColor),
-      child: const SizedBox.expand(),
-    );
-    if (!theme.resolvedBlur) {
-      return dim;
-    }
-    return ClipPath(
-      clipper: _OutsideClipper(window, radius),
-      child: BackdropFilter(filter: _scrimBlur, child: dim),
-    );
-  }
-
-  static final ImageFilter _scrimBlur = ImageFilter.blur(
-    sigmaX: 6,
-    sigmaY: 6,
-    tileMode: TileMode.clamp,
+  Widget build(BuildContext context) => CustomPaint(
+    painter: _ScrimPainter(window, radius, ScannerTheme.of(context).scrimColor),
+    child: const SizedBox.expand(),
   );
 }
 
@@ -236,20 +223,6 @@ Path _outside(Size size, Rect window, double radius) => Path()
   ..fillType = PathFillType.evenOdd
   ..addRect(Offset.zero & size)
   ..addRRect(RRect.fromRectAndRadius(window, Radius.circular(radius)));
-
-class _OutsideClipper extends CustomClipper<Path> {
-  const _OutsideClipper(this.window, this.radius);
-
-  final Rect window;
-  final double radius;
-
-  @override
-  Path getClip(Size size) => _outside(size, window, radius);
-
-  @override
-  bool shouldReclip(_OutsideClipper old) =>
-      old.window != window || old.radius != radius;
-}
 
 class _ScrimPainter extends CustomPainter {
   const _ScrimPainter(this.window, this.radius, this.color);
