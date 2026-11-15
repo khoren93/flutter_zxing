@@ -273,7 +273,8 @@ class _ScannerDevPageState extends State<ScannerDevPage> {
           controller: _controller,
           onDetect: (BarcodeCapture capture) => setState(
             () => _last =
-                '${capture.barcode.format.displayName}: ${capture.barcode.text}',
+                '${capture.barcode.format.displayName}: ${capture.barcode.text}'
+                '\n${capture.barcode.content}',
           ),
         ),
         SafeArea(
