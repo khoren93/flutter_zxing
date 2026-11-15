@@ -12,7 +12,20 @@
 # Extra flags passed straight through to scripts/publish.sh.
 ARGS ?=
 
-.PHONY: help publish publish-dry test analyze fixtures wasm sources
+# Running the example (see `make help`).
+APP ?= main
+MODE ?= debug
+DEVICE ?=
+TAB ?=
+RUN_FLAGS = -t lib/$(APP).dart --$(MODE) $(if $(TAB),--dart-define=TAB=$(TAB),) $(ARGS)
+# DEVICE, or the first connected device of a platform (android, ios; phones
+# before tablets) from `flutter devices --machine`; empty if there is none.
+first_device = $(or $(DEVICE),$(shell cd example && flutter devices --machine 2>/dev/null | \
+	python3 -c "import json,sys; d=sorted((x for x in json.load(sys.stdin) if x['targetPlatform'].startswith('$(1)')), key=lambda x: 'iPad' in x['name'] or 'tablet' in x['name'].lower()); print(d[0]['id'] if d else '')"))
+
+.PHONY: help publish publish-dry test analyze fixtures wasm sources \
+	devices run run-android run-ios run-web run-macos run-windows run-linux \
+	run-desktop web-engine
 
 help:
 	@echo "Publishing:"
@@ -28,6 +41,25 @@ help:
 	@echo "Development:"
 	@echo "  make test            Run the Dart tests"
 	@echo "  make analyze         Run the analyzer"
+	@echo ""
+	@echo "Running the example app (example/):"
+	@echo "  make devices         List the connected devices"
+	@echo "  make run             Run on DEVICE, or let flutter pick or ask"
+	@echo "  make run-android     Run on the first connected Android device"
+	@echo "  make run-ios         Run on the first connected iPhone or iPad"
+	@echo "  make run-web         Run in Chrome (builds the WebAssembly engine first"
+	@echo "                       if it is missing)"
+	@echo "  make run-desktop     Run on this computer (macOS, Windows or Linux)"
+	@echo "  make run-macos | run-windows | run-linux"
+	@echo ""
+	@echo "  DEVICE=<id or name>  The device for 'make run', e.g. DEVICE=emulator-5554"
+	@echo "  APP=main             The entry point in example/lib: main (the demo),"
+	@echo "                       showcase, scanner_dev, api_tour, legacy_3x"
+	@echo "  MODE=debug           debug, profile or release (the camera is smoother"
+	@echo "                       in release)"
+	@echo "  TAB=create           Open the demo on a tab: scan, create, history"
+	@echo "  ARGS=...             More flags for flutter run"
+	@echo "                       e.g. make run-ios MODE=release TAB=create"
 	@echo ""
 	@echo "Engine:"
 	@echo "  make fixtures        Generate the test corpus from the zxing-cpp samples"
@@ -57,3 +89,43 @@ wasm:
 
 sources:
 	cd tool && dart pub get && dart run gen_sources.dart && dart run gen_gs1_table.dart
+
+devices:
+	cd example && flutter devices
+
+run:
+	cd example && flutter run $(if $(DEVICE),-d "$(DEVICE)",) $(RUN_FLAGS)
+
+run-android:
+	@id="$(call first_device,android)"; \
+	if [ -z "$$id" ]; then echo "No Android device connected (make devices)."; exit 1; fi; \
+	cd example && flutter run -d "$$id" $(RUN_FLAGS)
+
+run-ios:
+	@id="$(call first_device,ios)"; \
+	if [ -z "$$id" ]; then echo "No iPhone or iPad connected (make devices)."; exit 1; fi; \
+	cd example && flutter run -d "$$id" $(RUN_FLAGS)
+
+# The web example needs the WebAssembly engine, which is not committed.
+web-engine:
+	@[ -f assets/web/fzx.wasm ] || $(MAKE) wasm
+
+run-web: web-engine
+	cd example && flutter run -d chrome $(RUN_FLAGS)
+
+run-macos:
+	cd example && flutter run -d macos $(RUN_FLAGS)
+
+run-windows:
+	cd example && flutter run -d windows $(RUN_FLAGS)
+
+run-linux:
+	cd example && flutter run -d linux $(RUN_FLAGS)
+
+run-desktop:
+	@case "$$(uname -s)" in \
+	  Darwin) $(MAKE) run-macos ;; \
+	  Linux) $(MAKE) run-linux ;; \
+	  MINGW*|MSYS*|CYGWIN*) $(MAKE) run-windows ;; \
+	  *) echo "Unknown desktop: $$(uname -s)"; exit 1 ;; \
+	esac
