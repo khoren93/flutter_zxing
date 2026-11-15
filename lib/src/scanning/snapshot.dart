@@ -36,28 +36,36 @@ final class FrameCut {
 /// The longest side of a snapshot, in pixels.
 const int _maxSide = 360;
 
-/// How far a cut reaches beyond the codes, relative to their size: room for
-/// the quiet zone and for the taller box of linear codes.
-const double _cutMargin = 0.35;
-
 /// Copies the grayscale pixels of [pixels] around [positions]. `null` if
 /// they are outside the frame.
-FrameCut? cutFrame(PixelBuffer pixels, List<BarcodePosition> positions) {
+///
+/// A matrix code's cut reaches a third of its size beyond it, for the quiet
+/// zone. A [linear] code is known only by the lines read across it, which
+/// may run anywhere from the top to the bottom of its bars: its cut reaches
+/// almost its width up and down, to find where the bars end.
+FrameCut? cutFrame(
+  PixelBuffer pixels,
+  List<BarcodePosition> positions, {
+  List<bool>? linear,
+}) {
   if (positions.isEmpty) {
     return null;
   }
-  Rect box = positions.first.bounds;
-  for (final BarcodePosition p in positions.skip(1)) {
-    box = box.expandToInclude(p.bounds);
+  Rect? box;
+  for (int i = 0; i < positions.length; i++) {
+    final Rect bounds = positions[i].bounds;
+    final double reach =
+        bounds.longestSide * (linear != null && linear[i] ? 0.9 : 0.35);
+    final Rect around = bounds.inflate(reach);
+    box = box == null ? around : box.expandToInclude(around);
   }
-  final double reach = box.longestSide * _cutMargin;
   final Rect frame = Rect.fromLTWH(
     0,
     0,
     pixels.width.toDouble(),
     pixels.height.toDouble(),
   );
-  final Rect area = box.inflate(reach).intersect(frame);
+  final Rect area = box!.intersect(frame);
   if (area.width < 2 || area.height < 2) {
     return null;
   }
@@ -180,6 +188,222 @@ List<Offset> snapshotCorners(
     center + halfAcross + halfDown,
     center - halfAcross + halfDown,
   ];
+}
+
+/// Turns the box [corners] of a linear code (from [snapshotCorners]) to the
+/// bars' real direction, measured in [cut].
+///
+/// The reader reports a linear code by the lines it scanned across it,
+/// which run along the image rows: a code held at a slant would come out
+/// slanted. The bars' direction is where the image's gradients point: the
+/// dominant orientation of the structure tensor over the box. Kept as is
+/// when the box shows no clear bars or they lean more than 40°.
+List<Offset> alignToBars(
+  FrameCut cut,
+  List<Offset> corners, {
+  bool mirrored = false,
+}) {
+  final Offset origin = cut.origin;
+  final Offset center = (corners[0] + corners[1] + corners[2] + corners[3]) / 4;
+  final Offset across = corners[1] - corners[0];
+  final Offset down = corners[3] - corners[0];
+  final double width = across.distance;
+  final double height = down.distance;
+  if (width < 8 || height < 4) {
+    return corners;
+  }
+  double jxx = 0, jyy = 0, jxy = 0;
+  const int columns = 64;
+  const int rows = 12;
+  for (int j = 0; j < rows; j++) {
+    for (int i = 0; i < columns; i++) {
+      // The middle of the box, where the bars are.
+      final Offset p =
+          center +
+          across * (0.4 * (2 * i / (columns - 1) - 1)) +
+          down * (0.15 * (2 * j / (rows - 1) - 1)) -
+          origin;
+      final int gx =
+          _sample(cut, p.dx + 1, p.dy) - _sample(cut, p.dx - 1, p.dy);
+      final int gy =
+          _sample(cut, p.dx, p.dy + 1) - _sample(cut, p.dx, p.dy - 1);
+      jxx += (gx * gx).toDouble();
+      jyy += (gy * gy).toDouble();
+      jxy += (gx * gy).toDouble();
+    }
+  }
+  final double trace = jxx + jyy;
+  if (trace == 0) {
+    return corners;
+  }
+  // Coherence: how much more the gradients agree than not.
+  final double spread = math.sqrt((jxx - jyy) * (jxx - jyy) + 4 * jxy * jxy);
+  if (spread / trace < 0.5) {
+    return corners;
+  }
+  final double theta = 0.5 * math.atan2(2 * jxy, jxx - jyy);
+  Offset axis = Offset(math.cos(theta), math.sin(theta));
+  final Offset unit = across / width;
+  double cos = axis.dx * unit.dx + axis.dy * unit.dy;
+  if (cos < 0) {
+    axis = -axis;
+    cos = -cos;
+  }
+  if (cos < math.cos(40 * math.pi / 180)) {
+    return corners;
+  }
+  // A scan line crosses a slanted code on a longer path than its width.
+  final Offset along = axis * (width * cos);
+  final Offset normal = mirrored
+      ? Offset(axis.dy, -axis.dx)
+      : Offset(-axis.dy, axis.dx);
+  final Offset side = normal * math.max(height, width * cos * 0.5);
+  return <Offset>[
+    center - along / 2 - side / 2,
+    center + along / 2 - side / 2,
+    center + along / 2 + side / 2,
+    center - along / 2 + side / 2,
+  ];
+}
+
+/// Fits the box [corners] of a linear code (from [alignToBars]) to its
+/// bars, measured in [cut]: the reader only reports the lines it read
+/// across the code, not where its bars start and end.
+///
+/// From the middle line, rows along the bars are followed up and down,
+/// each compared with the one before (allowing it to shift a little
+/// sideways), until the bar pattern ends. How far the pattern shifted
+/// over that height corrects the bars' direction. Room is left above, and
+/// below for the digits.
+List<Offset> fitBarHeight(FrameCut cut, List<Offset> corners) {
+  final Offset origin = cut.origin;
+  final Offset center = (corners[0] + corners[1] + corners[2] + corners[3]) / 4;
+  final Offset across = corners[1] - corners[0];
+  final Offset side = corners[3] - corners[0];
+  final double width = across.distance;
+  final double height = side.distance;
+  if (width < 16 || height == 0) {
+    return corners;
+  }
+  final Offset unit = across / width;
+  final Offset down = side / height;
+  const int samples = 192;
+  const double span = 0.84;
+  // Pixels between two samples of a row.
+  final double spacing = width * span / (samples - 1);
+  List<double> profile(double offset) => <double>[
+    for (int i = 0; i < samples; i++)
+      () {
+        final Offset p =
+            center +
+            across * (span / 2 * (2 * i / (samples - 1) - 1)) +
+            down * offset -
+            origin;
+        return _sample(cut, p.dx, p.dy).toDouble();
+      }(),
+  ];
+  final List<double> middle = profile(0);
+  final double middleSpread = _spread(middle);
+  if (middleSpread < 8) {
+    return corners;
+  }
+  final double step = math.max(1, width / 120);
+  // How far the bars reach in [direction] (-1 up, 1 down), in pixels, and
+  // how many samples the pattern has shifted along the code there.
+  (double, double) reach(int direction) {
+    List<double> previous = middle;
+    double last = 0;
+    double shift = 0;
+    double lastShift = 0;
+    for (double d = step; d < width; d += step) {
+      final List<double> row = profile(direction * d);
+      if (_spread(row) < middleSpread * 0.35) {
+        break;
+      }
+      double best = -1;
+      int bestShift = 0;
+      for (int k = -2; k <= 2; k++) {
+        final double c = _correlation(previous, row, k);
+        if (c > best) {
+          best = c;
+          bestShift = k;
+        }
+      }
+      if (best < 0.7) {
+        break;
+      }
+      shift += bestShift;
+      last = d;
+      lastShift = shift;
+      previous = row;
+    }
+    return (last, lastShift);
+  }
+
+  final (double up, double upShift) = reach(-1);
+  final (double below, double belowShift) = reach(1);
+  // The pattern moves along the code by this much per pixel down the bars:
+  // the bars lean that way.
+  final double reached = up + below;
+  final double lean = reached < width * 0.1
+      ? 0
+      : (belowShift - upShift) * spacing / reached;
+  Offset bars = down + unit * lean;
+  bars = bars / bars.distance;
+  final Offset axis =
+      Offset(bars.dy, -bars.dx) *
+      ((bars.dy * unit.dx - bars.dx * unit.dy) >= 0 ? 1 : -1);
+  final double codeWidth =
+      width * (axis.dx * unit.dx + axis.dy * unit.dy).abs();
+  // Above: a margin; below: also the digits printed under the bars.
+  final double top = -up - codeWidth * 0.06;
+  final double bottom = below + codeWidth * 0.16;
+  final Offset mid = center + bars * ((top + bottom) / 2);
+  final Offset half = bars * ((bottom - top) / 2);
+  final Offset halfAcross = axis * (codeWidth / 2);
+  return <Offset>[
+    mid - halfAcross - half,
+    mid + halfAcross - half,
+    mid + halfAcross + half,
+    mid - halfAcross + half,
+  ];
+}
+
+double _spread(List<double> values) {
+  double sum = 0, squares = 0;
+  for (final double v in values) {
+    sum += v;
+    squares += v * v;
+  }
+  final double mean = sum / values.length;
+  return math.sqrt(math.max(0, squares / values.length - mean * mean));
+}
+
+/// Pearson correlation of [a] with [b] moved [shift] samples, over where
+/// they overlap.
+double _correlation(List<double> a, List<double> b, int shift) {
+  final int from = math.max(0, -shift);
+  final int to = math.min(a.length, b.length - shift);
+  final int n = to - from;
+  if (n < 8) {
+    return 0;
+  }
+  double ma = 0, mb = 0;
+  for (int i = from; i < to; i++) {
+    ma += a[i];
+    mb += b[i + shift];
+  }
+  ma /= n;
+  mb /= n;
+  double ab = 0, aa = 0, bb = 0;
+  for (int i = from; i < to; i++) {
+    final double x = a[i] - ma;
+    final double y = b[i + shift] - mb;
+    ab += x * y;
+    aa += x * x;
+    bb += y * y;
+  }
+  return aa == 0 || bb == 0 ? 0 : ab / math.sqrt(aa * bb);
 }
 
 /// Straightens the quadrilateral [corners] (top left, top right, bottom
@@ -331,8 +555,9 @@ BarcodePosition scalePosition(BarcodePosition position, double scale) =>
 Future<(FrameCut, double)?> cutEncoded(
   Uint8List encoded,
   Size size,
-  List<BarcodePosition> positions,
-) async {
+  List<BarcodePosition> positions, {
+  List<bool>? linear,
+}) async {
   try {
     final ui.Codec codec = await ui.instantiateImageCodec(
       encoded,
@@ -360,6 +585,7 @@ Future<(FrameCut, double)?> cutEncoded(
       <BarcodePosition>[
         for (final BarcodePosition p in positions) scalePosition(p, scale),
       ],
+      linear: linear,
     );
     return cut == null ? null : (cut, scale);
   } on Object {

@@ -164,6 +164,100 @@ void main() {
     expect(mirrored[3].dy, greaterThan(mirrored[0].dy));
   });
 
+  group('linear codes are cut along their bars (found on a Pixel 4a)', () {
+    // An EAN-13 on white paper, its bars 140 px high, turned by 8°, in a
+    // grey 640 × 480 frame. The reader reports it by the line it read,
+    // here near the top of the bars.
+    const double angle = 8 * math.pi / 180;
+    const Offset center = Offset(320, 240);
+    const double barWidth = 300;
+    const double barHeight = 140;
+    final Offset across = Offset(math.cos(angle), math.sin(angle));
+    final Offset down = Offset(-math.sin(angle), math.cos(angle));
+    Offset at(double x, double y) =>
+        center + across * (x - barWidth / 2) + down * (y - barHeight / 2);
+
+    Future<(PixelBuffer, BarcodePosition)> frame(double lineAt) async {
+      final BarcodeSymbol ean = await const BarcodeWriter(
+        BarcodeFormat.ean13,
+        quietZone: false,
+      ).encode('5901234123457');
+      final Uint8List gray = Uint8List(640 * 480)..fillRange(0, 640 * 480, 80);
+      for (int y = 0; y < 480; y++) {
+        for (int x = 0; x < 640; x++) {
+          final Offset d = Offset(x.toDouble(), y.toDouble()) - at(0, 0);
+          final double u = d.dx * across.dx + d.dy * across.dy;
+          final double v = d.dx * down.dx + d.dy * down.dy;
+          if (u < -30 || u > barWidth + 30 || v < -30 || v > barHeight + 40) {
+            continue;
+          }
+          final bool bar =
+              u >= 0 &&
+              u < barWidth &&
+              v >= 0 &&
+              v < barHeight &&
+              ean.isDark((u / barWidth * ean.width).floor(), 0);
+          gray[y * 640 + x] = bar ? 25 : 225;
+        }
+      }
+      // The scan line runs along the image row through that height.
+      final Offset p = at(barWidth / 2, lineAt);
+      final double half = barWidth / 2 / math.cos(angle);
+      final BarcodePosition line = BarcodePosition(
+        topLeft: Offset(p.dx - half, p.dy),
+        topRight: Offset(p.dx + half, p.dy),
+        bottomRight: Offset(p.dx + half, p.dy + 1),
+        bottomLeft: Offset(p.dx - half, p.dy + 1),
+      );
+      return (PixelBuffer(gray, width: 640, height: 480), line);
+    }
+
+    bool inside(List<Offset> quad, Offset p) {
+      for (int i = 0; i < 4; i++) {
+        final Offset a = quad[i];
+        final Offset b = quad[(i + 1) % 4];
+        if ((b.dx - a.dx) * (p.dy - a.dy) - (b.dy - a.dy) * (p.dx - a.dx) < 0) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    for (final double lineAt in <double>[15, 70, 125]) {
+      test('read at ${lineAt.round()} px of 140', () async {
+        final (PixelBuffer pixels, BarcodePosition line) = await frame(lineAt);
+        final FrameCut cut = cutFrame(
+          pixels,
+          <BarcodePosition>[line],
+          linear: <bool>[true],
+        )!;
+        final List<Offset> box = fitBarHeight(
+          cut,
+          alignToBars(cut, snapshotCorners(line, linear: true)),
+        );
+        // Turned like the code.
+        final Offset top = box[1] - box[0];
+        expect(math.atan2(top.dy, top.dx), closeTo(angle, 2 * math.pi / 180));
+        // Every bar end is inside, top and bottom.
+        for (final Offset corner in <Offset>[
+          at(0, 0),
+          at(barWidth, 0),
+          at(barWidth, barHeight),
+          at(0, barHeight),
+        ]) {
+          expect(inside(box, corner), isTrue, reason: '$corner in $box');
+        }
+        // And not much more than the bars and the digits' room.
+        expect((box[3] - box[0]).distance, lessThan(barHeight + 100));
+        final GrayImage image = straighten(cut, box)!;
+        final Barcode? read = await const BarcodeReader().readPixels(
+          PixelBuffer(image.pixels, width: image.width, height: image.height),
+        );
+        expect(read?.text, '5901234123457');
+      });
+    }
+  });
+
   test('cuts stay inside the frame and copy colour frames as gray', () {
     final Uint8List rgba = Uint8List(10 * 10 * 4)..fillRange(0, 400, 255);
     final FrameCut cut = cutFrame(

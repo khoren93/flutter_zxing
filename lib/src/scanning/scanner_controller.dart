@@ -674,7 +674,13 @@ class ScannerController extends ValueNotifier<ScannerState> {
         imageSize: display,
         time: now,
         source: CaptureSource.camera,
-        cut: pixels == null ? null : cutFrame(pixels, positions),
+        cut: pixels == null
+            ? null
+            : cutFrame(
+                pixels,
+                positions,
+                linear: <bool>[for (final Barcode b in raw) b.format.isLinear],
+              ),
         positions: positions,
         mirrored: camera.mirrored,
       ),
@@ -1082,6 +1088,7 @@ final class BarcodeCapture {
         encoded,
         imageSize,
         positions,
+        linear: <bool>[for (final Barcode b in barcodes) b.format.isLinear],
       );
       if (decoded == null) {
         return null;
@@ -1092,14 +1099,19 @@ final class BarcodeCapture {
     if (cut == null) {
       return null;
     }
-    final GrayImage? image = straighten(
-      cut,
-      snapshotCorners(
-        position,
-        linear: barcodes[index].format.isLinear,
-        mirrored: _mirrored,
-      ),
+    final bool linear = barcodes[index].format.isLinear;
+    List<Offset> corners = snapshotCorners(
+      position,
+      linear: linear,
+      mirrored: _mirrored,
     );
+    if (linear) {
+      corners = fitBarHeight(
+        cut,
+        alignToBars(cut, corners, mirrored: _mirrored),
+      );
+    }
+    final GrayImage? image = straighten(cut, corners);
     return image?.toImage();
   }
 }
