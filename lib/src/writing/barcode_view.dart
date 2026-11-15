@@ -253,7 +253,15 @@ class _BarcodeViewState extends State<BarcodeView> {
     final double ratio = layout.width / layout.height;
     final double devicePixelRatio =
         MediaQuery.maybeDevicePixelRatioOf(context) ?? 1;
-    final TextStyle textStyle = DefaultTextStyle.of(context).style;
+    // Only the app's font: no decoration (outside a Material the default
+    // style is the yellow-underlined error style), color and size are set
+    // by the painter.
+    final TextStyle ambient = DefaultTextStyle.of(context).style;
+    final TextStyle textStyle = TextStyle(
+      fontFamily: ambient.fontFamily,
+      fontFamilyFallback: ambient.fontFamilyFallback,
+      fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+    );
     return Semantics(
       container: true,
       image: true,
