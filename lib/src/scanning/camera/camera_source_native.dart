@@ -328,7 +328,7 @@ final class _NativeFrame implements CameraFrame {
 
   final CameraImage _image;
 
-  /// Whether the pixels are a mirror image of the scene.
+  @override
   final bool mirrored;
 
   @override

@@ -138,8 +138,17 @@ final class GrayImage {
 
 /// The corners of the box to cut out around a code at [position]: a margin
 /// for the quiet zone, and a linear code's box made tall enough to show its
-/// bars (the reader reports only the lines it read across them).
-List<Offset> snapshotCorners(BarcodePosition position, {required bool linear}) {
+/// bars.
+///
+/// A linear code's position only spans the lines the reader read across
+/// it, in no particular order, so its "down" is taken from its reading
+/// direction instead: clockwise from it, or counter-clockwise in a
+/// [mirrored] image.
+List<Offset> snapshotCorners(
+  BarcodePosition position, {
+  required bool linear,
+  bool mirrored = false,
+}) {
   final Offset tl = position.topLeft;
   final Offset tr = position.topRight;
   final Offset br = position.bottomRight;
@@ -153,19 +162,18 @@ List<Offset> snapshotCorners(BarcodePosition position, {required bool linear}) {
     return <Offset>[tl, tr, br, bl];
   }
   final Offset unit = across / width;
-  // Perpendicular to the top edge, pointing the way the side goes.
-  Offset normal = Offset(-unit.dy, unit.dx);
-  if (normal.dx * down.dx + normal.dy * down.dy < 0) {
-    normal = -normal;
-  }
-  double height = down.distance;
   if (linear) {
-    height = math.max(height, width * 0.5);
-    down = normal * height;
+    // Clockwise from the reading direction in y-down image coordinates.
+    final Offset normal = mirrored
+        ? Offset(unit.dy, -unit.dx)
+        : Offset(-unit.dy, unit.dx);
+    down = normal * math.max(down.distance, width * 0.5);
+  } else if (down.distance == 0) {
+    down = Offset(-unit.dy, unit.dx) * width;
   }
   final double grow = linear ? 1.12 : 1.18;
   final Offset halfAcross = across / 2 * grow;
-  final Offset halfDown = (height == 0 ? normal * width : down) / 2 * grow;
+  final Offset halfDown = down / 2 * grow;
   return <Offset>[
     center - halfAcross - halfDown,
     center + halfAcross - halfDown,

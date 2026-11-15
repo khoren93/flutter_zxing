@@ -271,6 +271,9 @@ final class _WebFrame implements CameraFrame {
   PixelBuffer? get pixels => null;
 
   @override
+  bool get mirrored => false;
+
+  @override
   Future<EngineReadResult> read(
     BarcodeEngine engine,
     Rect? crop,

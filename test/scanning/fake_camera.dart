@@ -59,6 +59,9 @@ final class FakeFrame implements CameraFrame {
   /// The frame's pixels, for cut-outs; none by default.
   @override
   final PixelBuffer? pixels;
+
+  @override
+  bool get mirrored => false;
   bool wasRead = false;
 
   @override

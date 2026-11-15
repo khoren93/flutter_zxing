@@ -98,8 +98,13 @@ abstract class CameraFrame {
   FrameTransform get transform;
 
   /// The frame's pixels where they are in memory (native platforms), for
-  /// saving a frame while debugging; `null` on the web.
+  /// cut-outs of the codes found and for saving a frame while debugging;
+  /// `null` on the web.
   PixelBuffer? get pixels;
+
+  /// Whether [pixels] are a mirror image of the scene (the front camera on
+  /// iOS).
+  bool get mirrored;
 
   /// When the frame reached Dart, on [cameraClock].
   int get arrivalMicros;

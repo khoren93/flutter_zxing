@@ -126,6 +126,44 @@ void main() {
     expect((box[0] + box[3]).dy / 2, closeTo(202, 1));
   });
 
+  test('a linear code reads top down, whatever order its lines are in '
+      '(found on a Pixel 4a: EAN cut-outs were upside down)', () {
+    // The lines read across an EAN, listed bottom line first.
+    const BarcodePosition band = BarcodePosition(
+      topLeft: Offset(100, 230),
+      topRight: Offset(300, 230),
+      bottomRight: Offset(300, 200),
+      bottomLeft: Offset(100, 200),
+    );
+    final List<Offset> box = snapshotCorners(band, linear: true);
+    // Top left above bottom left: the image's top is the code's top.
+    expect(box[3].dy, greaterThan(box[0].dy));
+    expect(box[1].dx, greaterThan(box[0].dx));
+    // Upside down in the frame (read right to left): its top is down.
+    final List<Offset> turned = snapshotCorners(
+      const BarcodePosition(
+        topLeft: Offset(300, 200),
+        topRight: Offset(100, 200),
+        bottomRight: Offset(100, 230),
+        bottomLeft: Offset(300, 230),
+      ),
+      linear: true,
+    );
+    expect(turned[3].dy, lessThan(turned[0].dy));
+    // A mirrored frame (the iPhone's front camera) flips it back.
+    final List<Offset> mirrored = snapshotCorners(
+      const BarcodePosition(
+        topLeft: Offset(300, 200),
+        topRight: Offset(100, 200),
+        bottomRight: Offset(100, 230),
+        bottomLeft: Offset(300, 230),
+      ),
+      linear: true,
+      mirrored: true,
+    );
+    expect(mirrored[3].dy, greaterThan(mirrored[0].dy));
+  });
+
   test('cuts stay inside the frame and copy colour frames as gray', () {
     final Uint8List rgba = Uint8List(10 * 10 * 4)..fillRange(0, 400, 255);
     final FrameCut cut = cutFrame(

@@ -676,6 +676,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
         source: CaptureSource.camera,
         cut: pixels == null ? null : cutFrame(pixels, positions),
         positions: positions,
+        mirrored: camera.mirrored,
       ),
     );
   }
@@ -1006,6 +1007,7 @@ final class BarcodeCapture {
   }) : _cut = null,
        _positions = null,
        _encoded = null,
+       _mirrored = false,
        assert(barcodes.length > 0, 'A capture has at least one barcode');
 
   const BarcodeCapture._({
@@ -1016,9 +1018,11 @@ final class BarcodeCapture {
     required List<BarcodePosition> positions,
     FrameCut? cut,
     Uint8List? encoded,
+    bool mirrored = false,
   }) : _cut = cut,
        _positions = positions,
-       _encoded = encoded;
+       _encoded = encoded,
+       _mirrored = mirrored;
 
   /// The frame around the barcodes, kept for [snapshot].
   final FrameCut? _cut;
@@ -1028,6 +1032,9 @@ final class BarcodeCapture {
 
   /// The image file given to [ScannerController.readImage].
   final Uint8List? _encoded;
+
+  /// Whether [_cut] is a mirror image of the scene.
+  final bool _mirrored;
 
   /// The barcodes in the frame, at least one.
   final List<Barcode> barcodes;
@@ -1087,7 +1094,11 @@ final class BarcodeCapture {
     }
     final GrayImage? image = straighten(
       cut,
-      snapshotCorners(position, linear: barcodes[index].format.isLinear),
+      snapshotCorners(
+        position,
+        linear: barcodes[index].format.isLinear,
+        mirrored: _mirrored,
+      ),
     );
     return image?.toImage();
   }
