@@ -6,18 +6,17 @@ library;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
 final GlobalKey _boundary = GlobalKey();
 
-Widget _host(Widget child) => MaterialApp(
-  home: Scaffold(
-    body: Center(
-      child: RepaintBoundary(key: _boundary, child: child),
-    ),
+Widget _host(Widget child) => Directionality(
+  textDirection: TextDirection.ltr,
+  child: Center(
+    child: RepaintBoundary(key: _boundary, child: child),
   ),
 );
 
@@ -86,7 +85,7 @@ Future<Uint8List> _logoPng() async {
   return png.buffer.asUint8List();
 }
 
-/// The CustomPaint of the BarcodeView (Scaffold has CustomPaints of its own).
+/// The CustomPaint of the BarcodeView.
 Finder get _paint => find.descendant(
   of: find.byType(BarcodeView),
   matching: find.byType(CustomPaint),
