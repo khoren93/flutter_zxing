@@ -60,7 +60,7 @@ class BarcodeView extends StatefulWidget {
   final BarcodeFormat format;
 
   /// Error correction; `null` uses the format's default, or
-  /// [ErrorCorrection.high] when [BarcodeStyle.logo] is set.
+  /// [ErrorCorrection.high] for a QR code with a [BarcodeStyle.logo].
   final ErrorCorrection? errorCorrection;
 
   /// Show the human readable text under linear barcodes.
@@ -271,15 +271,22 @@ class _BarcodeViewState extends State<BarcodeView> {
           double? w = widget.width;
           double? h = widget.height;
           if (w == null && h == null) {
-            // Fill the constraints, keeping the aspect ratio; unbounded
-            // both ways, 4 pixels per module.
-            final double maxW = constraints.maxWidth.isFinite
-                ? constraints.maxWidth
-                : layout.width * 4.0;
-            final double maxH = constraints.maxHeight.isFinite
-                ? constraints.maxHeight
-                : layout.height * 4.0;
-            w = maxW < maxH * ratio ? maxW : maxH * ratio;
+            // Fill the constraints, keeping the aspect ratio: the bounded
+            // axis decides (a Column or a ListView bounds only one); with
+            // neither bounded, 4 pixels per module.
+            final bool wide = constraints.hasBoundedWidth;
+            final bool tall = constraints.hasBoundedHeight;
+            if (wide && tall) {
+              w = constraints.maxWidth < constraints.maxHeight * ratio
+                  ? constraints.maxWidth
+                  : constraints.maxHeight * ratio;
+            } else if (wide) {
+              w = constraints.maxWidth;
+            } else if (tall) {
+              w = constraints.maxHeight * ratio;
+            } else {
+              w = layout.width * 4.0;
+            }
             h = w / ratio;
           }
           w ??= h! * ratio;
@@ -294,6 +301,8 @@ class _BarcodeViewState extends State<BarcodeView> {
                 style: widget.style,
                 devicePixelRatio: devicePixelRatio,
                 textStyle: textStyle,
+                textDirection:
+                    Directionality.maybeOf(context) ?? TextDirection.ltr,
                 logo: _logoInfo?.image,
               ),
             ),
@@ -309,7 +318,8 @@ class _BarcodeViewState extends State<BarcodeView> {
 final class _Request {
   _Request.of(BarcodeView view)
     : data = view.data,
-      bytes = view.bytes,
+      // A copy: the caller may reuse its buffer, and the cache keeps this.
+      bytes = view.bytes == null ? null : Uint8List.fromList(view.bytes!),
       format = view.format,
       showText = view.showText,
       quietZone = view.style.quietZone,

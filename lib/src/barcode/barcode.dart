@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -96,6 +97,29 @@ final class Barcode {
   /// Whether the barcode was decoded successfully.
   bool get isValid => error == null;
 
+  /// The text of merged parts. A UTF-8 character can be split across two
+  /// symbols, and each part's text is decoded on its own: if the joined
+  /// bytes of a text message are valid UTF-8 beyond ASCII, they are decoded
+  /// as a whole. Otherwise (another character set, binary data) the parts'
+  /// texts are joined.
+  static String _mergedText(
+    List<Barcode> parts,
+    Uint8List bytes,
+    Set<BarcodeContentType> types,
+  ) {
+    final String joined = parts.map((Barcode b) => b.text).join();
+    if (types.length != 1 ||
+        types.single != BarcodeContentType.text ||
+        !bytes.any((int b) => b >= 0x80)) {
+      return joined;
+    }
+    try {
+      return utf8.decode(bytes);
+    } on FormatException {
+      return joined;
+    }
+  }
+
   /// Joins the parts of a structured append sequence (one message split
   /// across several barcodes, see [sequence]) into one barcode that holds
   /// the whole message. Returns `null` until every part is there.
@@ -145,12 +169,13 @@ final class Barcode {
       final Set<BarcodeContentType> types = ordered
           .map((Barcode b) => b.contentType)
           .toSet();
+      final Uint8List bytes = Uint8List.fromList(<int>[
+        for (final Barcode b in ordered) ...b.bytes,
+      ]);
       return Barcode(
         format: first.format,
-        text: ordered.map((Barcode b) => b.text).join(),
-        bytes: Uint8List.fromList(<int>[
-          for (final Barcode b in ordered) ...b.bytes,
-        ]),
+        text: _mergedText(ordered, bytes, types),
+        bytes: bytes,
         position: BarcodePosition(
           topLeft: bounds.topLeft,
           topRight: bounds.topRight,

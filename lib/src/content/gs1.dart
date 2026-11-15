@@ -20,10 +20,6 @@ Map<String, String>? parseGs1(String data) {
 Map<String, String>? _parseRaw(String data) {
   final Map<String, String> elements = <String, String>{};
   int at = 0;
-  // A leading separator (an FNC1 some readers pass on) carries no data.
-  while (at < data.length && data.codeUnitAt(at) == _gs) {
-    at++;
-  }
   while (at < data.length) {
     final (String, int)? info = _lookUp(data, at);
     if (info == null) {

@@ -394,9 +394,9 @@ final class EventContent extends BarcodeContent {
 
 /// GS1 data: Application Identifiers and their values.
 ///
-/// The data is split with the same Application Identifier table zxing-cpp
-/// uses for the human readable [Barcode.text], so the elements always match
-/// the parentheses there.
+/// The data is split with the Application Identifier table and rules
+/// zxing-cpp uses for the parentheses of the human readable [Barcode.text].
+/// An identifier that occurs twice keeps its last value.
 final class Gs1Content extends BarcodeContent {
   /// Creates GS1 content.
   const Gs1Content(this.elements);

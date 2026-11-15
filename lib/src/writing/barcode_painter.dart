@@ -36,6 +36,7 @@ final class BarcodePainter extends CustomPainter {
     required this.style,
     required this.devicePixelRatio,
     required this.textStyle,
+    this.textDirection = TextDirection.ltr,
     this.logo,
   });
 
@@ -53,6 +54,9 @@ final class BarcodePainter extends CustomPainter {
 
   /// Base style of the human readable text.
   final TextStyle textStyle;
+
+  /// Resolves directional gradients (`AlignmentDirectional`).
+  final TextDirection textDirection;
 
   /// The decoded [BarcodeStyle.logo] image, once loaded.
   final ui.Image? logo;
@@ -93,7 +97,10 @@ final class BarcodePainter extends CustomPainter {
     final Paint ink = Paint();
     final Gradient? gradient = style.gradient;
     if (gradient != null) {
-      ink.shader = gradient.createShader(symbolArea);
+      ink.shader = gradient.createShader(
+        symbolArea,
+        textDirection: textDirection,
+      );
     } else {
       ink.color = style.color;
     }
@@ -414,6 +421,7 @@ final class BarcodePainter extends CustomPainter {
       old.style != style ||
       old.devicePixelRatio != devicePixelRatio ||
       old.textStyle != textStyle ||
+      old.textDirection != textDirection ||
       !identical(old.logo, logo);
 }
 

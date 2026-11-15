@@ -10,11 +10,14 @@ BarcodeContent parseBarcodeContent(Barcode barcode) {
     case BarcodeContentType.gs1:
       // The bytes are the raw element strings, with GS separators: they
       // split without ambiguity, unlike the human readable text.
-      final Map<String, String>? elements =
-          (barcode.bytes.isEmpty
-              ? null
-              : parseGs1(latin1.decode(barcode.bytes, allowInvalid: true))) ??
-          parseGs1(barcode.text);
+      // Without bytes (a Barcode built by hand), the human readable text.
+      // With bytes, only them: when they do not split, zxing-cpp's text is
+      // the escaped raw data, not something to split either.
+      final Map<String, String>? elements = parseGs1(
+        barcode.bytes.isEmpty
+            ? barcode.text
+            : latin1.decode(barcode.bytes, allowInvalid: true),
+      );
       return elements == null
           ? TextContent(barcode.text)
           : Gs1Content(elements);
@@ -32,34 +35,37 @@ BarcodeContent parseBarcodeContent(Barcode barcode) {
 /// [BarcodeContent.parseText].
 BarcodeContent parseTextContent(String text) {
   final String t = text.trim();
-  final String head = (t.length > 16 ? t.substring(0, 16) : t).toUpperCase();
+  // Compare the prefix only: upper-casing the whole text can change its
+  // length ('ﬆ' → 'ST' on the web), and the text is sliced afterwards.
+  bool has(String prefix) =>
+      t.length >= prefix.length &&
+      t.substring(0, prefix.length).toUpperCase() == prefix;
   final BarcodeContent? content;
-  if (head.startsWith('WIFI:')) {
+  if (has('WIFI:')) {
     content = _wifi(t.substring(5));
-  } else if (head.startsWith('MECARD:')) {
+  } else if (has('MECARD:')) {
     content = _meCard(t.substring(7));
-  } else if (head.startsWith('BEGIN:VCARD')) {
+  } else if (has('BEGIN:VCARD')) {
     content = _vCard(t);
-  } else if (head.startsWith('BEGIN:VEVENT') ||
-      head.startsWith('BEGIN:VCALENDAR')) {
+  } else if (has('BEGIN:VEVENT') || has('BEGIN:VCALENDAR')) {
     content = _vEvent(t);
-  } else if (head.startsWith('MEBKM:')) {
+  } else if (has('MEBKM:')) {
     content = _meBookmark(t.substring(6));
-  } else if (head.startsWith('URLTO:')) {
+  } else if (has('URLTO:')) {
     content = _urlTo(t.substring(6));
-  } else if (head.startsWith('MAILTO:')) {
+  } else if (has('MAILTO:')) {
     content = _mailto(t.substring(7));
-  } else if (head.startsWith('MATMSG:')) {
+  } else if (has('MATMSG:')) {
     content = _matmsg(t.substring(7));
-  } else if (head.startsWith('SMTP:')) {
+  } else if (has('SMTP:')) {
     content = _smtp(t.substring(5));
-  } else if (head.startsWith('TEL:')) {
+  } else if (has('TEL:')) {
     content = _tel(t.substring(4));
-  } else if (head.startsWith('SMSTO:') || head.startsWith('MMSTO:')) {
+  } else if (has('SMSTO:') || has('MMSTO:')) {
     content = _smsTo(t.substring(6));
-  } else if (head.startsWith('SMS:') || head.startsWith('MMS:')) {
+  } else if (has('SMS:') || has('MMS:')) {
     content = _sms(t.substring(4));
-  } else if (head.startsWith('GEO:')) {
+  } else if (has('GEO:')) {
     content = _geo(t.substring(4));
   } else {
     content = _webAddress(t);
@@ -142,7 +148,7 @@ WifiContent? _wifi(String body) {
   String? type;
   bool hidden = false;
   for (final (String key, String raw) in _fields(body)) {
-    final String value = _unquote(_unescape(raw));
+    final String value = _unescape(_unquote(raw));
     switch (key) {
       case 'S':
         ssid = value;
@@ -176,10 +182,18 @@ WifiContent? _wifi(String body) {
   );
 }
 
-String _unquote(String value) =>
-    value.length >= 2 && value.startsWith('"') && value.endsWith('"')
-    ? value.substring(1, value.length - 1)
-    : value;
+/// Removes the quotes around a raw (still escaped) value; an escaped quote
+/// (`\"`) is part of the value.
+String _unquote(String raw) {
+  if (raw.length < 2 || !raw.startsWith('"') || !raw.endsWith('"')) {
+    return raw;
+  }
+  int backslashes = 0;
+  for (int i = raw.length - 2; i >= 0 && raw[i] == r'\'; i--) {
+    backslashes++;
+  }
+  return backslashes.isEven ? raw.substring(1, raw.length - 1) : raw;
+}
 
 // --- Contacts ------------------------------------------------------------------
 
@@ -328,7 +342,10 @@ ContactContent? _contact({
 
 String _stripScheme(String value, String scheme) {
   final String v = value.trim();
-  return v.toLowerCase().startsWith(scheme) ? v.substring(scheme.length) : v;
+  return v.length >= scheme.length &&
+          v.substring(0, scheme.length).toLowerCase() == scheme
+      ? v.substring(scheme.length)
+      : v;
 }
 
 String _joinParts(List<String> parts) => parts
@@ -353,21 +370,33 @@ EventContent? _vEvent(String text) {
   DateTime? start;
   DateTime? end;
   Duration? duration;
-  bool inEvent = false;
+  // Depth inside the first VEVENT: 1 for its own properties, more inside a
+  // nested component such as VALARM, whose properties are not the event's.
+  int depth = 0;
+  bool done = false;
   for (final _Line line in _contentLines(text)) {
     final String value = line.text;
-    if (line.name == 'BEGIN' && value.trim().toUpperCase() == 'VEVENT') {
-      inEvent = true;
+    if (line.name == 'BEGIN') {
+      if (depth > 0) {
+        depth++;
+      } else if (value.trim().toUpperCase() == 'VEVENT') {
+        depth = 1;
+      }
       continue;
     }
-    if (!inEvent) {
+    if (line.name == 'END') {
+      if (depth > 0 && --depth == 0) {
+        done = true;
+      }
+      if (done) {
+        break;
+      }
+      continue;
+    }
+    if (depth != 1) {
       continue;
     }
     switch (line.name) {
-      case 'END':
-        if (value.trim().toUpperCase() == 'VEVENT') {
-          inEvent = false;
-        }
       case 'SUMMARY':
         summary = value.trim();
       case 'LOCATION':
@@ -381,17 +410,21 @@ EventContent? _vEvent(String text) {
       case 'DURATION':
         duration = _calendarDuration(value);
     }
-    if (!inEvent && start != null) {
-      break;
-    }
   }
   if (start == null) {
     return null;
   }
+  if (end == null && duration != null) {
+    try {
+      end = start.add(duration);
+    } on RangeError {
+      // Past the range of DateTime: no end rather than a wrong one.
+    }
+  }
   return EventContent(
     summary: summary,
     start: start,
-    end: end ?? (duration == null ? null : start.add(duration)),
+    end: end,
     location: location,
     description: description,
   );
@@ -440,13 +473,27 @@ Duration? _calendarDuration(String value) {
   if (m == null) {
     return null;
   }
-  int part(int group) => int.parse(m.group(group) ?? '0');
-  final Duration d = Duration(
-    days: part(2) * 7 + part(3),
-    hours: part(4),
-    minutes: part(5),
-    seconds: part(6),
-  );
+  // Anything over 100 000 days (274 years) is not a real event: no end.
+  const int limit = 100000 * 24 * 3600;
+  int? part(int group) {
+    final String? digits = m.group(group);
+    if (digits == null) {
+      return 0;
+    }
+    final int? v = digits.length > 12 ? null : int.tryParse(digits);
+    return v != null && v <= limit ? v : null;
+  }
+
+  final List<int?> p = <int?>[part(2), part(3), part(4), part(5), part(6)];
+  if (p.contains(null)) {
+    return null;
+  }
+  final int seconds =
+      ((p[0]! * 7 + p[1]!) * 24 + p[2]!) * 3600 + p[3]! * 60 + p[4]!;
+  if (seconds > limit) {
+    return null;
+  }
+  final Duration d = Duration(seconds: seconds);
   return m.group(1) == '-' ? -d : d;
 }
 
@@ -579,9 +626,11 @@ GeoContent? _geo(String body) {
       : null;
   if (latitude == null ||
       longitude == null ||
+      !latitude.isFinite ||
+      !longitude.isFinite ||
       latitude.abs() > 90 ||
       longitude.abs() > 180 ||
-      (parts.length > 2 && altitude == null)) {
+      (parts.length > 2 && (altitude == null || !altitude.isFinite))) {
     return null;
   }
   String? query;
@@ -791,28 +840,33 @@ bool _isQuotedPrintable(String line) {
       line.substring(0, colon).toUpperCase().contains('QUOTED-PRINTABLE');
 }
 
+final RegExp _qpByte = RegExp(r'^[0-9A-Fa-f]{2}$');
+
 String _decodeQuotedPrintable(String value, String charset) {
+  final bool latin = switch (charset) {
+    'ISO-8859-1' || 'LATIN1' || 'WINDOWS-1252' => true,
+    _ => false,
+  };
+  final List<int> runes = value.runes.toList();
   final List<int> bytes = <int>[];
-  for (int i = 0; i < value.length; i++) {
-    final int c = value.codeUnitAt(i);
-    if (c == 0x3D /* = */ && i + 2 < value.length) {
-      final int? byte = int.tryParse(value.substring(i + 1, i + 3), radix: 16);
-      if (byte != null) {
-        bytes.add(byte);
+  for (int i = 0; i < runes.length; i++) {
+    final int c = runes[i];
+    if (c == 0x3D /* = */ && i + 2 < runes.length) {
+      final String hex = String.fromCharCodes(runes, i + 1, i + 3);
+      if (_qpByte.hasMatch(hex)) {
+        bytes.add(int.parse(hex, radix: 16));
         i += 2;
         continue;
       }
     }
-    if (c < 0x80) {
+    // Text that was not encoded: as the declared charset would encode it.
+    if (c < 0x80 || (latin && c < 0x100)) {
       bytes.add(c);
     } else {
-      bytes.addAll(utf8.encode(value[i]));
+      bytes.addAll(utf8.encode(String.fromCharCode(c)));
     }
   }
-  return switch (charset) {
-    'ISO-8859-1' ||
-    'LATIN1' ||
-    'WINDOWS-1252' => latin1.decode(bytes.map((int b) => b & 0xFF).toList()),
-    _ => utf8.decode(bytes, allowMalformed: true),
-  };
+  return latin
+      ? latin1.decode(bytes)
+      : utf8.decode(bytes, allowMalformed: true);
 }

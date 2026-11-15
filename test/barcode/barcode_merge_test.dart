@@ -113,4 +113,30 @@ void main() {
       BarcodeContentType.mixed,
     );
   });
+
+  test('a UTF-8 character split across two symbols comes out whole', () {
+    Barcode part(List<int> bytes, String text, int index) => Barcode(
+      format: BarcodeFormat.qrCode,
+      text: text,
+      bytes: Uint8List.fromList(bytes),
+      position: _part('', 0, 1).position,
+      sequence: BarcodeSequence(index: index, size: 2, id: '7'),
+    );
+    // "aéb", the é (C3 A9) cut in half; each part decoded on its own.
+    expect(
+      Barcode.merge(<Barcode>[
+        part(<int>[0x61, 0xC3], 'aÃ', 0),
+        part(<int>[0xA9, 0x62], '©b', 1),
+      ])?.text,
+      'aéb',
+    );
+    // Not UTF-8 (Latin-1 é): the parts' texts are joined.
+    expect(
+      Barcode.merge(<Barcode>[
+        part(<int>[0xE9], 'é', 0),
+        part(<int>[0x62], 'b', 1),
+      ])?.text,
+      'éb',
+    );
+  });
 }

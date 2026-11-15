@@ -237,6 +237,72 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('in a Column, the width decides the size', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        const SizedBox(
+          width: 300,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[BarcodeView(url)],
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    expect(tester.getSize(_paint), const Size(300, 300));
+  });
+
+  testWidgets('a directional gradient paints', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      _host(
+        const BarcodeView(
+          url,
+          width: 240,
+          style: BarcodeStyle(
+            gradient: LinearGradient(
+              begin: AlignmentDirectional.centerStart,
+              end: AlignmentDirectional.centerEnd,
+              colors: <Color>[Color(0xFF0B3D91), Color(0xFF00735D)],
+            ),
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    expect(tester.takeException(), isNull);
+    expect((await _readScreen(tester))?.text, url);
+  });
+
+  testWidgets('bytes changed in place are encoded again', (
+    WidgetTester tester,
+  ) async {
+    final Uint8List data = Uint8List.fromList(<int>[1, 2, 3]);
+    await tester.pumpWidget(
+      _host(
+        BarcodeView.bytes(data, format: BarcodeFormat.dataMatrix, width: 160),
+      ),
+    );
+    await _settle(tester);
+    expect((await _readScreen(tester))?.bytes, <int>[1, 2, 3]);
+    data[0] = 9;
+    await tester.pumpWidget(
+      _host(
+        BarcodeView.bytes(data, format: BarcodeFormat.dataMatrix, width: 160),
+      ),
+    );
+    for (int i = 0; i < 10; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pump();
+    }
+    expect((await _readScreen(tester))?.bytes, <int>[9, 2, 3]);
+  });
+
   group('styled QR codes still read', () {
     for (final ModuleShape modules in ModuleShape.values) {
       for (final FinderShape finders in FinderShape.values) {

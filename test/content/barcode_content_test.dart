@@ -636,6 +636,96 @@ void main() {
     expect(const TextContent('a'), isNot(const PhoneContent('a')));
   });
 
+  group('found in review', () {
+    test('prefixes whose upper case is longer do not shift the slicing', () {
+      for (final String text in <String>['SMﬆO:', 'WIﬁ:', 'ﬆEL:123', 'ßMS:1']) {
+        expect(_parse(text), TextContent(text), reason: text);
+      }
+    });
+
+    test('a huge DURATION gives no end instead of throwing', () {
+      for (final String d in <String>['P99999999999999999999W', 'P14300000W']) {
+        final EventContent event =
+            _parse(
+                  'BEGIN:VEVENT\nDTSTART:20261114T093000Z\nDURATION:$d\n'
+                  'END:VEVENT',
+                )
+                as EventContent;
+        expect(event.end, isNull, reason: d);
+      }
+    });
+
+    test('a nested VALARM does not overwrite the event', () {
+      final EventContent event =
+          _parse(
+                'BEGIN:VEVENT\n'
+                'SUMMARY:Standup\n'
+                'DTSTART:20261114T093000Z\n'
+                'DURATION:PT1H\n'
+                'DESCRIPTION:Agenda\n'
+                'BEGIN:VALARM\n'
+                'TRIGGER:-PT5M\n'
+                'DURATION:PT5M\n'
+                'DESCRIPTION:Reminder\n'
+                'END:VALARM\n'
+                'LOCATION:Room 4\n'
+                'END:VEVENT',
+              )
+              as EventContent;
+      expect(event.description, 'Agenda');
+      expect(event.end, DateTime.utc(2026, 11, 14, 10, 30));
+      expect(event.location, 'Room 4');
+    });
+
+    test('GS1 bytes that do not split are text, whatever the text says', () {
+      // zxing-cpp's text is then the escaped raw data.
+      expect(
+        _gs1('10ABC|0499', text: '10ABC<GS>0499').content,
+        const TextContent('10ABC<GS>0499'),
+      );
+      expect(
+        _gs1('|0109501101530003', text: '<GS>0109501101530003').content,
+        const TextContent('<GS>0109501101530003'),
+      );
+    });
+
+    test('escaped quotes in a Wi-Fi value are kept', () {
+      expect(
+        _parse(r'WIFI:T:WPA;S:net;P:\"secret\";;'),
+        const WifiContent(ssid: 'net', password: '"secret"'),
+      );
+      expect(
+        _parse(r'WIFI:T:WPA;S:"a\"";P:x;;'),
+        // Quoted, with an escaped quote inside.
+        const WifiContent(ssid: 'a"', password: 'x'),
+      );
+    });
+
+    test('geo coordinates must be finite', () {
+      for (final String text in <String>[
+        'geo:NaN,NaN',
+        'geo:Infinity,0',
+        'geo:1,2,NaN',
+      ]) {
+        expect(_parse(text), TextContent(text), reason: text);
+      }
+    });
+
+    test('quoted-printable keeps literal emoji and Latin-1 text', () {
+      String name(String line) =>
+          (_parse('BEGIN:VCARD\n$line\nEND:VCARD') as ContactContent).name!;
+      expect(
+        name('FN;ENCODING=QUOTED-PRINTABLE;CHARSET=UTF-8:Caf=C3=A9 ☕🙂'),
+        'Café ☕🙂',
+      );
+      expect(
+        name('FN;ENCODING=QUOTED-PRINTABLE;CHARSET=ISO-8859-1:Caf=E9 é'),
+        'Café é',
+      );
+      expect(name('FN;ENCODING=QUOTED-PRINTABLE:a=+1b'), 'a=+1b');
+    });
+  });
+
   test('malformed payloads never throw', () {
     for (final String text in <String>[
       '',
