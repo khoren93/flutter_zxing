@@ -35,7 +35,8 @@ A new engine and a new API, with the 3.x API kept working on top of it.
   `WriterWidget`, ...): each declaration names its replacement. It keeps
   working until 5.0, on the new engine, and stays unavailable on the web.
   [Migrating to 4.0](doc/migrating-to-4.0.md) shows the replacements side by
-  side.
+  side; [Coming from mobile_scanner](doc/migrating-from-mobile_scanner.md)
+  maps that package's scanner API.
 
 ### Behaviour changes of the 3.x API
 
