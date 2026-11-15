@@ -36,7 +36,9 @@ final List<(String, Object)> _tiles = <(String, Object)>[
   ('Aztec', (BarcodeFormat.aztec, 'flutter_zxing 4.0')),
   ('PDF417', (BarcodeFormat.pdf417, 'flutter_zxing 4.0 PDF417')),
   ('MicroPDF417', '$_samples/micropdf417-1/MPDF-0.png'),
-  ('MaxiCode', '$_samples/maxicode-1/MODE2.png'),
+  // zxing-cpp reads MaxiCode only from clean, straight images (files,
+  // screenshots), not from the camera.
+  ('MaxiCode (files only)', '$_samples/maxicode-1/MODE2.png'),
   // Retail.
   ('EAN-13', (BarcodeFormat.ean13, '5901234123457')),
   ('EAN-8', (BarcodeFormat.ean8, '96385074')),
@@ -47,12 +49,12 @@ final List<(String, Object)> _tiles = <(String, Object)>[
   ('DataBar', '$_samples/rss14-1/4.png'),
   ('DataBar Stacked', '$_samples/rss14-2/2.png'),
   ('DataBar Limited', '$_samples/databarltd-1/00.png'),
-  ('DataBar Expanded', '$_samples/rssexpanded-1/10.png'),
+  ('DataBar Expanded', '$_samples/rssexpanded-1/14.png'),
   ('DataBar Expanded Stacked', '$_samples/rssexpandedstacked-1/1.png'),
   // Industrial and others.
   ('Code 128', (BarcodeFormat.code128, 'FLUTTER-ZXING-4')),
   ('Code 39', (BarcodeFormat.code39, 'ZXING-4')),
-  ('Code 39 Extended', '$_samples/code39-2/1.png'),
+  ('Code 39 Extended', '$_samples/code39-2/2.png'),
   ('Code 32', '$_samples/code39-1/code32-1.png'),
   ('PZN', '$_samples/code39-1/pzn-1.png'),
   ('Code 93', (BarcodeFormat.code93, 'ZXING-93')),
@@ -68,7 +70,6 @@ const Set<String> _wide = <String>{
   'PDF417',
   'MicroPDF417',
   'DataBar Expanded',
-  'Code 39 Extended',
   'Telepen',
   'DX Film Edge',
 };
