@@ -425,8 +425,12 @@ void main() {
       // The flight starts on the next frame and takes 360 ms.
       await tester.pump(const Duration(milliseconds: 16));
       await tester.pump(const Duration(milliseconds: 400));
-      final Finder cutOut = find.byType(RawImage);
+      // The card in the window (the sheet's picture is the same cut-out).
+      final Finder cutOut = find.byWidgetPredicate(
+        (Widget w) => w is RawImage && w.fit == BoxFit.fill,
+      );
       expect(cutOut, findsOneWidget);
+      expect(find.byType(BarcodeThumbnail), findsOneWidget);
       final ScannerLayout layout = ScannerLayout(
         size: _phone,
         scanWindow: const ScannerTemplate.minimal().scanWindow.resolve(_phone),
@@ -987,6 +991,104 @@ void main() {
         const ScannerStrings(close: 'a'),
         isNot(const ScannerStrings(close: 'b')),
       );
+    });
+  });
+
+  group('BarcodeThumbnail', () {
+    BarcodeSymbol grid(BarcodeFormat format) => BarcodeSymbol(
+      format: format,
+      width: 21,
+      height: 21,
+      modules: Uint8List(21 * 21)..[0] = 1,
+    );
+
+    test('picks the exact grid, a redrawing or the cut-out', () {
+      Barcode code(BarcodeFormat format, String text, {BarcodeSymbol? s}) =>
+          Barcode(
+            format: format,
+            text: text,
+            bytes: Uint8List(0),
+            position: const BarcodePosition(
+              topLeft: Offset.zero,
+              topRight: Offset.zero,
+              bottomRight: Offset.zero,
+              bottomLeft: Offset.zero,
+            ),
+            symbol: s,
+          );
+      expect(
+        BarcodeThumbnail.kindOf(
+          code(BarcodeFormat.qrCode, 'x', s: grid(BarcodeFormat.qrCode)),
+        ),
+        BarcodeThumbnailKind.exact,
+      );
+      // A QR code without its grid (not read by the engine) is a cut-out.
+      expect(
+        BarcodeThumbnail.kindOf(code(BarcodeFormat.qrCode, 'x')),
+        BarcodeThumbnailKind.cutOut,
+      );
+      for (final (BarcodeFormat format, String text)
+          in <(BarcodeFormat, String)>[
+            (BarcodeFormat.ean13, '5901234123457'),
+            (BarcodeFormat.isbn, '9783161484100'),
+            (BarcodeFormat.ean8, '96385074'),
+            (BarcodeFormat.upcA, '036000291452'),
+            (BarcodeFormat.upcE, '01234565'),
+            (BarcodeFormat.itf14, '09501101530003'),
+          ]) {
+        expect(
+          BarcodeThumbnail.kindOf(code(format, text)),
+          BarcodeThumbnailKind.regenerated,
+          reason: format.name,
+        );
+      }
+      for (final (BarcodeFormat format, String text)
+          in <(BarcodeFormat, String)>[
+            // The add-on's digits follow in the text.
+            (BarcodeFormat.ean13, '978073520044951299'),
+            (BarcodeFormat.code128, 'LOT-2026-11-0042'),
+            (BarcodeFormat.pdf417, 'flutter'),
+            (BarcodeFormat.dataBarExpanded, '(01)90012345678908'),
+          ]) {
+        expect(
+          BarcodeThumbnail.needsCutOut(code(format, text)),
+          isTrue,
+          reason: format.name,
+        );
+      }
+      // MaxiCode's grid is hexagonal: drawn as squares it would not be it.
+      expect(
+        BarcodeThumbnail.kindOf(
+          code(BarcodeFormat.maxiCode, 'x', s: grid(BarcodeFormat.maxiCode)),
+        ),
+        BarcodeThumbnailKind.cutOut,
+      );
+    });
+
+    testWidgets('draws the grid as read', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        _host(
+          Center(
+            child: BarcodeThumbnail(
+              Barcode(
+                format: BarcodeFormat.qrCode,
+                text: 'x',
+                bytes: Uint8List(0),
+                position: const BarcodePosition(
+                  topLeft: Offset.zero,
+                  topRight: Offset.zero,
+                  bottomRight: Offset.zero,
+                  bottomLeft: Offset.zero,
+                ),
+                symbol: grid(BarcodeFormat.qrCode),
+              ),
+            ),
+          ),
+        ),
+      );
+      final BarcodeView view = tester.widget(find.byType(BarcodeView));
+      expect(view.symbol, isNotNull);
+      expect(tester.getSize(find.byType(BarcodeThumbnail)), const Size(56, 56));
     });
   });
 

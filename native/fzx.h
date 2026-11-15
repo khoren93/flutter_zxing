@@ -31,7 +31,7 @@
 #define FZX_API __attribute__((visibility("default"))) FZX_KEEP
 #endif
 
-#define FZX_ABI_VERSION 1
+#define FZX_ABI_VERSION 2
 
 #ifdef __cplusplus
 extern "C" {

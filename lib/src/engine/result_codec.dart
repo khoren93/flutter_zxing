@@ -12,6 +12,7 @@ import 'package:flutter/painting.dart';
 
 import '../barcode/barcode.dart';
 import '../barcode/barcode_format.dart';
+import '../writing/barcode_writer.dart';
 import 'engine_protocol.dart';
 
 const int _kindBarcodes = 1;
@@ -60,6 +61,9 @@ EngineReadResult decodeBarcodes(
     final String sequenceId = r.str();
     final String errorMessage = r.str();
     r.skipBlob(); // extra (JSON): not part of the public API yet
+    final int symbolWidth = r.i32();
+    final int symbolHeight = r.i32();
+    final Uint8List modules = r.bytes();
     return Barcode(
       format: format,
       text: text,
@@ -89,6 +93,15 @@ EngineReadResult decodeBarcodes(
                   : BarcodeErrorKind.unsupported,
               errorMessage,
             ),
+      symbol: symbolWidth > 0 && symbolHeight > 0
+          ? BarcodeSymbol(
+              format: format,
+              width: symbolWidth,
+              height: symbolHeight,
+              modules: modules,
+              quietZone: readQuietZone(format),
+            )
+          : null,
     );
   });
   return EngineReadResult(
@@ -200,3 +213,15 @@ class _Reader {
     _offset += n;
   }
 }
+
+/// The quiet zone a read symbol of [format] needs around it, in modules:
+/// what each symbology's specification asks for.
+int readQuietZone(BarcodeFormat format) => switch (format.symbology) {
+  BarcodeFormat.qrCode =>
+    format == BarcodeFormat.microQrCode || format == BarcodeFormat.rmqrCode
+        ? 2
+        : 4,
+  BarcodeFormat.pdf417 => format == BarcodeFormat.microPdf417 ? 1 : 2,
+  BarcodeFormat.dataMatrix || BarcodeFormat.maxiCode => 1,
+  _ => 0,
+};

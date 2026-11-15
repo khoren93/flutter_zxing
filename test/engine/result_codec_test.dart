@@ -49,6 +49,9 @@ void _barcode(
   String sequenceId = '',
   String errorMessage = '',
   String extra = '',
+  int symbolWidth = 0,
+  int symbolHeight = 0,
+  List<int> symbol = const <int>[],
 }) {
   b
     ..u32(format)
@@ -69,7 +72,10 @@ void _barcode(
     ..str(version)
     ..str(sequenceId)
     ..str(errorMessage)
-    ..str(extra);
+    ..str(extra)
+    ..i32(symbolWidth)
+    ..i32(symbolHeight)
+    ..blob(symbol);
 }
 
 _Buffer _header(int kind) => _Buffer()
@@ -147,6 +153,30 @@ void main() {
 
     // Regression: skipping the trailing `extra` string lost four bytes,
     // which broke every result with more than one barcode.
+    test('reads the grid of modules of a matrix code', () {
+      final _Buffer b = _header(1)
+        ..i32(100)
+        ..i32(100)
+        ..i32(2);
+      _barcode(
+        b,
+        symbolWidth: 3,
+        symbolHeight: 2,
+        symbol: <int>[1, 0, 1, 0, 1, 0],
+      );
+      _barcode(b, text: 'linear');
+      final EngineReadResult r = decodeBarcodes(b.bytes);
+      final BarcodeSymbol symbol = r.barcodes.first.symbol!;
+      expect(symbol.width, 3);
+      expect(symbol.height, 2);
+      expect(symbol.modules, <int>[1, 0, 1, 0, 1, 0]);
+      expect(symbol.format, BarcodeFormat.qrCode);
+      // A QR code keeps four modules of quiet zone around it.
+      expect(symbol.quietZone, 4);
+      expect(r.barcodes.last.symbol, isNull);
+      expect(r.barcodes.last.text, 'linear');
+    });
+
     test('reads several barcodes, with and without extra', () {
       final _Buffer b = _header(1)
         ..i32(100)

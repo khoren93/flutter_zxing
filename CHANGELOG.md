@@ -32,6 +32,12 @@ A new engine and a new API, with the 3.x API kept working on top of it.
   of the camera frame (or photo) and straightened from its four corners, as
   a flat grayscale image. The templates fly it from where the code was into
   the scan window. Android and iOS for now.
+* **Pictures of scans:** `Barcode.symbol` is the grid of modules the reader
+  sampled from a QR, Micro QR, rMQR, Data Matrix, Aztec or MaxiCode code;
+  `BarcodeView.symbol` draws it, sharp at any size. `BarcodeThumbnail` shows
+  each scan with the sharpest picture that is exactly the code scanned: that
+  grid, EAN/UPC/ITF drawn again from their digits, or the cut-out. The result
+  sheet and the retail list show it.
 * **What is in the barcode:** `barcode.content` parses the payload into a
   `sealed` `BarcodeContent` for pattern matching: `UrlContent`, `WifiContent`,
   `ContactContent` (vCard, MeCard), `EventContent`, `EmailContent`,

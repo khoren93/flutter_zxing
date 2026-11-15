@@ -182,6 +182,7 @@ Barcode mapBarcodePosition(Barcode barcode, Offset Function(Offset) map) {
     symbologyIdentifier: barcode.symbologyIdentifier,
     sequence: barcode.sequence,
     error: barcode.error,
+    symbol: barcode.symbol,
   );
 }
 

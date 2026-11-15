@@ -33,7 +33,30 @@ class BarcodeView extends StatefulWidget {
     this.height,
     this.semanticLabel,
     this.errorBuilder,
-  }) : bytes = null;
+  }) : bytes = null,
+       symbol = null;
+
+  /// Draws a [BarcodeSymbol] as it is: the modules a reader sampled from a
+  /// code (`Barcode.symbol`), or a symbol from `BarcodeWriter.encode`.
+  /// Nothing is encoded, so the code shown is exactly the one read.
+  ///
+  /// ```dart
+  /// final BarcodeSymbol? symbol = capture.barcode.symbol;
+  /// if (symbol != null) BarcodeView.symbol(symbol, width: 56);
+  /// ```
+  BarcodeView.symbol(
+    BarcodeSymbol this.symbol, {
+    super.key,
+    this.style = const BarcodeStyle(),
+    this.width,
+    this.height,
+    this.semanticLabel,
+  }) : data = symbol.text,
+       bytes = null,
+       format = symbol.format,
+       errorCorrection = null,
+       showText = symbol.text != null,
+       errorBuilder = null;
 
   /// Creates a barcode view for binary [bytes] (formats with a byte mode:
   /// QR, Data Matrix, Aztec, PDF417).
@@ -48,6 +71,7 @@ class BarcodeView extends StatefulWidget {
     this.semanticLabel,
     this.errorBuilder,
   }) : data = null,
+       symbol = null,
        showText = false;
 
   /// The text to encode, or `null` for [BarcodeView.bytes].
@@ -55,6 +79,9 @@ class BarcodeView extends StatefulWidget {
 
   /// The binary data to encode, or `null` for text.
   final Uint8List? bytes;
+
+  /// The symbol to draw as it is, from [BarcodeView.symbol].
+  final BarcodeSymbol? symbol;
 
   /// The symbology; must be writable ([BarcodeFormat.canWrite]).
   final BarcodeFormat format;
@@ -124,7 +151,10 @@ class _BarcodeViewState extends State<BarcodeView> {
   @override
   void didUpdateWidget(BarcodeView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_Request.of(widget) != _request) {
+    if (widget.symbol != oldWidget.symbol ||
+        widget.style.quietZone != oldWidget.style.quietZone) {
+      _encode(initial: false);
+    } else if (widget.symbol == null && _Request.of(widget) != _request) {
       _encode(initial: false);
     }
     if (widget.style.logo?.image != oldWidget.style.logo?.image) {
@@ -142,6 +172,27 @@ class _BarcodeViewState extends State<BarcodeView> {
   /// Encodes the current request. Until the result arrives the previous
   /// symbol stays on screen, so changing the data does not flash.
   void _encode({required bool initial}) {
+    final BarcodeSymbol? given = widget.symbol;
+    if (given != null) {
+      _request = null;
+      final BarcodeSymbol shown = widget.style.quietZone || given.quietZone == 0
+          ? given
+          : BarcodeSymbol(
+              format: given.format,
+              width: given.width,
+              height: given.height,
+              modules: given.modules,
+              text: given.text,
+            );
+      void apply() {
+        _symbol = shown;
+        _layout = SymbolLayout(shown);
+        _error = null;
+      }
+
+      initial ? apply() : setState(apply);
+      return;
+    }
     final _Request request = _Request.of(widget);
     _request = request;
     final BarcodeSymbol? cached = _symbolCache.get(request);

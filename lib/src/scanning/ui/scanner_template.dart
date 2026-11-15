@@ -17,6 +17,7 @@ import 'scanner_icons.dart';
 import 'scanner_strings.dart';
 import 'scanner_theme.dart';
 import 'states.dart';
+import 'thumbnail.dart';
 import 'window_overlay.dart';
 
 /// Builds the sheet shown for a scanned [barcode]; [scanAgain] hides it
@@ -378,6 +379,10 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   bool _cutLinear = false;
   bool _settled = false;
 
+  /// The cut-out shown in the result sheet: a handle of its own, as the
+  /// window's fades away with "Scan again" while the sheet is still leaving.
+  ui.Image? _resultCutOut;
+
   /// Counts locks, so that a cut-out arriving after "Scan again" is dropped.
   int _lock = 0;
   ScannerController? _controller;
@@ -408,6 +413,10 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     _hideNotice?.cancel();
     _flight.dispose();
     _cutOut?.dispose();
+    _resultCutOut?.dispose();
+    for (final CollectedBarcode item in _items) {
+      item.cutOut?.dispose();
+    }
     super.dispose();
   }
 
@@ -433,11 +442,21 @@ class _TemplateOverlayState extends State<TemplateOverlay>
                 item.barcode.format == barcode.format &&
                 item.barcode.text == barcode.text,
           );
-          final int count = index < 0 ? 1 : _items[index].count + 1;
+          final CollectedBarcode? before = index >= 0 ? _items[index] : null;
           if (index >= 0) {
             _items.removeAt(index);
           }
-          _items.insert(0, CollectedBarcode(barcode, count));
+          _items.insert(
+            0,
+            CollectedBarcode(
+              barcode,
+              (before?.count ?? 0) + 1,
+              cutOut: before?.cutOut,
+            ),
+          );
+          if (before?.cutOut == null && BarcodeThumbnail.needsCutOut(barcode)) {
+            unawaited(_cutOutFor(capture, barcode));
+          }
         }
       });
       return;
@@ -462,6 +481,31 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       if (mounted) {
         setState(() => _result = capture.barcode);
       }
+    });
+  }
+
+  /// Keeps the cut-out of a collected [barcode] for its row.
+  Future<void> _cutOutFor(BarcodeCapture capture, Barcode barcode) async {
+    final ui.Image? image = await capture.snapshot(barcode);
+    if (image == null) {
+      return;
+    }
+    if (!mounted) {
+      image.dispose();
+      return;
+    }
+    final int index = _items.indexWhere(
+      (CollectedBarcode item) =>
+          item.barcode.format == barcode.format &&
+          item.barcode.text == barcode.text,
+    );
+    if (index < 0 || _items[index].cutOut != null) {
+      image.dispose();
+      return;
+    }
+    final CollectedBarcode item = _items[index];
+    setState(() {
+      _items[index] = CollectedBarcode(item.barcode, item.count, cutOut: image);
     });
   }
 
@@ -490,6 +534,8 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     setState(() {
       _cutOut?.dispose();
       _cutOut = image;
+      _resultCutOut?.dispose();
+      _resultCutOut = image.clone();
       _cutFrom = from;
       _cutLinear = barcode.format.isLinear;
       _settled = true;
@@ -766,6 +812,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
           actions: template.actionsBuilder?.call(context, result, _scanAgain),
           onScanAgain: _scanAgain,
           showIcon: template.showResultIcon,
+          cutOut: _resultCutOut,
         );
   }
 }

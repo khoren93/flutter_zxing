@@ -10,7 +10,7 @@ import '../reading/reader_options.dart';
 
 /// `FZX_ABI_VERSION` this Dart code is written against. The engine refuses
 /// to start with a library or WebAssembly module of another version.
-const int fzxExpectedAbiVersion = 1;
+const int fzxExpectedAbiVersion = 2;
 
 /// Reader flags (`FZX_TRY_*`, ...).
 abstract final class FzxFlags {

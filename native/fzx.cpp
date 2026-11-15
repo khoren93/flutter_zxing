@@ -12,6 +12,9 @@
 //     i32 line count, i32 sequence index, i32 sequence size
 //     str text, bytes raw, str symbology identifier, str ec level, str version,
 //     str sequence id, str error message, str extra (JSON object, may be empty)
+//     i32 symbol width, i32 symbol height (in modules; 0 for linear codes)
+//     bytes symbol modules (width * height, row by row, 1 = dark, 0 = light):
+//       the grid of modules the reader sampled from a 2D code
 //   flags: 1 valid, 2 inverted, 4 mirrored, 8 has ECI, 16 reader init
 //
 // "symbol" (fzx_write)
@@ -126,6 +129,18 @@ void encodeBarcodes(fzx_ctx* ctx, const Barcodes& barcodes, int imageWidth, int 
 		w.str(bc.sequenceId());
 		w.str(bc.error().msg());
 		w.str(bc.extra());
+		// The modules as read: zxing-cpp's symbol() is a luminance image,
+		// black (dark) == 0.
+		const ZXing::ImageView symbol = bc.symbol();
+		const int sw = symbol.data() ? symbol.width() : 0;
+		const int sh = symbol.data() ? symbol.height() : 0;
+		w.i32(sw);
+		w.i32(sh);
+		std::vector<uint8_t> modules(static_cast<size_t>(sw) * sh);
+		for (int y = 0; y < sh; y++)
+			for (int x = 0; x < sw; x++)
+				modules[static_cast<size_t>(y) * sw + x] = *symbol.data(x, y) < 128 ? 1 : 0;
+		w.blob(modules.data(), modules.size());
 	}
 }
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -10,6 +11,7 @@ import 'glass.dart';
 import 'scanner_icons.dart';
 import 'scanner_strings.dart';
 import 'scanner_theme.dart';
+import 'thumbnail.dart';
 
 /// A button of a [BarcodeResultSheet].
 @immutable
@@ -68,10 +70,20 @@ class BarcodeResultSheet extends StatelessWidget {
     this.actions,
     this.onScanAgain,
     this.showIcon = false,
+    this.showPicture = true,
+    this.cutOut,
   });
 
   /// The code.
   final Barcode barcode;
+
+  /// Shows the picture of the code next to the title ([BarcodeThumbnail]),
+  /// unless [showIcon].
+  final bool showPicture;
+
+  /// The camera's cut-out of the code, for the picture of codes that
+  /// cannot be drawn exactly. Not disposed by the sheet.
+  final ui.Image? cutOut;
 
   /// The buttons; `null` for copy and "Scan again".
   final List<ScannerAction>? actions;
@@ -123,10 +135,13 @@ class BarcodeResultSheet extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          if (showIcon)
+          if (showIcon || showPicture)
             Row(
               children: <Widget>[
-                ScannerBadge(icon: iconOf(content)),
+                if (showIcon)
+                  ScannerBadge(icon: iconOf(content))
+                else
+                  BarcodeThumbnail(barcode, cutOut: cutOut),
                 const SizedBox(width: 16),
                 Expanded(child: heading),
               ],
@@ -496,13 +511,18 @@ class _CopyButtonState extends State<_CopyButton> {
 @immutable
 final class CollectedBarcode {
   /// Creates an entry.
-  const CollectedBarcode(this.barcode, this.count);
+  const CollectedBarcode(this.barcode, this.count, {this.cutOut});
 
   /// The code, as last scanned.
   final Barcode barcode;
 
   /// How often it was scanned.
   final int count;
+
+  /// The camera's cut-out of the code, for the codes that cannot be drawn
+  /// exactly ([BarcodeThumbnail.needsCutOut]); owned by the scanner, valid
+  /// while it is shown: `clone()` it to keep it.
+  final ui.Image? cutOut;
 }
 
 /// A sheet listing scanned codes with counts, the latest first and
@@ -614,13 +634,15 @@ class _Row extends StatelessWidget {
         : '${barcode.format.displayName} · ${barcode.symbologyIdentifier}';
     return AnimatedContainer(
       duration: const Duration(milliseconds: 240),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
       decoration: BoxDecoration(
         color: latest ? theme.lockSoftColor : const Color(0x00000000),
         borderRadius: const BorderRadius.all(Radius.circular(16)),
       ),
       child: Row(
         children: <Widget>[
+          BarcodeThumbnail(barcode, cutOut: item.cutOut, size: 48),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

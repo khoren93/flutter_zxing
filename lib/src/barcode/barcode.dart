@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
 import '../content/barcode_content.dart';
+import '../writing/barcode_writer.dart';
 import 'barcode_format.dart';
 
 /// A barcode found in an image or a camera frame.
@@ -31,6 +32,7 @@ final class Barcode {
     this.symbologyIdentifier = '',
     this.sequence,
     this.error,
+    this.symbol,
   });
 
   /// The symbology, as specific as known (e.g. [BarcodeFormat.ean13]).
@@ -93,6 +95,15 @@ final class Barcode {
   /// Why the barcode could not be decoded, or `null` if it was. Only
   /// barcodes read with [ReaderOptions.returnErrors] can have an error.
   final BarcodeError? error;
+
+  /// The grid of modules the reader sampled from a matrix code (QR, Micro
+  /// QR, rMQR, Data Matrix, Aztec, MaxiCode), exactly as read: a damaged
+  /// module shows as it was read. `null` for codes read by their bar widths
+  /// (linear codes, PDF417) and for barcodes not read by the engine.
+  ///
+  /// Draw it, sharp at any size, with `BarcodeView.symbol`; it is what
+  /// `BarcodeThumbnail` shows for a 2D code.
+  final BarcodeSymbol? symbol;
 
   /// Whether the barcode was decoded successfully.
   bool get isValid => error == null;
