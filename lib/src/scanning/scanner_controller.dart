@@ -4,11 +4,9 @@ library;
 
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
-// material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
-// which needs Flutter 3.47; this package still supports Flutter 3.41.
-// ignore: deprecated_member_use
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 import '../barcode/barcode.dart';
 import '../barcode/barcode_format.dart';
@@ -20,6 +18,11 @@ import '../reading/reader_options.dart';
 import 'camera/camera_source.dart';
 import 'frame_geometry.dart';
 import 'scan_window.dart';
+import 'ui/scanner_strings.dart';
+import 'ui/scanner_template.dart';
+import 'ui/scanner_theme.dart';
+import 'ui/states.dart';
+import 'ui/window_overlay.dart';
 
 part 'barcode_scanner.dart';
 
@@ -294,6 +297,53 @@ class ScannerController extends ValueNotifier<ScannerState> {
       _set(value.copyWith(status: ScannerStatus.running));
       _wakeUp();
     }
+  }
+
+  /// Reads the barcodes in an image file, such as a photo picked from the
+  /// gallery, with this controller's [formats] and [maxBarcodes], and
+  /// reports them on [barcodes] like a camera frame: `onDetect` and the
+  /// scanner templates see them too. Returns the capture, or `null` when
+  /// the image has no barcode.
+  ///
+  /// The image is searched as thoroughly as by `BarcodeReader` (inverted
+  /// codes included), with the other [options] of this controller. With
+  /// [DetectionMode.once], a barcode found pauses the camera like a camera
+  /// result.
+  ///
+  /// Throws [ImageDecodeException] if [encodedImage] is not a readable
+  /// image.
+  Future<BarcodeCapture?> readImage(Uint8List encodedImage) async {
+    final EngineReadResult result = await BarcodeEngine.shared.readImage(
+      encodedImage,
+      EngineReadOptions.from(
+        _formats,
+        _options.copyWith(tryInvert: true, tryRotate: true, tryDownscale: true),
+        maxSymbols: _maxBarcodes ?? 0,
+      ),
+    );
+    final List<Barcode> barcodes = <Barcode>[
+      for (final Barcode b in result.barcodes)
+        if (b.isValid) b,
+    ];
+    if (barcodes.isEmpty || _disposed) {
+      return null;
+    }
+    final BarcodeCapture capture = BarcodeCapture(
+      barcodes: barcodes,
+      imageSize: Size(
+        result.imageWidth.toDouble(),
+        result.imageHeight.toDouble(),
+      ),
+      time: _now(),
+      source: CaptureSource.image,
+    );
+    if (!_barcodes.isClosed) {
+      _barcodes.add(capture);
+    }
+    if (_detection == DetectionMode.once) {
+      await pause();
+    }
+    return capture;
   }
 
   /// Turns the torch on or off. No-op if [ScannerState.torch] is
@@ -891,6 +941,7 @@ final class BarcodeCapture {
     required this.barcodes,
     required this.imageSize,
     required this.time,
+    this.source = CaptureSource.camera,
   }) : assert(barcodes.length > 0, 'A capture has at least one barcode');
 
   /// The barcodes in the frame, at least one.
@@ -905,4 +956,18 @@ final class BarcodeCapture {
 
   /// When the frame was decoded.
   final DateTime time;
+
+  /// Where the barcodes came from: a camera frame, or an image given to
+  /// [ScannerController.readImage]. Positions of an image's barcodes are
+  /// not on screen.
+  final CaptureSource source;
+}
+
+/// Where the barcodes of a [BarcodeCapture] came from.
+enum CaptureSource {
+  /// A camera frame.
+  camera,
+
+  /// An image given to [ScannerController.readImage].
+  image,
 }

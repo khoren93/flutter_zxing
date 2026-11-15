@@ -34,6 +34,15 @@ const List<Type> _types = <Type>[
   CameraFacing, CameraResolution, DetectionMode, BarcodeCapture, ScanWindow,
   ScannerLayout, VisibleBarcode, ScannerOverlay, ScanWindowOverlay,
   BarcodeOutlines, TorchButton, SwitchCameraButton, ScannerOverlayBuilder,
+  CaptureSource,
+  // Scanner screens
+  ScannerTemplate, ScannerResultBuilder, ScannerActionsBuilder, ScannerTheme,
+  ScannerButtonShape, ScannerScope, ScannerStrings, ScannerIcon,
+  ScannerIconData, ScannerIcons, ScannerGlass, ScannerButton, ScannerHint,
+  ScannerSheet, ScannerActionButton, ScannerChip, ScannerCloseButton,
+  PickImageButton, ZoomButtons, ScannerAction, ScannerActions, ScannerBadge,
+  ScannerFields, BarcodeResultSheet, BarcodeListSheet, CollectedBarcode,
+  ScannerPlaceholder, ScannerErrorView,
   // Errors
   ZxingException, ImageDecodeException, BarcodeWriteException,
   EngineException, ScannerException, CameraPermissionException,

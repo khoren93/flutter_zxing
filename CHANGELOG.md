@@ -17,6 +17,17 @@ A new engine and a new API, with the 3.x API kept working on top of it.
   iOS and the web. Only the scan window of each frame is copied and read;
   front cameras, rotation and `BoxFit` previews are handled, and barcode
   positions arrive in screen coordinates.
+* **Scanner screens:** `BarcodeScanner(template: ...)` puts a whole screen
+  around the camera: glass buttons (close, torch, photo, zoom, camera switch),
+  hints, brackets that lock onto the code found and a result sheet with the
+  parsed content. Five templates (`ScannerTemplate.minimal`, `.payment`,
+  `.retail` with a list of scanned codes and counts, `.ticket`, `.content`)
+  and a `ScannerTheme` for your accent, shapes and light or dark glass; the
+  pieces (`ScannerButton`, `ScannerSheet`, `BarcodeResultSheet`, ...) build
+  your own. No Material or icon font needed; every text can be translated with
+  `ScannerStrings`, animations follow the reduce motion setting.
+  `ScannerController.readImage` reads a photo with the scanner's settings and
+  reports it like a camera frame.
 * **What is in the barcode:** `barcode.content` parses the payload into a
   `sealed` `BarcodeContent` for pattern matching: `UrlContent`, `WifiContent`,
   `ContactContent` (vCard, MeCard), `EventContent`, `EmailContent`,

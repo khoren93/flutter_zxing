@@ -87,7 +87,11 @@ final class FakeCamera implements CameraSource {
   FakeCamera({
     this.transform = const FrameTransform(Size(640, 480), rotation: 90),
     this.capabilities = const CameraCapabilities(hasTorch: true, maxZoom: 4),
+    this.preview,
   });
+
+  /// What the preview shows; a blue box by default.
+  final Widget? preview;
 
   /// How frames and the preview are shown.
   FrameTransform transform;
@@ -175,10 +179,12 @@ final class FakeCamera implements CameraSource {
   set uiShape(Orientation value) => _shape = value;
 
   @override
-  Widget buildPreview() => const ColoredBox(
-    key: ValueKey<String>('fake preview'),
-    color: Color(0xFF336699),
-  );
+  Widget buildPreview() =>
+      preview ??
+      const ColoredBox(
+        key: ValueKey<String>('fake preview'),
+        color: Color(0xFF336699),
+      );
 
   @override
   Future<void> setTorch(bool on) async {

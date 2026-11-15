@@ -14,6 +14,17 @@ import 'package:flutter_zxing/flutter_zxing.dart';
 Widget scannerOutOfTheBox() =>
     BarcodeScanner(onDetect: (capture) => print(capture.barcode.text));
 
+// 1b. A whole scanner screen from a template, in your brand's colors.
+Widget scannerScreen() => BarcodeScanner(
+  template: const ScannerTemplate.minimal(),
+  theme: const ScannerTheme(
+    accent: Color(0xFFFF6A1A),
+    windowRadius: 6,
+    buttonShape: ScannerButtonShape.roundedSquare,
+  ),
+  onDetect: (capture) => print(capture.barcode.content),
+);
+
 // 2. Scan one code and come back.
 Future<void> scanOnce(BuildContext context) async {
   final Barcode? barcode = await scanBarcode(
@@ -48,6 +59,7 @@ class _CustomScannerPageState extends State<CustomScannerPage> {
   Widget build(BuildContext context) => Scaffold(
     body: BarcodeScanner(
       controller: controller,
+      theme: const ScannerTheme(accent: Colors.amber),
       onDetect: (capture) async {
         await controller.pause();
         if (!context.mounted) return;
@@ -59,15 +71,19 @@ class _CustomScannerPageState extends State<CustomScannerPage> {
       },
       overlayBuilder: (context, layout) => Stack(
         children: [
-          ScannerOverlay(layout, borderColor: Colors.amber),
+          ScannerOverlay(layout),
           Align(
             alignment: Alignment.bottomCenter,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TorchButton(controller),
-                SwitchCameraButton(controller),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TorchButton(controller),
+                  const SizedBox(width: 16),
+                  SwitchCameraButton(controller),
+                ],
+              ),
             ),
           ),
         ],

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
@@ -9,27 +11,44 @@ import 'package:flutter/painting.dart';
 /// ```dart
 /// const ScanWindow.centered()                          // 70% wide square
 /// const ScanWindow.centered(width: 0.9, aspectRatio: 3) // wide, for 1D codes
+/// const ScanWindow.centered(alignment: Alignment(0, -0.5)) // higher up
 /// const ScanWindow.full()
 /// ScanWindow.fromRect(const Rect.fromLTWH(0.1, 0.2, 0.8, 0.3))
 /// ```
 @immutable
 final class ScanWindow {
   /// The whole visible preview.
-  const ScanWindow.full() : this._(const Rect.fromLTRB(0, 0, 1, 1), 0, 0);
+  const ScanWindow.full()
+    : this._(const Rect.fromLTRB(0, 0, 1, 1), 0, 0, Alignment.center);
 
   /// A window in the centre: [width] as a fraction of the preview width,
-  /// height from [aspectRatio] (width / height), shrunk to fit if needed.
-  const ScanWindow.centered({double width = 0.7, double aspectRatio = 1})
-    : this._(null, width, aspectRatio);
+  /// height from [aspectRatio] (width / height). On a preview too low for
+  /// that, such as a phone in landscape, the window is shrunk to take the
+  /// same fraction of the height.
+  ///
+  /// [alignment] moves it from the centre, e.g. `Alignment(0, -0.5)`
+  /// halfway to the top, to leave room for a result sheet below.
+  const ScanWindow.centered({
+    double width = 0.7,
+    double aspectRatio = 1,
+    Alignment alignment = Alignment.center,
+  }) : this._(null, width, aspectRatio, alignment);
 
   /// A window given as fractions of the preview (0–1 on both axes).
-  const ScanWindow.fromRect(Rect fractions) : this._(fractions, 0, 0);
+  const ScanWindow.fromRect(Rect fractions)
+    : this._(fractions, 0, 0, Alignment.center);
 
-  const ScanWindow._(this._rect, this._width, this._aspectRatio);
+  const ScanWindow._(
+    this._rect,
+    this._width,
+    this._aspectRatio,
+    this._alignment,
+  );
 
   final Rect? _rect;
   final double _width;
   final double _aspectRatio;
+  final Alignment _alignment;
 
   /// The window in the coordinates of a preview of [viewSize].
   Rect resolve(Size viewSize) {
@@ -44,15 +63,12 @@ final class ScanWindow {
     }
     double w = viewSize.width * _width;
     double h = w / _aspectRatio;
-    if (h > viewSize.height) {
-      h = viewSize.height;
+    final double maxHeight = viewSize.height * math.min(_width, 1);
+    if (h > maxHeight) {
+      h = maxHeight;
       w = h * _aspectRatio;
     }
-    return Rect.fromCenter(
-      center: viewSize.center(Offset.zero),
-      width: w,
-      height: h,
-    );
+    return _alignment.inscribe(Size(w, h), Offset.zero & viewSize);
   }
 
   @override
@@ -60,8 +76,9 @@ final class ScanWindow {
       other is ScanWindow &&
       other._rect == _rect &&
       other._width == _width &&
-      other._aspectRatio == _aspectRatio;
+      other._aspectRatio == _aspectRatio &&
+      other._alignment == _alignment;
 
   @override
-  int get hashCode => Object.hash(_rect, _width, _aspectRatio);
+  int get hashCode => Object.hash(_rect, _width, _aspectRatio, _alignment);
 }
