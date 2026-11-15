@@ -3,6 +3,7 @@
 // result sheets for every kind of content.
 import 'dart:convert';
 
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -195,6 +196,17 @@ void main() {
       expect(arc.top, closeTo(0, 1e-6));
       expect(arc.bottom, closeTo(5, 1e-6));
       expect(() => svgPath('M0 0T1 1'), throwsFormatException);
+    });
+
+    test('minified arcs and malformed data (found in review)', () {
+      // SVGO packs the arc flags: "0110 0" is flags 0 and 1, then 10 0.
+      final Rect arc = svgPath('M0 5a5 5 0 0110 0').getBounds();
+      expect(arc.right, closeTo(10, 1e-6));
+      expect(arc.top, closeTo(0, 1e-6));
+      // Numbers after Z used to loop forever.
+      expect(() => svgPath('M0 0h4v4z 1 1'), throwsFormatException);
+      expect(() => svgPath('5 5'), throwsFormatException);
+      expect(() => svgPath('M0 0a5 5 0 2 1 10 0'), throwsFormatException);
     });
   });
 
@@ -650,6 +662,248 @@ void main() {
       expect(returned, isTrue);
       expect(result!.text, 'hello');
       expect(camera.isOpen, isFalse);
+    });
+  });
+
+  group('found in review', () {
+    late FakeCamera camera;
+    final DateTime now = DateTime(2026);
+
+    setUp(() {
+      camera = FakeCamera(transform: const FrameTransform(_phone));
+      ScannerControllerDebug.cameraFactory = () => camera;
+      ScannerControllerDebug.clock = () => now;
+    });
+
+    tearDown(() {
+      ScannerControllerDebug.cameraFactory = null;
+      ScannerControllerDebug.clock = null;
+    });
+
+    Future<void> phone(WidgetTester tester, {Size size = _phone}) async {
+      tester.view
+        ..physicalSize = size
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+    }
+
+    Future<void> push(WidgetTester tester, List<Barcode> barcodes) async {
+      camera.push(barcodes);
+      await tester.pump();
+      await tester.pump();
+    }
+
+    testWidgets('a template built anew on every rebuild keeps distinct mode', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      int detections = 0;
+      await tester.pumpWidget(
+        _host(
+          StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) =>
+                BarcodeScanner(
+                  // Not const: a new template on every build.
+                  template: ScannerTemplate.retail(onDone: (_) {}),
+                  onDetect: (_) => setState(() => detections++),
+                ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final Barcode code = _barcode('5901234123457', id: ']E0');
+      for (int i = 0; i < 5; i++) {
+        await push(tester, <Barcode>[code]);
+      }
+      expect(detections, 1);
+      expect(find.text('1 item'), findsOneWidget);
+    });
+
+    testWidgets('closing scanBarcode during the lock keeps the page below', (
+      WidgetTester tester,
+    ) async {
+      Barcode? result;
+      bool returned = false;
+      await tester.pumpWidget(
+        WidgetsApp(
+          color: const Color(0xFF000000),
+          pageRouteBuilder:
+              <T>(RouteSettings settings, WidgetBuilder builder) =>
+                  PageRouteBuilder<T>(
+                    settings: settings,
+                    pageBuilder:
+                        (
+                          BuildContext context,
+                          Animation<double> _,
+                          Animation<double> _,
+                        ) => builder(context),
+                  ),
+          home: Builder(
+            builder: (BuildContext context) => GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                PageRouteBuilder<void>(
+                  pageBuilder:
+                      (
+                        BuildContext context,
+                        Animation<double> _,
+                        Animation<double> _,
+                      ) => GestureDetector(
+                        onTap: () async {
+                          result = await scanBarcode(context);
+                          returned = true;
+                        },
+                        child: const Text('middle'),
+                      ),
+                ),
+              ),
+              child: const Text('home'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('home'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('middle'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await push(tester, <Barcode>[_barcode('hello')]);
+      // The user closes the scanner before the lock delay is over.
+      await tester.tap(find.byType(ScannerCloseButton));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(returned, isTrue);
+      expect(result, isNull);
+      expect(find.text('middle'), findsOneWidget);
+    });
+
+    testWidgets('a tall sheet scrolls below the top bar', (
+      WidgetTester tester,
+    ) async {
+      const Size small = Size(320, 568);
+      await phone(tester, size: small);
+      int closed = 0;
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(
+            size: small,
+            padding: EdgeInsets.only(top: 20),
+            viewPadding: EdgeInsets.only(top: 20),
+            textScaler: TextScaler.linear(2),
+          ),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: BarcodeScanner(
+              template: ScannerTemplate.content(onClose: () => closed++),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await push(tester, <Barcode>[
+        _barcode('WIFI:S:Lumen Guest;T:WPA;P:espresso-2026;;'),
+      ]);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 400));
+      final Rect sheet = tester.getRect(
+        find.ancestor(
+          of: find.byType(BarcodeResultSheet),
+          matching: find.byType(SingleChildScrollView),
+        ),
+      );
+      expect(sheet.top, greaterThanOrEqualTo(20 + 72 - 0.5));
+      expect(sheet.bottom, lessThanOrEqualTo(small.height));
+      // The close button stays reachable.
+      await tester.tap(find.byType(ScannerCloseButton));
+      expect(closed, 1);
+      // And the rest of the sheet can be scrolled to.
+      final ScrollableState scroll = tester.state<ScrollableState>(
+        find.descendant(
+          of: find.byType(SingleChildScrollView),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      expect(scroll.position.maxScrollExtent, greaterThan(0));
+    });
+
+    testWidgets('zoom presets can be tapped by screen readers', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      final SemanticsHandle semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.minimal())),
+      );
+      await tester.pump();
+      final SemanticsNode node = tester.getSemantics(
+        find.bySemanticsLabel('2×'),
+      );
+      expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+      tester.semantics.tap(find.semantics.byLabel('2×'));
+      await tester.pump();
+      expect(camera.zoom, 2);
+      semantics.dispose();
+    });
+
+    testWidgets('taps on a sheet do not focus the camera', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.minimal())),
+      );
+      await tester.pump();
+      await push(tester, <Barcode>[_barcode('Hello')]);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.text('TEXT'));
+      await tester.pump();
+      expect(camera.focus, isNull);
+      // Outside the sheet the camera still focuses.
+      await tester.tapAt(const Offset(195, 200));
+      await tester.pump();
+      expect(camera.focus, isNotNull);
+    });
+
+    test('pause while the camera starts: it starts paused', () async {
+      final ScannerController controller = ScannerController();
+      addTearDown(controller.dispose);
+      final Future<void> starting = controller.start();
+      expect(controller.value.status, ScannerStatus.starting);
+      await controller.pause();
+      await starting;
+      expect(controller.value.status, ScannerStatus.paused);
+      await controller.resume();
+      expect(controller.value.status, ScannerStatus.running);
+      await controller.stop();
+    });
+
+    test('setting the same settings keeps distinct mode memory', () {
+      final ScannerController controller = ScannerController(
+        formats: <BarcodeFormat>{BarcodeFormat.qrCode},
+      );
+      addTearDown(controller.dispose);
+      // Equal values are no change (a set with the same formats included).
+      controller
+        ..formats = <BarcodeFormat>{BarcodeFormat.qrCode}
+        ..scanWindow = const ScanWindow.centered()
+        ..detection = DetectionMode.distinct
+        ..maxBarcodes = 1;
+      expect(controller.formats, <BarcodeFormat>{BarcodeFormat.qrCode});
+      expect(() => controller.maxBarcodes = 0, throwsRangeError);
+    });
+
+    test('equal strings are equal', () {
+      final String close = <String>['Schließen'].join();
+      expect(ScannerStrings(close: close), ScannerStrings(close: close));
+      expect(
+        ScannerStrings(close: close).hashCode,
+        ScannerStrings(close: close).hashCode,
+      );
+      expect(
+        const ScannerStrings(close: 'a'),
+        isNot(const ScannerStrings(close: 'b')),
+      );
     });
   });
 

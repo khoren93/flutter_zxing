@@ -465,7 +465,7 @@ class _TemplateOverlayState extends State<TemplateOverlay> {
   }
 
   void _photoRead(BarcodeCapture? capture) {
-    if (capture == null) {
+    if (capture == null && mounted) {
       _hideNotice?.cancel();
       setState(() => _notice = ScannerStrings.of(context).noCodeInPhoto);
       _hideNotice = Timer(const Duration(seconds: 3), () {
@@ -614,7 +614,9 @@ class _TemplateOverlayState extends State<TemplateOverlay> {
         Positioned(
           left: landscape ? null : safe.left + 12,
           right: safe.right + 12,
-          top: landscape ? safe.top + 12 : null,
+          // Below the top bar: a tall sheet scrolls instead of covering
+          // the close and torch buttons.
+          top: safe.top + 72,
           bottom: math.max(safe.bottom, 12),
           width: landscape ? math.min(420, size.width * 0.46) : null,
           child: Align(

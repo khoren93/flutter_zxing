@@ -264,33 +264,61 @@ class _IconPainter extends CustomPainter {
       old.icon != icon || old.color != color;
 }
 
-final RegExp _token = RegExp(
-  r'[A-DF-Za-df-z]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?',
-);
+final RegExp _number = RegExp(r'[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?');
 
 /// Parses SVG path data: `M`, `L`, `H`, `V`, `A`, `C`, `Q`, `Z` and their
-/// relative forms.
+/// relative forms, also minified (`a5 5 0 0110 0`: arc flags are single
+/// digits). Throws [FormatException] on anything else.
 @visibleForTesting
 Path svgPath(String data) {
   final Path path = Path();
-  final List<String> tokens = <String>[
-    for (final Match m in _token.allMatches(data)) m[0]!,
-  ];
   int i = 0;
-  String command = 'M';
+  void skip() {
+    while (i < data.length && ' ,\t\n\r'.contains(data[i])) {
+      i++;
+    }
+  }
+
+  Never fail(String what) => throw FormatException(what, data, i);
+  double next() {
+    skip();
+    final Match? m = _number.matchAsPrefix(data, i);
+    if (m == null) {
+      fail('Expected a number');
+    }
+    i = m.end;
+    return double.parse(m[0]!);
+  }
+
+  bool flag() {
+    skip();
+    if (i < data.length && (data[i] == '0' || data[i] == '1')) {
+      return data[i++] == '1';
+    }
+    fail('Expected an arc flag');
+  }
+
+  String? command;
   Offset current = Offset.zero;
   Offset start = Offset.zero;
-  double next() => double.parse(tokens[i++]);
-  bool isCommand(String t) => RegExp('^[A-Za-z]').hasMatch(t);
-
-  while (i < tokens.length) {
-    if (isCommand(tokens[i])) {
-      command = tokens[i++];
+  while (true) {
+    skip();
+    if (i >= data.length) {
+      break;
     }
-    final bool relative = command.toLowerCase() == command;
+    final String c = data[i];
+    if (RegExp('[A-Za-z]').hasMatch(c)) {
+      command = c;
+      i++;
+    } else if (command == null || command.toUpperCase() == 'Z') {
+      // Numbers need a command; Z takes none.
+      fail('Expected a command');
+    }
+    final String cmd = command;
+    final bool relative = cmd.toLowerCase() == cmd;
     Offset point(double x, double y) =>
         relative ? current + Offset(x, y) : Offset(x, y);
-    switch (command.toUpperCase()) {
+    switch (cmd.toUpperCase()) {
       case 'M':
         current = point(next(), next());
         start = current;
@@ -312,8 +340,8 @@ Path svgPath(String data) {
         final double rx = next();
         final double ry = next();
         final double rotation = next();
-        final bool largeArc = next() != 0;
-        final bool clockwise = next() != 0;
+        final bool largeArc = flag();
+        final bool clockwise = flag();
         current = point(next(), next());
         path.arcToPoint(
           current,
@@ -328,14 +356,15 @@ Path svgPath(String data) {
         current = point(next(), next());
         path.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, current.dx, current.dy);
       case 'Q':
-        final Offset c = point(next(), next());
+        final Offset q = point(next(), next());
         current = point(next(), next());
-        path.quadraticBezierTo(c.dx, c.dy, current.dx, current.dy);
+        path.quadraticBezierTo(q.dx, q.dy, current.dx, current.dy);
       case 'Z':
         path.close();
         current = start;
       default:
-        throw FormatException('Unsupported path command', data);
+        i--;
+        fail('Unsupported path command');
     }
   }
   return path;

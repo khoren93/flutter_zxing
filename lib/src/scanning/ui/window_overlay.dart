@@ -86,8 +86,13 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _retarget(initial: true);
+    // The first time places the brackets; later (a new theme, reduce
+    // motion turned on) only updates the animations.
+    _retarget(initial: !_placed);
+    _placed = true;
   }
+
+  bool _placed = false;
 
   @override
   void didUpdateWidget(ScanWindowOverlay oldWidget) {

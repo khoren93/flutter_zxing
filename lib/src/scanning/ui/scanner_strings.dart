@@ -192,6 +192,88 @@ final class ScannerStrings {
     TextContent() => text,
   };
 
+  @override
+  bool operator ==(Object other) =>
+      other is ScannerStrings &&
+      other.close == close &&
+      other.torchOn == torchOn &&
+      other.torchOff == torchOff &&
+      other.switchCamera == switchCamera &&
+      other.pickImage == pickImage &&
+      other.zoom == zoom &&
+      other.starting == starting &&
+      other.permissionTitle == permissionTitle &&
+      other.permissionMessage == permissionMessage &&
+      other.unavailableTitle == unavailableTitle &&
+      other.unavailableMessage == unavailableMessage &&
+      other.photoFallback == photoFallback &&
+      other.openSettings == openSettings &&
+      other.tryAgain == tryAgain &&
+      other.choosePhoto == choosePhoto &&
+      other.noCodeInPhoto == noCodeInPhoto &&
+      other.copy == copy &&
+      other.copied == copied &&
+      other.scanAgain == scanAgain &&
+      other.done == done &&
+      other.scanned == scanned &&
+      other.emptyList == emptyList &&
+      other.itemCount == itemCount &&
+      other.byteCount == byteCount &&
+      other.link == link &&
+      other.wifi == wifi &&
+      other.wifiOpen == wifiOpen &&
+      other.wifiPassword == wifiPassword &&
+      other.contact == contact &&
+      other.event == event &&
+      other.email == email &&
+      other.phone == phone &&
+      other.sms == sms &&
+      other.location == location &&
+      other.gs1 == gs1 &&
+      other.binary == binary &&
+      other.text == text;
+
+  @override
+  int get hashCode => Object.hashAll(<Object>[
+    close,
+    torchOn,
+    torchOff,
+    switchCamera,
+    pickImage,
+    zoom,
+    starting,
+    permissionTitle,
+    permissionMessage,
+    unavailableTitle,
+    unavailableMessage,
+    photoFallback,
+    openSettings,
+    tryAgain,
+    choosePhoto,
+    noCodeInPhoto,
+    copy,
+    copied,
+    scanAgain,
+    done,
+    scanned,
+    emptyList,
+    itemCount,
+    byteCount,
+    link,
+    wifi,
+    wifiOpen,
+    wifiPassword,
+    contact,
+    event,
+    email,
+    phone,
+    sms,
+    location,
+    gs1,
+    binary,
+    text,
+  ]);
+
   static String _itemCount(int count) => count == 1 ? '1 item' : '$count items';
 
   static String _byteCount(int count) => count == 1 ? '1 byte' : '$count bytes';

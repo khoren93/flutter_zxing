@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../errors.dart';
 import '../scanner_controller.dart';
 import 'glass.dart';
+import 'pressable.dart';
 import 'scanner_icons.dart';
 import 'scanner_strings.dart';
 import 'scanner_theme.dart';
@@ -182,40 +183,43 @@ class ZoomButtons extends StatelessWidget {
               for (int i = 0; i < available.length; i++) ...<Widget>[
                 if (i > 0) const SizedBox(width: 4),
                 Semantics(
+                  container: true,
                   button: true,
                   selected: i == selected,
-                  excludeSemantics: true,
                   label: _format(available[i]),
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => unawaited(controller.setZoom(available[i])),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      curve: Curves.easeOut,
-                      constraints: const BoxConstraints(
-                        minWidth: 44,
-                        minHeight: 36,
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      decoration: ShapeDecoration(
-                        shape: theme.pillBorder,
-                        color: i == selected
-                            ? theme.inkColor
-                            : const Color(0x00000000),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        i == selected &&
-                                (state.zoom - available[i]).abs() > 0.05
-                            ? _format(state.zoom)
-                            : _format(available[i]),
-                        style: theme.labelStyle.copyWith(
-                          fontSize: 13,
-                          height: 18 / 13,
-                          color: i == selected ? pressedText : theme.inkColor,
-                          fontFeatures: const <FontFeature>[
-                            FontFeature.tabularFigures(),
-                          ],
+                  child: Pressable(
+                    onPressed: () =>
+                        unawaited(controller.setZoom(available[i])),
+                    shape: theme.pillBorder,
+                    child: ExcludeSemantics(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOut,
+                        constraints: const BoxConstraints(
+                          minWidth: 44,
+                          minHeight: 36,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: ShapeDecoration(
+                          shape: theme.pillBorder,
+                          color: i == selected
+                              ? theme.inkColor
+                              : const Color(0x00000000),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          i == selected &&
+                                  (state.zoom - available[i]).abs() > 0.05
+                              ? _format(state.zoom)
+                              : _format(available[i]),
+                          style: theme.labelStyle.copyWith(
+                            fontSize: 13,
+                            height: 18 / 13,
+                            color: i == selected ? pressedText : theme.inkColor,
+                            fontFeatures: const <FontFeature>[
+                              FontFeature.tabularFigures(),
+                            ],
+                          ),
                         ),
                       ),
                     ),

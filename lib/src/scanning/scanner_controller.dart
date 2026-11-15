@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/widgets.dart';
 
 import '../barcode/barcode.dart';
@@ -103,6 +104,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
   /// Can be changed while scanning.
   Set<BarcodeFormat>? get formats => _formats;
   set formats(Set<BarcodeFormat>? value) {
+    if (setEquals(value, _formats)) {
+      return;
+    }
     _formats = value;
     _onConfigChanged();
   }
@@ -112,6 +116,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
   /// Search strategies per frame. Can be changed while scanning.
   ReaderOptions get options => _options;
   set options(ReaderOptions value) {
+    if (value == _options) {
+      return;
+    }
     _options = value;
     _onConfigChanged();
   }
@@ -121,6 +128,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
   /// When a barcode is reported. Can be changed while scanning.
   DetectionMode get detection => _detection;
   set detection(DetectionMode value) {
+    if (value == _detection) {
+      return;
+    }
     _detection = value;
     _onConfigChanged();
   }
@@ -130,6 +140,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
   /// The part of the preview that is decoded. Can be changed while scanning.
   ScanWindow get scanWindow => _scanWindow;
   set scanWindow(ScanWindow value) {
+    if (value == _scanWindow) {
+      return;
+    }
     _scanWindow = value;
     _onConfigChanged();
   }
@@ -145,7 +158,10 @@ class ScannerController extends ValueNotifier<ScannerState> {
   /// inventory). Throws [RangeError] below 1.
   int? get maxBarcodes => _maxBarcodes;
   set maxBarcodes(int? value) {
-    _maxBarcodes = _checkMax(value);
+    if (_checkMax(value) == _maxBarcodes) {
+      return;
+    }
+    _maxBarcodes = value;
     _onConfigChanged();
   }
 
@@ -259,9 +275,11 @@ class ScannerController extends ValueNotifier<ScannerState> {
       return;
     }
     source.previewTransform.addListener(_onPreviewChanged);
+    final bool paused = _pauseWhenStarted;
+    _pauseWhenStarted = false;
     _set(
       ScannerState(
-        status: ScannerStatus.running,
+        status: paused ? ScannerStatus.paused : ScannerStatus.running,
         torch: _capabilities.hasTorch ? TorchState.off : TorchState.unavailable,
         maxZoom: math.max(1, _capabilities.maxZoom),
         facing: _facing,
@@ -274,6 +292,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
   /// Stops decoding and releases the camera.
   Future<void> stop() async {
     _session++;
+    _pauseWhenStarted = false;
     _wakeUp();
     _clearResults();
     final CameraSource? source = _source;
@@ -283,15 +302,22 @@ class ScannerController extends ValueNotifier<ScannerState> {
   }
 
   /// Stops decoding but keeps the camera and the preview running, e.g. while
-  /// a result sheet is shown.
+  /// a result sheet is shown. While the camera is starting, it starts
+  /// paused.
   Future<void> pause() async {
     if (value.status == ScannerStatus.running) {
       _set(value.copyWith(status: ScannerStatus.paused));
+    } else if (value.status == ScannerStatus.starting) {
+      _pauseWhenStarted = true;
     }
   }
 
+  /// Whether [pause] was called while the camera was starting.
+  bool _pauseWhenStarted = false;
+
   /// Resumes decoding after [pause] (or after a [DetectionMode.once] result).
   Future<void> resume() async {
+    _pauseWhenStarted = false;
     if (value.status == ScannerStatus.paused) {
       _seen.clear();
       _set(value.copyWith(status: ScannerStatus.running));

@@ -265,53 +265,55 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
 
     final bool focus = ready && widget.tapToFocus;
     final bool zoom = ready && widget.pinchToZoom;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapUp: focus
-          ? (TapUpDetails details) {
-              final Offset p = fit!.toFrame(details.localPosition);
-              unawaited(
-                controller.setFocusPoint(
-                  Offset(
-                    p.dx / preview.displaySize.width,
-                    p.dy / preview.displaySize.height,
-                  ),
-                ),
-              );
-            }
-          : null,
-      onScaleStart: zoom
-          ? (ScaleStartDetails _) => _zoomAtPinchStart = state.zoom
-          : null,
-      onScaleUpdate: zoom
-          ? (ScaleUpdateDetails details) {
-              if (details.pointerCount > 1) {
-                unawaited(
-                  controller.setZoom(_zoomAtPinchStart * details.scale),
-                );
-              }
-            }
-          : null,
-      child: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          KeyedSubtree(
-            key: ValueKey<String>(
-              ready
-                  ? 'preview'
-                  : failed
-                  ? 'error'
-                  : 'placeholder',
-            ),
+    // Gestures go to the preview only: the overlay's buttons, pills and
+    // sheets take their own taps, and the camera gets the rest.
+    final Widget camera = !focus && !zoom
+        ? base
+        : GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapUp: focus
+                ? (TapUpDetails details) {
+                    final Offset p = fit!.toFrame(details.localPosition);
+                    unawaited(
+                      controller.setFocusPoint(
+                        Offset(
+                          p.dx / preview.displaySize.width,
+                          p.dy / preview.displaySize.height,
+                        ),
+                      ),
+                    );
+                  }
+                : null,
+            onScaleStart: zoom
+                ? (ScaleStartDetails _) => _zoomAtPinchStart = state.zoom
+                : null,
+            onScaleUpdate: zoom
+                ? (ScaleUpdateDetails details) {
+                    if (details.pointerCount > 1) {
+                      unawaited(
+                        controller.setZoom(_zoomAtPinchStart * details.scale),
+                      );
+                    }
+                  }
+                : null,
             child: base,
+          );
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        KeyedSubtree(
+          key: ValueKey<String>(
+            ready
+                ? 'preview'
+                : failed
+                ? 'error'
+                : 'placeholder',
           ),
-          if (overlay != null)
-            KeyedSubtree(
-              key: const ValueKey<String>('overlay'),
-              child: overlay,
-            ),
-        ],
-      ),
+          child: camera,
+        ),
+        if (overlay != null)
+          KeyedSubtree(key: const ValueKey<String>('overlay'), child: overlay),
+      ],
     );
   }
 
@@ -509,7 +511,9 @@ class _ScanPageState extends State<_ScanPage> {
     if (capture.source == CaptureSource.camera) {
       await Future<void>.delayed(const Duration(milliseconds: 350));
     }
-    if (mounted) {
+    // Not when the page is already closing (the user closed it during the
+    // delay): popping then would close the page below it.
+    if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
       Navigator.of(context).pop(capture.barcode);
     }
   }

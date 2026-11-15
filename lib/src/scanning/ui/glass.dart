@@ -2,6 +2,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/widgets.dart';
 
+import 'pressable.dart';
 import 'scanner_icons.dart';
 import 'scanner_theme.dart';
 
@@ -172,7 +173,7 @@ class ScannerButton extends StatelessWidget {
       enabled: onPressed != null,
       toggled: isToggle ? selected : null,
       label: label,
-      child: _Pressable(
+      child: Pressable(
         onPressed: onPressed,
         shape: theme.buttonBorder,
         child: ScannerGlass(
@@ -334,7 +335,7 @@ class ScannerActionButton extends StatelessWidget {
       button: true,
       enabled: onPressed != null,
       label: label,
-      child: _Pressable(
+      child: Pressable(
         onPressed: onPressed,
         shape: shape,
         child: Opacity(
@@ -390,88 +391,6 @@ class ScannerChip extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         child: Text(text, style: theme.chipStyle, maxLines: 1),
-      ),
-    );
-  }
-}
-
-/// A tap target that dims while pressed and shows a focus ring for the
-/// keyboard; reacts to Enter and Space.
-class _Pressable extends StatefulWidget {
-  const _Pressable({
-    required this.onPressed,
-    required this.shape,
-    required this.child,
-  });
-
-  final VoidCallback? onPressed;
-  final ShapeBorder shape;
-  final Widget child;
-
-  @override
-  State<_Pressable> createState() => _PressableState();
-}
-
-class _PressableState extends State<_Pressable> {
-  bool _pressed = false;
-  bool _focused = false;
-
-  void _press(bool value) {
-    if (_pressed != value) {
-      setState(() => _pressed = value);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final VoidCallback? onPressed = widget.onPressed;
-    final ScannerTheme theme = ScannerTheme.of(context);
-    final ShapeBorder? ring = _focused
-        ? switch (widget.shape) {
-            final OutlinedBorder outlined => outlined.copyWith(
-              side: BorderSide(
-                color: theme.focusColor,
-                width: 2,
-                strokeAlign: BorderSide.strokeAlignOutside,
-              ),
-            ),
-            _ => null,
-          }
-        : null;
-    return FocusableActionDetector(
-      enabled: onPressed != null,
-      mouseCursor: onPressed != null
-          ? SystemMouseCursors.click
-          : MouseCursor.defer,
-      onShowFocusHighlight: (bool value) => setState(() => _focused = value),
-      actions: <Type, Action<Intent>>{
-        ActivateIntent: CallbackAction<ActivateIntent>(
-          onInvoke: (ActivateIntent _) {
-            onPressed?.call();
-            return null;
-          },
-        ),
-      },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: onPressed == null
-            ? null
-            : (TapDownDetails _) => _press(true),
-        onTapUp: onPressed == null ? null : (TapUpDetails _) => _press(false),
-        onTapCancel: onPressed == null ? null : () => _press(false),
-        onTap: onPressed,
-        child: AnimatedScale(
-          scale: _pressed ? 0.94 : 1,
-          duration: const Duration(milliseconds: 120),
-          curve: Curves.easeOut,
-          child: ring == null
-              ? widget.child
-              : DecoratedBox(
-                  position: DecorationPosition.foreground,
-                  decoration: ShapeDecoration(shape: ring),
-                  child: widget.child,
-                ),
-        ),
       ),
     );
   }
