@@ -1,5 +1,6 @@
-// This example still shows the deprecated 3.x API, which keeps working
-// until 5.0.
+// The 3.x example: the deprecated API (ReaderWidget, WriterWidget), which
+// keeps working until 5.0. Run it with
+//   flutter run -t lib/legacy_3x.dart
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/foundation.dart';
 // material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
