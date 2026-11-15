@@ -25,6 +25,12 @@ A new engine and a new API, with the 3.x API kept working on top of it.
   `BinaryContent` and `TextContent`. Parsing never throws.
 * `Barcode.merge` joins the parts of a structured append sequence (one message
   split across several QR, Data Matrix, Aztec, PDF417 or MaxiCode symbols).
+* **`BarcodeView`** draws a barcode as vectors, sharp at any size, with
+  `BarcodeStyle`: colors or a gradient, rounded or dot modules, rounded or
+  round QR finder patterns, and a logo in the middle of a QR code (error
+  correction goes up to H by itself). Every style reads back with the
+  package's own reader. Symbols are encoded off the UI thread and kept, so a
+  barcode shown again paints in its first frame.
 * **The 3.x API is deprecated** (`zx`, `Code`, `DecodeParams`, `ReaderWidget`,
   `WriterWidget`, ...): each declaration names its replacement. It keeps
   working until 5.0, on the new engine, and stays unavailable on the web.
