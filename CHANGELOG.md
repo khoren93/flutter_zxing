@@ -52,7 +52,8 @@ A new engine and a new API, with the 3.x API kept working on top of it.
   correction goes up to H by itself). Every style reads back with the
   package's own reader. Symbols are encoded off the UI thread and kept, so a
   barcode shown again paints in its first frame. `toPng` and `toSvg` export
-  a code with the same style (the SVG embeds the logo).
+  a code with the same style (the SVG embeds the logo). Ready-made styles:
+  `BarcodeStyle.soft`, `dots`, `lagoon`, `ink`, `night` (and `presets` by name).
 * **The 3.x API is deprecated** (`zx`, `Code`, `DecodeParams`, `ReaderWidget`,
   `WriterWidget`, ...): each declaration names its replacement. It keeps
   working until 5.0, on the new engine, and stays unavailable on the web.

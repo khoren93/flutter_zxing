@@ -16,6 +16,62 @@ final class BarcodeStyle {
     this.logo,
   });
 
+  /// Black squares on white: the default.
+  static const BarcodeStyle classic = BarcodeStyle();
+
+  /// Rounded modules that flow into each other, rounded eyes.
+  static const BarcodeStyle soft = BarcodeStyle(
+    moduleShape: ModuleShape.rounded,
+    finderShape: FinderShape.rounded,
+  );
+
+  /// Navy dots with round eyes.
+  static const BarcodeStyle dots = BarcodeStyle(
+    color: Color(0xFF0B3D91),
+    moduleShape: ModuleShape.circle,
+    finderShape: FinderShape.circle,
+  );
+
+  /// Rounded, with a green to blue gradient.
+  static const BarcodeStyle lagoon = BarcodeStyle(
+    gradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: <Color>[Color(0xFF00735D), Color(0xFF1D4ED8)],
+    ),
+    moduleShape: ModuleShape.rounded,
+    finderShape: FinderShape.rounded,
+  );
+
+  /// Navy dots on cream paper, rounded eyes.
+  static const BarcodeStyle ink = BarcodeStyle(
+    color: Color(0xFF14213D),
+    backgroundColor: Color(0xFFF4EFE4),
+    moduleShape: ModuleShape.circle,
+    finderShape: FinderShape.rounded,
+  );
+
+  /// Mint on black. Light modules on a dark ground are read by this
+  /// package and most phone cameras, but not by every scanner.
+  static const BarcodeStyle night = BarcodeStyle(
+    color: Color(0xFF2EE6B5),
+    backgroundColor: Color(0xFF0E1218),
+    moduleShape: ModuleShape.rounded,
+    finderShape: FinderShape.rounded,
+  );
+
+  /// The ready-made styles by name, for a style picker:
+  /// [classic], [soft], [dots], [lagoon], [ink] and [night]. Add a [logo]
+  /// with [copyWith].
+  static const Map<String, BarcodeStyle> presets = <String, BarcodeStyle>{
+    'classic': classic,
+    'soft': soft,
+    'dots': dots,
+    'lagoon': lagoon,
+    'ink': ink,
+    'night': night,
+  };
+
   /// Color of the dark modules.
   final Color color;
 

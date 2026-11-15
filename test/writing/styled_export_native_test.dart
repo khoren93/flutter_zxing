@@ -59,6 +59,18 @@ void main() {
       }
     }
 
+    for (final MapEntry<String, BarcodeStyle> preset
+        in BarcodeStyle.presets.entries) {
+      test('preset ${preset.key}', () async {
+        final Uint8List png = await qr.toPng(
+          url,
+          moduleSize: 5,
+          style: preset.value,
+        );
+        expect((await const BarcodeReader().read(png))?.text, url);
+      });
+    }
+
     test('a gradient on a colored background', () async {
       final Uint8List png = await qr.toPng(
         url,

@@ -30,7 +30,7 @@ class BarcodeView extends StatefulWidget {
     this.format = BarcodeFormat.qrCode,
     this.errorCorrection,
     this.showText = false,
-    this.style = const BarcodeStyle(),
+    this.style = BarcodeStyle.classic,
     this.width,
     this.height,
     this.semanticLabel,
@@ -49,7 +49,7 @@ class BarcodeView extends StatefulWidget {
   BarcodeView.symbol(
     BarcodeSymbol this.symbol, {
     super.key,
-    this.style = const BarcodeStyle(),
+    this.style = BarcodeStyle.classic,
     this.width,
     this.height,
     this.semanticLabel,
@@ -67,7 +67,7 @@ class BarcodeView extends StatefulWidget {
     super.key,
     this.format = BarcodeFormat.qrCode,
     this.errorCorrection,
-    this.style = const BarcodeStyle(),
+    this.style = BarcodeStyle.classic,
     this.width,
     this.height,
     this.semanticLabel,

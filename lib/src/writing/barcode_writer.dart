@@ -148,7 +148,7 @@ final class BarcodeWriter {
   /// Throws [BarcodeWriteException] if [data] cannot be encoded.
   Future<String> toSvg(
     String data, {
-    BarcodeStyle style = const BarcodeStyle(),
+    BarcodeStyle style = BarcodeStyle.classic,
   }) async => (await _forStyle(style).encode(data)).toSvg(style: style);
 
   /// Encodes text and returns it as a PNG drawn with [style]. Same as
@@ -161,7 +161,7 @@ final class BarcodeWriter {
     String data, {
     int? size,
     int? moduleSize,
-    BarcodeStyle style = const BarcodeStyle(),
+    BarcodeStyle style = BarcodeStyle.classic,
   }) async => (await _forStyle(
     style,
   ).encode(data)).toPng(size: size, moduleSize: moduleSize, style: style);
@@ -369,7 +369,7 @@ final class BarcodeSymbol {
   ///   style: const BarcodeStyle(moduleShape: ModuleShape.rounded),
   /// ));
   /// ```
-  Future<String> toSvg({BarcodeStyle style = const BarcodeStyle()}) =>
+  Future<String> toSvg({BarcodeStyle style = BarcodeStyle.classic}) =>
       styledSvg(this, style);
 
   /// Renders the symbol as a PNG drawn with [style], like `BarcodeView`.
@@ -389,7 +389,7 @@ final class BarcodeSymbol {
   Future<Uint8List> toPng({
     int? size,
     int? moduleSize,
-    BarcodeStyle style = const BarcodeStyle(),
+    BarcodeStyle style = BarcodeStyle.classic,
   }) async {
     final SymbolLayout layout = SymbolLayout(styledSymbol(this, style));
     return styledPng(this, style, _moduleSize(layout, size, moduleSize));
