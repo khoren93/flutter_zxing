@@ -13,6 +13,18 @@ A new engine and a new API, with the 3.x API kept working on top of it.
   `readAllPixels`), `BarcodeWriter` (`encode`, `encodeBytes`, `toSvg`,
   `toImage`), `Barcode`, `BarcodeFormat`, `ReaderOptions`, `PixelBuffer`,
   `BarcodeSymbol`, `BarcodeImage`. Everything runs off the UI thread.
+* **Camera scanning:** `ScannerController` and `BarcodeScanner`, on Android,
+  iOS and the web. Only the scan window of each frame is copied and read;
+  front cameras, rotation and `BoxFit` previews are handled, and barcode
+  positions arrive in screen coordinates.
+* **What is in the barcode:** `barcode.content` parses the payload into a
+  `sealed` `BarcodeContent` for pattern matching: `UrlContent`, `WifiContent`,
+  `ContactContent` (vCard, MeCard), `EventContent`, `EmailContent`,
+  `PhoneContent`, `SmsContent`, `GeoContent`, `Gs1Content` (Application
+  Identifiers, split exactly like zxing-cpp's human readable text),
+  `BinaryContent` and `TextContent`. Parsing never throws.
+* `Barcode.merge` joins the parts of a structured append sequence (one message
+  split across several QR, Data Matrix, Aztec, PDF417 or MaxiCode symbols).
 * **The 3.x API is deprecated** (`zx`, `Code`, `DecodeParams`, `ReaderWidget`,
   `WriterWidget`, ...): each declaration names its replacement. It keeps
   working until 5.0, on the new engine, and stays unavailable on the web.

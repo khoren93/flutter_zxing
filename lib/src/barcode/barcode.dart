@@ -60,7 +60,11 @@ final class Barcode {
   ///   default: print(barcode.text);
   /// }
   /// ```
-  BarcodeContent get content => BarcodeContent.parse(this);
+  BarcodeContent get content => _contents[this] ??= BarcodeContent.parse(this);
+
+  static final Expando<BarcodeContent> _contents = Expando<BarcodeContent>(
+    'BarcodeContent',
+  );
 
   /// Clockwise rotation of the symbol in degrees.
   final int orientation;
@@ -91,6 +95,81 @@ final class Barcode {
 
   /// Whether the barcode was decoded successfully.
   bool get isValid => error == null;
+
+  /// Joins the parts of a structured append sequence (one message split
+  /// across several barcodes, see [sequence]) into one barcode that holds
+  /// the whole message. Returns `null` until every part is there.
+  ///
+  /// Pass the barcodes in any order: as one image read them, or collected
+  /// over several camera frames. Barcodes that are not part of a sequence,
+  /// that could not be decoded or that repeat a part are skipped; if [parts]
+  /// holds several sequences, the first complete one is returned.
+  ///
+  /// ```dart
+  /// final List<Barcode> found = await const BarcodeReader().readAll(bytes);
+  /// final Barcode? message = Barcode.merge(found);
+  /// ```
+  ///
+  /// The result has the text and bytes of all parts in sequence order, the
+  /// format and symbol details of the first part, no [sequence], and a
+  /// [position] that covers every part (meaningful when the parts come from
+  /// one image).
+  static Barcode? merge(Iterable<Barcode> parts) {
+    final Map<String, Map<int, Barcode>> sequences =
+        <String, Map<int, Barcode>>{};
+    for (final Barcode part in parts) {
+      final BarcodeSequence? s = part.sequence;
+      if (s == null || !part.isValid || s.index < 0) {
+        continue;
+      }
+      (sequences[s.id] ??= <int, Barcode>{}).putIfAbsent(s.index, () => part);
+    }
+    for (final Map<int, Barcode> found in sequences.values) {
+      // Some symbologies only know the size in the last part; 0 = unknown.
+      final int size = found.values
+          .map((Barcode b) => b.sequence!.size)
+          .reduce(math.max);
+      if (size <= 0 ||
+          found.length != size ||
+          !List<int>.generate(size, (int i) => i).every(found.containsKey)) {
+        continue;
+      }
+      final List<Barcode> ordered = List<Barcode>.generate(
+        size,
+        (int i) => found[i]!,
+      );
+      final Barcode first = ordered.first;
+      final Rect bounds = ordered
+          .map((Barcode b) => b.position.bounds)
+          .reduce((Rect a, Rect b) => a.expandToInclude(b));
+      final Set<BarcodeContentType> types = ordered
+          .map((Barcode b) => b.contentType)
+          .toSet();
+      return Barcode(
+        format: first.format,
+        text: ordered.map((Barcode b) => b.text).join(),
+        bytes: Uint8List.fromList(<int>[
+          for (final Barcode b in ordered) ...b.bytes,
+        ]),
+        position: BarcodePosition(
+          topLeft: bounds.topLeft,
+          topRight: bounds.topRight,
+          bottomRight: bounds.bottomRight,
+          bottomLeft: bounds.bottomLeft,
+        ),
+        contentType: types.length == 1
+            ? types.single
+            : BarcodeContentType.mixed,
+        orientation: first.orientation,
+        isMirrored: first.isMirrored,
+        isInverted: first.isInverted,
+        ecLevel: first.ecLevel,
+        version: first.version,
+        symbologyIdentifier: first.symbologyIdentifier,
+      );
+    }
+    return null;
+  }
 
   @override
   bool operator ==(Object other) =>

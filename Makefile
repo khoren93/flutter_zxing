@@ -34,7 +34,8 @@ help:
 	@echo "                       (not committed; needed by the corpus tests)"
 	@echo "  make wasm            Build the WebAssembly engine into assets/web/ (needed"
 	@echo "                       to run the example on the web; not committed)"
-	@echo "  make sources         Regenerate hook/sources.g.dart after a zxing-cpp update"
+	@echo "  make sources         Regenerate hook/sources.g.dart and the GS1 table after"
+	@echo "                       a zxing-cpp update"
 
 publish:
 	./scripts/publish.sh $(ARGS)
@@ -55,4 +56,4 @@ wasm:
 	./tool/build_wasm.sh
 
 sources:
-	cd tool && dart pub get && dart run gen_sources.dart
+	cd tool && dart pub get && dart run gen_sources.dart && dart run gen_gs1_table.dart
