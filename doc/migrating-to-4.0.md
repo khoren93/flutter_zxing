@@ -95,9 +95,31 @@ and `tryRotate`, so most 3.x scanner settings have no counterpart to set.
 | `allowPinchZoom` | `BarcodeScanner(pinchToZoom:)` |
 | `onScanFailure` | Not needed: frames without a code report nothing |
 | `onControllerCreated` | Pass your own `ScannerController` |
-| `scannerOverlay`, `showScannerOverlay` | `BarcodeScanner(overlayBuilder:)` |
-| `loading` | `BarcodeScanner(placeholderBuilder:)` |
+| `scannerOverlay`, `showScannerOverlay` | `BarcodeScanner(template:, theme:)`, or your own `overlayBuilder:` |
+| `showFlashlight`, `showToggleCamera`, `showGallery` | Buttons of the template (`torchButton`, `switchCameraButton`, `photoButton`) |
+| `loading` | `BarcodeScanner(placeholderBuilder:)`; default `ScannerPlaceholder` |
 | Camera errors in the log | `BarcodeScanner(errorBuilder:)` with a typed `ScannerException` |
+
+### A ready-made screen
+
+`ReaderWidget` drew its own buttons and overlay. In 4.0 a template draws a
+whole scanner screen, in your colors:
+
+```dart
+BarcodeScanner(
+  template: ScannerTemplate.minimal(),
+  theme: ScannerTheme(
+    accent: Color(0xFFFF6A1A),
+    buttonShape: ScannerButtonShape.roundedSquare,
+  ),
+)
+```
+
+`ScannerTemplate.minimal` has close, torch, photo, zoom and camera buttons
+and shows a sheet with the parsed content of the code found;
+`ScannerTemplate.retail` collects codes in a list with counts. `payment`,
+`ticket` and `content` are the other presets. `ScannerStrings` translates
+every text.
 
 ### Several codes at once
 

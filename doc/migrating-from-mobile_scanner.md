@@ -48,7 +48,7 @@ controller you create is yours to `dispose()`.
 | `scanWindow: Rect` (widget pixels) | `ScannerController(scanWindow: ScanWindow.centered())`, or `ScanWindow.fromRect(...)` in fractions of the preview, so it does not depend on the widget's size |
 | `overlayBuilder(context, constraints)` | `overlayBuilder(context, ScannerLayout layout)`: the scan window and each barcode's corners already in widget coordinates |
 | `errorBuilder(context, MobileScannerException)` | `errorBuilder(context, ScannerException)`: a sealed type, `CameraPermissionException`, `CameraNotFoundException` or `CameraFailureException` |
-| `controller.analyzeImage(path)` | `BarcodeReader().readAll(bytes)`: no controller or camera needed |
+| `controller.analyzeImage(path)` | `controller.readImage(bytes)`: reported to `onDetect` like a frame; or `BarcodeReader().readAll(bytes)` without a controller |
 
 The controller is a `ValueNotifier<ScannerState>`: listen to it for the
 status, torch, zoom and errors. `formats`, `options`, `scanWindow`,
@@ -57,6 +57,25 @@ status, torch, zoom and errors. `formats`, `options`, `scanWindow`,
 `ScannerController(maxBarcodes:)` limits how many codes are looked for in a
 frame: 1 by default, which is several times faster on frames with a code;
 `null` finds them all.
+
+## A whole scanner screen
+
+mobile_scanner leaves the screen around the camera to you. Here a template
+draws it: glass buttons (close, torch, photo, zoom, camera switch), a hint,
+brackets that lock onto the code and a sheet with what is in it.
+
+```dart
+BarcodeScanner(
+  template: ScannerTemplate.minimal(),
+  theme: ScannerTheme(accent: Color(0xFFFF6A1A)),
+)
+```
+
+The templates are `minimal`, `payment`, `retail` (a list of scanned codes
+with counts), `ticket` and `content`; `ScannerTheme` sets the accent, the
+shapes and light or dark glass, and `ScannerStrings` translates the texts.
+The pieces (`ScannerButton`, `TorchButton`, `ScannerSheet`,
+`BarcodeResultSheet`, ...) are public, for your own `overlayBuilder`.
 
 ## The barcode
 
