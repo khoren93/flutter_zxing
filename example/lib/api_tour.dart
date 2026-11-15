@@ -130,11 +130,25 @@ Future<void> generate() async {
   final Uint8List png = await image.toPng();
   print('${svg.length} ${png.length}');
 
+  // Export with a style: the same picture as BarcodeView shows.
+  const style = BarcodeStyle(
+    color: Color(0xFF1B4DFF),
+    moduleShape: ModuleShape.rounded,
+    finderShape: FinderShape.rounded,
+  );
+  final Uint8List styledPng = await writer.toPng(
+    'https://pub.dev',
+    size: 1024,
+    style: style,
+  );
+  final String styledSvg = await writer.toSvg('https://pub.dev', style: style);
+  print('${styledPng.length} ${styledSvg.length}');
+
   // Binary data: encode once, render as needed.
   final BarcodeSymbol symbol = await const BarcodeWriter(
     BarcodeFormat.dataMatrix,
   ).encodeBytes(Uint8List.fromList([0x00, 0x01, 0xFE, 0xFF]));
-  final String binarySvg = symbol.toSvg();
+  final String binarySvg = await symbol.toSvg();
   final BarcodeImage binaryImage = await symbol.toImage(moduleSize: 8);
   print(
     '${symbol.width}x${symbol.height} ${binarySvg.length} ${binaryImage.width}',

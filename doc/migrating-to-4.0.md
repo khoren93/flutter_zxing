@@ -43,7 +43,7 @@ engine compiled to WebAssembly.
 | `zx.readBarcodesImagePath(file, params)` | `BarcodeReader().readAll(...)` |
 | `zx.readBarcode(pixels, params)` | `BarcodeReader().readPixels(PixelBuffer(...))` |
 | `zx.processCameraImage(image, params)` | `ScannerController`, or `readPixels` |
-| `zx.encodeBarcode(contents: ..., params: ...)` | `BarcodeWriter(format).toImage(...)`, `.toSvg(...)` or `.encode(...)` |
+| `zx.encodeBarcode(contents: ..., params: ...)` | `BarcodeWriter(format).toPng(...)`, `.toSvg(...)`, `.toImage(...)` or `.encode(...)` |
 | `Code` / `Codes` | `Barcode` / `List<Barcode>` |
 | `Format.qrCode \| Format.ean13` (an `int` bit mask) | `{BarcodeFormat.qrCode, BarcodeFormat.ean13}` |
 | `DecodeParams` | `ReaderOptions` + `formats` |
@@ -274,10 +274,13 @@ final Encode result = zx.encodeBarcode(
 
 // 4.0
 const BarcodeWriter writer = BarcodeWriter(BarcodeFormat.qrCode);
-final BarcodeImage image = await writer.toImage('https://pub.dev', size: 300);
-final Uint8List png = await image.toPng();
+final Uint8List png = await writer.toPng('https://pub.dev', size: 300);
 final String svg = await writer.toSvg('https://pub.dev');
 ```
+
+Both take the `BarcodeStyle` of `BarcodeView` (`style:`), so an exported
+code looks like the one on screen. `writer.toImage(...)` gives the plain
+grayscale pixels instead.
 
 `writer.encode(text)` and `writer.encodeBytes(bytes)` return a
 `BarcodeSymbol`: the module matrix, its quiet zone and the human readable
@@ -287,7 +290,7 @@ in an EAN-13, throws `BarcodeWriteException`.
 | `EncodeParams` | 4.0 |
 |---|---|
 | `format` | `BarcodeWriter(format)` |
-| `width`, `height` | `toImage(size:)` or `toImage(moduleSize:)`; `BarcodeView(width:, height:)` |
+| `width`, `height` | `toPng(size:)` or `toPng(moduleSize:)`; `BarcodeView(width:, height:)` |
 | `margin` | `BarcodeWriter(quietZone:)`: the quiet zone the symbology requires, or none |
 | `eccLevel` | `BarcodeWriter(errorCorrection: ErrorCorrection.high)` |
 

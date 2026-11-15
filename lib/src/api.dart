@@ -20,5 +20,6 @@ export 'scanning/ui/scanner_theme.dart';
 export 'scanning/ui/states.dart';
 export 'scanning/ui/thumbnail.dart';
 export 'scanning/ui/window_overlay.dart' hide BracketsPainter, WindowScrim;
+export 'writing/barcode_style.dart';
 export 'writing/barcode_view.dart';
 export 'writing/barcode_writer.dart';

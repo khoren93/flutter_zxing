@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../barcode/barcode.dart';
 import '../../barcode/barcode_format.dart';
+import '../../writing/barcode_style.dart';
 import '../../writing/barcode_view.dart';
 import 'scanner_icons.dart';
 import 'scanner_theme.dart';

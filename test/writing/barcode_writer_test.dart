@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:flutter_zxing/src/writing/symbol_layout.dart';
@@ -124,8 +125,8 @@ void main() {
   });
 
   group('toSvg', () {
-    test('is one path of the dark modules on white', () {
-      final String svg = _symbol(<String>['#.#'], quietZone: 1).toSvg();
+    test('is one path of the dark modules on white', () async {
+      final String svg = await _symbol(<String>['#.#'], quietZone: 1).toSvg();
       expect(svg, startsWith('<svg xmlns="http://www.w3.org/2000/svg" '));
       expect(svg, contains('viewBox="0 0 5 3"'));
       expect(svg, contains('<path d="M1 1h1v1h-1zM3 1h1v1h-1z" fill="#000"/>'));
@@ -133,9 +134,115 @@ void main() {
       expect(svg, endsWith('</svg>'));
     });
 
-    test('adds the text, escaped', () {
-      final String svg = _symbol(<String>['#'], text: 'a<b&c').toSvg();
+    test('adds the text, escaped', () async {
+      final String svg = await _symbol(<String>['#'], text: 'a<b&c').toSvg();
       expect(svg, contains('>a&lt;b&amp;c</text>'));
+    });
+  });
+
+  group('toSvg with a style', () {
+    // A 21 × 21 QR-sized symbol: finder patterns in three corners.
+    final BarcodeSymbol qr = _symbol(<String>[
+      for (int y = 0; y < 21; y++)
+        String.fromCharCodes(<int>[
+          for (int x = 0; x < 21; x++)
+            if ((x + y).isEven) 0x23 else 0x2E,
+        ]),
+    ], quietZone: 1);
+
+    test('colors, with opacity, in the short form where possible', () async {
+      final String svg = await qr.toSvg(
+        style: const BarcodeStyle(color: Color(0x801B4DFF)),
+      );
+      expect(svg, contains('fill="#1b4dff" fill-opacity="0.502"'));
+      expect(svg, contains('<rect width="100%" height="100%" fill="#fff"/>'));
+      expect(svg, contains('shape-rendering="crispEdges"'));
+    });
+
+    test('a transparent background is left out', () async {
+      final String svg = await qr.toSvg(
+        style: const BarcodeStyle(backgroundColor: Color(0x00000000)),
+      );
+      expect(svg, isNot(contains('<rect')));
+    });
+
+    test('rounded and circle shapes are arcs, finders even-odd', () async {
+      final String rounded = await qr.toSvg(
+        style: const BarcodeStyle(
+          moduleShape: ModuleShape.rounded,
+          finderShape: FinderShape.circle,
+        ),
+      );
+      expect(rounded, isNot(contains('crispEdges')));
+      expect(rounded, contains('A0.5 0.5 0 0 1'));
+      expect(rounded, contains('fill-rule="evenodd"'));
+      // The three finders: three rings and three cores, six circles of
+      // radius 3.5, 2.5 and 1.5 each drawn as two arcs.
+      expect(RegExp('A3.5 3.5 ').allMatches(rounded).length, 6);
+      final String dots = await qr.toSvg(
+        style: const BarcodeStyle(moduleShape: ModuleShape.circle),
+      );
+      expect(dots, contains('A0.45 0.45 0 1 1'));
+    });
+
+    test('linear and radial gradients span the symbol', () async {
+      final String linear = await qr.toSvg(
+        style: const BarcodeStyle(
+          gradient: LinearGradient(
+            colors: <Color>[Color(0xFF0B3D91), Color(0xFF00735D)],
+            tileMode: TileMode.mirror,
+          ),
+        ),
+      );
+      expect(
+        linear,
+        contains(
+          <String>[
+            '<linearGradient id="ink" gradientUnits="userSpaceOnUse" ',
+            'x1="1" y1="11.5" x2="22" y2="11.5" spreadMethod="reflect">',
+            '<stop offset="0" stop-color="#0b3d91"/>',
+            '<stop offset="1" stop-color="#00735d"/></linearGradient>',
+          ].join(),
+        ),
+      );
+      expect(linear, contains('fill="url(#ink)"'));
+      final String radial = await qr.toSvg(
+        style: const BarcodeStyle(
+          gradient: RadialGradient(
+            colors: <Color>[Color(0xFF000000), Color(0xFF333333)],
+            stops: <double>[0.2, 1],
+          ),
+        ),
+      );
+      expect(radial, contains('cx="11.5" cy="11.5" r="10.5"'));
+      expect(radial, contains('<stop offset="0.2" stop-color="#000"/>'));
+    });
+
+    test('a sweep gradient cannot be written', () async {
+      await expectLater(
+        qr.toSvg(
+          style: const BarcodeStyle(
+            gradient: SweepGradient(
+              colors: <Color>[Color(0xFF000000), Color(0xFF333333)],
+            ),
+          ),
+        ),
+        throwsUnsupportedError,
+      );
+    });
+
+    test('quietZone: false drops the margin', () async {
+      final String svg = await qr.toSvg(
+        style: const BarcodeStyle(quietZone: false),
+      );
+      expect(svg, contains('viewBox="0 0 21 21"'));
+    });
+
+    test('the text takes the color', () async {
+      final String svg = await _symbol(<String>[
+        '#',
+      ], text: '1').toSvg(style: const BarcodeStyle(color: Color(0xFF123456)));
+      expect(svg, contains('text-anchor="middle" fill="#123456">1</text>'));
     });
   });
 

@@ -10,8 +10,8 @@ A new engine and a new API, with the 3.x API kept working on top of it.
   CocoaPods/Swift Package Manager and Gradle builds of 3.x are gone. After
   upgrading, run `flutter clean` once.
 * **New API:** `BarcodeReader` (`read`, `readAll`, `readPixels`,
-  `readAllPixels`), `BarcodeWriter` (`encode`, `encodeBytes`, `toSvg`,
-  `toImage`), `Barcode`, `BarcodeFormat`, `ReaderOptions`, `PixelBuffer`,
+  `readAllPixels`), `BarcodeWriter` (`encode`, `encodeBytes`, `toPng`,
+  `toSvg`, `toImage`), `Barcode`, `BarcodeFormat`, `ReaderOptions`, `PixelBuffer`,
   `BarcodeSymbol`, `BarcodeImage`. Everything runs off the UI thread.
 * **Camera scanning:** `ScannerController` and `BarcodeScanner`, on Android,
   iOS and the web. Only the scan window of each frame is copied and read;
@@ -51,7 +51,8 @@ A new engine and a new API, with the 3.x API kept working on top of it.
   round QR finder patterns, and a logo in the middle of a QR code (error
   correction goes up to H by itself). Every style reads back with the
   package's own reader. Symbols are encoded off the UI thread and kept, so a
-  barcode shown again paints in its first frame.
+  barcode shown again paints in its first frame. `toPng` and `toSvg` export
+  a code with the same style (the SVG embeds the logo).
 * **The 3.x API is deprecated** (`zx`, `Code`, `DecodeParams`, `ReaderWidget`,
   `WriterWidget`, ...): each declaration names its replacement. It keeps
   working until 5.0, on the new engine, and stays unavailable on the web.
