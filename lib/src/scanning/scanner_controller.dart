@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/widgets.dart';
@@ -19,6 +20,7 @@ import '../reading/reader_options.dart';
 import 'camera/camera_source.dart';
 import 'frame_geometry.dart';
 import 'scan_window.dart';
+import 'snapshot.dart';
 import 'ui/scanner_strings.dart';
 import 'ui/scanner_template.dart';
 import 'ui/scanner_theme.dart';
@@ -354,7 +356,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
     if (barcodes.isEmpty || _disposed) {
       return null;
     }
-    final BarcodeCapture capture = BarcodeCapture(
+    final BarcodeCapture capture = BarcodeCapture._(
       barcodes: barcodes,
       imageSize: Size(
         result.imageWidth.toDouble(),
@@ -362,6 +364,10 @@ class ScannerController extends ValueNotifier<ScannerState> {
       ),
       time: _now(),
       source: CaptureSource.image,
+      positions: <BarcodePosition>[
+        for (final Barcode b in barcodes) b.position,
+      ],
+      encoded: encodedImage,
     );
     if (!_barcodes.isClosed) {
       _barcodes.add(capture);
@@ -582,9 +588,12 @@ class ScannerController extends ValueNotifier<ScannerState> {
   ) {
     final FrameTransform frame = camera.transform;
     final Size display = frame.displaySize;
-    final List<Barcode> barcodes = <Barcode>[
+    final List<Barcode> found = <Barcode>[
       for (final Barcode b in result.barcodes)
-        if (b.isValid) frame.barcodeToDisplay(b),
+        if (b.isValid) b,
+    ];
+    final List<Barcode> barcodes = <Barcode>[
+      for (final Barcode b in found) frame.barcodeToDisplay(b),
     ];
     final DateTime now = _now();
     if (_samples.hasListener) {
@@ -616,20 +625,26 @@ class ScannerController extends ValueNotifier<ScannerState> {
     }
     switch (_detection) {
       case DetectionMode.continuous:
-        _emit(barcodes, display, now);
+        _emit(camera, found, barcodes, display, now);
       case DetectionMode.once:
-        _emit(barcodes, display, now);
+        _emit(camera, found, barcodes, display, now);
         unawaited(pause());
       case DetectionMode.distinct:
-        final List<Barcode> fresh = <Barcode>[
-          for (final Barcode b in barcodes)
-            if (!_seen.containsKey(_keyOf(b))) b,
+        final List<int> fresh = <int>[
+          for (int i = 0; i < barcodes.length; i++)
+            if (!_seen.containsKey(_keyOf(barcodes[i]))) i,
         ];
         for (final Barcode b in barcodes) {
           _seen[_keyOf(b)] = now;
         }
         if (fresh.isNotEmpty) {
-          _emit(fresh, display, now);
+          _emit(
+            camera,
+            <Barcode>[for (final int i in fresh) found[i]],
+            <Barcode>[for (final int i in fresh) barcodes[i]],
+            display,
+            now,
+          );
         }
     }
   }
@@ -637,12 +652,32 @@ class ScannerController extends ValueNotifier<ScannerState> {
   static String _keyOf(Barcode b) =>
       '${b.format.index}|${b.text}|${b.bytes.length}';
 
-  void _emit(List<Barcode> barcodes, Size display, DateTime now) {
-    if (!_barcodes.isClosed) {
-      _barcodes.add(
-        BarcodeCapture(barcodes: barcodes, imageSize: display, time: now),
-      );
+  /// Reports [barcodes] ([raw]: the same in frame pixels) with the part of
+  /// the frame around them, for [BarcodeCapture.snapshot].
+  void _emit(
+    CameraFrame camera,
+    List<Barcode> raw,
+    List<Barcode> barcodes,
+    Size display,
+    DateTime now,
+  ) {
+    if (_barcodes.isClosed) {
+      return;
     }
+    final PixelBuffer? pixels = camera.pixels;
+    final List<BarcodePosition> positions = <BarcodePosition>[
+      for (final Barcode b in raw) b.position,
+    ];
+    _barcodes.add(
+      BarcodeCapture._(
+        barcodes: barcodes,
+        imageSize: display,
+        time: now,
+        source: CaptureSource.camera,
+        cut: pixels == null ? null : cutFrame(pixels, positions),
+        positions: positions,
+      ),
+    );
   }
 
   Future<void> _fail(ScannerException error, int session) async {
@@ -968,7 +1003,31 @@ final class BarcodeCapture {
     required this.imageSize,
     required this.time,
     this.source = CaptureSource.camera,
-  }) : assert(barcodes.length > 0, 'A capture has at least one barcode');
+  }) : _cut = null,
+       _positions = null,
+       _encoded = null,
+       assert(barcodes.length > 0, 'A capture has at least one barcode');
+
+  const BarcodeCapture._({
+    required this.barcodes,
+    required this.imageSize,
+    required this.time,
+    required this.source,
+    required List<BarcodePosition> positions,
+    FrameCut? cut,
+    Uint8List? encoded,
+  }) : _cut = cut,
+       _positions = positions,
+       _encoded = encoded;
+
+  /// The frame around the barcodes, kept for [snapshot].
+  final FrameCut? _cut;
+
+  /// The barcodes' positions in [_cut]'s frame (or in [_encoded]).
+  final List<BarcodePosition>? _positions;
+
+  /// The image file given to [ScannerController.readImage].
+  final Uint8List? _encoded;
 
   /// The barcodes in the frame, at least one.
   final List<Barcode> barcodes;
@@ -987,6 +1046,51 @@ final class BarcodeCapture {
   /// [ScannerController.readImage]. Positions of an image's barcodes are
   /// not on screen.
   final CaptureSource source;
+
+  /// [barcode] (default [this.barcode]) cut out of the camera frame or the
+  /// photo it was found in and straightened: a flat grayscale image with a
+  /// little margin, its contrast stretched. Each call makes a new image,
+  /// which the caller disposes.
+  ///
+  /// ```dart
+  /// onDetect: (capture) async {
+  ///   final ui.Image? image = await capture.snapshot();
+  ///   history.add(capture.barcode, image);
+  /// }
+  /// ```
+  ///
+  /// `null` on the web (for now), for captures not made by a
+  /// [ScannerController], and for a barcode not in [barcodes].
+  Future<ui.Image?> snapshot([Barcode? barcode]) async {
+    final int index = barcode == null ? 0 : barcodes.indexOf(barcode);
+    final List<BarcodePosition>? positions = _positions;
+    if (index < 0 || positions == null) {
+      return null;
+    }
+    FrameCut? cut = _cut;
+    BarcodePosition position = positions[index];
+    final Uint8List? encoded = _encoded;
+    if (cut == null && encoded != null) {
+      final (FrameCut, double)? decoded = await cutEncoded(
+        encoded,
+        imageSize,
+        positions,
+      );
+      if (decoded == null) {
+        return null;
+      }
+      cut = decoded.$1;
+      position = scalePosition(position, decoded.$2);
+    }
+    if (cut == null) {
+      return null;
+    }
+    final GrayImage? image = straighten(
+      cut,
+      snapshotCorners(position, linear: barcodes[index].format.isLinear),
+    );
+    return image?.toImage();
+  }
 }
 
 /// Where the barcodes of a [BarcodeCapture] came from.

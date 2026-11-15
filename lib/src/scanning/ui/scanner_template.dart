@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -363,8 +364,22 @@ class TemplateOverlay extends StatefulWidget {
   State<TemplateOverlay> createState() => _TemplateOverlayState();
 }
 
-class _TemplateOverlayState extends State<TemplateOverlay> {
+class _TemplateOverlayState extends State<TemplateOverlay>
+    with SingleTickerProviderStateMixin {
   StreamSubscription<BarcodeCapture>? _captures;
+
+  /// The code found, cut out of the frame, flying into the window.
+  late final AnimationController _flight = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 360),
+  );
+  ui.Image? _cutOut;
+  List<Offset>? _cutFrom;
+  bool _cutLinear = false;
+  bool _settled = false;
+
+  /// Counts locks, so that a cut-out arriving after "Scan again" is dropped.
+  int _lock = 0;
   ScannerController? _controller;
   Barcode? _result;
   Timer? _showResult;
@@ -391,6 +406,8 @@ class _TemplateOverlayState extends State<TemplateOverlay> {
     unawaited(_captures?.cancel());
     _showResult?.cancel();
     _hideNotice?.cancel();
+    _flight.dispose();
+    _cutOut?.dispose();
     super.dispose();
   }
 
@@ -425,21 +442,21 @@ class _TemplateOverlayState extends State<TemplateOverlay> {
       });
       return;
     }
-    if (_result != null || _showResult != null) {
+    if (_result != null || _showResult != null || _settled) {
       return;
     }
     if (_template.haptics) {
       unawaited(HapticFeedback.mediumImpact());
     }
+    unawaited(_takeIn(capture, ++_lock));
     if (!_template.showResult) {
       return;
     }
     unawaited(widget.layout.controller.pause());
-    // Let the brackets land on the code before the sheet rises; a photo
-    // has no brackets to wait for.
+    // Let the code settle in the window before the sheet rises.
     final Duration delay = capture.source == CaptureSource.image
-        ? Duration.zero
-        : const Duration(milliseconds: 260);
+        ? const Duration(milliseconds: 200)
+        : const Duration(milliseconds: 380);
     _showResult = Timer(delay, () {
       _showResult = null;
       if (mounted) {
@@ -448,10 +465,50 @@ class _TemplateOverlayState extends State<TemplateOverlay> {
     });
   }
 
+  /// Cuts the code of [capture] out of its frame and flies it from where
+  /// it shows into the scan window. Nothing flies where there is no
+  /// cut-out (the web, for now).
+  Future<void> _takeIn(BarcodeCapture capture, int lock) async {
+    final ui.Image? image = await capture.snapshot();
+    // The layout shows the code from the frame after the capture.
+    await WidgetsBinding.instance.endOfFrame;
+    if (image == null || !mounted || lock != _lock) {
+      image?.dispose();
+      return;
+    }
+    final Barcode barcode = capture.barcode;
+    List<Offset>? from;
+    if (capture.source == CaptureSource.camera) {
+      for (final VisibleBarcode v in widget.layout.barcodes) {
+        if (v.barcode.format == barcode.format &&
+            v.barcode.text == barcode.text) {
+          from = v.corners;
+          break;
+        }
+      }
+    }
+    setState(() {
+      _cutOut?.dispose();
+      _cutOut = image;
+      _cutFrom = from;
+      _cutLinear = barcode.format.isLinear;
+      _settled = true;
+    });
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
+      _flight.value = 1;
+    } else {
+      unawaited(_flight.forward(from: 0));
+    }
+  }
+
   void _scanAgain() {
     _showResult?.cancel();
     _showResult = null;
-    setState(() => _result = null);
+    _lock++;
+    setState(() {
+      _result = null;
+      _settled = false;
+    });
     unawaited(widget.layout.controller.resume());
   }
 
@@ -500,7 +557,11 @@ class _TemplateOverlayState extends State<TemplateOverlay> {
       fit: StackFit.expand,
       children: <Widget>[
         if (camera)
-          ScannerOverlay(layout, lockOn: !template.collect)
+          ScannerOverlay(
+            layout,
+            lockOn: !template.collect,
+            settled: _settled && _cutOut != null,
+          )
         else if (status == ScannerStatus.error && error != null) ...<Widget>[
           if (widget.drawError)
             ScannerErrorView(
@@ -512,6 +573,31 @@ class _TemplateOverlayState extends State<TemplateOverlay> {
             ),
         ] else if (widget.drawPlaceholder)
           ScannerPlaceholder(scanWindow: controller.scanWindow),
+        if (camera && _cutOut != null)
+          IgnorePointer(
+            child: AnimatedOpacity(
+              opacity: _settled ? 1 : 0,
+              duration: const Duration(milliseconds: 200),
+              onEnd: () {
+                if (!_settled && mounted) {
+                  setState(() {
+                    _cutOut?.dispose();
+                    _cutOut = null;
+                  });
+                }
+              },
+              child: AnimatedBuilder(
+                animation: _flight,
+                builder: (BuildContext context, Widget? _) => _CutOutFlight(
+                  image: _cutOut!,
+                  from: _cutFrom,
+                  linear: _cutLinear,
+                  window: layout.scanWindow,
+                  progress: _flight.value,
+                ),
+              ),
+            ),
+          ),
         // The hint under the window.
         if (camera && hint != null && !template.collect)
           Positioned(
@@ -681,5 +767,101 @@ class _TemplateOverlayState extends State<TemplateOverlay> {
           onScanAgain: _scanAgain,
           showIcon: template.showResultIcon,
         );
+  }
+}
+
+/// The cut-out of the code found on its way from where the code shows into
+/// the scan window, and the dark plate that covers the camera there.
+class _CutOutFlight extends StatelessWidget {
+  const _CutOutFlight({
+    required this.image,
+    required this.from,
+    required this.linear,
+    required this.window,
+    required this.progress,
+  });
+
+  final ui.Image image;
+
+  /// The code's corners on screen when it was found; `null` for a photo,
+  /// which grows in the middle of the window.
+  final List<Offset>? from;
+  final bool linear;
+  final Rect window;
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final ScannerTheme theme = ScannerTheme.of(context);
+    final double t = Curves.easeInOutCubicEmphasized.transform(progress);
+    final double radius = theme.resolvedWindowRadius;
+    final double aspect = image.width / image.height;
+    // Where it settles: as large as the window allows, with a margin.
+    final Rect inner = window.deflate(math.max(16, radius * 0.8));
+    final Size fitted = applyBoxFit(
+      BoxFit.contain,
+      Size(aspect, 1),
+      inner.size,
+    ).destination;
+    final Rect to = Alignment.center.inscribe(fitted, inner);
+    // Where it starts: on the code, turned like it.
+    Offset start = to.center;
+    double startWidth = to.width * 0.6;
+    double angle = 0;
+    final List<Offset>? q = from;
+    if (q != null && q.length == 4) {
+      start = (q[0] + q[1] + q[2] + q[3]) / 4;
+      final Offset across = ((q[1] - q[0]) + (q[2] - q[3])) / 2;
+      startWidth = across.distance * (linear ? 1.12 : 1.18);
+      angle = math.atan2(across.dy, across.dx);
+    }
+    final Offset center = Offset.lerp(start, to.center, t)!;
+    // A little lift halfway.
+    final double width =
+        (startWidth + (to.width - startWidth) * t) *
+        (1 + 0.05 * math.sin(math.pi * progress));
+    final double height = width / aspect;
+    final double corner = math.min(12, width * 0.08);
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        // The camera in the window fades under a plate; the brackets'
+        // inner half stays clear of it.
+        Positioned.fromRect(
+          rect: window.deflate(3),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFF06090D).withValues(alpha: 0.62 * t),
+              borderRadius: BorderRadius.circular(math.max(0, radius - 3)),
+            ),
+          ),
+        ),
+        Positioned(
+          left: center.dx - width / 2,
+          top: center.dy - height / 2,
+          width: width,
+          height: height,
+          child: Transform.rotate(
+            angle: angle * (1 - t),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(corner),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: const Color(0x73000000),
+                    blurRadius: 28,
+                    offset: Offset(0, 8 + 8 * math.sin(math.pi * progress)),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(corner),
+                child: RawImage(image: image, fit: BoxFit.fill),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

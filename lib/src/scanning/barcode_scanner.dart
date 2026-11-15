@@ -507,10 +507,8 @@ class _ScanPageState extends State<_ScanPage> {
       return;
     }
     _done = true;
-    // Let the brackets land on the code before the screen closes.
-    if (capture.source == CaptureSource.camera) {
-      await Future<void>.delayed(const Duration(milliseconds: 350));
-    }
+    // Let the code fly into the window before the screen closes.
+    await Future<void>.delayed(const Duration(milliseconds: 450));
     // Not when the page is already closing (the user closed it during the
     // delay): popping then would close the page below it.
     if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {

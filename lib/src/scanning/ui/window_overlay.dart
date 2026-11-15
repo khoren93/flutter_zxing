@@ -20,7 +20,12 @@ import 'scanner_theme.dart';
 /// ```
 class ScannerOverlay extends StatelessWidget {
   /// Creates the default overlay.
-  const ScannerOverlay(this.layout, {super.key, this.lockOn = true});
+  const ScannerOverlay(
+    this.layout, {
+    super.key,
+    this.lockOn = true,
+    this.settled = false,
+  });
 
   /// The scanner layout.
   final ScannerLayout layout;
@@ -28,12 +33,16 @@ class ScannerOverlay extends StatelessWidget {
   /// Whether the window's brackets close in on a single barcode.
   final bool lockOn;
 
+  /// A code has been taken into the window: the brackets frame the window
+  /// in the accent color and the outlines are hidden.
+  final bool settled;
+
   @override
   Widget build(BuildContext context) => Stack(
     fit: StackFit.expand,
     children: <Widget>[
-      ScanWindowOverlay(layout, lockOn: lockOn),
-      BarcodeOutlines(layout),
+      ScanWindowOverlay(layout, lockOn: lockOn, settled: settled),
+      if (!settled) BarcodeOutlines(layout),
     ],
   );
 }
@@ -46,13 +55,22 @@ class ScannerOverlay extends StatelessWidget {
 /// on the window. Animations follow the platform's reduce motion setting.
 class ScanWindowOverlay extends StatefulWidget {
   /// Creates the overlay.
-  const ScanWindowOverlay(this.layout, {super.key, this.lockOn = true});
+  const ScanWindowOverlay(
+    this.layout, {
+    super.key,
+    this.lockOn = true,
+    this.settled = false,
+  });
 
   /// The scanner layout.
   final ScannerLayout layout;
 
   /// Whether the brackets close in on a single barcode.
   final bool lockOn;
+
+  /// The brackets frame the window in the accent color, as when the code
+  /// found has been taken into it.
+  final bool settled;
 
   @override
   State<ScanWindowOverlay> createState() => _ScanWindowOverlayState();
@@ -109,7 +127,7 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
 
   Rect? _target() {
     final List<VisibleBarcode> barcodes = widget.layout.barcodes;
-    if (!widget.lockOn || barcodes.length != 1) {
+    if (!widget.lockOn || widget.settled || barcodes.length != 1) {
       return null;
     }
     final Rect bounds = barcodes.single.bounds;
@@ -126,7 +144,10 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
     final Rect? target = _target();
     final ScannerStatus status = widget.layout.state.status;
     final bool searching =
-        target == null && status == ScannerStatus.running && !_reduceMotion;
+        target == null &&
+        !widget.settled &&
+        status == ScannerStatus.running &&
+        !_reduceMotion;
     if (searching && !_breathe.isAnimating) {
       unawaited(_breathe.repeat(reverse: true));
     } else if (!searching && _breathe.isAnimating) {
@@ -135,12 +156,12 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
         ..value = 0;
     }
 
+    final double lock = target == null && !widget.settled ? 0 : 1;
     if (initial) {
       _from = _to = target;
-      _fromLock = _toLock = target == null ? 0 : 1;
+      _fromLock = _toLock = lock;
       return;
     }
-    final double lock = target == null ? 0 : 1;
     if (target == _to && lock == _toLock) {
       return;
     }
@@ -156,7 +177,14 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
       _move.value = 1;
       return;
     }
-    _move.duration = Duration(milliseconds: following ? 140 : 280);
+    // Back to the window with the code that flies in: as long as its flight.
+    _move.duration = Duration(
+      milliseconds: following
+          ? 140
+          : widget.settled
+          ? 360
+          : 280,
+    );
     unawaited(_move.forward(from: 0));
   }
 

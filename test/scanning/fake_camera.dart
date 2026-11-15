@@ -31,6 +31,7 @@ final class FakeFrame implements CameraFrame {
     this.barcodes = const <Barcode>[],
     this.error,
     this.hang = false,
+    this.pixels,
   ]);
 
   @override
@@ -55,8 +56,9 @@ final class FakeFrame implements CameraFrame {
   @override
   int get dropped => 0;
 
+  /// The frame's pixels, for cut-outs; none by default.
   @override
-  PixelBuffer? get pixels => null;
+  final PixelBuffer? pixels;
   bool wasRead = false;
 
   @override
@@ -122,8 +124,9 @@ final class FakeCamera implements CameraSource {
     List<Barcode> barcodes = const <Barcode>[],
     Exception? error,
     bool hang = false,
+    PixelBuffer? pixels,
   ]) {
-    final FakeFrame frame = FakeFrame(transform, barcodes, error, hang);
+    final FakeFrame frame = FakeFrame(transform, barcodes, error, hang, pixels);
     _frames.add(frame);
     final Completer<void>? waiter = _waiter;
     _waiter = null;

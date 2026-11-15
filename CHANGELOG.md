@@ -28,6 +28,10 @@ A new engine and a new API, with the 3.x API kept working on top of it.
   `ScannerStrings`, animations follow the reduce motion setting.
   `ScannerController.readImage` reads a photo with the scanner's settings and
   reports it like a camera frame.
+* **The code, cut out:** `await capture.snapshot()` gives the barcode cut out
+  of the camera frame (or photo) and straightened from its four corners, as
+  a flat grayscale image. The templates fly it from where the code was into
+  the scan window. Android and iOS for now.
 * **What is in the barcode:** `barcode.content` parses the payload into a
   `sealed` `BarcodeContent` for pattern matching: `UrlContent`, `WifiContent`,
   `ContactContent` (vCard, MeCard), `EventContent`, `EmailContent`,

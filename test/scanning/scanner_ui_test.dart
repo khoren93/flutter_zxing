@@ -368,7 +368,7 @@ void main() {
       expect(controller.value.status, ScannerStatus.paused);
       // The sheet waits for the brackets to land.
       expect(find.byType(BarcodeResultSheet), findsNothing);
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(BarcodeResultSheet), findsOneWidget);
       expect(find.text('LINK'), findsOneWidget);
@@ -394,6 +394,88 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(BarcodeResultSheet), findsNothing);
       expect(controller.value.status, ScannerStatus.running);
+    });
+
+    testWidgets('the code found is cut out and flies into the window', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.minimal())),
+      );
+      await tester.pump();
+      // A grey frame with a white square where the code is.
+      final Uint8List gray = Uint8List(390 * 844)..fillRange(0, 390 * 844, 80);
+      for (int y = 360; y < 440; y++) {
+        gray.fillRange(y * 390 + 240, y * 390 + 320, 230);
+      }
+      camera.push(
+        <Barcode>[_barcode('fly', rect: const Rect.fromLTWH(250, 370, 60, 60))],
+        null,
+        false,
+        PixelBuffer(gray, width: 390, height: 844),
+      );
+      await tester.pump();
+      await tester.pump();
+      // The cut-out is made off the test clock.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+      // The flight starts on the next frame and takes 360 ms.
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 400));
+      final Finder cutOut = find.byType(RawImage);
+      expect(cutOut, findsOneWidget);
+      final ScannerLayout layout = ScannerLayout(
+        size: _phone,
+        scanWindow: const ScannerTemplate.minimal().scanWindow.resolve(_phone),
+        barcodes: const <VisibleBarcode>[],
+        state: const ScannerState(),
+        controller: _findController(tester),
+      );
+      // Settled in the middle of the window, inside it.
+      final Rect rect = tester.getRect(cutOut);
+      expect(layout.scanWindow.contains(rect.center), isTrue);
+      expect((rect.center - layout.scanWindow.center).distance, lessThan(2));
+      expect(rect.width, greaterThan(layout.scanWindow.width * 0.6));
+      // The brackets frame the window; the outline is gone.
+      expect(
+        tester
+            .widget<ScanWindowOverlay>(find.byType(ScanWindowOverlay))
+            .settled,
+        isTrue,
+      );
+      expect(find.byType(BarcodeOutlines), findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.text('Scan again'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(RawImage), findsNothing);
+      expect(
+        tester
+            .widget<ScanWindowOverlay>(find.byType(ScanWindowOverlay))
+            .settled,
+        isFalse,
+      );
+    });
+
+    testWidgets('without a cut-out (the web) the brackets stay on the code', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.minimal())),
+      );
+      await tester.pump();
+      await push(tester, <Barcode>[_barcode('no pixels')]);
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(RawImage), findsNothing);
+      expect(find.byType(BarcodeOutlines), findsOneWidget);
     });
 
     testWidgets('custom actions and result sheets', (
@@ -423,7 +505,7 @@ void main() {
       await push(tester, <Barcode>[
         _barcode('WIFI:S:Lumen Guest;T:WPA;P:espresso;;'),
       ]);
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('WI‑FI NETWORK'), findsOneWidget);
       expect(find.text('Lumen Guest'), findsOneWidget);
@@ -658,6 +740,7 @@ void main() {
       // No sheet: the brackets lock and the page closes.
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(BarcodeResultSheet), findsNothing);
       expect(returned, isTrue);
       expect(result!.text, 'hello');
@@ -803,7 +886,7 @@ void main() {
       await push(tester, <Barcode>[
         _barcode('WIFI:S:Lumen Guest;T:WPA;P:espresso-2026;;'),
       ]);
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 400));
       final Rect sheet = tester.getRect(
         find.ancestor(
@@ -854,7 +937,7 @@ void main() {
       );
       await tester.pump();
       await push(tester, <Barcode>[_barcode('Hello')]);
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 400));
       await tester.tap(find.text('TEXT'));
       await tester.pump();
