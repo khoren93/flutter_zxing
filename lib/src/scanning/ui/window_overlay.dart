@@ -94,6 +94,11 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
   double _fromLock = 0;
   double _toLock = 0;
 
+  /// 1 while the brackets frame a code, with its smaller corners; back on
+  /// the window they take the window's corners, even in the accent color.
+  double _fromTight = 0;
+  double _toTight = 0;
+
   /// Changes whenever the brackets get a new target, to repaint even
   /// without an animation.
   int _version = 0;
@@ -157,9 +162,11 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
     }
 
     final double lock = target == null && !widget.settled ? 0 : 1;
+    final double tight = target == null ? 0 : 1;
     if (initial) {
       _from = _to = target;
       _fromLock = _toLock = lock;
+      _fromTight = _toTight = tight;
       return;
     }
     if (target == _to && lock == _toLock) {
@@ -169,10 +176,12 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
     final double t = Curves.easeOutCubic.transform(_move.value);
     _from = Rect.lerp(_from ?? window, _to ?? window, t);
     _fromLock = lerpDouble(_fromLock, _toLock, t)!;
+    _fromTight = lerpDouble(_fromTight, _toTight, t)!;
     final bool following = _to != null && target != null;
     _version++;
     _to = target;
     _toLock = lock;
+    _toTight = tight;
     if (_reduceMotion) {
       _move.value = 1;
       return;
@@ -210,6 +219,11 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
               lock: () => lerpDouble(
                 _fromLock,
                 _toLock,
+                Curves.easeOutCubic.transform(_move.value),
+              )!,
+              tight: () => lerpDouble(
+                _fromTight,
+                _toTight,
                 Curves.easeOutCubic.transform(_move.value),
               )!,
               scale: () =>
@@ -276,6 +290,7 @@ class BracketsPainter extends CustomPainter {
     required Listenable repaint,
     required this.rect,
     required this.lock,
+    this.tight,
     required this.scale,
     required this.radius,
     required this.color,
@@ -293,13 +308,17 @@ class BracketsPainter extends CustomPainter {
   /// 0 on the window, 1 locked on a code.
   final double Function() lock;
 
+  /// 0 with the window's corners, 1 with the smaller corners of a code;
+  /// default [lock].
+  final double Function()? tight;
+
   /// The breathing scale.
   final double Function() scale;
 
   /// Optional fading, for the starting state.
   final double Function()? opacity;
 
-  /// Corner radius of the window; locked brackets have a smaller one.
+  /// Corner radius of the window; brackets on a code have a smaller one.
   final double radius;
 
   /// Color of the brackets on the window.
@@ -314,7 +333,8 @@ class BracketsPainter extends CustomPainter {
     final double alpha = opacity?.call() ?? 1;
     final Rect r = rect();
     final double s = scale();
-    final Path path = bracketPath(r, lerpDouble(radius, radius / 2.4, lock)!);
+    final double tight = this.tight?.call() ?? lock;
+    final Path path = bracketPath(r, lerpDouble(radius, radius / 2.4, tight)!);
     canvas.save();
     if (s != 1) {
       canvas

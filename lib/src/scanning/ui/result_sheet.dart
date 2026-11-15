@@ -141,7 +141,7 @@ class BarcodeResultSheet extends StatelessWidget {
                 if (showIcon)
                   ScannerBadge(icon: iconOf(content))
                 else
-                  BarcodeThumbnail(barcode, cutOut: cutOut),
+                  BarcodeThumbnail(barcode, cutOut: cutOut, size: 72),
                 const SizedBox(width: 16),
                 Expanded(child: heading),
               ],
