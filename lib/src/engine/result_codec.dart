@@ -14,6 +14,7 @@ import '../barcode/barcode.dart';
 import '../barcode/barcode_format.dart';
 import '../writing/barcode_writer.dart';
 import 'engine_protocol.dart';
+import 'function_patterns.dart';
 
 const int _kindBarcodes = 1;
 const int _kindSymbol = 2;
@@ -98,7 +99,12 @@ EngineReadResult decodeBarcodes(
               format: format,
               width: symbolWidth,
               height: symbolHeight,
-              modules: modules,
+              modules: withQrFunctionPatterns(
+                format,
+                symbolWidth,
+                symbolHeight,
+                modules,
+              ),
               quietZone: readQuietZone(format),
             )
           : null,
