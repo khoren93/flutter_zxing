@@ -1,13 +1,12 @@
 {
-    "name": "flutter_zxing_example",
-    "short_name": "flutter_zxing_example",
+    "name": "flutter_zxing demo",
+    "short_name": "flutter_zxing",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
-    "prefer_related_applications": false,
+    "background_color": "#F4F6F9",
+    "theme_color": "#0E1218",
+    "description": "Scan and create QR codes and barcodes with flutter_zxing.",
+        "prefer_related_applications": false,
     "icons": [
         {
             "src": "icons/Icon-192.png",

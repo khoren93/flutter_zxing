@@ -1,7 +1,16 @@
 name: flutter_zxing
-description: A barcode scanner and generator natively in Flutter with Dart FFI based on ZXing.
+description: Scan and create QR codes and 40+ barcode formats on Android, iOS, macOS, Linux, Windows and the web with zxing-cpp. No ML Kit, no Play services.
 version: 3.1.1
+homepage: https://khoren93.github.io/flutter_zxing/
 repository: https://github.com/khoren93/flutter_zxing
+issue_tracker: https://github.com/khoren93/flutter_zxing/issues
+documentation: https://github.com/khoren93/flutter_zxing/tree/main/doc
+topics:
+  - barcode
+  - qrcode
+  - scanner
+  - camera
+  - zxing
 
 environment:
   sdk: ">=3.11.0 <4.0.0"

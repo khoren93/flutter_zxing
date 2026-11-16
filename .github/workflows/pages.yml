@@ -1,0 +1,82 @@
+name: Web demo
+
+# Builds the demo app (example/lib/main.dart) for the web and publishes it to
+# GitHub Pages: https://khoren93.github.io/flutter_zxing/
+#
+# Runs on every push to main and to the 4.0 development branch, and by hand
+# ("Run workflow"). The repository's Pages source has to be "GitHub Actions"
+# (Settings -> Pages), and every branch that publishes has to be allowed in
+# the deployment rules of the `github-pages` environment (Settings ->
+# Environments). Drop 4.0 here once it is merged into main.
+on:
+  push:
+    branches:
+      - main
+      - "4.0"
+  workflow_dispatch:
+
+# One deployment at a time; a newer push replaces a queued one, but a
+# deployment already running is left to finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the web demo
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      - name: Get dependencies
+        run: |
+          flutter pub get
+          cd example && flutter pub get --enforce-lockfile
+
+      # The WebAssembly engine is not committed: build it, with the pinned
+      # Emscripten cached between runs (the same cache as the CI `web` job).
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/flutter_zxing/emsdk
+          key: emsdk-${{ hashFiles('tool/wasm_config.sh') }}
+
+      - name: Build the WebAssembly engine
+        run: tool/build_wasm.sh
+
+      # dart2wasm, with the dart2js build next to it: browsers without
+      # WasmGC (older Safari) load that one. The site lives under
+      # /flutter_zxing/, hence the base href.
+      - name: Build the demo
+        run: |
+          cd example
+          flutter build web --release --wasm --base-href /flutter_zxing/
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: example/build/web
+
+  deploy:
+    name: Publish to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

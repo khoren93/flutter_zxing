@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question
+    url: https://github.com/khoren93/flutter_zxing/discussions
+    about: How to use the package. Questions get answers faster in Discussions.
+  - name: zxing-cpp
+    url: https://github.com/zxing-cpp/zxing-cpp/issues
+    about: A code that zxing-cpp itself does not read (check with its own tools first) belongs there.

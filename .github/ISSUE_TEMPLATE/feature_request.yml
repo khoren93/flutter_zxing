@@ -1,0 +1,20 @@
+name: Feature request
+description: An idea for the package.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What do you want to do?
+      description: The task you are trying to solve, not only the API you have in mind.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: How could it work?
+      description: An API sketch, a screenshot of another app, a link.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What do you do now instead?

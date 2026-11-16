@@ -1,0 +1,57 @@
+name: Bug report
+description: Something does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. A barcode that does not read can almost only be
+        fixed with the picture: please attach the image or a photo of the code.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: Code to reproduce
+      description: The smallest piece of code that shows the problem.
+      render: dart
+  - type: textarea
+    id: image
+    attributes:
+      label: Image of the barcode
+      description: For reading problems, drag the image here.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or stack trace
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: flutter_zxing version
+      placeholder: 4.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: platforms
+    attributes:
+      label: Platforms
+      multiple: true
+      options: [Android, iOS, Web, macOS, Linux, Windows]
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and OS version
+      placeholder: Pixel 4a, Android 13 / iPhone 15, iOS 18 / Chrome 130
+  - type: textarea
+    id: flutter
+    attributes:
+      label: flutter --version
+      render: shell
