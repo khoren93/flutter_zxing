@@ -864,6 +864,40 @@ void main() {
       expect(find.text('middle'), findsOneWidget);
     });
 
+    testWidgets('landscape: the window moves aside for the sheet and back', (
+      WidgetTester tester,
+    ) async {
+      const Size landscape = Size(844, 390);
+      camera = FakeCamera(transform: const FrameTransform(landscape));
+      await phone(tester, size: landscape);
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.minimal())),
+      );
+      await tester.pump();
+      Rect window() => tester
+          .widget<ScannerOverlay>(find.byType(ScannerOverlay))
+          .layout
+          .scanWindow;
+      // Searching: in the middle.
+      expect(window().center.dx, closeTo(422, 0.5));
+      // The zoom presets stand in a column at the right.
+      expect(tester.getCenter(find.byType(ZoomButtons)).dx, greaterThan(700));
+      await push(tester, <Barcode>[_barcode('https://pub.dev/packages/x')]);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+      // The sheet in the right half, the window in the middle of the left.
+      final Rect sheet = tester.getRect(find.byType(BarcodeResultSheet));
+      expect(sheet.left, greaterThanOrEqualTo(422));
+      expect(window().center.dx, closeTo(211, 0.5));
+      expect(window().right, lessThan(422));
+      await tester.tap(find.text('Scan again'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(window().center.dx, closeTo(422, 0.5));
+    });
+
     testWidgets('a tall sheet scrolls below the top bar', (
       WidgetTester tester,
     ) async {
@@ -1192,15 +1226,18 @@ void main() {
       expect(find.textContaining('…'), findsOneWidget);
     });
 
-    testWidgets('text: short as the title, long below it', (
+    testWidgets('text: one line as the title, more lines below it', (
       WidgetTester tester,
     ) async {
       await show(tester, _barcode('Hello'));
       expect(find.text('TEXT'), findsOneWidget);
       expect(find.text('Hello'), findsOneWidget);
-      await show(tester, _barcode('First line\nsecond line'));
+      const String long = 'register/ea3bc1a5-ff86-4b5e-96d5-d68785b9a6cc';
+      await show(tester, _barcode(long));
+      expect(find.text(long), findsOneWidget);
+      await show(tester, _barcode('First line\nsecond line\nthird'));
       expect(find.text('First line'), findsOneWidget);
-      expect(find.text('First line\nsecond line'), findsOneWidget);
+      expect(find.text('second line\nthird'), findsOneWidget);
     });
 
     testWidgets('copy confirms and resets', (WidgetTester tester) async {

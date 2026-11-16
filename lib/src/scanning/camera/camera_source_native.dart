@@ -72,8 +72,25 @@ final class NativeCameraSource implements CameraSource {
     _updatePreview();
   }
 
+  /// Opening and closing cameras, one at a time across all sources: a
+  /// scanner rebuilt in a new place (a phone turned to landscape) opens
+  /// the camera while the old one is still closing it, and on iOS the
+  /// camera plugin's `initialize` then never finishes.
+  static Future<void> _cameraQueue = Future<void>.value();
+
+  static Future<T> _oneAtATime<T>(Future<T> Function() task) {
+    final Future<T> result = _cameraQueue.then((_) => task());
+    _cameraQueue = result.then<void>((_) {}, onError: (Object _) {});
+    return result;
+  }
+
   @override
   Future<CameraCapabilities> open(
+    CameraFacing facing,
+    CameraResolution resolution,
+  ) => _oneAtATime(() => _open(facing, resolution));
+
+  Future<CameraCapabilities> _open(
     CameraFacing facing,
     CameraResolution resolution,
   ) async {
@@ -163,7 +180,15 @@ final class NativeCameraSource implements CameraSource {
   }
 
   @override
-  Future<void> close() async {
+  Future<void> close() {
+    // Frames stop being waited for at once; the camera closes in turn.
+    final Completer<void>? waiter = _waiter;
+    _waiter = null;
+    waiter?.complete();
+    return _oneAtATime(_close);
+  }
+
+  Future<void> _close() async {
     final CameraController? camera = _camera;
     _camera = null;
     _description = null;

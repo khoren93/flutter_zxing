@@ -135,6 +135,7 @@ class ZoomButtons extends StatelessWidget {
     this.controller, {
     super.key,
     this.levels = const <double>[1, 2, 4],
+    this.direction = Axis.horizontal,
   });
 
   /// The controller to zoom.
@@ -143,6 +144,9 @@ class ZoomButtons extends StatelessWidget {
   /// Zoom factors to offer, in ascending order; those above
   /// [ScannerState.maxZoom] are left out.
   final List<double> levels;
+
+  /// A row, or a column (beside the window in landscape).
+  final Axis direction;
 
   static String _format(double zoom) {
     final double rounded = (zoom * 10).roundToDouble() / 10;
@@ -177,11 +181,12 @@ class ZoomButtons extends StatelessWidget {
         label: ScannerStrings.of(context).zoom,
         child: ScannerGlass(
           padding: const EdgeInsets.all(4),
-          child: Row(
+          child: Flex(
+            direction: direction,
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               for (int i = 0; i < available.length; i++) ...<Widget>[
-                if (i > 0) const SizedBox(width: 4),
+                if (i > 0) const SizedBox(width: 4, height: 4),
                 Semantics(
                   container: true,
                   button: true,

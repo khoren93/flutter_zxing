@@ -581,15 +581,69 @@ class _TemplateOverlayState extends State<TemplateOverlay>
 
   @override
   Widget build(BuildContext context) {
+    final Size size = widget.layout.size;
+    // In landscape the sheet takes the right half: the window moves to the
+    // middle of the left half while it is up (always, for a list).
+    final bool aside =
+        size.width > size.height && (_template.collect || _result != null);
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: aside ? 1 : 0),
+      duration: (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
+          ? Duration.zero
+          : const Duration(milliseconds: 360),
+      curve: Curves.easeInOutCubic,
+      builder: (BuildContext context, double t, Widget? _) =>
+          _build(context, t),
+    );
+  }
+
+  /// The window in the middle of the left half of a landscape view, level
+  /// with the sheet in the right half; made smaller if it does not fit.
+  static Rect _windowAside(Rect window, Size size, EdgeInsets safe) {
+    final Rect half = Rect.fromLTRB(
+      safe.left,
+      safe.top + 72,
+      size.width / 2,
+      size.height - math.max(safe.bottom, 12),
+    );
+    final double scale = math.min(
+      1,
+      math.min(
+        (half.width - 32) / window.width,
+        (half.height - 16) / window.height,
+      ),
+    );
+    return Rect.fromCenter(
+      center: half.center,
+      width: window.width * math.max(scale, 0.3),
+      height: window.height * math.max(scale, 0.3),
+    );
+  }
+
+  Widget _build(BuildContext context, double aside) {
     final ScannerTemplate template = _template;
-    final ScannerLayout layout = widget.layout;
-    final ScannerController controller = layout.controller;
-    final ScannerStatus status = layout.state.status;
+    final ScannerLayout full = widget.layout;
+    final ScannerController controller = full.controller;
+    final ScannerStatus status = full.state.status;
     final bool camera =
         status == ScannerStatus.running || status == ScannerStatus.paused;
     final EdgeInsets safe = MediaQuery.viewPaddingOf(context);
-    final Size size = layout.size;
+    final Size size = full.size;
     final bool landscape = size.width > size.height;
+    // The window as drawn: the scan window, or on its way beside the sheet.
+    final ScannerLayout layout = aside == 0
+        ? full
+        : ScannerLayout(
+            size: size,
+            scanWindow: Rect.lerp(
+              full.scanWindow,
+              _windowAside(full.scanWindow, size, safe),
+              aside,
+            )!,
+            barcodes: full.barcodes,
+            state: full.state,
+            controller: controller,
+          );
     final Widget? sheet = _sheet(context);
     final bool searching = camera && _result == null && layout.barcodes.isEmpty;
     final bool showClose =
@@ -702,59 +756,77 @@ class _TemplateOverlayState extends State<TemplateOverlay>
             ),
           ),
         ),
-        // The bottom bar, hidden under a sheet.
+        // The bottom bar, hidden under a sheet; a column at the right in
+        // landscape, where a row would run into the window and the hint.
         if (camera &&
             (template.photoButton ||
                 template.zoomButtons ||
                 template.switchCameraButton) &&
             !template.collect)
           Positioned(
-            left: safe.left + 40,
-            right: safe.right + 40,
-            bottom: math.max(safe.bottom, 12) + 24,
+            left: landscape ? null : safe.left + 40,
+            right: landscape ? safe.right + 20 : safe.right + 40,
+            top: landscape ? safe.top + 72 : null,
+            bottom: math.max(safe.bottom, 12) + (landscape ? 12 : 24),
             child: IgnorePointer(
               ignoring: sheet != null,
               child: AnimatedOpacity(
                 opacity: sheet == null ? 1 : 0,
                 duration: fade,
-                child: SizedBox(
-                  height: 48,
-                  child: Stack(
-                    children: <Widget>[
-                      if (template.photoButton)
-                        Align(
-                          alignment: AlignmentDirectional.centerStart,
-                          child: PickImageButton(
-                            controller,
-                            onResult: _photoRead,
-                          ),
+                child: landscape
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          if (template.photoButton)
+                            PickImageButton(controller, onResult: _photoRead),
+                          if (template.zoomButtons) ...<Widget>[
+                            // Gaps give way on a low screen.
+                            const Flexible(child: SizedBox(height: 16)),
+                            ZoomButtons(controller, direction: Axis.vertical),
+                          ],
+                          if (template.switchCameraButton) ...<Widget>[
+                            // Gaps give way on a low screen.
+                            const Flexible(child: SizedBox(height: 16)),
+                            SwitchCameraButton(controller),
+                          ],
+                        ],
+                      )
+                    : SizedBox(
+                        height: 48,
+                        child: Stack(
+                          children: <Widget>[
+                            if (template.photoButton)
+                              Align(
+                                alignment: AlignmentDirectional.centerStart,
+                                child: PickImageButton(
+                                  controller,
+                                  onResult: _photoRead,
+                                ),
+                              ),
+                            if (template.zoomButtons)
+                              Align(child: ZoomButtons(controller)),
+                            if (template.switchCameraButton)
+                              Align(
+                                alignment: AlignmentDirectional.centerEnd,
+                                child: SwitchCameraButton(controller),
+                              ),
+                          ],
                         ),
-                      if (template.zoomButtons)
-                        Align(child: ZoomButtons(controller)),
-                      if (template.switchCameraButton)
-                        Align(
-                          alignment: AlignmentDirectional.centerEnd,
-                          child: SwitchCameraButton(controller),
-                        ),
-                    ],
-                  ),
-                ),
+                      ),
               ),
             ),
           ),
         // The sheet: at the bottom, or at the side in landscape.
         Positioned(
-          left: landscape ? null : safe.left + 12,
+          // In landscape: the middle of the right half.
+          left: landscape ? size.width / 2 + 12 : safe.left + 12,
           right: safe.right + 12,
           // Below the top bar: a tall sheet scrolls instead of covering
           // the close and torch buttons.
           top: safe.top + 72,
           bottom: math.max(safe.bottom, 12),
-          width: landscape ? math.min(420, size.width * 0.46) : null,
           child: Align(
-            alignment: landscape
-                ? Alignment.bottomRight
-                : Alignment.bottomCenter,
+            alignment: landscape ? Alignment.center : Alignment.bottomCenter,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
               child: AnimatedSwitcher(

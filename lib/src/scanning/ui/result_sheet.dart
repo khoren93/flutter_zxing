@@ -124,7 +124,7 @@ class BarcodeResultSheet extends StatelessWidget {
         Text(
           summary.title,
           style: theme.titleStyle,
-          maxLines: 2,
+          maxLines: summary.titleLines,
           overflow: TextOverflow.ellipsis,
         ),
       ],
@@ -203,7 +203,7 @@ class BarcodeResultSheet extends StatelessWidget {
 
 /// Title, details and payload of a result.
 final class _Summary {
-  const _Summary(this.title, {this.detail, this.payload});
+  const _Summary(this.title, {this.detail, this.payload, this.titleLines = 2});
 
   factory _Summary.of(
     Barcode barcode,
@@ -282,18 +282,27 @@ final class _Summary {
       case BinaryContent(:final Uint8List bytes):
         return _Summary(strings.byteCount(bytes.length), payload: _hex(bytes));
       case TextContent(:final String text):
-        final String firstLine = text.split('\n').first.trim();
-        final bool short = firstLine.length <= 40 && !text.contains('\n');
-        return _Summary(
-          short || firstLine.isEmpty ? (text.isEmpty ? ' ' : text) : firstLine,
-          payload: short ? null : text,
-        );
+        // One line is the title alone; more lines put the first in the
+        // title and the rest below it, so nothing shows twice.
+        final List<String> lines = text.trim().split('\n');
+        final String first = lines.first.trim();
+        final String rest = lines.skip(1).join('\n').trim();
+        if (first.isEmpty || rest.isEmpty) {
+          return _Summary(
+            text.trim().isEmpty ? ' ' : text.trim(),
+            titleLines: 3,
+          );
+        }
+        return _Summary(first, payload: rest);
     }
   }
 
   final String title;
   final String? detail;
   final String? payload;
+
+  /// How many lines the title may take before an ellipsis.
+  final int titleLines;
 
   static String _two(int n) => n.toString().padLeft(2, '0');
 
