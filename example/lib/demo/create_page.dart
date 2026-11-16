@@ -153,6 +153,9 @@ class _CreatePageState extends State<CreatePage> {
     final String data = _data;
     final BarcodeWriter writer = BarcodeWriter(_format);
     try {
+      // XFile.fromData has no path off the web, so its own name is empty:
+      // the share needs the name given separately.
+      final String name = '$_fileName.${what == 'svg' ? 'svg' : 'png'}';
       final XFile file = switch (what) {
         'svg' => XFile.fromData(
           Uint8List.fromList(
@@ -175,7 +178,7 @@ class _CreatePageState extends State<CreatePage> {
       await SharePlus.instance.share(
         ShareParams(
           files: <XFile>[file],
-          fileNameOverrides: <String>[file.name],
+          fileNameOverrides: <String>[name],
           sharePositionOrigin: box == null
               ? null
               : box.localToGlobal(Offset.zero) & box.size,
@@ -200,239 +203,213 @@ class _CreatePageState extends State<CreatePage> {
   void _toast(String text) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
-  void _openStyleSheet() {
-    unawaited(
-      showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        showDragHandle: true,
-        backgroundColor: Fz.of(context).raised,
-        builder: (BuildContext context) => StatefulBuilder(
-          builder: (BuildContext context, StateSetter setSheet) =>
-              SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            'Style',
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () => unawaited(_copyDart()),
-                          child: const Text('Copy as Dart'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            _setStyle(BarcodeStyle.classic, preset: 'classic');
-                            setSheet(() {});
-                          },
-                          child: Text(
-                            'Reset',
-                            style: TextStyle(color: Fz.of(context).inkMuted),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Center(child: _Preview(this, size: 168)),
-                    const SizedBox(height: 16),
-                    StyleEditor(
-                      style: _style,
-                      format: _format,
-                      onChanged: (BarcodeStyle s) {
-                        _setStyle(s);
-                        setSheet(() {});
-                      },
-                    ),
-                  ],
-                ),
-              ),
-        ),
+  /// The style section's title with its actions, the same in both layouts.
+  Widget _styleHeader() => Row(
+    children: <Widget>[
+      const Expanded(child: FzLabel('Style')),
+      TextButton(
+        onPressed: () => _setStyle(BarcodeStyle.classic, preset: 'classic'),
+        child: Text('Reset', style: TextStyle(color: Fz.of(context).inkMuted)),
       ),
-    );
-  }
+    ],
+  );
 
   @override
   Widget build(BuildContext context) =>
       widget.wide ? _buildWide(context) : _buildPhone(context);
 
-  Widget _buildPhone(BuildContext context) => ListView(
-    padding: EdgeInsets.fromLTRB(
-      0,
-      MediaQuery.paddingOf(context).top + 12,
-      0,
-      120,
-    ),
-    children: <Widget>[
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Text(
-          'Create',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
-      ),
-      const SizedBox(height: 14),
-      _KindChips(this, scroll: true),
-      const SizedBox(height: 14),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: FzCard(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  _FormatMenu(this),
-                  const Spacer(),
-                  ReadCheck(reads: _reads),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Center(child: _Preview(this, size: 216)),
-              const SizedBox(height: 12),
-              _ExportRow(this),
-            ],
-          ),
-        ),
-      ),
-      const SizedBox(height: 14),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Row(
-          children: <Widget>[
-            const Expanded(child: FzLabel('Style')),
-            TextButton(
-              onPressed: _openStyleSheet,
-              child: const Text('Customize'),
+  /// The code card: its format and read check, the preview, and export.
+  /// The same card in both layouts; in the wide one the preview fills the
+  /// height the card is given.
+  Widget _codeCard({required bool fill}) {
+    final Widget preview = fill
+        ? Expanded(
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints c) {
+                // The preview of a linear or stacked code is 1.4 by 0.7 of
+                // its size; a square code is size by size.
+                final bool square =
+                    _format != BarcodeFormat.pdf417 &&
+                    _format != BarcodeFormat.code128;
+                final double side = math.max(
+                  0,
+                  square
+                      ? math.min(c.maxWidth, c.maxHeight)
+                      : math.min(c.maxWidth / 1.4, c.maxHeight / 0.7),
+                );
+                return Center(child: _Preview(this, size: side));
+              },
             ),
-          ],
-        ),
-      ),
-      _Presets(this),
-      const SizedBox(height: 14),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: _Form(this),
-      ),
-    ],
-  );
-
-  Widget _buildWide(BuildContext context) {
-    final Fz fz = Fz.of(context);
-    // Two equal columns: the code and its export on the left, the settings
-    // on the right.
-    final Widget preview = ListView(
-      padding: const EdgeInsets.fromLTRB(28, 20, 28, 20),
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            Text('Create', style: Theme.of(context).textTheme.headlineMedium),
-            const Spacer(),
-            ReadCheck(reads: _reads, long: true),
-          ],
-        ),
-        const SizedBox(height: 20),
-        LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints c) {
-            // Sized by the width and the height both: on a phone in
-            // landscape the code, the export buttons and the title still fit
-            // on one screen.
-            final double side = math
-                .min(c.maxWidth - 64, MediaQuery.sizeOf(context).height - 220)
-                .clamp(140, 260);
-            return FzCard(
-              child: SizedBox(
-                height: side + 16,
-                child: Center(child: _Preview(this, size: side)),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 18),
-        _ExportRow(this),
-        const SizedBox(height: 24),
-        Row(
-          children: <Widget>[
-            const Expanded(child: FzLabel('In your app')),
-            TextButton(
-              onPressed: () => unawaited(_copyDart()),
-              child: const Text('Copy'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0E1218),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: fz.line),
-          ),
-          child: SelectableText(
-            dartCode(_data, _format, _style, presetName: _preset),
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 13,
-              height: 1.5,
-              color: Color(0xFFE6EBF2),
-            ),
-          ),
-        ),
-      ],
-    );
-    final Widget settings = DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border(left: BorderSide(color: fz.line)),
-      ),
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+          )
+        : Center(child: _Preview(this, size: 176));
+    return FzCard(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
+          preview,
+          const SizedBox(height: 4),
           Row(
             children: <Widget>[
-              const Expanded(child: FzLabel('Content')),
               _FormatMenu(this),
+              const Spacer(),
+              _ShareMenu(this),
             ],
-          ),
-          const SizedBox(height: 12),
-          _KindChips(this, scroll: false),
-          const SizedBox(height: 16),
-          _Form(this),
-          const SizedBox(height: 24),
-          const FzLabel('Style'),
-          const SizedBox(height: 10),
-          _Presets(this, padding: EdgeInsets.zero),
-          const SizedBox(height: 18),
-          StyleEditor(
-            style: _style,
-            format: _format,
-            compact: true,
-            onChanged: _setStyle,
           ),
         ],
       ),
     );
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Expanded(child: preview),
-        Expanded(child: settings),
-      ],
-    );
   }
+
+  Widget _title(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    child: Row(
+      children: <Widget>[
+        Expanded(
+          child: Text(
+            'Create',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+        ),
+        ReadCheck(reads: _reads),
+      ],
+    ),
+  );
+
+  /// Everything but the code card: the kinds, the form, the style. The
+  /// title goes first in the wide layout; the phone keeps it above the card.
+  List<Widget> _sections(
+    BuildContext context, {
+    bool title = false,
+  }) => <Widget>[
+    if (title) ...<Widget>[_title(context), const SizedBox(height: 14)],
+    _KindChips(this),
+    const SizedBox(height: 18),
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: _Form(this),
+    ),
+    const SizedBox(height: 12),
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: _styleHeader(),
+    ),
+    const SizedBox(height: 4),
+    _Presets(this),
+    const SizedBox(height: 18),
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: StyleEditor(style: _style, format: _format, onChanged: _setStyle),
+    ),
+    const SizedBox(height: 24),
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: _DartCode(this),
+    ),
+  ];
+
+  /// The title and the code card stay put; the rest scrolls under them.
+  Widget _buildPhone(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      SizedBox(height: MediaQuery.paddingOf(context).top + 12),
+      _title(context),
+      const SizedBox(height: 14),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: _codeCard(fill: false),
+      ),
+      const SizedBox(height: 14),
+      Expanded(
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 120),
+          children: _sections(context),
+        ),
+      ),
+    ],
+  );
+
+  /// The phone layout split in two: the code card on the left, filling the
+  /// height, and the rest on the right, scrolling.
+  Widget _buildWide(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      Expanded(
+        // The same 12 points above and below the card: the bottom inset is
+        // left out, as it is at the top, where landscape has none.
+        child: SafeArea(
+          right: false,
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: _codeCard(fill: true),
+          ),
+        ),
+      ),
+      Expanded(
+        child: SafeArea(
+          left: false,
+          bottom: false,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(0, 12, 0, 120),
+            children: _sections(context, title: true),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+/// The code that builds this style in an app, with a copy button.
+class _DartCode extends StatelessWidget {
+  const _DartCode(this.page);
+
+  final _CreatePageState page;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      Row(
+        children: <Widget>[
+          const Expanded(child: FzLabel('In your app')),
+          TextButton(
+            onPressed: () => unawaited(page._copyDart()),
+            child: const Text('Copy'),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0E1218),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Fz.of(context).line),
+        ),
+        child: SelectableText(
+          dartCode(
+            page._data,
+            page._format,
+            page._style,
+            presetName: page._preset,
+          ),
+          style: const TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 13,
+            height: 1.5,
+            color: Color(0xFFE6EBF2),
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 class _KindChips extends StatelessWidget {
-  const _KindChips(this.page, {required this.scroll});
+  const _KindChips(this.page);
 
   final _CreatePageState page;
-  final bool scroll;
 
   @override
   Widget build(BuildContext context) {
@@ -454,9 +431,6 @@ class _KindChips extends StatelessWidget {
           },
         ),
     ];
-    if (!scroll) {
-      return Wrap(spacing: 8, runSpacing: 8, children: chips);
-    }
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -628,52 +602,33 @@ class _Preview extends StatelessWidget {
   }
 }
 
-class _ExportRow extends StatelessWidget {
-  const _ExportRow(this.page);
+/// Share and export, in a dropdown from the icon at the card's corner.
+class _ShareMenu extends StatelessWidget {
+  const _ShareMenu(this.page);
 
   final _CreatePageState page;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: <Widget>[
-      Expanded(
-        flex: 14,
-        child: FilledButton.icon(
-          onPressed: () => unawaited(page._export('png')),
-          icon: const Icon(Icons.ios_share_rounded, size: 18),
-          label: const Text('Share'),
-        ),
-      ),
-      const SizedBox(width: 8),
-      Expanded(
-        flex: 10,
-        child: OutlinedButton(
-          onPressed: () => unawaited(page._export('png')),
-          child: const Text('PNG'),
-        ),
-      ),
-      const SizedBox(width: 8),
-      Expanded(
-        flex: 10,
-        child: OutlinedButton(
-          onPressed: page._style.gradient is SweepGradient
-              ? null
-              : () => unawaited(page._export('svg')),
-          child: const Text('SVG'),
-        ),
+  Widget build(BuildContext context) => PopupMenuButton<String>(
+    tooltip: 'Share',
+    icon: const Icon(Icons.ios_share_rounded, size: 22),
+    onSelected: (String v) => unawaited(page._export(v)),
+    itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+      const PopupMenuItem<String>(value: 'png', child: Text('Share')),
+      const PopupMenuItem<String>(value: 'png', child: Text('PNG')),
+      PopupMenuItem<String>(
+        value: 'svg',
+        enabled: page._style.gradient is! SweepGradient,
+        child: const Text('SVG'),
       ),
     ],
   );
 }
 
 class _Presets extends StatelessWidget {
-  const _Presets(
-    this.page, {
-    this.padding = const EdgeInsets.symmetric(horizontal: 16),
-  });
+  const _Presets(this.page);
 
   final _CreatePageState page;
-  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
@@ -681,7 +636,7 @@ class _Presets extends StatelessWidget {
     String title(String s) => '${s[0].toUpperCase()}${s.substring(1)}';
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: padding,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: <Widget>[
           for (final MapEntry<String, BarcodeStyle> p

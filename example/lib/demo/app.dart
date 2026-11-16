@@ -77,7 +77,11 @@ class _DemoShellState extends State<DemoShell> {
     builder: (BuildContext context, BoxConstraints c) {
       // Desktops keep the side menu down to small windows; phones and
       // browsers switch at tablet width.
-      final bool wide = c.maxWidth >= (_desktop ? 640 : 900);
+      // A phone in landscape is under 900 wide (a Pixel 4a is 851) but has
+      // no height for a bottom bar: it gets the side rail too.
+      final bool wide =
+          c.maxWidth >= (_desktop ? 640 : 900) ||
+          (c.maxWidth > c.maxHeight && c.maxHeight < 500);
       // The pages stay alive: the scanner keeps its camera, the generator
       // its form.
       final Widget pages = IndexedStack(

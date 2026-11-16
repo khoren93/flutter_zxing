@@ -20,18 +20,25 @@ const List<(String, Color)> _inks = <(String, Color)>[
   ('Green', Color(0xFF00735D)),
   ('Plum', Color(0xFF5B2A86)),
   ('Rust', Color(0xFFB4380E)),
+  ('Crimson', Color(0xFFB0123B)),
 ];
 
 const List<(String, Color, Color)> _gradients = <(String, Color, Color)>[
   ('Lagoon', Color(0xFF00735D), Color(0xFF1D4ED8)),
   ('Dusk', Color(0xFF5B2A86), Color(0xFF0B3D91)),
   ('Ember', Color(0xFFB4380E), Color(0xFF5B2A86)),
+  ('Berry', Color(0xFFB0123B), Color(0xFF3730A3)),
+  ('Ocean', Color(0xFF0E7490), Color(0xFF0B3D91)),
+  ('Forest', Color(0xFF00735D), Color(0xFF0E1218)),
 ];
 
 const List<(String, Color)> _grounds = <(String, Color)>[
   ('White', Color(0xFFFFFFFF)),
   ('Cream', Color(0xFFF4EFE4)),
   ('Mist', Color(0xFFE8F1FF)),
+  ('Mint', Color(0xFFE6F4EA)),
+  ('Blush', Color(0xFFFBE9EC)),
+  ('Lemon', Color(0xFFFFF6D6)),
 ];
 
 /// A style with every field given, so that a gradient or a logo can be
@@ -246,6 +253,7 @@ class StyleEditor extends StatelessWidget {
         const SizedBox(height: 10),
         Wrap(
           spacing: 10,
+          runSpacing: 10,
           children: <Widget>[
             for (final (String name, Color c) in _grounds)
               _Swatch(
