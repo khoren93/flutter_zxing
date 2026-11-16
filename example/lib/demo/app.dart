@@ -3,11 +3,11 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 // material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
 // which needs Flutter 3.47; the example still supports Flutter 3.41.
 // ignore: deprecated_member_use
-import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
