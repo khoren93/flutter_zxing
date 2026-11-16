@@ -3,6 +3,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing/src/scanning/frame_geometry.dart'
+    show FrameTransform;
 import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
     show ScannerControllerDebug;
 
@@ -46,6 +48,23 @@ void main() {
     await tester.pumpWidget(host(const SizedBox()));
     await tester.pump();
     expect(camera.isOpen, isFalse);
+  });
+
+  testWidgets('rebuilds the preview when it turns but keeps its shape', (
+    WidgetTester tester,
+  ) async {
+    // On iOS the preview is turned for an instant while the UI has turned
+    // and the frames have not yet; then the frames turn and the preview no
+    // longer is. The shape shown stays the same, but the preview has to
+    // follow, or it stays a quarter turn off.
+    await portrait(tester);
+    await tester.pumpWidget(host(const BarcodeScanner()));
+    await tester.pump();
+    final int builds = camera.previewBuilds;
+
+    camera.turn(const FrameTransform(Size(480, 640)));
+    await tester.pump();
+    expect(camera.previewBuilds, greaterThan(builds));
   });
 
   testWidgets('reports detections and outlines them where they show', (

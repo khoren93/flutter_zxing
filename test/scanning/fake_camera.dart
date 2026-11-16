@@ -184,9 +184,21 @@ final class FakeCamera implements CameraSource {
   @override
   set uiShape(Orientation value) => _shape = value;
 
+  /// How many times the preview was built.
+  int previewBuilds = 0;
+
+  /// Changes how frames and the preview are shown, as the camera does when
+  /// the device turns.
+  void turn(FrameTransform value) {
+    transform = value;
+    if (_open) {
+      _preview.value = value;
+    }
+  }
+
   @override
   Widget buildPreview() =>
-      preview ??
+      (previewBuilds++, preview).$2 ??
       const ColoredBox(
         key: ValueKey<String>('fake preview'),
         color: Color(0xFF336699),

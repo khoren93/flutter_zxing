@@ -210,13 +210,20 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
 
     final Widget base;
     if (ready) {
-      base = FittedBox(
-        fit: widget.fit,
-        clipBehavior: Clip.hardEdge,
-        child: SizedBox.fromSize(
-          size: preview.displaySize,
-          child: source.buildPreview(),
-        ),
+      // Rebuilt on every change of the transform, not only of its size: a
+      // turn that keeps the shape (frames turned by the camera after the UI
+      // turned) still changes how the preview is turned.
+      base = ValueListenableBuilder<FrameTransform?>(
+        valueListenable: source.previewTransform,
+        builder: (BuildContext context, FrameTransform? transform, Widget? _) =>
+            FittedBox(
+              fit: widget.fit,
+              clipBehavior: Clip.hardEdge,
+              child: SizedBox.fromSize(
+                size: (transform ?? preview).displaySize,
+                child: source.buildPreview(),
+              ),
+            ),
       );
     } else if (failed) {
       base =
