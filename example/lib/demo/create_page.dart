@@ -326,10 +326,10 @@ class _CreatePageState extends State<CreatePage> {
 
   Widget _buildWide(BuildContext context) {
     final Fz fz = Fz.of(context);
-    // The code is what the page is about: it takes the wide column on the
-    // left, the settings a narrower one on the right.
+    // Two equal columns: the code and its export on the left, the settings
+    // on the right.
     final Widget preview = ListView(
-      padding: const EdgeInsets.fromLTRB(36, 28, 36, 28),
+      padding: const EdgeInsets.fromLTRB(28, 20, 28, 20),
       children: <Widget>[
         Row(
           children: <Widget>[
@@ -345,11 +345,11 @@ class _CreatePageState extends State<CreatePage> {
             // landscape the code, the export buttons and the title still fit
             // on one screen.
             final double side = math
-                .min(c.maxWidth - 64, MediaQuery.sizeOf(context).height - 230)
+                .min(c.maxWidth - 64, MediaQuery.sizeOf(context).height - 190)
                 .clamp(140, 300);
             return FzCard(
               child: SizedBox(
-                height: side + 40,
+                height: side + 24,
                 child: Center(child: _Preview(this, size: side)),
               ),
             );
@@ -392,7 +392,7 @@ class _CreatePageState extends State<CreatePage> {
         border: Border(left: BorderSide(color: fz.line)),
       ),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
         children: <Widget>[
           Row(
             children: <Widget>[
@@ -418,14 +418,12 @@ class _CreatePageState extends State<CreatePage> {
         ],
       ),
     );
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints c) => Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Expanded(child: preview),
-          SizedBox(width: (c.maxWidth * 0.42).clamp(300, 420), child: settings),
-        ],
-      ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Expanded(child: preview),
+        Expanded(child: settings),
+      ],
     );
   }
 }
