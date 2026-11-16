@@ -270,11 +270,19 @@ class FzLabel extends StatelessWidget {
 
 /// The mint "Reads · checked" pill, or a warning when a code does not read.
 class ReadCheck extends StatelessWidget {
-  const ReadCheck({super.key, required this.reads, this.long = false});
+  const ReadCheck({
+    super.key,
+    required this.reads,
+    this.long = false,
+    this.invalid = false,
+  });
 
   /// `null` while checking.
   final bool? reads;
   final bool long;
+
+  /// The data cannot be encoded at all: no code to read.
+  final bool invalid;
 
   @override
   Widget build(BuildContext context) {
@@ -289,6 +297,7 @@ class ReadCheck extends StatelessWidget {
     final String text = switch (ok) {
       null => 'Checking…',
       true => long ? 'Reads · checked with flutter_zxing' : 'Reads · checked',
+      false when invalid => 'Invalid data',
       false => 'Does not read: raise the contrast',
     };
     return Semantics(

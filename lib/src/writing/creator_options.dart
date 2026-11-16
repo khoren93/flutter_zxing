@@ -21,18 +21,21 @@ String creatorOptions(
 ].join(',');
 
 /// The zxing-cpp ecLevel for [level] in [format]'s terms, `null` where error
-/// correction is fixed (Data Matrix, linear formats).
-String? _ecLevel(BarcodeFormat format, ErrorCorrection level) =>
-    switch (format.symbology) {
-      BarcodeFormat.qrCode => const <String>['L', 'M', 'Q', 'H'][level.index],
-      // Percentages zxing-cpp maps to Aztec's levels.
-      BarcodeFormat.aztec => const <String>[
-        '10%',
-        '23%',
-        '36%',
-        '50%',
-      ][level.index],
-      // PDF417 security levels (0-8): more error correction codewords.
-      BarcodeFormat.pdf417 => const <String>['2', '3', '4', '5'][level.index],
-      _ => null,
-    };
+/// correction is fixed ([BarcodeFormat.hasErrorCorrection]).
+String? _ecLevel(BarcodeFormat format, ErrorCorrection level) {
+  if (!format.hasErrorCorrection) {
+    return null;
+  }
+  return switch (format) {
+    // Micro QR has no H and rMQR only M and H: the nearest level.
+    BarcodeFormat.microQrCode => const <String>['L', 'M', 'Q', 'Q'],
+    BarcodeFormat.rmqrCode => const <String>['M', 'M', 'H', 'H'],
+    // Percentages zxing-cpp maps to Aztec's levels.
+    BarcodeFormat.aztec ||
+    BarcodeFormat.aztecCode => const <String>['10%', '23%', '36%', '50%'],
+    // PDF417 security levels (0-8): more error correction codewords.
+    BarcodeFormat.pdf417 ||
+    BarcodeFormat.compactPdf417 => const <String>['2', '3', '4', '5'],
+    _ => const <String>['L', 'M', 'Q', 'H'],
+  }[level.index];
+}

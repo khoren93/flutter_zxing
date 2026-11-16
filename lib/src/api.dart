@@ -1,6 +1,7 @@
 // The flutter_zxing 4 public API. Exported from package:flutter_zxing/flutter_zxing.dart.
 export 'barcode/barcode.dart';
 export 'barcode/barcode_format.dart' hide BarcodeFormatInternal;
+export 'barcode/barcode_input.dart';
 export 'content/barcode_content.dart';
 export 'engine/barcode_engine.dart';
 export 'errors.dart';

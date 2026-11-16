@@ -30,6 +30,7 @@ final class CameraCapabilities {
     this.hasTorch = false,
     this.minZoom = 1,
     this.maxZoom = 1,
+    this.ultraWide,
   });
 
   /// Whether the camera has a torch that can be switched.
@@ -40,6 +41,11 @@ final class CameraCapabilities {
 
   /// Largest zoom factor.
   final double maxZoom;
+
+  /// With a separate ultra-wide camera on the same side (iPhones): how much
+  /// of the main camera's view it shows at its own zoom 1, e.g. 0.5 for
+  /// twice as wide; it focuses much closer (macro). `null` without one.
+  final double? ultraWide;
 }
 
 /// A platform camera that hands out its newest frame on request.
@@ -53,11 +59,14 @@ abstract class CameraSource {
   static CameraSource create() => platform.createCameraSource();
 
   /// Opens the camera with [facing] at about [resolution] and starts the
-  /// frames. Throws a [ScannerException] if it cannot.
+  /// frames; the ultra-wide camera with [ultraWide] (see
+  /// [CameraCapabilities.ultraWide]). Throws a [ScannerException] if it
+  /// cannot.
   Future<CameraCapabilities> open(
     CameraFacing facing,
-    CameraResolution resolution,
-  );
+    CameraResolution resolution, {
+    bool ultraWide = false,
+  });
 
   /// Releases the camera. A pending [nextFrame] completes with `null`.
   Future<void> close();

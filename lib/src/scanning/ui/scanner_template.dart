@@ -80,6 +80,7 @@ final class ScannerTemplate {
     this.resultBuilder,
     this.actionsBuilder,
     this.haptics = true,
+    this.sound = false,
   });
 
   /// The default screen: close and torch buttons, a hint under the window,
@@ -102,6 +103,7 @@ final class ScannerTemplate {
     this.resultBuilder,
     this.actionsBuilder,
     this.haptics = true,
+    this.sound = false,
   }) : collect = false,
        onDone = null,
        showResultIcon = false;
@@ -125,6 +127,7 @@ final class ScannerTemplate {
     this.resultBuilder,
     this.actionsBuilder,
     this.haptics = true,
+    this.sound = false,
   }) : zoomButtons = false,
        switchCameraButton = false,
        collect = false,
@@ -152,6 +155,7 @@ final class ScannerTemplate {
     this.torchButton = true,
     this.onDone,
     this.haptics = true,
+    this.sound = false,
   }) : hint = null,
        hintIcon = null,
        photoButton = false,
@@ -186,6 +190,7 @@ final class ScannerTemplate {
     this.resultBuilder,
     this.actionsBuilder,
     this.haptics = true,
+    this.sound = false,
   }) : hint = null,
        hintIcon = null,
        photoButton = false,
@@ -216,6 +221,7 @@ final class ScannerTemplate {
     this.resultBuilder,
     this.actionsBuilder,
     this.haptics = true,
+    this.sound = false,
   }) : zoomButtons = false,
        switchCameraButton = false,
        collect = false,
@@ -284,6 +290,11 @@ final class ScannerTemplate {
   /// A haptic tap when a code is found.
   final bool haptics;
 
+  /// The system click sound when a code is found (Android and iOS; the
+  /// system's sound settings apply). For a sound of your own, play it in
+  /// `BarcodeScanner.onDetect`.
+  final bool sound;
+
   /// How the scanner's own controller reports codes for this template.
   DetectionMode get detection =>
       collect ? DetectionMode.distinct : DetectionMode.once;
@@ -312,6 +323,7 @@ final class ScannerTemplate {
     ScannerResultBuilder? resultBuilder,
     ScannerActionsBuilder? actionsBuilder,
     bool? haptics,
+    bool? sound,
   }) => ScannerTemplate(
     theme: theme ?? this.theme,
     scanWindow: scanWindow ?? this.scanWindow,
@@ -332,6 +344,7 @@ final class ScannerTemplate {
     resultBuilder: resultBuilder ?? this.resultBuilder,
     actionsBuilder: actionsBuilder ?? this.actionsBuilder,
     haptics: haptics ?? this.haptics,
+    sound: sound ?? this.sound,
   );
 }
 
@@ -435,6 +448,9 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       if (_template.haptics) {
         unawaited(HapticFeedback.selectionClick());
       }
+      if (_template.sound) {
+        unawaited(SystemSound.play(SystemSoundType.click));
+      }
       setState(() {
         for (final Barcode barcode in capture.barcodes) {
           final int index = _items.indexWhere(
@@ -466,6 +482,9 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     }
     if (_template.haptics) {
       unawaited(HapticFeedback.mediumImpact());
+    }
+    if (_template.sound) {
+      unawaited(SystemSound.play(SystemSoundType.click));
     }
     unawaited(_takeIn(capture, ++_lock));
     if (!_template.showResult) {
@@ -656,6 +675,25 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
+        // The camera in the window fades under a dark plate as the cut-out
+        // flies in: the whole window, under the brackets.
+        if (camera && _cutOut != null)
+          IgnorePointer(
+            child: AnimatedOpacity(
+              opacity: _settled ? 1 : 0,
+              duration: fade,
+              child: AnimatedBuilder(
+                animation: _flight,
+                builder: (BuildContext context, Widget? _) => _WindowPlate(
+                  window: layout.scanWindow,
+                  radius: ScannerTheme.of(context).resolvedWindowRadius,
+                  opacity: Curves.easeInOutCubicEmphasized.transform(
+                    _flight.value,
+                  ),
+                ),
+              ),
+            ),
+          ),
         if (camera)
           ScannerOverlay(
             layout,
@@ -889,8 +927,38 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   }
 }
 
+/// The dark plate over the camera in the scan window once a code settled
+/// in it.
+class _WindowPlate extends StatelessWidget {
+  const _WindowPlate({
+    required this.window,
+    required this.radius,
+    required this.opacity,
+  });
+
+  final Rect window;
+  final double radius;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    fit: StackFit.expand,
+    children: <Widget>[
+      Positioned.fromRect(
+        rect: window,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xFF06090D).withValues(alpha: 0.82 * opacity),
+            borderRadius: BorderRadius.circular(radius),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
 /// The cut-out of the code found on its way from where the code shows into
-/// the scan window, and the dark plate that covers the camera there.
+/// the scan window.
 class _CutOutFlight extends StatelessWidget {
   const _CutOutFlight({
     required this.image,
@@ -944,17 +1012,6 @@ class _CutOutFlight extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
-        // The camera in the window fades under a plate; the brackets'
-        // inner half stays clear of it.
-        Positioned.fromRect(
-          rect: window.deflate(3),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: const Color(0xFF06090D).withValues(alpha: 0.62 * t),
-              borderRadius: BorderRadius.circular(math.max(0, radius - 3)),
-            ),
-          ),
-        ),
         Positioned(
           left: center.dx - width / 2,
           top: center.dy - height / 2,

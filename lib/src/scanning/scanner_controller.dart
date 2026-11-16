@@ -229,6 +229,99 @@ class ScannerController extends ValueNotifier<ScannerState> {
     _seen.clear();
   }
 
+  // --- lenses ----------------------------------------------------------------
+
+  /// See [CameraCapabilities.ultraWide]; `null` without an ultra-wide
+  /// camera to switch to.
+  double? _ultraWide;
+
+  /// Whether the ultra-wide camera is open. Zoom factors stay in the main
+  /// camera's terms ([ScannerState.zoom] 0.5 is the ultra-wide camera's 1).
+  bool _onUltraWide = false;
+
+  /// Largest zoom factor of the lens that is open, in its own terms.
+  double _lensMaxZoom = 1;
+
+  Future<void>? _lensSwitch;
+
+  /// The last zoom asked for by [setZoom] and not applied yet.
+  double? _wantedZoom;
+  Future<void>? _zoomWorker;
+
+  Future<void> _applyWantedZoom() async {
+    while (!_disposed) {
+      while (_lensSwitch != null) {
+        await _lensSwitch;
+      }
+      final double? zoom = _wantedZoom;
+      _wantedZoom = null;
+      if (zoom == null || !value.status.hasCamera) {
+        return;
+      }
+      await _switchLens(zoom < 1 - 1e-6, zoom);
+    }
+  }
+
+  double _physicalZoom(double zoom) => _onUltraWide ? zoom / _ultraWide! : zoom;
+
+  /// Opens the ultra-wide or the main camera at [zoom] (in the main
+  /// camera's terms), keeping the scanner's state: no "starting" state in
+  /// between, the torch stays on.
+  Future<void> _switchLens(bool ultraWide, double zoom) => _lensSwitch ??=
+      _doSwitchLens(ultraWide, zoom).whenComplete(() => _lensSwitch = null);
+
+  Future<void> _doSwitchLens(bool ultraWide, double zoom) async {
+    final CameraSource? source = _source;
+    if (source == null || !value.status.hasCamera) {
+      return;
+    }
+    if (ultraWide != _onUltraWide) {
+      final bool torch = value.torch == TorchState.on;
+      final int session = ++_session;
+      _wakeUp();
+      _clearResults();
+      source.previewTransform.removeListener(_onPreviewChanged);
+      try {
+        await source.close();
+        final CameraCapabilities capabilities = await source.open(
+          _facing,
+          resolution,
+          ultraWide: ultraWide,
+        );
+        if (session != _session || _disposed) {
+          return; // stopped meanwhile: stop() closes the camera
+        }
+        _onUltraWide = ultraWide;
+        _lensMaxZoom = capabilities.maxZoom;
+      } on Object catch (e) {
+        if (session == _session) {
+          await _fail(
+            e is ScannerException ? e : CameraFailureException('$e'),
+            session,
+          );
+        }
+        return;
+      }
+      source.previewTransform.addListener(_onPreviewChanged);
+      if (torch) {
+        try {
+          await source.setTorch(true);
+        } on Object {
+          _set(value.copyWith(torch: TorchState.off));
+        }
+      }
+      _set(
+        value.copyWith(previewSize: source.previewTransform.value?.displaySize),
+      );
+      unawaited(_loop(session, source));
+    }
+    final double physical = _physicalZoom(
+      zoom,
+    ).clamp(1.0, math.max(1.0, _lensMaxZoom));
+    await source.setZoom(physical);
+    _set(value.copyWith(zoom: _onUltraWide ? physical * _ultraWide! : zoom));
+  }
+
   void _set(ScannerState state) {
     if (!_disposed) {
       value = state;
@@ -254,6 +347,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
     }
     final int session = ++_session;
     _engineFailures = 0;
+    _onUltraWide = false;
     _set(ScannerState(status: ScannerStatus.starting, facing: _facing));
     final CameraSource source = _source ??= _cameraFactory();
     source.previewTransform.removeListener(_onPreviewChanged);
@@ -267,6 +361,8 @@ class ScannerController extends ValueNotifier<ScannerState> {
         return;
       }
       _capabilities = capabilities;
+      _ultraWide = capabilities.ultraWide;
+      _lensMaxZoom = capabilities.maxZoom;
     } on Object catch (e) {
       if (session == _session) {
         await _fail(
@@ -283,6 +379,11 @@ class ScannerController extends ValueNotifier<ScannerState> {
       ScannerState(
         status: paused ? ScannerStatus.paused : ScannerStatus.running,
         torch: _capabilities.hasTorch ? TorchState.off : TorchState.unavailable,
+        minZoom:
+            _ultraWide ??
+            (_capabilities.minZoom > 0.2
+                ? math.min(1, _capabilities.minZoom)
+                : 1),
         maxZoom: math.max(1, _capabilities.maxZoom),
         facing: _facing,
         previewSize: source.previewTransform.value?.displaySize,
@@ -397,11 +498,25 @@ class ScannerController extends ValueNotifier<ScannerState> {
   /// Turns the torch on if it is off, and off if it is on.
   Future<void> toggleTorch() => setTorch(value.torch != TorchState.on);
 
-  /// Zooms to [zoom], clamped to 1.0 … [ScannerState.maxZoom].
+  /// Zooms to [zoom], clamped to [ScannerState.minZoom] …
+  /// [ScannerState.maxZoom]. Below 1 an iPhone's ultra-wide camera is used
+  /// (0.5 is its whole view); it also focuses much closer.
   Future<void> setZoom(double zoom) async {
     final CameraSource? source = _source;
-    final double clamped = zoom.clamp(1.0, math.max(1.0, value.maxZoom));
+    final double clamped = zoom.clamp(
+      value.minZoom,
+      math.max(1.0, value.maxZoom),
+    );
     if (source == null || !value.status.hasCamera) {
+      return;
+    }
+    if (_ultraWide != null) {
+      // Pinching sends many zooms while a lens opens: only the last one is
+      // applied, so the lenses do not open one after the other.
+      _wantedZoom = clamped;
+      await (_zoomWorker ??= _applyWantedZoom().whenComplete(
+        () => _zoomWorker = null,
+      ));
       return;
     }
     await source.setZoom(clamped);
@@ -716,8 +831,15 @@ class ScannerController extends ValueNotifier<ScannerState> {
 
   void _onPreviewChanged() {
     final Size? size = _source?.previewTransform.value?.displaySize;
-    if (size != null && value.status.hasCamera) {
+    if (size != null && value.status.hasCamera && !_disposed) {
+      final ScannerState before = value;
       _set(value.copyWith(previewSize: size));
+      if (value == before) {
+        // The preview is back at the same size (another lens opened, its
+        // first frame arrived): a scanner built while it was missing shows
+        // its placeholder until told.
+        notifyListeners();
+      }
     }
   }
 
@@ -871,6 +993,7 @@ final class ScannerState {
     this.error,
     this.torch = TorchState.unavailable,
     this.zoom = 1,
+    this.minZoom = 1,
     this.maxZoom = 1,
     this.facing = CameraFacing.back,
     this.previewSize,
@@ -885,8 +1008,12 @@ final class ScannerState {
   /// Torch availability and state.
   final TorchState torch;
 
-  /// Current zoom factor.
+  /// Current zoom factor, in terms of the main camera.
   final double zoom;
+
+  /// Smallest supported zoom factor: below 1 when the camera can go wider
+  /// than the main lens (an iPhone's ultra-wide camera: 0.5).
+  final double minZoom;
 
   /// Largest supported zoom factor.
   final double maxZoom;
@@ -906,6 +1033,7 @@ final class ScannerState {
     ScannerException? error,
     TorchState? torch,
     double? zoom,
+    double? minZoom,
     double? maxZoom,
     CameraFacing? facing,
     Size? previewSize,
@@ -914,6 +1042,7 @@ final class ScannerState {
     error: error ?? this.error,
     torch: torch ?? this.torch,
     zoom: zoom ?? this.zoom,
+    minZoom: minZoom ?? this.minZoom,
     maxZoom: maxZoom ?? this.maxZoom,
     facing: facing ?? this.facing,
     previewSize: previewSize ?? this.previewSize,
@@ -926,13 +1055,22 @@ final class ScannerState {
       other.error == error &&
       other.torch == torch &&
       other.zoom == zoom &&
+      other.minZoom == minZoom &&
       other.maxZoom == maxZoom &&
       other.facing == facing &&
       other.previewSize == previewSize;
 
   @override
-  int get hashCode =>
-      Object.hash(status, error, torch, zoom, maxZoom, facing, previewSize);
+  int get hashCode => Object.hash(
+    status,
+    error,
+    torch,
+    zoom,
+    minZoom,
+    maxZoom,
+    facing,
+    previewSize,
+  );
 }
 
 /// What a [ScannerController] is doing.

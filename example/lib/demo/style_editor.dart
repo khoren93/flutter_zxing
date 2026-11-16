@@ -116,6 +116,7 @@ class StyleEditor extends StatelessWidget {
   bool get _shapes => switch (format) {
     BarcodeFormat.qrCode ||
     BarcodeFormat.aztec ||
+    BarcodeFormat.aztecRune ||
     BarcodeFormat.dataMatrix => true,
     _ => false,
   };

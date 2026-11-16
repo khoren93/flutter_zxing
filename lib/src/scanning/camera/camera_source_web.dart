@@ -72,8 +72,9 @@ final class WebCameraSource implements CameraSource {
   @override
   Future<CameraCapabilities> open(
     CameraFacing facing,
-    CameraResolution resolution,
-  ) async {
+    CameraResolution resolution, {
+    bool ultraWide = false,
+  }) async {
     final (int width, int height) = switch (resolution) {
       CameraResolution.sd => (640, 480),
       CameraResolution.hd => (1280, 720),

@@ -233,4 +233,14 @@ void main() {
       throwsA(isA<EngineException>()),
     );
   });
+
+  test("write errors drop zint's error number and return value", () {
+    expect(
+      writeErrorMessage(
+        "Error 275: Invalid check digit '4', expecting '3' (retval: 7)",
+      ),
+      "Invalid check digit '4', expecting '3'",
+    );
+    expect(writeErrorMessage('Nothing to encode'), 'Nothing to encode');
+  });
 }

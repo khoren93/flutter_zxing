@@ -39,10 +39,14 @@ final class PathSink implements ShapeSink {
 }
 
 /// Whether [format] gets [BarcodeStyle.moduleShape] (2D symbols made of
-/// square modules; PDF417's tall row modules stay rectangles).
-bool hasModuleShapes(BarcodeFormat format) => switch (format.symbology) {
+/// square modules; PDF417's tall row modules stay rectangles, and the
+/// single finder of Micro QR and rMQR needs its square modules).
+bool hasModuleShapes(BarcodeFormat format) => switch (format) {
   BarcodeFormat.qrCode ||
+  BarcodeFormat.qrCodeModel2 ||
   BarcodeFormat.aztec ||
+  BarcodeFormat.aztecCode ||
+  BarcodeFormat.aztecRune ||
   BarcodeFormat.dataMatrix => true,
   _ => false,
 };
@@ -194,11 +198,12 @@ final class SymbolShapes {
         // Data Matrix is found by the solid edges of its data regions and
         // Aztec by its bullseye: those stay square, only the data becomes
         // dots.
-        final bool Function(int x, int y) edge = switch (symbol.format) {
-          BarcodeFormat.dataMatrix => _dataMatrixEdge(w, h),
-          BarcodeFormat.aztec => _aztecCore(),
-          _ => (int x, int y) => false,
-        };
+        final bool Function(int x, int y) edge =
+            switch (symbol.format.symbology) {
+              BarcodeFormat.dataMatrix => _dataMatrixEdge(w, h),
+              BarcodeFormat.aztec => _aztecCore(),
+              _ => (int x, int y) => false,
+            };
         for (int y = 0; y < h; y++) {
           for (int x = 0; x < w; x++) {
             if (!dark(x, y) || skip(x, y)) {
@@ -318,10 +323,11 @@ final class SymbolShapes {
   }
 
   /// Where the logo goes, in modules, or `null` without one (only QR codes
-  /// have room for a logo: their error correction covers it).
+  /// have room for a logo: their error correction covers it; not Micro QR
+  /// or rMQR, too small for one).
   static LogoBox? _logoBox(BarcodeSymbol symbol, BarcodeStyle style) {
     final BarcodeLogo? logo = style.logo;
-    if (logo == null || symbol.format.symbology != BarcodeFormat.qrCode) {
+    if (logo == null || !hasFinderPatterns(symbol.format)) {
       return null;
     }
     final double side = logo.size.clamp(0.0, 0.3) * symbol.width;

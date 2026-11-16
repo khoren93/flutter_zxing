@@ -119,7 +119,7 @@ BarcodeScanner(
 and shows a sheet with the parsed content of the code found;
 `ScannerTemplate.retail` collects codes in a list with counts. `payment`,
 `ticket` and `content` are the other presets. `ScannerStrings` translates
-every text.
+every text. `sound: true` plays the system click when a code is found.
 
 ### Several codes at once
 

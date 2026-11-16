@@ -8,10 +8,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing/src/scanning/camera/camera_source.dart';
 import 'package:flutter_zxing/src/scanning/frame_geometry.dart';
 import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
     show ScannerControllerDebug;
 import 'package:flutter_zxing/src/scanning/ui/scanner_icons.dart' show svgPath;
+import 'package:flutter_zxing/src/scanning/ui/window_overlay.dart'
+    show WindowScrim;
 
 import 'fake_camera.dart';
 
@@ -451,6 +454,24 @@ void main() {
         isTrue,
       );
       expect(find.byType(BarcodeOutlines), findsNothing);
+      // A dark plate covers the whole window, edge to edge (no ring of
+      // bright camera between it and the scrim), under the brackets.
+      final Finder plate = find.byWidgetPredicate(
+        (Widget w) =>
+            w is DecoratedBox &&
+            w.decoration is BoxDecoration &&
+            (w.decoration as BoxDecoration).color?.toARGB32() ==
+                const Color(0xFF06090D).withValues(alpha: 0.82).toARGB32(),
+      );
+      expect(plate, findsOneWidget);
+      expect(tester.getRect(plate), layout.scanWindow);
+      final List<Element> order = find
+          .byWidgetPredicate(
+            (Widget w) => w == tester.widget(plate) || w is ScannerOverlay,
+          )
+          .evaluate()
+          .toList();
+      expect(order.first.widget, tester.widget(plate));
 
       await tester.pump(const Duration(milliseconds: 400));
       await tester.tap(find.text('Scan again'));
@@ -594,6 +615,43 @@ void main() {
       expect(theme.lockColor, const Color(0xFFFF6A1A));
     });
 
+    testWidgets('the camera around the window is blurred, unless turned off', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.minimal())),
+      );
+      await tester.pump();
+      Finder scrimBlur() => find.descendant(
+        of: find.byType(WindowScrim),
+        matching: find.byType(BackdropFilter),
+      );
+      expect(scrimBlur(), findsOneWidget);
+      final ClipPath clip = tester.widget(
+        find.descendant(
+          of: find.byType(WindowScrim),
+          matching: find.byType(ClipPath),
+        ),
+      );
+      final Path path = clip.clipper!.getClip(_phone);
+      final Rect window = const ScannerTemplate.minimal().scanWindow.resolve(
+        _phone,
+      );
+      expect(path.contains(window.center), isFalse);
+      expect(path.contains(const Offset(10, 10)), isTrue);
+      await tester.pumpWidget(
+        _host(
+          const BarcodeScanner(
+            template: ScannerTemplate.minimal(),
+            theme: ScannerTheme(scrimBlur: false),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(scrimBlur(), findsNothing);
+    });
+
     testWidgets('a template configures the scanner own controller', (
       WidgetTester tester,
     ) async {
@@ -614,6 +672,40 @@ void main() {
       expect(controller.maxBarcodes, 1);
       expect(controller.detection, DetectionMode.once);
       expect(controller.formats, <BarcodeFormat>{BarcodeFormat.qrCode});
+    });
+
+    testWidgets('sound: a click when a code locks, none by default', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      final List<MethodCall> calls = <MethodCall>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (MethodCall call) async {
+          calls.add(call);
+          return null;
+        },
+      );
+      Iterable<MethodCall> sounds() =>
+          calls.where((MethodCall c) => c.method == 'SystemSound.play');
+
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.minimal())),
+      );
+      await tester.pump();
+      await push(tester, <Barcode>[_barcode('quiet')]);
+      expect(sounds(), isEmpty);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(
+        _host(
+          const BarcodeScanner(template: ScannerTemplate.minimal(sound: true)),
+        ),
+      );
+      await tester.pump();
+      await push(tester, <Barcode>[_barcode('loud')]);
+      expect(sounds().single.arguments, 'SystemSoundType.click');
+      await tester.pump(const Duration(seconds: 1));
     });
 
     testWidgets('while starting: the window breathes, then the camera', (
@@ -945,6 +1037,51 @@ void main() {
         ),
       );
       expect(scroll.position.maxScrollExtent, greaterThan(0));
+    });
+
+    testWidgets('the preview comes back after a lens switch', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      camera
+        ..capabilities = const CameraCapabilities(maxZoom: 10, ultraWide: 0.5)
+        ..previewOnFirstFrame = true;
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.minimal())),
+      );
+      await tester.pump();
+      await push(tester, const <Barcode>[]);
+      final Finder preview = find.byKey(const ValueKey<String>('fake preview'));
+      expect(preview, findsOneWidget);
+      // The new lens is open, its first frame not there yet, and the state
+      // changes (the zoom): the scanner is rebuilt without a preview.
+      await tester.tap(find.text('0.5×'));
+      await tester.pump();
+      await tester.pump();
+      expect(camera.lenses.last, isTrue);
+      expect(preview, findsNothing);
+      // Its first frame brings the preview back.
+      await push(tester, const <Barcode>[]);
+      expect(preview, findsOneWidget);
+    });
+
+    testWidgets('a wider lens adds a 0.5× preset', (WidgetTester tester) async {
+      await phone(tester);
+      camera.capabilities = const CameraCapabilities(
+        hasTorch: true,
+        maxZoom: 10,
+        ultraWide: 0.5,
+      );
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.minimal())),
+      );
+      await tester.pump();
+      expect(find.text('0.5×'), findsOneWidget);
+      await tester.tap(find.text('0.5×'));
+      await tester.pump();
+      await tester.pump();
+      expect(camera.lenses.last, isTrue);
+      expect(_findController(tester).value.zoom, 0.5);
     });
 
     testWidgets('zoom presets can be tapped by screen readers', (

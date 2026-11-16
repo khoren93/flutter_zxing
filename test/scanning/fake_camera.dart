@@ -109,6 +109,12 @@ final class FakeCamera implements CameraSource {
   Exception? torchError;
 
   final List<CameraFacing> opened = <CameraFacing>[];
+
+  /// Whether the preview is known only from the first frame, as on iOS.
+  bool previewOnFirstFrame = false;
+
+  /// For each [open]: whether the ultra-wide camera was asked for.
+  final List<bool> lenses = <bool>[];
   int closed = 0;
   bool? torch;
   double? zoom;
@@ -129,6 +135,9 @@ final class FakeCamera implements CameraSource {
     bool hang = false,
     PixelBuffer? pixels,
   ]) {
+    if (_open && _preview.value == null) {
+      _preview.value = transform;
+    }
     final FakeFrame frame = FakeFrame(transform, barcodes, error, hang, pixels);
     _frames.add(frame);
     final Completer<void>? waiter = _waiter;
@@ -140,16 +149,20 @@ final class FakeCamera implements CameraSource {
   @override
   Future<CameraCapabilities> open(
     CameraFacing facing,
-    CameraResolution resolution,
-  ) async {
+    CameraResolution resolution, {
+    bool ultraWide = false,
+  }) async {
     opened.add(facing);
+    lenses.add(ultraWide);
     final ScannerException? error = openError;
     if (error != null) {
       openError = null;
       throw error;
     }
     _open = true;
-    _preview.value = transform;
+    if (!previewOnFirstFrame) {
+      _preview.value = transform;
+    }
     return capabilities;
   }
 

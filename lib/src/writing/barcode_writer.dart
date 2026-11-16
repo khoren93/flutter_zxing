@@ -64,7 +64,8 @@ final class BarcodeWriter {
   /// Add the quiet zone (blank margin) the symbology requires.
   final bool quietZone;
 
-  /// Print the human readable text under linear barcodes.
+  /// Print the human readable text under linear barcodes (not DX Film
+  /// Edge, which has none).
   final bool showText;
 
   /// Raw zxing-cpp creator options for anything not covered above, e.g.
@@ -122,10 +123,17 @@ final class BarcodeWriter {
       height: s.height,
       modules: s.modules,
       // One margin on every side: the largest one the symbology needs (left
-      // of an EAN-13: 11 modules), at least one module for 2D symbols
-      // (zint gives Aztec none).
-      quietZone: quietZone ? math.max(quiet, format.isMatrix ? 1 : 0) : 0,
-      text: showText && format.isLinear && s.text.isNotEmpty ? s.text : null,
+      // of an EAN-13: 11 modules), at least one module (zint gives Aztec
+      // and DX Film Edge none).
+      quietZone: quietZone ? math.max(quiet, 1) : 0,
+      // DX Film Edge is six modules tall: text under it stops it reading.
+      text:
+          showText &&
+              format.isLinear &&
+              format != BarcodeFormat.dxFilmEdge &&
+              s.text.isNotEmpty
+          ? s.text
+          : null,
     );
   }
 
@@ -180,9 +188,7 @@ final class BarcodeWriter {
   /// This writer as `BarcodeView` uses it for [style]: the most error
   /// correction under a logo.
   BarcodeWriter _forStyle(BarcodeStyle style) =>
-      style.logo != null &&
-          errorCorrection == null &&
-          format.symbology == BarcodeFormat.qrCode
+      style.logo != null && errorCorrection == null && hasFinderPatterns(format)
       ? copyWith(errorCorrection: ErrorCorrection.high)
       : this;
 

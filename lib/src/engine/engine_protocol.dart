@@ -46,13 +46,20 @@ Never throwFzxError(int code, String message) {
     case FzxError.image:
       throw ImageDecodeException(message);
     case FzxError.write:
-      throw BarcodeWriteException(message);
+      throw BarcodeWriteException(writeErrorMessage(message));
     case FzxError.argument:
       throw ArgumentError(message);
     default:
       throw EngineException(message);
   }
 }
+
+/// zint's message without its error number and return value:
+/// `Error 275: Invalid check digit '4', expecting '3' (retval: 7)` becomes
+/// `Invalid check digit '4', expecting '3'`.
+String writeErrorMessage(String message) => message
+    .replaceFirst(RegExp(r'^Error \d+: '), '')
+    .replaceFirst(RegExp(r' \(retval: \d+\)$'), '');
 
 /// Reader settings in the form the engine takes them.
 @immutable

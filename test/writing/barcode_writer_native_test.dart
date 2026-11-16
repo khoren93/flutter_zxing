@@ -8,61 +8,92 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
-/// Something every writable format can encode.
-const Map<BarcodeFormat, String> _samples = <BarcodeFormat, String>{
-  BarcodeFormat.codabar: 'A123456B',
-  BarcodeFormat.code39: 'CODE39',
-  BarcodeFormat.code39Standard: 'STANDARD',
-  BarcodeFormat.code93: 'CODE93',
-  BarcodeFormat.code128: 'Code 128',
-  BarcodeFormat.itf: '12345678',
-  BarcodeFormat.ean13: '950110153000',
-  BarcodeFormat.ean8: '9638507',
-  BarcodeFormat.upcA: '01234567890',
-  BarcodeFormat.upcE: '0123456',
-  BarcodeFormat.pdf417: 'PDF417',
-  BarcodeFormat.aztec: 'Aztec',
-  BarcodeFormat.qrCode: 'https://pub.dev',
-  BarcodeFormat.qrCodeModel2: 'Model 2',
-  BarcodeFormat.dataMatrix: 'Data Matrix',
-};
+/// The reader settings that find a [format]: all of its symbology's
+/// variants (Telepen Numeric is only read when asked for).
+BarcodeReader _readerFor(BarcodeFormat format) => BarcodeReader(
+  formats: <BarcodeFormat>{
+    for (final BarcodeFormat f in BarcodeFormat.values)
+      if (f.symbology == format.symbology) f,
+  },
+);
 
 void main() {
-  test('the samples cover every writable format', () {
-    expect(
-      _samples.keys.toSet(),
-      BarcodeFormat.values.where((BarcodeFormat f) => f.canWrite).toSet(),
-    );
-  });
+  final List<BarcodeFormat> writable = <BarcodeFormat>[
+    for (final BarcodeFormat f in BarcodeFormat.values)
+      if (f.canWrite) f,
+  ];
 
-  for (final MapEntry<BarcodeFormat, String> sample in _samples.entries) {
-    final BarcodeFormat format = sample.key;
-    test('${format.displayName}: created, rendered and read back', () async {
+  for (final BarcodeFormat format in writable) {
+    final String example = format.input!.example;
+    test('${format.displayName}: its example is created, rendered and read '
+        'back', () async {
       final BarcodeWriter writer = BarcodeWriter(format, showText: true);
-      final BarcodeSymbol symbol = await writer.encode(sample.value);
+      final BarcodeSymbol symbol = await writer.encode(example);
       expect(symbol.format.symbology, format.symbology);
       expect(symbol.modules, hasLength(symbol.width * symbol.height));
-      expect(symbol.text != null, format.isLinear);
-
-      final BarcodeReader reader = BarcodeReader(
-        formats: <BarcodeFormat>{format.symbology},
+      expect(
+        symbol.text != null,
+        format.isLinear && format != BarcodeFormat.dxFilmEdge,
       );
+
       final BarcodeImage image = await symbol.toImage(moduleSize: 3);
-      final Barcode? fromPixels = await reader.readPixels(
+      final Barcode? fromPixels = await _readerFor(format).readPixels(
         PixelBuffer(image.pixels, width: image.width, height: image.height),
       );
       expect(fromPixels, isNotNull, reason: 'read from pixels');
-      // The text a reader reports for what was encoded (with check digits).
-      if (symbol.text != null) {
-        expect(fromPixels!.text, symbol.text);
-      } else {
-        expect(fromPixels!.text, sample.value);
+      expect(fromPixels!.format.symbology, format.symbology);
+      // Linear formats may add a check digit or normalize the data (a GTIN
+      // is read as `(01)…`), Aztec Runes are three digits; everything else
+      // reads back as it was written.
+      if (!format.isLinear && format != BarcodeFormat.aztecRune) {
+        expect(fromPixels.text, example);
       }
 
-      final Barcode? fromPng = await reader.read(await image.toPng());
+      final Barcode? fromPng = await _readerFor(
+        format,
+      ).read(await image.toPng());
       expect(fromPng?.text, fromPixels.text, reason: 'read from PNG');
     });
   }
+
+  group('error correction', () {
+    for (final BarcodeFormat format in writable.where(
+      (BarcodeFormat f) => f.hasErrorCorrection,
+    )) {
+      test('${format.displayName} takes every level', () async {
+        for (final ErrorCorrection level in ErrorCorrection.values) {
+          final BarcodeSymbol symbol = await BarcodeWriter(
+            format,
+            errorCorrection: level,
+          ).encode(format.input!.example);
+          expect(symbol.width, greaterThan(0), reason: level.name);
+        }
+      });
+    }
+
+    test('formats with fixed error correction ignore it', () async {
+      for (final BarcodeFormat format in writable.where(
+        (BarcodeFormat f) => !f.hasErrorCorrection,
+      )) {
+        await const BarcodeWriter(BarcodeFormat.qrCode)
+            .copyWith(format: format, errorCorrection: ErrorCorrection.high)
+            .encode(format.input!.example);
+      }
+    });
+  });
+
+  test("an invalid input says what is wrong, without zint's codes", () async {
+    await expectLater(
+      const BarcodeWriter(BarcodeFormat.ean13).encode('9501101530004'),
+      throwsA(
+        isA<BarcodeWriteException>().having(
+          (BarcodeWriteException e) => e.message,
+          'message',
+          "Invalid check digit '4', expecting '3'",
+        ),
+      ),
+    );
+  });
 
   group('quiet zone', () {
     test('is the largest margin the symbology needs', () async {

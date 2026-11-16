@@ -71,6 +71,42 @@ void main() {
       });
     }
 
+    // Every format the writer creates, in every preset and with dots:
+    // the styles leave the parts a reader needs alone. zxing-cpp reads
+    // light-on-dark (night) only for QR, Data Matrix and Aztec; its linear
+    // and PDF417 readers skip inverted images.
+    for (final BarcodeFormat format in BarcodeFormat.writable) {
+      test(
+        '${format.displayName} reads in every preset and with dots',
+        () async {
+          final BarcodeReader reader = BarcodeReader(
+            formats: <BarcodeFormat>{
+              for (final BarcodeFormat f in BarcodeFormat.values)
+                if (f.symbology == format.symbology) f,
+            },
+          );
+          final BarcodeWriter writer = BarcodeWriter(format);
+          final String data = format.input!.example;
+          final bool readsInverted =
+              !format.isLinear && format.symbology != BarcodeFormat.pdf417;
+          for (final MapEntry<String, BarcodeStyle> style
+              in <String, BarcodeStyle>{
+                for (final MapEntry<String, BarcodeStyle> p
+                    in BarcodeStyle.presets.entries)
+                  if (p.key != 'night' || readsInverted) p.key: p.value,
+                'dots': const BarcodeStyle(moduleShape: ModuleShape.circle),
+              }.entries) {
+            final Uint8List png = await writer.toPng(
+              data,
+              moduleSize: 6,
+              style: style.value,
+            );
+            expect(await reader.read(png), isNotNull, reason: style.key);
+          }
+        },
+      );
+    }
+
     test('a gradient on a colored background', () async {
       final Uint8List png = await qr.toPng(
         url,

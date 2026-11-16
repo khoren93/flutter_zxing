@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing/src/scanning/camera/camera_source.dart';
 import 'package:flutter_zxing/src/scanning/frame_geometry.dart';
 import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
     show ScannerControllerDebug;
@@ -253,6 +254,62 @@ void main() {
       expect(camera.zoom, 4);
       await c.setZoom(0.2);
       expect(c.value.zoom, 1);
+    });
+
+    group('lenses', () {
+      test('below 1: the ultra-wide camera, without a restart', () async {
+        camera.capabilities = const CameraCapabilities(
+          hasTorch: true,
+          maxZoom: 10,
+          ultraWide: 0.5,
+        );
+        final ScannerController c = create();
+        final List<ScannerStatus> statuses = <ScannerStatus>[];
+        await c.start();
+        expect(c.value.minZoom, 0.5);
+        await c.setTorch(true);
+        c.addListener(() => statuses.add(c.value.status));
+        await c.setZoom(0.5);
+        expect(camera.lenses, <bool>[false, true]);
+        expect(camera.zoom, 1);
+        expect(c.value.zoom, 0.5);
+        expect(camera.torch, isTrue);
+        expect(statuses, everyElement(ScannerStatus.running));
+        // Frames come from the new lens.
+        final FakeFrame frame = camera.push();
+        await pumpEventQueue();
+        expect(frame.wasRead, isTrue);
+
+        await c.setZoom(0.7);
+        expect(camera.lenses, hasLength(2), reason: 'same lens');
+        expect(camera.zoom, closeTo(1.4, 1e-9));
+        await c.setZoom(2);
+        expect(camera.lenses, <bool>[false, true, false]);
+        expect(camera.zoom, 2);
+        expect(c.value.zoom, 2);
+      });
+
+      test('zooms sent while a lens opens: only the last one', () async {
+        camera.capabilities = const CameraCapabilities(
+          maxZoom: 10,
+          ultraWide: 0.5,
+        );
+        final ScannerController c = create();
+        await c.start();
+        // A pinch across 1×: none of these is awaited.
+        final List<Future<void>> zooms = <Future<void>>[
+          for (final double z in <double>[0.5, 1.2, 0.6, 1.5, 0.8, 3])
+            c.setZoom(z),
+        ];
+        await Future.wait(zooms);
+        expect(camera.lenses, <bool>[false, true, false]);
+        expect(c.value.zoom, 3);
+        expect(camera.zoom, 3);
+        expect(c.value.status, ScannerStatus.running);
+        final FakeFrame frame = camera.push();
+        await pumpEventQueue();
+        expect(frame.wasRead, isTrue);
+      });
     });
 
     test('focus points are clamped to the preview', () async {

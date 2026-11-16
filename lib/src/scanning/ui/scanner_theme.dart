@@ -45,6 +45,7 @@ final class ScannerTheme with Diagnosticable {
     this.windowRadius,
     this.buttonShape,
     this.blur,
+    this.scrimBlur,
     this.fontFamily,
     this.monoFontFamily,
   });
@@ -71,6 +72,12 @@ final class ScannerTheme with Diagnosticable {
   /// turn it off on slow devices: the panels then become more opaque.
   final bool? blur;
 
+  /// Whether the dimmed camera around the scan window is also blurred.
+  /// Default `true`. The blur is computed again for every camera frame:
+  /// turn it off on slow phones (a 2020 Android phone does not manage it in
+  /// a frame's time).
+  final bool? scrimBlur;
+
   /// Font of the scanner's text. `null` uses the app's font.
   final String? fontFamily;
 
@@ -94,6 +101,7 @@ final class ScannerTheme with Diagnosticable {
       windowRadius: other.windowRadius ?? windowRadius,
       buttonShape: other.buttonShape ?? buttonShape,
       blur: other.blur ?? blur,
+      scrimBlur: other.scrimBlur ?? scrimBlur,
       fontFamily: other.fontFamily ?? fontFamily,
       monoFontFamily: other.monoFontFamily ?? monoFontFamily,
     );
@@ -106,6 +114,7 @@ final class ScannerTheme with Diagnosticable {
     double? windowRadius,
     ScannerButtonShape? buttonShape,
     bool? blur,
+    bool? scrimBlur,
     String? fontFamily,
     String? monoFontFamily,
   }) => ScannerTheme(
@@ -114,6 +123,7 @@ final class ScannerTheme with Diagnosticable {
     windowRadius: windowRadius ?? this.windowRadius,
     buttonShape: buttonShape ?? this.buttonShape,
     blur: blur ?? this.blur,
+    scrimBlur: scrimBlur ?? this.scrimBlur,
     fontFamily: fontFamily ?? this.fontFamily,
     monoFontFamily: monoFontFamily ?? this.monoFontFamily,
   );
@@ -133,6 +143,9 @@ final class ScannerTheme with Diagnosticable {
 
   /// Whether glass blurs what is behind it.
   bool get resolvedBlur => blur ?? true;
+
+  /// Whether the dimmed camera around the scan window is blurred.
+  bool get resolvedScrimBlur => scrimBlur ?? true;
 
   _Palette get _palette => _palettes[this] ??= _Palette(this);
   static final Expando<_Palette> _palettes = Expando<_Palette>();
@@ -326,6 +339,7 @@ final class ScannerTheme with Diagnosticable {
       other.windowRadius == windowRadius &&
       other.buttonShape == buttonShape &&
       other.blur == blur &&
+      other.scrimBlur == scrimBlur &&
       other.fontFamily == fontFamily &&
       other.monoFontFamily == monoFontFamily;
 
@@ -336,6 +350,7 @@ final class ScannerTheme with Diagnosticable {
     windowRadius,
     buttonShape,
     blur,
+    scrimBlur,
     fontFamily,
     monoFontFamily,
   );
@@ -349,6 +364,7 @@ final class ScannerTheme with Diagnosticable {
       ..add(DoubleProperty('windowRadius', windowRadius, defaultValue: null))
       ..add(EnumProperty<ScannerButtonShape>('buttonShape', buttonShape))
       ..add(FlagProperty('blur', value: blur, ifFalse: 'no blur'))
+      ..add(FlagProperty('scrimBlur', value: scrimBlur, ifTrue: 'scrim blur'))
       ..add(StringProperty('fontFamily', fontFamily, defaultValue: null))
       ..add(
         StringProperty('monoFontFamily', monoFontFamily, defaultValue: null),

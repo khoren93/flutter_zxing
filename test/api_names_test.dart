@@ -19,7 +19,7 @@ import 'package:image/image.dart' hide Color, Image;
 const List<Type> _types = <Type>[
   // Results
   Barcode, BarcodePosition, BarcodeSequence, BarcodeError, BarcodeErrorKind,
-  BarcodeContentType, BarcodeFormat,
+  BarcodeContentType, BarcodeFormat, BarcodeInput,
   // Content
   BarcodeContent, TextContent, BinaryContent, UrlContent, WifiContent,
   WifiSecurity, EmailContent, PhoneContent, SmsContent, GeoContent,

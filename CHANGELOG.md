@@ -13,6 +13,14 @@ A new engine and a new API, with the 3.x API kept working on top of it.
   `readAllPixels`), `BarcodeWriter` (`encode`, `encodeBytes`, `toPng`,
   `toSvg`, `toImage`), `Barcode`, `BarcodeFormat`, `ReaderOptions`, `PixelBuffer`,
   `BarcodeSymbol`, `BarcodeImage`. Everything runs off the UI thread.
+* **30 formats to create:** everything zxing-cpp creates, Micro QR,
+  rMQR, Aztec Rune, MicroPDF417, GS1 DataBar, ISBN, Telepen, PZN, Code 32
+  and DX Film Edge included. `BarcodeFormat.writable` lists them for a
+  format picker; `format.input` describes what each holds, with an example
+  (`12 digits, or 13 with the check digit`); `format.hasErrorCorrection`
+  says where `ErrorCorrection` applies. Invalid data throws a
+  `BarcodeWriteException` that says what is wrong (`Invalid check digit
+  '4', expecting '3'`).
 * **Camera scanning:** `ScannerController` and `BarcodeScanner`, on Android,
   iOS and the web. Only the scan window of each frame is copied and read;
   front cameras, rotation and `BoxFit` previews are handled, and barcode
@@ -28,6 +36,11 @@ A new engine and a new API, with the 3.x API kept working on top of it.
   `ScannerStrings`, animations follow the reduce motion setting.
   `ScannerController.readImage` reads a photo with the scanner's settings and
   reports it like a camera frame.
+  `ScannerTemplate(sound: true)` plays the system click when a code is
+  found. The dimmed camera around the scan window is blurred
+  (`ScannerTheme(scrimBlur: false)` turns it off on slow phones). On iPhones with an ultra-wide camera the zoom goes
+  down to 0.5× (`ScannerState.minZoom`, a "0.5×" preset in `ZoomButtons`):
+  it focuses much closer than the main camera.
 * **The code, cut out:** `await capture.snapshot()` gives the barcode cut out
   of the camera frame (or photo) and straightened from its four corners, as
   a flat grayscale image. The templates fly it from where the code was into

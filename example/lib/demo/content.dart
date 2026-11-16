@@ -266,6 +266,7 @@ String dartCode(
   BarcodeFormat format,
   BarcodeStyle style, {
   String? presetName,
+  ErrorCorrection? errorCorrection,
 }) {
   String hex(Color c) =>
       'Color(0x${c.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()})';
@@ -274,6 +275,9 @@ String dartCode(
   final StringBuffer b = StringBuffer('BarcodeView(\n  ${quoted(data)},\n');
   if (format != BarcodeFormat.qrCode) {
     b.writeln('  format: BarcodeFormat.${format.name},');
+  }
+  if (errorCorrection != null && format.hasErrorCorrection) {
+    b.writeln('  errorCorrection: ErrorCorrection.${errorCorrection.name},');
   }
   final BarcodeStyle plain = style.copyWith();
   if (presetName != null &&

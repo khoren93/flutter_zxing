@@ -371,8 +371,7 @@ final class _Request {
       // A logo covers modules: QR codes then get the most error correction.
       errorCorrection =
           view.errorCorrection ??
-          (view.style.logo != null &&
-                  view.format.symbology == BarcodeFormat.qrCode
+          (view.style.logo != null && hasFinderPatterns(view.format)
               ? ErrorCorrection.high
               : null);
 

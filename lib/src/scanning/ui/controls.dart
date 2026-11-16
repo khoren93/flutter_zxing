@@ -126,9 +126,11 @@ Future<(bool, BarcodeCapture?)> pickAndReadImage(
   }
 }
 
-/// Glass zoom presets ("1×", "2×", "4×") for the levels the camera
-/// supports; hidden when it supports fewer than two. A level selected
-/// after pinching shows the actual zoom ("1.6×").
+/// Glass zoom presets ("0.5×", "1×", "2×", "4×") for the levels the camera
+/// supports; hidden when it supports fewer than two. The widest level is
+/// [ScannerState.minZoom] when it is below 1 (an iPhone's ultra-wide
+/// camera, which also focuses close up). A level selected after pinching
+/// shows the actual zoom ("1.6×").
 class ZoomButtons extends StatelessWidget {
   /// Creates the buttons.
   const ZoomButtons(
@@ -142,7 +144,8 @@ class ZoomButtons extends StatelessWidget {
   final ScannerController controller;
 
   /// Zoom factors to offer, in ascending order; those above
-  /// [ScannerState.maxZoom] are left out.
+  /// [ScannerState.maxZoom] are left out. [ScannerState.minZoom] is added in
+  /// front when it is below 1.
   final List<double> levels;
 
   /// A row, or a column (beside the window in landscape).
@@ -160,6 +163,7 @@ class ZoomButtons extends StatelessWidget {
     valueListenable: controller,
     builder: (BuildContext context, ScannerState state, Widget? _) {
       final List<double> available = <double>[
+        if (state.minZoom < 0.95) state.minZoom,
         for (final double level in levels)
           if (level >= 1 && level <= state.maxZoom + 0.01) level,
       ];

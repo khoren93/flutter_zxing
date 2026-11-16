@@ -18,9 +18,20 @@ void main() {
   // On the web, `?template=content&look=darkGlass` opens a template
   // directly, for screenshots.
   final Map<String, String> query = Uri.base.queryParameters;
-  final String? direct = query['template'];
+  // --dart-define=TEMPLATE=minimal does the same on a phone, for frame
+  // time measurements without taps.
+  final String? direct =
+      query['template'] ??
+      (const String.fromEnvironment('TEMPLATE') == ''
+          ? null
+          : const String.fromEnvironment('TEMPLATE'));
   final _Look look = _Look.values.firstWhere(
-    (_Look l) => l.name == query['look'],
+    (_Look l) =>
+        l.name ==
+        (query['look'] ??
+            (const String.fromEnvironment('LOOK') == ''
+                ? null
+                : const String.fromEnvironment('LOOK'))),
     orElse: () => _Look.template,
   );
   runApp(
@@ -143,6 +154,7 @@ enum _Look {
     ScannerTheme(accent: Color(0xFF4D8DFF), brightness: Brightness.dark),
   ),
   lightGlass('Light glass', ScannerTheme(brightness: Brightness.light)),
+  noScrimBlur('No scrim blur', ScannerTheme(scrimBlur: false)),
   noBlur('No blur', ScannerTheme(blur: false));
 
   const _Look(this.label, this.theme);

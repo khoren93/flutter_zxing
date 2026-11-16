@@ -446,6 +446,7 @@ Future<Barcode?> scanBarcode(
     switchCameraButton: base.switchCameraButton,
     showResult: false,
     haptics: base.haptics,
+    sound: base.sound,
   );
   // The page has no Material: keep the caller's font.
   final TextStyle text = DefaultTextStyle.of(context).style;

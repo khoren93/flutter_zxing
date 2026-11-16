@@ -87,12 +87,18 @@ final class NativeCameraSource implements CameraSource {
   @override
   Future<CameraCapabilities> open(
     CameraFacing facing,
-    CameraResolution resolution,
-  ) => _oneAtATime(() => _open(facing, resolution));
+    CameraResolution resolution, {
+    bool ultraWide = false,
+  }) => _oneAtATime(() => _open(facing, resolution, ultraWide));
+
+  /// How much of the main camera's view an iPhone's ultra-wide camera shows
+  /// at zoom 1: Apple's multi-camera devices switch between them at zoom 2.
+  static const double _iosUltraWide = 0.5;
 
   Future<CameraCapabilities> _open(
     CameraFacing facing,
     CameraResolution resolution,
+    bool ultraWide,
   ) async {
     final List<CameraDescription> cameras;
     try {
@@ -103,12 +109,24 @@ final class NativeCameraSource implements CameraSource {
     final CameraLensDirection wanted = facing == CameraFacing.back
         ? CameraLensDirection.back
         : CameraLensDirection.front;
+    final List<CameraDescription> side = <CameraDescription>[
+      for (final CameraDescription c in cameras)
+        if (c.lensDirection == wanted) c,
+    ];
+    // iOS lists each lens of a side as a camera of its own: the wide one is
+    // the main camera.
+    final CameraDescription? wide = side
+        .where((CameraDescription c) => c.lensType == CameraLensType.wide)
+        .firstOrNull;
+    final CameraDescription? ultra = side
+        .where((CameraDescription c) => c.lensType == CameraLensType.ultraWide)
+        .firstOrNull;
     // Desktop webcams are "external" or "front": use one when the back
     // camera is asked for.
     final CameraDescription? description =
-        cameras
-            .where((CameraDescription c) => c.lensDirection == wanted)
-            .firstOrNull ??
+        (ultraWide ? ultra : null) ??
+        wide ??
+        side.firstOrNull ??
         (facing == CameraFacing.back ? cameras.firstOrNull : null);
     if (description == null) {
       throw CameraNotFoundException(
@@ -158,6 +176,7 @@ final class NativeCameraSource implements CameraSource {
           description.lensDirection == CameraLensDirection.back,
       minZoom: minZoom,
       maxZoom: maxZoom < minZoom ? minZoom : maxZoom,
+      ultraWide: _ios && wide != null && ultra != null ? _iosUltraWide : null,
     );
   }
 
