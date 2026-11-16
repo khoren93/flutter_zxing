@@ -345,11 +345,11 @@ class _CreatePageState extends State<CreatePage> {
             // landscape the code, the export buttons and the title still fit
             // on one screen.
             final double side = math
-                .min(c.maxWidth - 64, MediaQuery.sizeOf(context).height - 190)
-                .clamp(140, 300);
+                .min(c.maxWidth - 64, MediaQuery.sizeOf(context).height - 220)
+                .clamp(140, 260);
             return FzCard(
               child: SizedBox(
-                height: side + 24,
+                height: side + 16,
                 child: Center(child: _Preview(this, size: side)),
               ),
             );
