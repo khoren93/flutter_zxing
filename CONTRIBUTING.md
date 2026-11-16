@@ -104,7 +104,7 @@ The web engine is tested in headless Chrome: see the `web` job in
 
 ```bash
 cd third_party/zxing-cpp && git fetch && git checkout <tag> && cd -
-make sources      # regenerate hook/sources.g.dart and the GS1 table
+make sources      # regenerate the source lists in hook/build.dart and the GS1 table
 make fixtures     # regenerate the corpus, then run the tests
 ```
 
