@@ -185,7 +185,7 @@ class _TabBar extends StatelessWidget {
                               color: t == tab
                                   ? fz.lockInk
                                   : overCamera
-                                  ? const Color(0xFF0E1218)
+                                  ? ScannerTheme.of(context).inkColor
                                   : fz.inkMuted,
                             ),
                             const SizedBox(height: 2),
@@ -197,7 +197,7 @@ class _TabBar extends StatelessWidget {
                                 color: t == tab
                                     ? fz.lockInk
                                     : overCamera
-                                    ? const Color(0xFF0E1218)
+                                    ? ScannerTheme.of(context).inkColor
                                     : fz.inkMuted,
                               ),
                             ),

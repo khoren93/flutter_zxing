@@ -14,7 +14,9 @@ import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
     show ScannerControllerDebug, ScannerFrameSample;
 
 import 'content.dart';
+import 'cpu_usage_stub.dart' if (dart.library.ffi) 'cpu_usage.dart';
 import 'history.dart';
+import 'lens_numbers.dart';
 import 'tokens.dart';
 
 /// The templates of the picker.
@@ -52,6 +54,10 @@ class _ScanPageState extends State<ScanPage> {
   late final ScannerController _controller = _configure(ScannerController());
   bool _menu = false;
   bool _numbers = false;
+
+  /// Glass blur, switched off from the numbers panel to measure what it
+  /// costs.
+  bool _blur = true;
 
   @override
   void dispose() {
@@ -151,75 +157,89 @@ class _ScanPageState extends State<ScanPage> {
             ? mq.viewPadding.bottom
             : mq.padding.bottom) +
         widget.bottomInset;
-    return ColoredBox(
-      color: Colors.black,
-      child: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          // The template's bottom controls and sheet sit above the tab bar.
-          // The Scaffold clears the body's bottom view padding and puts the
-          // tab bar's height into its padding instead.
-          MediaQuery(
-            data: mq.copyWith(
-              viewPadding: top.copyWith(bottom: bottom),
-              padding: mq.padding.copyWith(bottom: bottom),
-            ),
-            child: BarcodeScanner(
-              controller: _controller,
-              template: _template,
-              onDetect: (BarcodeCapture c) => unawaited(_onDetect(c)),
-            ),
-          ),
-          Positioned(
-            left: 16,
-            top: top.top + 8,
-            child: Row(
-              children: <Widget>[
-                _Picker(
-                  picked: _picked,
-                  open: _menu,
-                  onTap: () => setState(() => _menu = !_menu),
-                ),
-                const SizedBox(width: 8),
-                ScannerButton(
-                  icon: ScannerIcons.binary,
-                  label: _numbers
-                      ? 'Hide the developer numbers'
-                      : 'Show the developer numbers',
-                  isToggle: true,
-                  selected: _numbers,
-                  onPressed: () => setState(() => _numbers = !_numbers),
-                ),
-              ],
-            ),
-          ),
-          if (_menu) ...<Widget>[
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => setState(() => _menu = false),
+    // Without blur: the template's glass and scrim, and this page's own
+    // glass (the picker, the panel).
+    return ScannerScope(
+      theme: ScannerTheme(blur: _blur, scrimBlur: _blur),
+      child: ColoredBox(
+        color: Colors.black,
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            // The template's bottom controls and sheet sit above the tab bar.
+            // The Scaffold clears the body's bottom view padding and puts the
+            // tab bar's height into its padding instead.
+            MediaQuery(
+              data: mq.copyWith(
+                viewPadding: top.copyWith(bottom: bottom),
+                padding: mq.padding.copyWith(bottom: bottom),
+              ),
+              child: BarcodeScanner(
+                controller: _controller,
+                template: _template,
+                theme: ScannerTheme(blur: _blur, scrimBlur: _blur),
+                onDetect: (BarcodeCapture c) => unawaited(_onDetect(c)),
               ),
             ),
             Positioned(
               left: 16,
-              top: top.top + 64,
-              width: 260,
-              child: _Menu(picked: _picked, onPick: _pick),
-            ),
-          ],
-          if (_numbers)
-            Positioned(
-              left: 12,
-              right: 12,
-              top: top.top + 64,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: _Numbers(controller: _controller),
-                ),
+              top: top.top + 8,
+              child: Row(
+                children: <Widget>[
+                  _Picker(
+                    picked: _picked,
+                    open: _menu,
+                    onTap: () => setState(() => _menu = !_menu),
+                  ),
+                  const SizedBox(width: 8),
+                  ScannerButton(
+                    icon: ScannerIcons.binary,
+                    label: _numbers
+                        ? 'Hide the developer numbers'
+                        : 'Show the developer numbers',
+                    isToggle: true,
+                    selected: _numbers,
+                    onPressed: () => setState(() => _numbers = !_numbers),
+                  ),
+                ],
               ),
             ),
-        ],
+            if (_menu) ...<Widget>[
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() => _menu = false),
+                ),
+              ),
+              Positioned(
+                left: 16,
+                top: top.top + 64,
+                width: 260,
+                child: _Menu(picked: _picked, onPick: _pick),
+              ),
+            ],
+            if (_numbers)
+              Positioned(
+                left: 12,
+                right: 12,
+                top: top.top + 64,
+                child: Center(
+                  child: ConstrainedBox(
+                    // A quarter of the screen; the numbers scroll inside.
+                    constraints: BoxConstraints(
+                      maxWidth: 420,
+                      maxHeight: MediaQuery.sizeOf(context).height / 4,
+                    ),
+                    child: _Numbers(
+                      controller: _controller,
+                      blur: _blur,
+                      onBlur: (bool on) => setState(() => _blur = on),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -268,17 +288,17 @@ class _Picker extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 picked.label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF0E1218),
+                  color: ScannerTheme.of(context).inkColor,
                 ),
               ),
               const SizedBox(width: 6),
               Icon(
                 open ? Icons.expand_less_rounded : Icons.expand_more_rounded,
                 size: 20,
-                color: const Color(0xFF0E1218),
+                color: ScannerTheme.of(context).inkColor,
               ),
             ],
           ),
@@ -295,7 +315,12 @@ class _Menu extends StatelessWidget {
   final ValueChanged<DemoTemplate> onPick;
 
   @override
-  Widget build(BuildContext context) => ScannerGlass(
+  Widget build(BuildContext context) {
+    final ScannerTheme theme = ScannerTheme.of(context);
+    return _menu(theme);
+  }
+
+  Widget _menu(ScannerTheme theme) => ScannerGlass(
     strong: true,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
     padding: const EdgeInsets.all(8),
@@ -320,7 +345,7 @@ class _Menu extends StatelessWidget {
                   ),
                   child: Row(
                     children: <Widget>[
-                      Icon(t.icon, size: 22, color: const Color(0xFF0E1218)),
+                      Icon(t.icon, size: 22, color: theme.inkColor),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -328,27 +353,27 @@ class _Menu extends StatelessWidget {
                           children: <Widget>[
                             Text(
                               t.label,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF0E1218),
+                                color: theme.inkColor,
                               ),
                             ),
                             Text(
                               t.note,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF4B5563),
+                                color: theme.inkMutedColor,
                               ),
                             ),
                           ],
                         ),
                       ),
                       if (t == picked)
-                        const Icon(
+                        Icon(
                           Icons.check_rounded,
                           size: 20,
-                          color: Color(0xFF00735D),
+                          color: theme.lockInkColor,
                         ),
                     ],
                   ),
@@ -364,9 +389,17 @@ class _Menu extends StatelessWidget {
 /// The decoder's numbers over the camera: decode time, frame rate, drops,
 /// and a bar for each of the last 30 frames.
 class _Numbers extends StatefulWidget {
-  const _Numbers({required this.controller});
+  const _Numbers({
+    required this.controller,
+    required this.blur,
+    required this.onBlur,
+  });
 
   final ScannerController controller;
+
+  /// Whether the glass blurs the camera.
+  final bool blur;
+  final ValueChanged<bool> onBlur;
 
   @override
   State<_Numbers> createState() => _NumbersState();
@@ -380,36 +413,80 @@ class _NumbersState extends State<_Numbers> {
   int _reads = 0;
   Size _frame = Size.zero;
 
+  // The app's CPU use, once a second.
+  final CpuMeter _cpu = CpuMeter();
+  Timer? _cpuTimer;
+  double? _cpuPercent;
+  List<(String, double)>? _threads;
+
+  /// The threads of the last second the app used more than 120% of a core.
+  (double, List<(String, double)>)? _spike;
+
   @override
   void initState() {
     super.initState();
     _sub = widget.controller.frameSamples.listen(_onSample);
+    _cpu.sample();
+    _cpuTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      setState(() {
+        _cpuPercent = _cpu.sample();
+        _threads = _cpu.sampleThreads();
+        final double? cpu = _cpuPercent;
+        final List<(String, double)>? threads = _threads;
+        if (cpu != null && cpu > 120 && threads != null) {
+          _spike = (cpu, threads);
+        }
+      });
+    });
   }
 
   @override
   void dispose() {
+    _cpuTimer?.cancel();
+    _redraw?.cancel();
     unawaited(_sub?.cancel());
     super.dispose();
   }
 
+  /// Redraws the panel 4 times a second, not on every camera frame: the
+  /// panel would otherwise cost more than what it measures.
+  Timer? _redraw;
+
   void _onSample(ScannerFrameSample s) {
     final DateTime now = DateTime.now();
-    setState(() {
-      _recent.add(s);
-      if (_recent.length > 120) {
-        _recent.removeAt(0);
+    _redraw ??= Timer(const Duration(milliseconds: 250), () {
+      _redraw = null;
+      if (mounted) {
+        setState(() {});
       }
-      _times.add(now);
-      _times.removeWhere(
-        (DateTime t) => now.difference(t) > const Duration(seconds: 1),
-      );
-      _dropped += s.dropped;
-      if (s.found) {
-        _reads++;
-      }
-      _frame = s.frameSize;
     });
+    _recent.add(s);
+    if (_recent.length > 120) {
+      _recent.removeAt(0);
+    }
+    _times.add(now);
+    _times.removeWhere(
+      (DateTime t) => now.difference(t) > const Duration(seconds: 1),
+    );
+    _dropped += s.dropped;
+    if (s.found) {
+      _reads++;
+    }
+    _frame = s.frameSize;
   }
+
+  static const TextStyle _mono = TextStyle(
+    fontFamily: 'monospace',
+    fontSize: 12,
+    height: 1.4,
+    color: Color(0xFFEEF1F5),
+  );
+
+  /// The five busiest threads, one a line.
+  static String _threadLines(List<(String, double)> threads) => <String>[
+    for (final (String name, double cpu) in threads.take(5))
+      '${cpu.round().toString().padLeft(4)}%  $name',
+  ].join('\n');
 
   double _percentile(double p) {
     if (_recent.isEmpty) {
@@ -447,61 +524,114 @@ class _NumbersState extends State<_Numbers> {
         : _recent;
     final ScannerController c = widget.controller;
     return ScannerScope(
-      theme: const ScannerTheme(brightness: Brightness.dark),
+      theme: ScannerTheme(brightness: Brightness.dark, blur: widget.blur),
       child: ScannerGlass(
         strong: true,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            const Text('DECODER · LIVE', style: k),
-            const SizedBox(height: 12),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: stat(
-                    'Decode p50',
-                    '${_percentile(0.5).toStringAsFixed(1)} ms',
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Text('DECODER · LIVE', style: k),
+              const SizedBox(height: 12),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: stat(
+                      'Decode p50',
+                      '${_percentile(0.5).toStringAsFixed(1)} ms',
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: stat(
-                    'p95',
-                    '${_percentile(0.95).toStringAsFixed(1)} ms',
+                  Expanded(
+                    child: stat(
+                      'p95',
+                      '${_percentile(0.95).toStringAsFixed(1)} ms',
+                    ),
                   ),
-                ),
-                Expanded(child: stat('Frames', '${_times.length}/s')),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: <Widget>[
-                Expanded(child: stat('Dropped', '$_dropped')),
-                Expanded(child: stat('With a code', '$_reads')),
-                Expanded(
-                  child: stat(
-                    'Restarts',
-                    '${c.cameraRestarts + c.engineRestarts}',
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            SizedBox(height: 44, child: CustomPaint(painter: _Bars(last))),
-            const SizedBox(height: 10),
-            Text(
-              '${_frame.width.round()}×${_frame.height.round()} · '
-              '${c.formats == null ? 'all formats' : '${c.formats!.length} formats'} · '
-              'zxing-cpp $zxingCppVersion',
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 12,
-                color: Color(0xFFA7B0BD),
+                  Expanded(child: stat('Frames', '${_times.length}/s')),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Row(
+                children: <Widget>[
+                  Expanded(child: stat('Dropped', '$_dropped')),
+                  Expanded(child: stat('With a code', '$_reads')),
+                  Expanded(
+                    child: stat(
+                      'Restarts',
+                      '${c.cameraRestarts + c.engineRestarts}',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: stat(
+                      'CPU, app',
+                      _cpuPercent == null ? '—' : '${_cpuPercent!.round()}%',
+                    ),
+                  ),
+                  Expanded(
+                    child: stat(
+                      'Of ${CpuMeter.cores} cores',
+                      _cpuPercent == null || CpuMeter.cores == 0
+                          ? '—'
+                          : '${(_cpuPercent! / CpuMeter.cores).round()}%',
+                    ),
+                  ),
+                  const Expanded(child: SizedBox()),
+                ],
+              ),
+              const SizedBox(height: 10),
+              // Blur on and off, to see what it costs (the raster thread).
+              GestureDetector(
+                onTap: () => widget.onBlur(!widget.blur),
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  children: <Widget>[
+                    Text('GLASS BLUR', style: k),
+                    const Spacer(),
+                    IgnorePointer(
+                      child: Switch(value: widget.blur, onChanged: (_) {}),
+                    ),
+                  ],
+                ),
+              ),
+              if (_threads != null) ...<Widget>[
+                const SizedBox(height: 10),
+                const Text('THREADS, % OF A CORE', style: k),
+                const SizedBox(height: 4),
+                Text(_threadLines(_threads!), style: _mono),
+              ],
+              if (_spike != null) ...<Widget>[
+                const SizedBox(height: 10),
+                Text(
+                  'LAST SPIKE · ${_spike!.$1.round()}%',
+                  style: k.copyWith(color: const Color(0xFFFBBF24)),
+                ),
+                const SizedBox(height: 4),
+                Text(_threadLines(_spike!.$2), style: _mono),
+              ],
+              const SizedBox(height: 14),
+              SizedBox(height: 44, child: CustomPaint(painter: _Bars(last))),
+              const SizedBox(height: 10),
+              Text(
+                '${_frame.width.round()}×${_frame.height.round()} · '
+                '${c.formats == null ? 'all formats' : '${c.formats!.length} formats'} · '
+                'zxing-cpp $zxingCppVersion',
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  color: Color(0xFFA7B0BD),
+                ),
+              ),
+              LensNumbers(controller: c),
+            ],
+          ),
         ),
       ),
     );
