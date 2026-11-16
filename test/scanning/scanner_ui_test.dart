@@ -399,6 +399,33 @@ void main() {
       expect(controller.value.status, ScannerStatus.running);
     });
 
+    testWidgets('a tap on the camera around the result scans again', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      await tester.pumpWidget(
+        _host(
+          BarcodeScanner(
+            template: ScannerTemplate.minimal(
+              actionsBuilder: (_, Barcode b, _) => <ScannerAction>[
+                ScannerAction(label: 'Open', primary: true, onPressed: () {}),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await push(tester, <Barcode>[_barcode('https://pub.dev/packages/x')]);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(BarcodeResultSheet), findsOneWidget);
+      await tester.tapAt(const Offset(200, 300));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(BarcodeResultSheet), findsNothing);
+      expect(_findController(tester).value.status, ScannerStatus.running);
+    });
+
     testWidgets('the code found is cut out and flies into the window', (
       WidgetTester tester,
     ) async {
@@ -1117,7 +1144,11 @@ void main() {
       await tester.tap(find.text('TEXT'));
       await tester.pump();
       expect(camera.focus, isNull);
-      // Outside the sheet the camera still focuses.
+      // Outside the sheet a tap scans again; then the camera focuses.
+      await tester.tapAt(const Offset(195, 200));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(BarcodeResultSheet), findsNothing);
       await tester.tapAt(const Offset(195, 200));
       await tester.pump();
       expect(camera.focus, isNotNull);
@@ -1375,6 +1406,39 @@ void main() {
       await show(tester, _barcode('First line\nsecond line\nthird'));
       expect(find.text('First line'), findsOneWidget);
       expect(find.text('second line\nthird'), findsOneWidget);
+    });
+
+    testWidgets('actions that do not scan again get a close in the corner', (
+      WidgetTester tester,
+    ) async {
+      int again = 0;
+      Future<void> sheet(List<ScannerAction>? actions) => tester.pumpWidget(
+        _host(
+          ScannerScope(
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: BarcodeResultSheet(
+                _barcode('https://example.com'),
+                actions: actions,
+                onScanAgain: () => again++,
+              ),
+            ),
+          ),
+        ),
+      );
+      final Finder close = find.bySemanticsLabel('Scan again');
+      await sheet(<ScannerAction>[
+        const ScannerAction.copy('https://example.com'),
+        ScannerAction(label: 'Open', primary: true, onPressed: () {}),
+      ]);
+      expect(find.text('Scan again'), findsNothing);
+      expect(close, findsOneWidget);
+      await tester.tap(close);
+      expect(again, 1);
+      // The default buttons scan again themselves: no close.
+      await sheet(null);
+      expect(find.text('Scan again'), findsOneWidget);
+      expect(close, findsOneWidget);
     });
 
     testWidgets('copy confirms and resets', (WidgetTester tester) async {

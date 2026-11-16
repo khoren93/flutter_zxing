@@ -284,7 +284,8 @@ final class ScannerTemplate {
   final ScannerResultBuilder? resultBuilder;
 
   /// The buttons of the default result sheet; default copy and "Scan
-  /// again".
+  /// again". Buttons that do not scan again get a close in the sheet's
+  /// corner; a tap on the camera around the sheet scans again too.
   final ScannerActionsBuilder? actionsBuilder;
 
   /// A haptic tap when a code is found.
@@ -763,6 +764,16 @@ class _TemplateOverlayState extends State<TemplateOverlay>
             right: 16,
             bottom: math.max(safe.bottom, 12) + 24,
             child: Center(child: ScannerHint(_notice!, liveRegion: true)),
+          ),
+        // A tap on the camera around a result scans again.
+        if (_result != null && template.resultBuilder == null)
+          Positioned.fill(
+            child: ExcludeSemantics(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _scanAgain,
+              ),
+            ),
           ),
         // The top bar.
         Positioned(

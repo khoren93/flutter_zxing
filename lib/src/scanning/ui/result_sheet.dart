@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 import '../../barcode/barcode.dart';
 import '../../content/barcode_content.dart';
 import 'glass.dart';
+import 'pressable.dart';
 import 'scanner_icons.dart';
 import 'scanner_strings.dart';
 import 'scanner_theme.dart';
@@ -61,7 +62,9 @@ final class ScannerAction {
 /// ```
 ///
 /// Without [actions] it shows a copy button and, with [onScanAgain],
-/// "Scan again".
+/// "Scan again". With [actions] that do not scan again, [onScanAgain] puts
+/// a close button in the corner, so the scanner is never a tap away from
+/// the next code.
 class BarcodeResultSheet extends StatelessWidget {
   /// Creates a sheet for [barcode].
   const BarcodeResultSheet(
@@ -114,6 +117,10 @@ class BarcodeResultSheet extends StatelessWidget {
     final String symbology = barcode.symbologyIdentifier.isEmpty
         ? barcode.format.displayName
         : '${barcode.format.displayName} · ${barcode.symbologyIdentifier}';
+    final VoidCallback? scanAgain = onScanAgain;
+    final bool close =
+        scanAgain != null &&
+        !actions.any((ScannerAction a) => a.onPressed == scanAgain);
 
     final Widget heading = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -135,19 +142,22 @@ class BarcodeResultSheet extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          if (showIcon || showPicture)
-            Row(
-              children: <Widget>[
-                if (showIcon)
-                  ScannerBadge(icon: iconOf(content))
-                else
-                  BarcodeThumbnail(barcode, cutOut: cutOut, size: 72),
+          Row(
+            children: <Widget>[
+              if (showIcon) ...<Widget>[
+                ScannerBadge(icon: iconOf(content)),
                 const SizedBox(width: 16),
-                Expanded(child: heading),
+              ] else if (showPicture) ...<Widget>[
+                BarcodeThumbnail(barcode, cutOut: cutOut, size: 72),
+                const SizedBox(width: 16),
               ],
-            )
-          else
-            heading,
+              Expanded(child: heading),
+              if (close) ...<Widget>[
+                const SizedBox(width: 12),
+                _SheetClose(label: strings.scanAgain, onPressed: scanAgain),
+              ],
+            ],
+          ),
           if (summary.detail case final String detail) ...<Widget>[
             const SizedBox(height: 16),
             Text(
@@ -321,6 +331,45 @@ final class _Summary {
         .take(24)
         .map((int b) => b.toRadixString(16).padLeft(2, '0'));
     return '${shown.join(' ')}${bytes.length > 24 ? ' …' : ''}';
+  }
+}
+
+/// The round close button in the corner of a sheet.
+class _SheetClose extends StatelessWidget {
+  const _SheetClose({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final ScannerTheme theme = ScannerTheme.of(context);
+    const ShapeBorder shape = CircleBorder();
+    return Semantics(
+      container: true,
+      button: true,
+      label: label,
+      child: Pressable(
+        onPressed: onPressed,
+        shape: shape,
+        child: DecoratedBox(
+          decoration: ShapeDecoration(
+            color: theme.inkColor.withValues(alpha: 0.08),
+            shape: shape,
+          ),
+          child: SizedBox.square(
+            dimension: 40,
+            child: Center(
+              child: ScannerIcon(
+                ScannerIcons.close,
+                size: 20,
+                color: theme.inkMutedColor,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
