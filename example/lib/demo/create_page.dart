@@ -604,7 +604,10 @@ class _Preview extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       width: square ? size : size * 1.4,
       height: square ? size : size * 0.7,
-      padding: const EdgeInsets.all(6),
+      // The symbology's own quiet zone (four modules around a QR code) looks
+      // like empty space on screen: the tile keeps a narrower margin in its
+      // place. Exports keep the full one.
+      padding: EdgeInsets.all(style.quietZone ? size * 0.07 : 6),
       decoration: BoxDecoration(
         color: style.backgroundColor,
         borderRadius: BorderRadius.circular(18),
@@ -612,7 +615,7 @@ class _Preview extends StatelessWidget {
       child: BarcodeView(
         page._data,
         format: page._format,
-        style: style,
+        style: style.copyWith(quietZone: false),
         errorBuilder: (BuildContext context, BarcodeWriteException e) => Center(
           child: Text(
             e.message,
