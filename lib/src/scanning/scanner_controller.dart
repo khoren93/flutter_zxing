@@ -779,7 +779,6 @@ class ScannerController extends ValueNotifier<ScannerState> {
     if (_barcodes.isClosed) {
       return;
     }
-    final PixelBuffer? pixels = camera.pixels;
     final List<BarcodePosition> positions = <BarcodePosition>[
       for (final Barcode b in raw) b.position,
     ];
@@ -789,13 +788,10 @@ class ScannerController extends ValueNotifier<ScannerState> {
         imageSize: display,
         time: now,
         source: CaptureSource.camera,
-        cut: pixels == null
-            ? null
-            : cutFrame(
-                pixels,
-                positions,
-                linear: <bool>[for (final Barcode b in raw) b.format.isLinear],
-              ),
+        cut: camera.cut(
+          positions,
+          linear: <bool>[for (final Barcode b in raw) b.format.isLinear],
+        ),
         positions: positions,
         mirrored: camera.mirrored,
       ),
@@ -1210,8 +1206,8 @@ final class BarcodeCapture {
   /// }
   /// ```
   ///
-  /// `null` on the web (for now), for captures not made by a
-  /// [ScannerController], and for a barcode not in [barcodes].
+  /// `null` for captures not made by a [ScannerController], and for a
+  /// barcode not in [barcodes].
   Future<ui.Image?> snapshot([Barcode? barcode]) async {
     final int index = barcode == null ? 0 : barcodes.indexOf(barcode);
     final List<BarcodePosition>? positions = _positions;

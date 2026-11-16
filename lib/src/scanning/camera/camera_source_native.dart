@@ -355,7 +355,7 @@ final class NativeCameraSource implements CameraSource {
   }
 }
 
-final class _NativeFrame implements CameraFrame {
+final class _NativeFrame extends CameraFrame {
   _NativeFrame(
     this._image,
     this.transform, {

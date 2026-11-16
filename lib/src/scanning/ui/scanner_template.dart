@@ -530,7 +530,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
 
   /// Cuts the code of [capture] out of its frame and flies it from where
   /// it shows into the scan window. Nothing flies where there is no
-  /// cut-out (the web, for now).
+  /// cut-out.
   Future<void> _takeIn(BarcodeCapture capture, int lock) async {
     final ui.Image? image = await capture.snapshot();
     // The layout shows the code from the frame after the capture.

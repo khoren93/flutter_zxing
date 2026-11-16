@@ -25,7 +25,7 @@ Barcode fakeBarcode(String text, Rect rect) => Barcode(
 );
 
 /// A frame holding [barcodes] (positions in the delivered frame).
-final class FakeFrame implements CameraFrame {
+final class FakeFrame extends CameraFrame {
   FakeFrame(
     this.transform, [
     this.barcodes = const <Barcode>[],

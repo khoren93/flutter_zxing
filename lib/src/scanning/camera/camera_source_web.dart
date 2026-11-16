@@ -1,10 +1,12 @@
 // The camera on the web: getUserMedia into a <video> element shown through a
 // platform view. Each frame is grabbed with createImageBitmap, cropped to the
 // scan window by the browser (off the Dart heap), and transferred to the
-// engine's worker.
+// engine's worker. A second bitmap of the same frame stays here while it
+// has codes, to cut them out.
 import 'dart:async';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
+import 'dart:math' as math;
 import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/foundation.dart';
@@ -19,6 +21,7 @@ import '../../errors.dart';
 import '../../reading/pixel_buffer.dart';
 import '../frame_geometry.dart';
 import '../scanner_controller.dart';
+import '../snapshot.dart';
 import 'camera_source.dart';
 
 /// The camera of this platform.
@@ -171,6 +174,8 @@ final class WebCameraSource implements CameraSource {
 
   @override
   Future<void> close() async {
+    _held?._release();
+    _held = null;
     for (final web.MediaStreamTrack track
         in _stream?.getTracks().toDart ?? const <web.MediaStreamTrack>[]) {
       track.stop();
@@ -209,8 +214,25 @@ final class WebCameraSource implements CameraSource {
     if (_stream == null || transform == null) {
       return null;
     }
-    return _WebFrame(_video, transform, arrivalMicros);
+    // The previous frame's codes were cut out, if they were reported.
+    _held?._release();
+    _held = null;
+    return _WebFrame(this, transform, arrivalMicros);
   }
+
+  /// The last frame that kept a bitmap for cut-outs.
+  _WebFrame? _held;
+
+  /// Where frames are drawn to read their pixels, made on the first cut.
+  web.CanvasRenderingContext2D? _canvas;
+
+  web.CanvasRenderingContext2D get _cutCanvas => _canvas ??=
+      (web.document.createElement('canvas') as web.HTMLCanvasElement)
+              .getContext(
+                '2d',
+                <String, Object>{'willReadFrequently': true}.jsify(),
+              )!
+          as web.CanvasRenderingContext2D;
 
   @override
   Widget buildPreview() => HtmlElementView(viewType: _viewType);
@@ -253,8 +275,16 @@ final class WebCameraSource implements CameraSource {
   Future<void> setFocusPoint(Offset point) async {}
 }
 
-final class _WebFrame implements CameraFrame {
-  _WebFrame(this._video, this.transform, this.arrivalMicros);
+final class _WebFrame extends CameraFrame {
+  _WebFrame(this._source, this.transform, this.arrivalMicros);
+
+  final WebCameraSource _source;
+
+  /// The decoded part of the frame, kept while it has codes.
+  web.ImageBitmap? _kept;
+
+  /// Where [_kept] is in the frame.
+  Rect _keptArea = Rect.zero;
 
   @override
   final int arrivalMicros;
@@ -262,8 +292,6 @@ final class _WebFrame implements CameraFrame {
   // The video element shows the newest frame; skipped ones are not counted.
   @override
   int get dropped => 0;
-
-  final web.HTMLVideoElement _video;
 
   @override
   final FrameTransform transform;
@@ -275,6 +303,41 @@ final class _WebFrame implements CameraFrame {
   bool get mirrored => false;
 
   @override
+  FrameCut? cut(List<BarcodePosition> positions, {List<bool>? linear}) {
+    final web.ImageBitmap? kept = _kept;
+    if (kept == null) {
+      return null;
+    }
+    final Rect? area = cutArea(positions, _keptArea, linear: linear);
+    if (area == null) {
+      return null;
+    }
+    final int width = area.width.toInt();
+    final int height = area.height.toInt();
+    final web.CanvasRenderingContext2D canvas = _source._cutCanvas;
+    final web.HTMLCanvasElement element = canvas.canvas;
+    if (element.width < width || element.height < height) {
+      element
+        ..width = math.max(element.width, width)
+        ..height = math.max(element.height, height);
+    }
+    canvas.drawImage(
+      kept,
+      _keptArea.left - area.left,
+      _keptArea.top - area.top,
+    );
+    final Uint8List rgba = Uint8List.view(
+      canvas.getImageData(0, 0, width, height).data.toDart.buffer,
+    );
+    return grayCut(rgba, width * 4, 4, area, shift: area.topLeft);
+  }
+
+  void _release() {
+    _kept?.close();
+    _kept = null;
+  }
+
+  @override
   Future<EngineReadResult> read(
     BarcodeEngine engine,
     Rect? crop,
@@ -282,20 +345,49 @@ final class _WebFrame implements CameraFrame {
   ) async {
     final Size size = transform.frameSize;
     final Rect area = crop ?? Offset.zero & size;
-    final web.ImageBitmap bitmap = await web.window
-        .createImageBitmap(
-          _video,
-          area.left.toInt().toJS,
-          area.top.toInt(),
-          area.width.toInt(),
-          area.height.toInt(),
-        )
-        .toDart;
-    final EngineBackend backend = await engine.backend;
-    final EngineReadResult result = await (backend as WebBackend).readBitmap(
-      bitmap,
-      options,
+    // Both bitmaps are taken now, of the frame the video shows: the
+    // engine's goes to the worker, the other stays for cut-outs.
+    JSPromise<web.ImageBitmap> grab() => web.window.createImageBitmap(
+      _source._video,
+      area.left.toInt().toJS,
+      area.top.toInt(),
+      area.width.toInt(),
+      area.height.toInt(),
     );
+    final Future<web.ImageBitmap> forEngine = grab().toDart;
+    final Future<web.ImageBitmap?> forCut = grab().toDart.then(
+      (web.ImageBitmap b) => b,
+      onError: (Object _) => null,
+    );
+    final web.ImageBitmap bitmap;
+    try {
+      bitmap = await forEngine;
+    } on Object {
+      unawaited(forCut.then((web.ImageBitmap? b) => b?.close()));
+      rethrow;
+    }
+    final EngineBackend backend = await engine.backend;
+    final EngineReadResult result;
+    try {
+      result = await (backend as WebBackend).readBitmap(bitmap, options);
+    } on Object {
+      unawaited(forCut.then((web.ImageBitmap? b) => b?.close()));
+      rethrow;
+    }
+    final web.ImageBitmap? kept = await forCut;
+    if (result.barcodes.isEmpty || kept == null) {
+      kept?.close();
+    } else {
+      _source._held?._release();
+      _source._held = this;
+      _kept = kept;
+      _keptArea = Rect.fromLTWH(
+        area.left.truncateToDouble(),
+        area.top.truncateToDouble(),
+        kept.width.toDouble(),
+        kept.height.toDouble(),
+      );
+    }
     return EngineReadResult(
       barcodes: <Barcode>[
         for (final Barcode b in result.barcodes)

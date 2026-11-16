@@ -7,12 +7,14 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import '../../barcode/barcode.dart';
 import '../../engine/engine.dart';
 import '../../engine/engine_protocol.dart';
 import '../../errors.dart';
 import '../../reading/pixel_buffer.dart';
 import '../frame_geometry.dart';
 import '../scanner_controller.dart';
+import '../snapshot.dart';
 import 'camera_source_stub.dart'
     if (dart.library.js_interop) 'camera_source_web.dart'
     if (dart.library.ffi) 'camera_source_native.dart'
@@ -114,6 +116,14 @@ abstract class CameraFrame {
   /// Whether [pixels] are a mirror image of the scene (the front camera on
   /// iOS).
   bool get mirrored;
+
+  /// The grayscale part of the frame around [positions] (frame pixels), for
+  /// cut-outs of the codes found: from [pixels] where they are in memory.
+  /// Asked right after [read] found the codes.
+  FrameCut? cut(List<BarcodePosition> positions, {List<bool>? linear}) {
+    final PixelBuffer? pixels = this.pixels;
+    return pixels == null ? null : cutFrame(pixels, positions, linear: linear);
+  }
 
   /// When the frame reached Dart, on [cameraClock].
   int get arrivalMicros;

@@ -36,16 +36,16 @@ final class FrameCut {
 /// The longest side of a snapshot, in pixels.
 const int _maxSide = 360;
 
-/// Copies the grayscale pixels of [pixels] around [positions]. `null` if
-/// they are outside the frame.
+/// The whole pixels of [bounds] around [positions], to cut out: `null` if
+/// they are outside it.
 ///
 /// A matrix code's cut reaches a third of its size beyond it, for the quiet
 /// zone. A [linear] code is known only by the lines read across it, which
 /// may run anywhere from the top to the bottom of its bars: its cut reaches
 /// almost its width up and down, to find where the bars end.
-FrameCut? cutFrame(
-  PixelBuffer pixels,
-  List<BarcodePosition> positions, {
+Rect? cutArea(
+  List<BarcodePosition> positions,
+  Rect bounds, {
   List<bool>? linear,
 }) {
   if (positions.isEmpty) {
@@ -53,33 +53,67 @@ FrameCut? cutFrame(
   }
   Rect? box;
   for (int i = 0; i < positions.length; i++) {
-    final Rect bounds = positions[i].bounds;
+    final Rect code = positions[i].bounds;
     final double reach =
-        bounds.longestSide * (linear != null && linear[i] ? 0.9 : 0.35);
-    final Rect around = bounds.inflate(reach);
+        code.longestSide * (linear != null && linear[i] ? 0.9 : 0.35);
+    final Rect around = code.inflate(reach);
     box = box == null ? around : box.expandToInclude(around);
   }
-  final Rect frame = Rect.fromLTWH(
-    0,
-    0,
-    pixels.width.toDouble(),
-    pixels.height.toDouble(),
-  );
-  final Rect area = box!.intersect(frame);
+  final Rect area = box!.intersect(bounds);
   if (area.width < 2 || area.height < 2) {
     return null;
   }
-  final int left = area.left.floor();
-  final int top = area.top.floor();
-  final int width = area.right.ceil() - left;
-  final int height = area.bottom.ceil() - top;
+  return Rect.fromLTRB(
+    area.left.floorToDouble(),
+    area.top.floorToDouble(),
+    area.right.ceilToDouble(),
+    area.bottom.ceilToDouble(),
+  );
+}
+
+/// Copies the grayscale pixels of [pixels] around [positions] (see
+/// [cutArea]). `null` if they are outside the frame.
+FrameCut? cutFrame(
+  PixelBuffer pixels,
+  List<BarcodePosition> positions, {
+  List<bool>? linear,
+}) {
+  final Rect? area = cutArea(
+    positions,
+    Rect.fromLTWH(0, 0, pixels.width.toDouble(), pixels.height.toDouble()),
+    linear: linear,
+  );
+  if (area == null) {
+    return null;
+  }
   final int channels = switch (pixels.layout) {
     PixelLayout.luminance => 1,
     PixelLayout.rgb => 3,
     PixelLayout.rgba || PixelLayout.bgra => 4,
   };
-  final int stride = pixels.rowStride ?? pixels.width * channels;
-  final Uint8List src = pixels.bytes;
+  return grayCut(
+    pixels.bytes,
+    pixels.rowStride ?? pixels.width * channels,
+    channels,
+    area,
+    bgr: pixels.layout == PixelLayout.bgra,
+  );
+}
+
+/// The grayscale cut of [area] (whole pixels) out of [src], rows [stride]
+/// bytes apart with [channels] bytes per pixel (RGB(A), or BGRA with [bgr]).
+FrameCut grayCut(
+  Uint8List src,
+  int stride,
+  int channels,
+  Rect area, {
+  bool bgr = false,
+  Offset shift = Offset.zero,
+}) {
+  final int left = area.left.toInt() - shift.dx.toInt();
+  final int top = area.top.toInt() - shift.dy.toInt();
+  final int width = area.width.toInt();
+  final int height = area.height.toInt();
   final Uint8List gray = Uint8List(width * height);
   for (int y = 0; y < height; y++) {
     final int row = (top + y) * stride + left * channels;
@@ -88,7 +122,6 @@ FrameCut? cutFrame(
       continue;
     }
     // Luma of RGB(A); BGRA swaps red and blue.
-    final bool bgr = pixels.layout == PixelLayout.bgra;
     for (int x = 0; x < width; x++) {
       final int i = row + x * channels;
       final int r = src[bgr ? i + 2 : i];
@@ -97,7 +130,7 @@ FrameCut? cutFrame(
       gray[y * width + x] = (r * 77 + g * 150 + b * 29) >> 8;
     }
   }
-  return FrameCut(gray, width, height, Offset(left.toDouble(), top.toDouble()));
+  return FrameCut(gray, width, height, area.topLeft);
 }
 
 /// A straightened code: grayscale pixels, rows without padding.

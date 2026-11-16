@@ -275,4 +275,35 @@ void main() {
     expect(cut.width, 10);
     expect(cut.gray.every((int v) => v >= 254), isTrue);
   });
+
+  test('a cut of pixels that start inside the frame (the web)', () {
+    // 4 × 3 RGBA pixels that sit at (100, 50) in the frame, each its x.
+    final Uint8List rgba = Uint8List(4 * 3 * 4);
+    for (int y = 0; y < 3; y++) {
+      for (int x = 0; x < 4; x++) {
+        rgba.fillRange((y * 4 + x) * 4, (y * 4 + x) * 4 + 3, x * 10);
+      }
+    }
+    final FrameCut cut = grayCut(
+      rgba,
+      4 * 4,
+      4,
+      const Rect.fromLTWH(101, 51, 2, 2),
+      shift: const Offset(100, 50),
+    );
+    expect(cut.origin, const Offset(101, 51));
+    expect(cut.gray, <int>[10, 20, 10, 20]);
+  });
+
+  test('the area to cut is in whole pixels inside the bounds', () {
+    final Rect? area = cutArea(const <BarcodePosition>[
+      BarcodePosition(
+        topLeft: Offset(110.4, 60.6),
+        topRight: Offset(130.2, 60.6),
+        bottomRight: Offset(130.2, 80.1),
+        bottomLeft: Offset(110.4, 80.1),
+      ),
+    ], const Rect.fromLTWH(100, 50, 200, 100));
+    expect(area, const Rect.fromLTRB(103, 53, 138, 88));
+  });
 }
