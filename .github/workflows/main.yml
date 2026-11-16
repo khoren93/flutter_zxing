@@ -15,14 +15,17 @@ on:
       - "4.0"
   workflow_dispatch:
 
-# Cancel previous workflows for the same pull request to save resources
+# A new push or pull request update cancels the run still going for the same
+# branch, to save resources. Every push to main is still tested on its own.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
-# The workflow only ever reads the repository
+# The workflow reads the repository; `actions: write` lets a failed job cancel
+# the rest of the run (the last step of every job).
 permissions:
   contents: read
+  actions: write
 
 jobs:
   # Job for linting, formatting and unit testing Dart code
@@ -70,6 +73,15 @@ jobs:
       - name: Run unit tests
         run: flutter test --exclude-tags native
 
+      # The first failure stops the whole run: the other jobs would only burn
+      # CI minutes on a run that has already failed.
+      - name: Cancel the run
+        if: failure()
+        shell: bash
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   # The test corpus is generated from zxing-cpp's samples (the submodule), not
   # committed: once here, then handed to every job that reads it. libwebp's
   # dwebp converts the WebP samples, like zxing-cpp's own tests decode them.
@@ -101,6 +113,15 @@ jobs:
             example/assets/fixtures/corpus
           retention-days: 3
           if-no-files-found: error
+
+      # The first failure stops the whole run: the other jobs would only burn
+      # CI minutes on a run that has already failed.
+      - name: Cancel the run
+        if: failure()
+        shell: bash
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   # The engine on the host: hook/build.dart compiles it from scratch (no cache
   # on a fresh runner), then the engine tests and the fixture corpus run
@@ -140,6 +161,15 @@ jobs:
           flutter test --tags native
           echo "Clean engine build + tests on ${{ matrix.os }}: $(( $(date +%s) - START )) s" | tee -a "$GITHUB_STEP_SUMMARY"
 
+      # The first failure stops the whole run: the other jobs would only burn
+      # CI minutes on a run that has already failed.
+      - name: Cancel the run
+        if: failure()
+        shell: bash
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   # The hook on the lowest supported Flutter. Flutter 3.41 pins meta 1.17, so
   # pub resolves older hooks / code_assets / native_toolchain_c there, and
   # hook/build.dart has to compile with those (see pubspec.yaml).
@@ -172,6 +202,15 @@ jobs:
 
       - name: Run engine tests
         run: flutter test --tags native
+
+      # The first failure stops the whole run: the other jobs would only burn
+      # CI minutes on a run that has already failed.
+      - name: Cancel the run
+        if: failure()
+        shell: bash
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   # The engine in the browser: the example's corpus runner and the scanner
   # (a video file as the camera), built with dart2js and with dart2wasm, in
@@ -238,6 +277,15 @@ jobs:
         run: |
           (cd example && flutter build web --wasm -t lib/scanner_web.dart)
           node tool/web_scanner_test.mjs example/build/web dart2wasm
+
+      # The first failure stops the whole run: the other jobs would only burn
+      # CI minutes on a run that has already failed.
+      - name: Cancel the run
+        if: failure()
+        shell: bash
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   # Build the example application for the targets whose build is NOT already
   # covered by the test jobs below:
@@ -313,6 +361,15 @@ jobs:
               exit 1
               ;;
           esac
+
+      # The first failure stops the whole run: the other jobs would only burn
+      # CI minutes on a run that has already failed.
+      - name: Cancel the run
+        if: failure()
+        shell: bash
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   # Integration tests for all platforms except Android (handled separately).
   # These also compile the example app from scratch, which is why macOS, Linux
@@ -399,6 +456,15 @@ jobs:
         shell: bash
         run: |
           scripts/run_integration_tests.sh "${{ matrix.device }}"
+
+      # The first failure stops the whole run: the other jobs would only burn
+      # CI minutes on a run that has already failed.
+      - name: Cancel the run
+        if: failure()
+        shell: bash
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   # Integration tests on Android emulator
   test-example-android:
@@ -494,3 +560,12 @@ jobs:
           script: |
             flutter devices
             scripts/run_integration_tests.sh
+
+      # The first failure stops the whole run: the other jobs would only burn
+      # CI minutes on a run that has already failed.
+      - name: Cancel the run
+        if: failure()
+        shell: bash
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
