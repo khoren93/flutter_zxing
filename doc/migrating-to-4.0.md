@@ -14,7 +14,7 @@ This guide shows the replacements side by side.
 
    ```yaml
    dependencies:
-     flutter_zxing: ^4.0.0
+     flutter_zxing: ^4.0.0-rc.1
    ```
 
    4.0 needs Flutter 3.41 and Dart 3.11 or newer.

@@ -1,8 +1,9 @@
 # Changelog
 
-## 4.0.0-beta.1 (unreleased)
+## 4.0.0-rc.1
 
 A new engine and a new API, with the 3.x API kept working on top of it.
+The API is frozen for 4.0: until 4.0.0, release candidates only fix bugs.
 
 * **One engine on every platform, the web included.** zxing-cpp 3.1.1 is
   compiled by the package's build hook on Android, iOS, macOS, Linux and
@@ -22,15 +23,15 @@ A new engine and a new API, with the 3.x API kept working on top of it.
   `BarcodeWriteException` that says what is wrong (`Invalid check digit
   '4', expecting '3'`).
 * **Camera scanning:** `ScannerController` and `BarcodeScanner`, on Android,
-  iOS and the web. Only the scan window of each frame is copied and read;
+  iOS and the web, and on macOS and Linux with `camera_desktop`. Only the scan window of each frame is copied and read;
   front cameras, rotation and `BoxFit` previews are handled, and barcode
   positions arrive in screen coordinates.
 * **Scanner screens:** `BarcodeScanner(template: ...)` puts a whole screen
   around the camera: glass buttons (close, torch, photo, zoom, camera switch),
   hints, brackets that lock onto the code found and a result sheet with the
-  parsed content. Five templates (`ScannerTemplate.minimal`, `.payment`,
-  `.retail` with a list of scanned codes and counts, `.ticket`, `.content`)
-  and a `ScannerTheme` for your accent, shapes and light or dark glass; the
+  parsed content (a tap on the camera around it scans again). Five templates
+  (`ScannerTemplate.minimal`, `.payment`, `.retail` with a list of scanned
+  codes and counts, `.ticket`, `.content`) and a `ScannerTheme` for your accent, shapes and light or dark glass; the
   pieces (`ScannerButton`, `ScannerSheet`, `BarcodeResultSheet`, ...) build
   your own. No Material or icon font needed; every text can be translated with
   `ScannerStrings`, animations follow the reduce motion setting.
@@ -44,13 +45,15 @@ A new engine and a new API, with the 3.x API kept working on top of it.
 * **The code, cut out:** `await capture.snapshot()` gives the barcode cut out
   of the camera frame (or photo) and straightened from its four corners, as
   a flat grayscale image. The templates fly it from where the code was into
-  the scan window. Android and iOS for now.
+  the scan window, on every platform with a camera, the web included.
 * **Pictures of scans:** `Barcode.symbol` is the grid of modules the reader
   sampled from a QR, Micro QR, rMQR, Data Matrix, Aztec or MaxiCode code;
   `BarcodeView.symbol` draws it, sharp at any size. `BarcodeThumbnail` shows
   each scan with the sharpest picture that is exactly the code scanned: that
   grid, EAN/UPC/ITF drawn again from their digits, or the cut-out. The result
-  sheet and the retail list show it.
+  sheet and the retail list show it. A QR code printed with rounded or round
+  finders gets its finder, timing and alignment patterns back as the
+  specification places them, so its picture has no holes.
 * **What is in the barcode:** `barcode.content` parses the payload into a
   `sealed` `BarcodeContent` for pattern matching: `UrlContent`, `WifiContent`,
   `ContactContent` (vCard, MeCard), `EventContent`, `EmailContent`,
