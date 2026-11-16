@@ -1085,7 +1085,7 @@ void main() {
       await tester.tap(find.text('0.5×'));
       await tester.pump();
       await tester.pump();
-      expect(camera.lenses.last, isTrue);
+      expect(camera.lenses.last, CameraLens.ultraWide);
       expect(preview, findsNothing);
       // Its first frame brings the preview back.
       await push(tester, const <Barcode>[]);
@@ -1107,8 +1107,89 @@ void main() {
       await tester.tap(find.text('0.5×'));
       await tester.pump();
       await tester.pump();
-      expect(camera.lenses.last, isTrue);
+      expect(camera.lenses.last, CameraLens.ultraWide);
       expect(_findController(tester).value.zoom, 0.5);
+    });
+
+    testWidgets('glass outside a scanner follows the platform brightness', (
+      WidgetTester tester,
+    ) async {
+      ScannerTheme? seen;
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(platformBrightness: Brightness.dark),
+          child: Builder(
+            builder: (BuildContext context) {
+              seen = ScannerTheme.of(context);
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      expect(seen!.isDark, isTrue);
+    });
+
+    testWidgets('an iPhone with three cameras: Auto and the cameras', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      camera
+        ..capabilities = const CameraCapabilities(
+          maxZoom: 10,
+          ultraWide: 0.5,
+          ultraWideFocusesCloser: true,
+          telephoto: 4,
+        )
+        ..lens = 0.3;
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.minimal())),
+      );
+      await tester.pump();
+      for (final String preset in <String>['Auto', '0.5×', '1×', '4×']) {
+        expect(find.text(preset), findsOneWidget, reason: preset);
+      }
+      expect(find.text('2×'), findsNothing, reason: 'not a camera');
+      expect(_findController(tester).value.autoZoom, AutoZoomState.on);
+      await tester.tap(find.text('4×'));
+      await tester.pump();
+      await tester.pump();
+      expect(camera.lenses.last, CameraLens.telephoto);
+      expect(_findController(tester).value.autoZoom, AutoZoomState.off);
+      await tester.tap(find.text('Auto'));
+      await tester.pump();
+      await tester.pump();
+      expect(_findController(tester).value.autoZoom, AutoZoomState.on);
+    });
+
+    testWidgets('a camera that zooms out (Android): all the presets, no Auto', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      camera.capabilities = const CameraCapabilities(minZoom: 0.6, maxZoom: 10);
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.minimal())),
+      );
+      await tester.pump();
+      for (final String preset in <String>['0.6×', '1×', '2×', '4×']) {
+        expect(find.text(preset), findsOneWidget, reason: preset);
+      }
+      expect(find.text('Auto'), findsNothing);
+    });
+
+    testWidgets('an iPhone with one camera: Auto and digital presets', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      camera
+        ..capabilities = const CameraCapabilities(maxZoom: 10)
+        ..lens = 0.3;
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.minimal())),
+      );
+      await tester.pump();
+      for (final String preset in <String>['Auto', '1×', '2×', '4×']) {
+        expect(find.text(preset), findsOneWidget, reason: preset);
+      }
     });
 
     testWidgets('zoom presets can be tapped by screen readers', (

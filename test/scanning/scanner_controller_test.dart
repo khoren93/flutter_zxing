@@ -270,7 +270,10 @@ void main() {
         await c.setTorch(true);
         c.addListener(() => statuses.add(c.value.status));
         await c.setZoom(0.5);
-        expect(camera.lenses, <bool>[false, true]);
+        expect(camera.lenses, <CameraLens>[
+          CameraLens.main,
+          CameraLens.ultraWide,
+        ]);
         expect(camera.zoom, 1);
         expect(c.value.zoom, 0.5);
         expect(camera.torch, isTrue);
@@ -284,7 +287,11 @@ void main() {
         expect(camera.lenses, hasLength(2), reason: 'same lens');
         expect(camera.zoom, closeTo(1.4, 1e-9));
         await c.setZoom(2);
-        expect(camera.lenses, <bool>[false, true, false]);
+        expect(camera.lenses, <CameraLens>[
+          CameraLens.main,
+          CameraLens.ultraWide,
+          CameraLens.main,
+        ]);
         expect(camera.zoom, 2);
         expect(c.value.zoom, 2);
       });
@@ -302,7 +309,11 @@ void main() {
             c.setZoom(z),
         ];
         await Future.wait(zooms);
-        expect(camera.lenses, <bool>[false, true, false]);
+        expect(camera.lenses, <CameraLens>[
+          CameraLens.main,
+          CameraLens.ultraWide,
+          CameraLens.main,
+        ]);
         expect(c.value.zoom, 3);
         expect(camera.zoom, 3);
         expect(c.value.status, ScannerStatus.running);

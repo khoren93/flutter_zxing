@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+* **Automatic zoom on iPhones** (`ScannerController(autoZoom: true)`, the
+  default; `setAutoZoom`, `toggleAutoZoom`, `ScannerState.autoZoom`). The
+  scanner reads where the camera's lens is focused and moves between the
+  phone's cameras by itself, so it does not stay on blurry frames: to the
+  ultra-wide camera when a code is too close for the main one to focus (on
+  iPhones whose ultra-wide camera focuses closer), to 2× and then the
+  telephoto camera when it is far, never while codes are being read.
+  Zooming by hand turns it off; `ZoomButtons` gets an "Auto" button to turn
+  it back on. Android, the desktop and the web have no automatic zoom: their
+  cameras do not report their focus to the plugin.
+* **The telephoto camera:** zooms from `ScannerState.telephotoZoom` (3×, 4× or
+  5× depending on the model) open the iPhone's telephoto camera instead of
+  zooming the main one digitally. On an iPhone with several cameras on the
+  back, `ZoomButtons` offers its cameras: "0.5×", "1×" and the telephoto
+  camera; `levels` is now optional.
+* **Fixed:** glass (`ScannerGlass`, `ScannerButton`) outside a scanner was
+  always light; without a `ScannerScope` it now follows the platform's
+  brightness, as documented.
+
 ## 4.0.0-rc.1
 
 A new engine and a new API, with the 3.x API kept working on top of it.

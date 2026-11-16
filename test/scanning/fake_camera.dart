@@ -113,8 +113,8 @@ final class FakeCamera implements CameraSource {
   /// Whether the preview is known only from the first frame, as on iOS.
   bool previewOnFirstFrame = false;
 
-  /// For each [open]: whether the ultra-wide camera was asked for.
-  final List<bool> lenses = <bool>[];
+  /// For each [open]: the lens asked for.
+  final List<CameraLens> lenses = <CameraLens>[];
   int closed = 0;
   bool? torch;
   double? zoom;
@@ -150,10 +150,10 @@ final class FakeCamera implements CameraSource {
   Future<CameraCapabilities> open(
     CameraFacing facing,
     CameraResolution resolution, {
-    bool ultraWide = false,
+    CameraLens lens = CameraLens.main,
   }) async {
     opened.add(facing);
-    lenses.add(ultraWide);
+    lenses.add(lens);
     final ScannerException? error = openError;
     if (error != null) {
       openError = null;
@@ -230,4 +230,14 @@ final class FakeCamera implements CameraSource {
 
   @override
   Future<void> setFocusPoint(Offset point) async => focus = point;
+
+  /// The lens position [lensFocus] reports; `null` like a camera that does
+  /// not say.
+  double? lens;
+
+  @override
+  LensFocus? lensFocus() {
+    final double? position = lens;
+    return position == null ? null : LensFocus(position);
+  }
 }

@@ -33,6 +33,8 @@ final class CameraCapabilities {
     this.minZoom = 1,
     this.maxZoom = 1,
     this.ultraWide,
+    this.ultraWideFocusesCloser = false,
+    this.telephoto,
   });
 
   /// Whether the camera has a torch that can be switched.
@@ -48,6 +50,49 @@ final class CameraCapabilities {
   /// of the main camera's view it shows at its own zoom 1, e.g. 0.5 for
   /// twice as wide; it focuses much closer (macro). `null` without one.
   final double? ultraWide;
+
+  /// Whether the [ultraWide] camera focuses closer than the main one (macro:
+  /// iPhone 13 Pro and later Pro models, iPhone 16 and later). Older ones
+  /// have a fixed focus: no help close up.
+  final bool ultraWideFocusesCloser;
+
+  /// With a separate telephoto camera on the same side (iPhone Pro models):
+  /// its zoom in the main camera's terms, e.g. 4 (3 or 5 on other models).
+  /// `null` without one.
+  final double? telephoto;
+}
+
+/// Where a camera's lens is focused (iPhones: AVCaptureDevice).
+@immutable
+final class LensFocus {
+  /// Creates a focus.
+  const LensFocus(
+    this.position, {
+    this.adjusting = false,
+    this.minimumDistance,
+  });
+
+  /// The lens position: 0.0 is the nearest the lens can focus, 1.0 far. Not
+  /// a distance; the same distance reads differently on other cameras.
+  final double position;
+
+  /// Whether the camera is focusing now.
+  final bool adjusting;
+
+  /// The nearest the camera can focus, in millimeters, where known.
+  final int? minimumDistance;
+}
+
+/// The physical cameras of one side, on iPhones.
+enum CameraLens {
+  /// The main (wide) camera.
+  main,
+
+  /// The ultra-wide camera ([CameraCapabilities.ultraWide]).
+  ultraWide,
+
+  /// The telephoto camera ([CameraCapabilities.telephoto]).
+  telephoto,
 }
 
 /// A platform camera that hands out its newest frame on request.
@@ -61,13 +106,13 @@ abstract class CameraSource {
   static CameraSource create() => platform.createCameraSource();
 
   /// Opens the camera with [facing] at about [resolution] and starts the
-  /// frames; the ultra-wide camera with [ultraWide] (see
-  /// [CameraCapabilities.ultraWide]). Throws a [ScannerException] if it
-  /// cannot.
+  /// frames: its [lens] where a side has several (see
+  /// [CameraCapabilities.ultraWide] and [CameraCapabilities.telephoto]).
+  /// Throws a [ScannerException] if it cannot.
   Future<CameraCapabilities> open(
     CameraFacing facing,
     CameraResolution resolution, {
-    bool ultraWide = false,
+    CameraLens lens = CameraLens.main,
   });
 
   /// Releases the camera. A pending [nextFrame] completes with `null`.
@@ -101,6 +146,10 @@ abstract class CameraSource {
 
   /// Focuses and meters at [point], in fractions of the preview as shown.
   Future<void> setFocusPoint(Offset point);
+
+  /// Where the open camera's lens is focused; `null` where unknown: only
+  /// iPhones report it. Read on every frame by the automatic zoom.
+  LensFocus? lensFocus();
 }
 
 /// One camera frame, ready to decode.

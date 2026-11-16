@@ -17,6 +17,7 @@ import '../engine/engine_protocol.dart';
 import '../errors.dart';
 import '../reading/pixel_buffer.dart';
 import '../reading/reader_options.dart';
+import 'auto_lens.dart';
 import 'camera/camera_source.dart';
 import 'frame_geometry.dart';
 import 'scan_window.dart';
@@ -85,7 +86,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
     this.resolution = CameraResolution.hd,
     this.autoStart = true,
     this.pauseInBackground = true,
+    bool autoZoom = true,
   }) : _formats = formats,
+       _autoZoom = autoZoom,
        _options = options,
        _detection = detection,
        _scanWindow = scanWindow,
@@ -235,9 +238,38 @@ class ScannerController extends ValueNotifier<ScannerState> {
   /// camera to switch to.
   double? _ultraWide;
 
-  /// Whether the ultra-wide camera is open. Zoom factors stay in the main
-  /// camera's terms ([ScannerState.zoom] 0.5 is the ultra-wide camera's 1).
-  bool _onUltraWide = false;
+  /// See [CameraCapabilities.telephoto]; `null` without a telephoto camera
+  /// to switch to.
+  double? _telephoto;
+
+  /// See [CameraCapabilities.ultraWideFocusesCloser]: only then does
+  /// automatic zoom go to the ultra-wide camera.
+  bool _ultraWideFocusesCloser = false;
+
+  /// The camera that is open. Zoom factors stay in the main camera's terms
+  /// ([ScannerState.zoom] 0.5 is the ultra-wide camera's 1, 4 a 4×
+  /// telephoto camera's 1).
+  CameraLens _lens = CameraLens.main;
+
+  /// The zoom of [lens]'s own 1, in the main camera's terms.
+  double _lensZoom(CameraLens lens) => switch (lens) {
+    CameraLens.main => 1,
+    CameraLens.ultraWide => _ultraWide ?? 1,
+    CameraLens.telephoto => _telephoto ?? 1,
+  };
+
+  /// The camera that shows [zoom]: below 1 the ultra-wide camera, from the
+  /// telephoto camera's zoom on the telephoto camera, the main one between.
+  CameraLens _lensFor(double zoom) {
+    final double? telephoto = _telephoto;
+    if (_ultraWide != null && zoom < 1 - 1e-6) {
+      return CameraLens.ultraWide;
+    }
+    if (telephoto != null && zoom >= telephoto - 1e-6) {
+      return CameraLens.telephoto;
+    }
+    return CameraLens.main;
+  }
 
   /// Largest zoom factor of the lens that is open, in its own terms.
   double _lensMaxZoom = 1;
@@ -247,6 +279,68 @@ class ScannerController extends ValueNotifier<ScannerState> {
   /// The last zoom asked for by [setZoom] and not applied yet.
   double? _wantedZoom;
   Future<void>? _zoomWorker;
+
+  // --- automatic zoom (the numbers are in auto_lens.dart) -------------------
+
+  /// Whether automatic zoom is wanted: [setAutoZoom]; zooming by hand turns
+  /// it off.
+  bool _autoZoom;
+
+  /// The step the lens position points to, and since when.
+  double? _autoTarget;
+  DateTime _autoSince = DateTime(0);
+
+  /// When automatic zoom last changed the zoom.
+  DateTime _autoChanged = DateTime(0);
+
+  /// The cameras automatic zoom moves between: the ultra-wide one only
+  /// where it focuses closer than the main one (a fixed-focus one is no
+  /// help close up, and would be left again at once).
+  AutoLensZooms get _autoLensZooms => autoLensZooms(
+    ultraWide: _ultraWideFocusesCloser ? _ultraWide : null,
+    telephoto: _telephoto,
+  );
+
+  /// Automatic zoom works with the back camera of an iPhone: the cameras
+  /// that report their focus.
+  AutoZoomState _autoZoomState(CameraSource source) =>
+      _facing == CameraFacing.back && source.lensFocus() != null
+      ? (_autoZoom ? AutoZoomState.on : AutoZoomState.off)
+      : AutoZoomState.unavailable;
+
+  /// After a decoded frame: moves to the zoom step the lens position points
+  /// to, once it has pointed there long enough and no code is being read.
+  void _autoZoomStep(CameraSource source) {
+    if (value.autoZoom != AutoZoomState.on ||
+        _lensSwitch != null ||
+        _zoomWorker != null) {
+      _autoTarget = null;
+      return;
+    }
+    final double? lens = source.lensFocus()?.position;
+    final DateTime now = _now();
+    final double? target =
+        lens == null ||
+            now.difference(_autoChanged) < AutoLensTuning.settle ||
+            now.difference(_lastFound) < AutoLensTuning.idle
+        ? null
+        : autoLensTarget(value.zoom, lens, _autoLensZooms);
+    if (target != _autoTarget) {
+      _autoTarget = target;
+      _autoSince = now;
+      return;
+    }
+    if (target == null ||
+        now.difference(_autoSince) <
+            (target < value.zoom
+                ? AutoLensTuning.holdNear
+                : AutoLensTuning.holdFar)) {
+      return;
+    }
+    _autoTarget = null;
+    _autoChanged = now;
+    unawaited(_zoom(target).whenComplete(() => _autoChanged = _now()));
+  }
 
   Future<void> _applyWantedZoom() async {
     while (!_disposed) {
@@ -258,24 +352,21 @@ class ScannerController extends ValueNotifier<ScannerState> {
       if (zoom == null || !value.status.hasCamera) {
         return;
       }
-      await _switchLens(zoom < 1 - 1e-6, zoom);
+      await _switchLens(_lensFor(zoom), zoom);
     }
   }
 
-  double _physicalZoom(double zoom) => _onUltraWide ? zoom / _ultraWide! : zoom;
+  /// Opens [lens] at [zoom] (in the main camera's terms), keeping the
+  /// scanner's state: no "starting" state in between, the torch stays on.
+  Future<void> _switchLens(CameraLens lens, double zoom) => _lensSwitch ??=
+      _doSwitchLens(lens, zoom).whenComplete(() => _lensSwitch = null);
 
-  /// Opens the ultra-wide or the main camera at [zoom] (in the main
-  /// camera's terms), keeping the scanner's state: no "starting" state in
-  /// between, the torch stays on.
-  Future<void> _switchLens(bool ultraWide, double zoom) => _lensSwitch ??=
-      _doSwitchLens(ultraWide, zoom).whenComplete(() => _lensSwitch = null);
-
-  Future<void> _doSwitchLens(bool ultraWide, double zoom) async {
+  Future<void> _doSwitchLens(CameraLens lens, double zoom) async {
     final CameraSource? source = _source;
     if (source == null || !value.status.hasCamera) {
       return;
     }
-    if (ultraWide != _onUltraWide) {
+    if (lens != _lens) {
       final bool torch = value.torch == TorchState.on;
       final int session = ++_session;
       _wakeUp();
@@ -286,12 +377,12 @@ class ScannerController extends ValueNotifier<ScannerState> {
         final CameraCapabilities capabilities = await source.open(
           _facing,
           resolution,
-          ultraWide: ultraWide,
+          lens: lens,
         );
         if (session != _session || _disposed) {
           return; // stopped meanwhile: stop() closes the camera
         }
-        _onUltraWide = ultraWide;
+        _lens = lens;
         _lensMaxZoom = capabilities.maxZoom;
       } on Object catch (e) {
         if (session == _session) {
@@ -315,11 +406,13 @@ class ScannerController extends ValueNotifier<ScannerState> {
       );
       unawaited(_loop(session, source));
     }
-    final double physical = _physicalZoom(
-      zoom,
-    ).clamp(1.0, math.max(1.0, _lensMaxZoom));
+    final double lensZoom = _lensZoom(_lens);
+    final double physical = (zoom / lensZoom).clamp(
+      1.0,
+      math.max(1.0, _lensMaxZoom),
+    );
     await source.setZoom(physical);
-    _set(value.copyWith(zoom: _onUltraWide ? physical * _ultraWide! : zoom));
+    _set(value.copyWith(zoom: physical * lensZoom));
   }
 
   void _set(ScannerState state) {
@@ -347,7 +440,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
     }
     final int session = ++_session;
     _engineFailures = 0;
-    _onUltraWide = false;
+    _lens = CameraLens.main;
+    _autoTarget = null;
+    _autoChanged = DateTime(0);
     _set(ScannerState(status: ScannerStatus.starting, facing: _facing));
     final CameraSource source = _source ??= _cameraFactory();
     source.previewTransform.removeListener(_onPreviewChanged);
@@ -362,6 +457,8 @@ class ScannerController extends ValueNotifier<ScannerState> {
       }
       _capabilities = capabilities;
       _ultraWide = capabilities.ultraWide;
+      _telephoto = capabilities.telephoto;
+      _ultraWideFocusesCloser = capabilities.ultraWideFocusesCloser;
       _lensMaxZoom = capabilities.maxZoom;
     } on Object catch (e) {
       if (session == _session) {
@@ -379,12 +476,14 @@ class ScannerController extends ValueNotifier<ScannerState> {
       ScannerState(
         status: paused ? ScannerStatus.paused : ScannerStatus.running,
         torch: _capabilities.hasTorch ? TorchState.off : TorchState.unavailable,
+        autoZoom: _autoZoomState(source),
         minZoom:
             _ultraWide ??
             (_capabilities.minZoom > 0.2
                 ? math.min(1, _capabilities.minZoom)
                 : 1),
-        maxZoom: math.max(1, _capabilities.maxZoom),
+        maxZoom: math.max(_telephoto ?? 1, _capabilities.maxZoom),
+        telephotoZoom: _telephoto,
         facing: _facing,
         previewSize: source.previewTransform.value?.displaySize,
       ),
@@ -500,8 +599,41 @@ class ScannerController extends ValueNotifier<ScannerState> {
 
   /// Zooms to [zoom], clamped to [ScannerState.minZoom] …
   /// [ScannerState.maxZoom]. Below 1 an iPhone's ultra-wide camera is used
-  /// (0.5 is its whole view); it also focuses much closer.
+  /// (0.5 is its whole view); it also focuses much closer. Turns automatic
+  /// zoom off.
   Future<void> setZoom(double zoom) async {
+    if (value.autoZoom == AutoZoomState.on) {
+      await setAutoZoom(false);
+    }
+    await _zoom(zoom);
+  }
+
+  /// Turns automatic zoom on or off. While it is on, an iPhone's scanner
+  /// picks the lens and zoom by itself from where the camera is focused: the
+  /// ultra-wide camera when a code is too close for the main lens to focus,
+  /// a longer zoom when it is far, never while codes are being read. Zooming
+  /// by hand ([setZoom]) turns it off. Where the camera does not report its
+  /// focus ([AutoZoomState.unavailable]) the choice is kept for later.
+  Future<void> setAutoZoom(bool enabled) async {
+    _autoZoom = enabled;
+    _autoTarget = null;
+    if (value.autoZoom == AutoZoomState.unavailable) {
+      return;
+    }
+    _set(
+      value.copyWith(autoZoom: enabled ? AutoZoomState.on : AutoZoomState.off),
+    );
+    // From a zoom set by hand, start over at 1×.
+    if (enabled && !isAutoLensZoom(value.zoom, _autoLensZooms)) {
+      await _zoom(1);
+    }
+  }
+
+  /// Turns automatic zoom on if it is off, and off if it is on.
+  Future<void> toggleAutoZoom() =>
+      setAutoZoom(value.autoZoom != AutoZoomState.on);
+
+  Future<void> _zoom(double zoom) async {
     final CameraSource? source = _source;
     final double clamped = zoom.clamp(
       value.minZoom,
@@ -510,7 +642,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
     if (source == null || !value.status.hasCamera) {
       return;
     }
-    if (_ultraWide != null) {
+    if (_ultraWide != null || _telephoto != null) {
       // Pinching sends many zooms while a lens opens: only the last one is
       // applied, so the lenses do not open one after the other.
       _wantedZoom = clamped;
@@ -642,6 +774,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
       }
       _lastFrame = (frame, crop);
       _onFrame(frame, result, crop, clock.elapsedMicroseconds);
+      _autoZoomStep(source);
     }
   }
 
@@ -973,6 +1106,15 @@ extension ScannerControllerDebug on ScannerController {
     return pixels == null ? null : (pixels, last!.$2);
   }
 
+  /// The physical camera that is open, where its lens is focused (`null`
+  /// where the camera does not say) and the zoom automatic zoom is heading
+  /// for (`null`: staying).
+  ({CameraLens lens, LensFocus? focus, double? autoTarget}) get lensSample => (
+    lens: _lens,
+    focus: value.status.hasCamera ? _source?.lensFocus() : null,
+    autoTarget: _autoTarget,
+  );
+
   /// How often the camera stalled and was opened again.
   int get cameraRestarts => _cameraRestarts;
 
@@ -988,9 +1130,11 @@ final class ScannerState {
     this.status = ScannerStatus.idle,
     this.error,
     this.torch = TorchState.unavailable,
+    this.autoZoom = AutoZoomState.unavailable,
     this.zoom = 1,
     this.minZoom = 1,
     this.maxZoom = 1,
+    this.telephotoZoom,
     this.facing = CameraFacing.back,
     this.previewSize,
   });
@@ -1004,6 +1148,10 @@ final class ScannerState {
   /// Torch availability and state.
   final TorchState torch;
 
+  /// Whether the scanner picks the lens and zoom by itself; see
+  /// [ScannerController.setAutoZoom].
+  final AutoZoomState autoZoom;
+
   /// Current zoom factor, in terms of the main camera.
   final double zoom;
 
@@ -1013,6 +1161,11 @@ final class ScannerState {
 
   /// Largest supported zoom factor.
   final double maxZoom;
+
+  /// With a separate telephoto camera (iPhone Pro models): the zoom at which
+  /// it takes over, e.g. 4 (3 or 5 on other models); zooms from it on use
+  /// it. `null` without one.
+  final double? telephotoZoom;
 
   /// The camera in use.
   final CameraFacing facing;
@@ -1028,18 +1181,22 @@ final class ScannerState {
     ScannerStatus? status,
     ScannerException? error,
     TorchState? torch,
+    AutoZoomState? autoZoom,
     double? zoom,
     double? minZoom,
     double? maxZoom,
+    double? telephotoZoom,
     CameraFacing? facing,
     Size? previewSize,
   }) => ScannerState(
     status: status ?? this.status,
     error: error ?? this.error,
     torch: torch ?? this.torch,
+    autoZoom: autoZoom ?? this.autoZoom,
     zoom: zoom ?? this.zoom,
     minZoom: minZoom ?? this.minZoom,
     maxZoom: maxZoom ?? this.maxZoom,
+    telephotoZoom: telephotoZoom ?? this.telephotoZoom,
     facing: facing ?? this.facing,
     previewSize: previewSize ?? this.previewSize,
   );
@@ -1050,9 +1207,11 @@ final class ScannerState {
       other.status == status &&
       other.error == error &&
       other.torch == torch &&
+      other.autoZoom == autoZoom &&
       other.zoom == zoom &&
       other.minZoom == minZoom &&
       other.maxZoom == maxZoom &&
+      other.telephotoZoom == telephotoZoom &&
       other.facing == facing &&
       other.previewSize == previewSize;
 
@@ -1061,9 +1220,11 @@ final class ScannerState {
     status,
     error,
     torch,
+    autoZoom,
     zoom,
     minZoom,
     maxZoom,
+    telephotoZoom,
     facing,
     previewSize,
   );
@@ -1096,6 +1257,19 @@ enum TorchState {
   off,
 
   /// The torch is on.
+  on,
+}
+
+/// Whether the scanner picks the lens and zoom by itself.
+enum AutoZoomState {
+  /// The camera does not report its focus: only iPhones do.
+  unavailable,
+
+  /// Off: the zoom stays where it is set.
+  off,
+
+  /// On: the ultra-wide camera when a code is too close for the main lens
+  /// to focus, a longer zoom when it is far.
   on,
 }
 

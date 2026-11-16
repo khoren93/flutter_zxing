@@ -26,6 +26,9 @@ final class ScannerStrings {
     this.switchCamera = 'Switch camera',
     this.pickImage = 'Read a code from a photo',
     this.zoom = 'Zoom',
+    this.autoZoom = 'Auto',
+    this.autoZoomOn = 'Turn on automatic zoom',
+    this.autoZoomOff = 'Turn off automatic zoom',
     this.starting = 'Starting the camera…',
     this.permissionTitle = 'Camera access is off',
     this.permissionMessage =
@@ -83,6 +86,15 @@ final class ScannerStrings {
 
   /// Label of the zoom buttons.
   final String zoom;
+
+  /// Text of the automatic zoom button, before the zoom presets.
+  final String autoZoom;
+
+  /// Label of the automatic zoom button while it is off.
+  final String autoZoomOn;
+
+  /// Label of the automatic zoom button while it is on.
+  final String autoZoomOff;
 
   /// Shown while the camera starts.
   final String starting;
@@ -201,6 +213,9 @@ final class ScannerStrings {
       other.switchCamera == switchCamera &&
       other.pickImage == pickImage &&
       other.zoom == zoom &&
+      other.autoZoom == autoZoom &&
+      other.autoZoomOn == autoZoomOn &&
+      other.autoZoomOff == autoZoomOff &&
       other.starting == starting &&
       other.permissionTitle == permissionTitle &&
       other.permissionMessage == permissionMessage &&
@@ -241,6 +256,9 @@ final class ScannerStrings {
     switchCamera,
     pickImage,
     zoom,
+    autoZoom,
+    autoZoomOn,
+    autoZoomOff,
     starting,
     permissionTitle,
     permissionMessage,

@@ -76,7 +76,7 @@ final class WebCameraSource implements CameraSource {
   Future<CameraCapabilities> open(
     CameraFacing facing,
     CameraResolution resolution, {
-    bool ultraWide = false,
+    CameraLens lens = CameraLens.main,
   }) async {
     final (int width, int height) = switch (resolution) {
       CameraResolution.sd => (640, 480),
@@ -273,6 +273,10 @@ final class WebCameraSource implements CameraSource {
   // continuously on its own.
   @override
   Future<void> setFocusPoint(Offset point) async {}
+
+  // Browsers do not report the focus.
+  @override
+  LensFocus? lensFocus() => null;
 }
 
 final class _WebFrame extends CameraFrame {

@@ -85,10 +85,20 @@ final class ScannerTheme with Diagnosticable {
   /// uses a monospaced system font.
   final String? monoFontFamily;
 
-  /// The theme of the nearest [ScannerScope], or the default theme.
-  static ScannerTheme of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<ScannerScope>()?.theme ??
-      const ScannerTheme();
+  /// The theme of the nearest [ScannerScope], or the default theme; without
+  /// a [brightness], the platform's (light where unknown).
+  static ScannerTheme of(BuildContext context) {
+    final ScannerTheme theme =
+        context.dependOnInheritedWidgetOfExactType<ScannerScope>()?.theme ??
+        const ScannerTheme();
+    return theme.brightness != null
+        ? theme
+        : theme.copyWith(
+            brightness:
+                MediaQuery.maybePlatformBrightnessOf(context) ??
+                Brightness.light,
+          );
+  }
 
   /// This theme with the non-null fields of [other] on top.
   ScannerTheme merge(ScannerTheme? other) {

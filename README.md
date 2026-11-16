@@ -187,8 +187,21 @@ ScannerController(
 )
 ```
 
-On iPhones with an ultra-wide camera, the zoom goes down to 0.5×
-(`ScannerState.minZoom`): it focuses much closer than the main camera.
+### Automatic zoom (iPhone)
+
+On iPhones the scanner picks the camera by itself from where the lens is
+focused: the ultra-wide camera (0.5×, `ScannerState.minZoom`) when a code is
+too close for the main camera to focus, 2× and then the telephoto camera
+(`ScannerState.telephotoZoom`) when it is far. It never switches while codes
+are being read. Zooming by hand turns it off, and the "Auto" button of
+`ZoomButtons` turns it back on:
+
+```dart
+controller.setAutoZoom(false); // or ScannerController(autoZoom: false)
+```
+
+Android, the desktop and the web keep the zoom where it is set: their cameras
+do not report their focus.
 
 ### Camera on desktop
 

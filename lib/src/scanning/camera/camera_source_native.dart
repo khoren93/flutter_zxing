@@ -18,6 +18,7 @@ import '../../reading/pixel_buffer.dart';
 import '../frame_geometry.dart';
 import '../scanner_controller.dart';
 import 'camera_source.dart';
+import 'ios_lens.dart';
 
 /// The camera of this platform.
 CameraSource createCameraSource() => NativeCameraSource();
@@ -26,6 +27,10 @@ CameraSource createCameraSource() => NativeCameraSource();
 final class NativeCameraSource implements CameraSource {
   CameraController? _camera;
   CameraDescription? _description;
+
+  /// The open iPhone camera itself, for its focus (the plugin does not
+  /// report it).
+  IosLens? _lens;
   CameraImage? _latest;
   int _latestAt = 0;
   int _received = 0;
@@ -88,8 +93,8 @@ final class NativeCameraSource implements CameraSource {
   Future<CameraCapabilities> open(
     CameraFacing facing,
     CameraResolution resolution, {
-    bool ultraWide = false,
-  }) => _oneAtATime(() => _open(facing, resolution, ultraWide));
+    CameraLens lens = CameraLens.main,
+  }) => _oneAtATime(() => _open(facing, resolution, lens));
 
   /// How much of the main camera's view an iPhone's ultra-wide camera shows
   /// at zoom 1: Apple's multi-camera devices switch between them at zoom 2.
@@ -98,7 +103,7 @@ final class NativeCameraSource implements CameraSource {
   Future<CameraCapabilities> _open(
     CameraFacing facing,
     CameraResolution resolution,
-    bool ultraWide,
+    CameraLens lens,
   ) async {
     final List<CameraDescription> cameras;
     try {
@@ -121,10 +126,22 @@ final class NativeCameraSource implements CameraSource {
     final CameraDescription? ultra = side
         .where((CameraDescription c) => c.lensType == CameraLensType.ultraWide)
         .firstOrNull;
+    final CameraDescription? tele = side
+        .where((CameraDescription c) => c.lensType == CameraLensType.telephoto)
+        .firstOrNull;
+    // The telephoto camera's zoom differs between models (3×, 4×, 5×): iOS
+    // knows it.
+    final double? teleZoom = _ios && wide != null && tele != null
+        ? IosLens.telephotoZoom(back: facing == CameraFacing.back)
+        : null;
     // Desktop webcams are "external" or "front": use one when the back
     // camera is asked for.
     final CameraDescription? description =
-        (ultraWide ? ultra : null) ??
+        switch (lens) {
+          CameraLens.main => null,
+          CameraLens.ultraWide => ultra,
+          CameraLens.telephoto => teleZoom == null ? null : tele,
+        } ??
         wide ??
         side.firstOrNull ??
         (facing == CameraFacing.back ? cameras.firstOrNull : null);
@@ -160,6 +177,9 @@ final class NativeCameraSource implements CameraSource {
     }
     _camera = camera;
     _description = description;
+    if (_ios) {
+      _lens = IosLens.open(description.name);
+    }
     camera.addListener(_updateOrientation);
     _updatePreview();
     double minZoom = 1;
@@ -177,6 +197,8 @@ final class NativeCameraSource implements CameraSource {
       minZoom: minZoom,
       maxZoom: maxZoom < minZoom ? minZoom : maxZoom,
       ultraWide: _ios && wide != null && ultra != null ? _iosUltraWide : null,
+      ultraWideFocusesCloser: _ios && _focusesCloser(ultra, than: wide),
+      telephoto: teleZoom,
     );
   }
 
@@ -211,6 +233,8 @@ final class NativeCameraSource implements CameraSource {
     final CameraController? camera = _camera;
     _camera = null;
     _description = null;
+    _lens?.release();
+    _lens = null;
     _latest = null;
     _preview.value = null;
     final Completer<void>? waiter = _waiter;
@@ -352,6 +376,23 @@ final class NativeCameraSource implements CameraSource {
     } on Object {
       // Not every camera can focus or meter on a point.
     }
+  }
+
+  @override
+  LensFocus? lensFocus() => _lens?.focus;
+
+  /// Whether [camera] focuses closer than [than] (iOS): a fixed-focus
+  /// ultra-wide camera reports no minimum focus distance.
+  static bool _focusesCloser(
+    CameraDescription? camera, {
+    required CameraDescription? than,
+  }) {
+    if (camera == null || than == null) {
+      return false;
+    }
+    final int? near = IosLens.minimumFocusDistanceOf(camera.name);
+    final int? other = IosLens.minimumFocusDistanceOf(than.name);
+    return near != null && (other == null || near < other);
   }
 }
 

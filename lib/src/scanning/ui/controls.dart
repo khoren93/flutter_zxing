@@ -126,27 +126,33 @@ Future<(bool, BarcodeCapture?)> pickAndReadImage(
   }
 }
 
-/// Glass zoom presets ("0.5×", "1×", "2×", "4×") for the levels the camera
-/// supports; hidden when it supports fewer than two. The widest level is
-/// [ScannerState.minZoom] when it is below 1 (an iPhone's ultra-wide
-/// camera, which also focuses close up). A level selected after pinching
-/// shows the actual zoom ("1.6×").
+/// Glass zoom presets; hidden when there are fewer than two. On an iPhone
+/// with several cameras on the back they are its cameras: "0.5×" (the
+/// ultra-wide camera, [ScannerState.minZoom]), "1×" and the telephoto camera
+/// ([ScannerState.telephotoZoom], "4×" on an iPhone 17 Pro). Elsewhere "1×",
+/// "2×" and "4×", as far as the camera zooms, after [ScannerState.minZoom]
+/// when it is below 1 (an Android camera that zooms out).
+/// A preset selected after pinching shows the actual zoom ("1.6×").
+///
+/// Where the camera can zoom by itself ([ScannerState.autoZoom]), an "Auto"
+/// button comes first. While it is selected, the scanner picks the zoom, and
+/// the preset it picked is lit faintly; a tap on a preset zooms by hand.
 class ZoomButtons extends StatelessWidget {
   /// Creates the buttons.
   const ZoomButtons(
     this.controller, {
     super.key,
-    this.levels = const <double>[1, 2, 4],
+    this.levels,
     this.direction = Axis.horizontal,
   });
 
   /// The controller to zoom.
   final ScannerController controller;
 
-  /// Zoom factors to offer, in ascending order; those above
+  /// Zoom factors to offer instead, in ascending order; those above
   /// [ScannerState.maxZoom] are left out. [ScannerState.minZoom] is added in
   /// front when it is below 1.
-  final List<double> levels;
+  final List<double>? levels;
 
   /// A row, or a column (beside the window in landscape).
   final Axis direction;
@@ -162,80 +168,120 @@ class ZoomButtons extends StatelessWidget {
   Widget build(BuildContext context) => ValueListenableBuilder<ScannerState>(
     valueListenable: controller,
     builder: (BuildContext context, ScannerState state, Widget? _) {
+      // The cameras themselves where automatic zoom knows them (an iPhone
+      // with more than one on the back); elsewhere digital zoom levels.
+      final double? telephoto = state.telephotoZoom;
+      final bool cameras =
+          state.autoZoom != AutoZoomState.unavailable &&
+          (state.minZoom < 0.95 || telephoto != null);
       final List<double> available = <double>[
         if (state.minZoom < 0.95) state.minZoom,
-        for (final double level in levels)
+        for (final double level
+            in levels ??
+                (cameras ? <double>[1, ?telephoto] : const <double>[1, 2, 4]))
           if (level >= 1 && level <= state.maxZoom + 0.01) level,
       ];
       if (available.length < 2) {
         return const SizedBox.shrink();
       }
-      int selected = 0;
-      for (int i = 0; i < available.length; i++) {
-        if (state.zoom >= available[i] - 0.05) {
-          selected = i;
-        }
-      }
+      final ScannerStrings strings = ScannerStrings.of(context);
       final ScannerTheme theme = ScannerTheme.of(context);
       final Color pressedText = theme.isDark
           ? const Color(0xFF161A21)
           : const Color(0xFFFFFFFF);
+
+      Widget button({
+        required String text,
+        required String label,
+        required bool selected,
+        required VoidCallback onPressed,
+        bool toggle = false,
+        bool lit = false,
+      }) => Semantics(
+        container: true,
+        button: true,
+        selected: toggle ? null : selected,
+        toggled: toggle ? selected : null,
+        label: label,
+        child: Pressable(
+          onPressed: onPressed,
+          shape: theme.pillBorder,
+          child: ExcludeSemantics(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 36),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: ShapeDecoration(
+                shape: theme.pillBorder,
+                color: selected
+                    ? theme.inkColor
+                    : lit
+                    ? theme.inkColor.withValues(alpha: 0.22)
+                    : const Color(0x00000000),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                text,
+                style: theme.labelStyle.copyWith(
+                  fontSize: 13,
+                  height: 18 / 13,
+                  color: selected ? pressedText : theme.inkColor,
+                  fontFeatures: const <FontFeature>[
+                    FontFeature.tabularFigures(),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final bool auto = state.autoZoom == AutoZoomState.on;
+      int current = 0;
+      for (int i = 0; i < available.length; i++) {
+        if (state.zoom >= available[i] - 0.05) {
+          current = i;
+        }
+      }
+      final List<Widget> buttons = <Widget>[
+        if (state.autoZoom != AutoZoomState.unavailable)
+          button(
+            text: strings.autoZoom,
+            label: auto ? strings.autoZoomOff : strings.autoZoomOn,
+            selected: auto,
+            toggle: true,
+            onPressed: () => unawaited(controller.setAutoZoom(!auto)),
+          ),
+        for (int i = 0; i < available.length; i++)
+          button(
+            text: i == current && (state.zoom - available[i]).abs() > 0.05
+                ? _format(state.zoom)
+                : _format(available[i]),
+            label: _format(available[i]),
+            selected: !auto && i == current,
+            lit: auto && i == current,
+            onPressed: () => unawaited(controller.setZoom(available[i])),
+          ),
+      ];
       return Semantics(
         container: true,
-        label: ScannerStrings.of(context).zoom,
+        label: strings.zoom,
         child: ScannerGlass(
           padding: const EdgeInsets.all(4),
-          child: Flex(
-            direction: direction,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              for (int i = 0; i < available.length; i++) ...<Widget>[
-                if (i > 0) const SizedBox(width: 4, height: 4),
-                Semantics(
-                  container: true,
-                  button: true,
-                  selected: i == selected,
-                  label: _format(available[i]),
-                  child: Pressable(
-                    onPressed: () =>
-                        unawaited(controller.setZoom(available[i])),
-                    shape: theme.pillBorder,
-                    child: ExcludeSemantics(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        curve: Curves.easeOut,
-                        constraints: const BoxConstraints(
-                          minWidth: 44,
-                          minHeight: 36,
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        decoration: ShapeDecoration(
-                          shape: theme.pillBorder,
-                          color: i == selected
-                              ? theme.inkColor
-                              : const Color(0x00000000),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          i == selected &&
-                                  (state.zoom - available[i]).abs() > 0.05
-                              ? _format(state.zoom)
-                              : _format(available[i]),
-                          style: theme.labelStyle.copyWith(
-                            fontSize: 13,
-                            height: 18 / 13,
-                            color: i == selected ? pressedText : theme.inkColor,
-                            fontFeatures: const <FontFeature>[
-                              FontFeature.tabularFigures(),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            child: Flex(
+              direction: direction,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                for (int i = 0; i < buttons.length; i++) ...<Widget>[
+                  if (i > 0) const SizedBox(width: 4, height: 4),
+                  buttons[i],
+                ],
               ],
-            ],
+            ),
           ),
         ),
       );
