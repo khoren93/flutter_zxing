@@ -14,7 +14,7 @@ ARGS ?=
 
 # Running the example (see `make help`).
 APP ?= main
-MODE ?= debug
+MODE ?= release
 DEVICE ?=
 TAB ?=
 RUN_FLAGS = -t lib/$(APP).dart --$(MODE) $(if $(TAB),--dart-define=TAB=$(TAB),) $(ARGS)

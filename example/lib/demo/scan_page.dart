@@ -35,7 +35,8 @@ enum DemoTemplate {
 class ScanPage extends StatefulWidget {
   const ScanPage({super.key, this.bottomInset = 0, required this.onOpen});
 
-  /// Room the tab bar takes over the camera.
+  /// The gap between the template's sheet and the tab bar. The tab bar's
+  /// own height comes from the Scaffold, as the body's bottom padding.
   final double bottomInset;
 
   /// Opens a history item.
@@ -81,6 +82,7 @@ class _ScanPageState extends State<ScanPage> {
     ),
     DemoTemplate.payment => ScannerTemplate.payment(
       closeButton: false,
+      title: null, // The picker above names the template.
       actionsBuilder: _actions,
     ),
     DemoTemplate.retail => ScannerTemplate.retail(
@@ -93,6 +95,7 @@ class _ScanPageState extends State<ScanPage> {
     ),
     DemoTemplate.ticket => ScannerTemplate.ticket(
       closeButton: false,
+      title: null, // The picker above names the template.
       actionsBuilder: _actions,
     ),
     DemoTemplate.content => ScannerTemplate.content(
@@ -143,20 +146,23 @@ class _ScanPageState extends State<ScanPage> {
   Widget build(BuildContext context) {
     final MediaQueryData mq = MediaQuery.of(context);
     final EdgeInsets top = mq.viewPadding;
+    final double bottom =
+        (mq.viewPadding.bottom > mq.padding.bottom
+            ? mq.viewPadding.bottom
+            : mq.padding.bottom) +
+        widget.bottomInset;
     return ColoredBox(
       color: Colors.black,
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
           // The template's bottom controls and sheet sit above the tab bar.
+          // The Scaffold clears the body's bottom view padding and puts the
+          // tab bar's height into its padding instead.
           MediaQuery(
             data: mq.copyWith(
-              viewPadding: top.copyWith(
-                bottom: top.bottom + widget.bottomInset,
-              ),
-              padding: mq.padding.copyWith(
-                bottom: mq.padding.bottom + widget.bottomInset,
-              ),
+              viewPadding: top.copyWith(bottom: bottom),
+              padding: mq.padding.copyWith(bottom: bottom),
             ),
             child: BarcodeScanner(
               controller: _controller,

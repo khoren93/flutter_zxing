@@ -2,6 +2,7 @@
 // is read back to check it scans, and export as PNG, SVG or Dart.
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 // material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
@@ -340,10 +341,15 @@ class _CreatePageState extends State<CreatePage> {
         const SizedBox(height: 20),
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints c) {
-            final double side = (c.maxWidth - 64).clamp(160, 360);
+            // Sized by the width and the height both: on a phone in
+            // landscape the code, the export buttons and the title still fit
+            // on one screen.
+            final double side = math
+                .min(c.maxWidth - 64, MediaQuery.sizeOf(context).height - 230)
+                .clamp(140, 300);
             return FzCard(
               child: SizedBox(
-                height: side + 60,
+                height: side + 40,
                 child: Center(child: _Preview(this, size: side)),
               ),
             );

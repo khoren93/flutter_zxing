@@ -1,6 +1,7 @@
 // The demo app's shell: Scan, Create and History; a glass tab bar on
 // phones, a side menu on wide windows.
 import 'dart:async';
+import 'dart:math' as math;
 
 // material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
 // which needs Flutter 3.47; the example still supports Flutter 3.41.
@@ -13,7 +14,6 @@ import 'package:flutter_zxing/flutter_zxing.dart';
 import 'create_page.dart';
 import 'history.dart';
 import 'history_page.dart';
-import 'photo_page.dart';
 import 'scan_page.dart';
 import 'tokens.dart';
 
@@ -40,6 +40,7 @@ class DemoShell extends StatefulWidget {
 }
 
 class _DemoShellState extends State<DemoShell> {
+  final GlobalKey _pagesKey = GlobalKey();
   // --dart-define=TAB=create (or ?tab=create on the web) opens a tab
   // directly, for screenshots.
   _Tab _tab = _Tab.values.firstWhere(
@@ -66,7 +67,7 @@ class _DemoShellState extends State<DemoShell> {
   );
 
   Widget _page(_Tab tab, {required bool wide}) => switch (tab) {
-    _Tab.scan => ScanPage(bottomInset: wide ? 0 : 92, onOpen: _open),
+    _Tab.scan => ScanPage(bottomInset: wide ? 0 : 12, onOpen: _open),
     _Tab.create => CreatePage(wide: wide),
     _Tab.history => HistoryPage(onOpen: _open),
   };
@@ -80,6 +81,9 @@ class _DemoShellState extends State<DemoShell> {
       // The pages stay alive: the scanner keeps its camera, the generator
       // its form.
       final Widget pages = IndexedStack(
+        // Kept when the layout changes (a phone turned): the scanner is moved,
+        // not rebuilt, and keeps its camera.
+        key: _pagesKey,
         index: _tab.index,
         children: <Widget>[
           for (final _Tab t in _Tab.values)
@@ -100,9 +104,16 @@ class _DemoShellState extends State<DemoShell> {
                 compact: c.maxWidth < 1000,
                 tab: _tab,
                 onTab: (_Tab t) => setState(() => _tab = t),
-                onPhoto: () => unawaited(pickAndReadPhoto(context)),
               ),
-              Expanded(child: pages),
+              // The side menu takes the left inset (the Dynamic Island on a
+              // phone in landscape).
+              Expanded(
+                child: MediaQuery.removePadding(
+                  context: context,
+                  removeLeft: true,
+                  child: pages,
+                ),
+              ),
             ],
           ),
         );
@@ -227,7 +238,6 @@ class _SideNav extends StatelessWidget {
   const _SideNav({
     required this.tab,
     required this.onTab,
-    required this.onPhoto,
     this.compact = false,
   });
 
@@ -235,7 +245,6 @@ class _SideNav extends StatelessWidget {
   final bool compact;
   final _Tab tab;
   final ValueChanged<_Tab> onTab;
-  final VoidCallback onPhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -308,27 +317,27 @@ class _SideNav extends StatelessWidget {
               ),
             ),
     );
+    final EdgeInsets safe = MediaQuery.viewPaddingOf(context);
     return Container(
-      width: compact ? 76 : 240,
+      width: (compact ? 76 : 240) + safe.left,
       padding: EdgeInsets.fromLTRB(
+        (compact ? 12 : 16) + safe.left,
+        math.max(28, safe.top + 12),
         compact ? 12 : 16,
-        28,
-        compact ? 12 : 16,
-        20,
+        math.max(20, safe.bottom + 8),
       ),
       decoration: BoxDecoration(
         border: Border(right: BorderSide(color: fz.line)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        // The icon-only rail (a phone in landscape) keeps its buttons in the
+        // middle, under the thumb.
+        mainAxisAlignment: compact
+            ? MainAxisAlignment.center
+            : MainAxisAlignment.start,
         children: <Widget>[
-          if (compact)
-            const Icon(
-              Icons.qr_code_2_rounded,
-              size: 28,
-              semanticLabel: 'flutter_zxing',
-            )
-          else
+          if (!compact) ...<Widget>[
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 14),
               child: Text(
@@ -336,15 +345,13 @@ class _SideNav extends StatelessWidget {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
               ),
             ),
-          const SizedBox(height: 28),
+            const SizedBox(height: 28),
+          ],
+          // Reading a photo is the scanner's own button.
           for (final (_Tab t, String label, IconData icon) in _tabs)
-            if (t == _Tab.create) ...<Widget>[
-              item('Read a file', Icons.photo_library_outlined, false, onPhoto),
-              item(label, icon, t == tab, () => onTab(t)),
-            ] else
-              item(label, icon, t == tab, () => onTab(t)),
-          const Spacer(),
-          if (!compact)
+            item(label, icon, t == tab, () => onTab(t)),
+          if (!compact) ...<Widget>[
+            const Spacer(),
             FzCard(
               radius: 18,
               padding: const EdgeInsets.all(14),
@@ -368,6 +375,7 @@ class _SideNav extends StatelessWidget {
                 ],
               ),
             ),
+          ],
         ],
       ),
     );
