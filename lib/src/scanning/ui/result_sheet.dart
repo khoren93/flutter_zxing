@@ -267,6 +267,8 @@ class BarcodeResultSheet extends StatelessWidget {
     PhoneContent() => ScannerIcons.faceTime,
     SmsContent() => ScannerIcons.sms,
     GeoContent() => ScannerIcons.location,
+    // Until the payment sheet is designed: the coin.
+    PaymentContent() => ScannerIcons.crypto,
     OtpContent() => ScannerIcons.otp,
     EsimContent() => ScannerIcons.esim,
     CryptoContent() => ScannerIcons.crypto,
@@ -381,6 +383,17 @@ final class _Summary {
           '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}',
           detail: query,
           payload: text,
+        );
+      case final PaymentContent payment:
+        final String? amount = payment.amount;
+        return _Summary(
+          payment.payee ?? strings.payment,
+          kindDetail: _paymentStandard(payment),
+          display: amount == null
+              ? null
+              : '$amount ${payment.currency ?? ''}'.trim(),
+          detail: payment.reference,
+          payload: payment.account,
         );
       case final OtpContent otp:
         // Never the secret in the title or the payload: the code holds it.
@@ -583,6 +596,23 @@ final class _Summary {
 
   static bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
+
+  static String _paymentStandard(PaymentContent payment) => switch (payment) {
+    EpcPaymentContent() => 'SEPA',
+    SwissQrBillContent() => 'QR-bill',
+    GostPaymentContent() => 'ГОСТ',
+    UpiPaymentContent() => 'UPI',
+    SpaydPaymentContent() => 'SPAYD',
+    EmvPaymentContent(:final EmvScheme scheme) => switch (scheme) {
+      EmvScheme.pix => 'PIX',
+      EmvScheme.payNow => 'PayNow',
+      EmvScheme.promptPay => 'PromptPay',
+      EmvScheme.qris => 'QRIS',
+      EmvScheme.vietQr => 'VietQR',
+      EmvScheme.duitNow => 'DuitNow',
+      EmvScheme.unknown => 'EMV',
+    },
+  };
 
   static String _currencyName(CryptoCurrency currency) => switch (currency) {
     CryptoCurrency.bitcoin => 'Bitcoin',

@@ -6,9 +6,11 @@ import 'content_builder.dart';
 import 'content_parser.dart';
 import 'industry_content.dart';
 import 'link_service.dart';
+import 'payment_content.dart';
 
 part 'barcode_content_apps.dart';
 part 'barcode_content_industry.dart';
+part 'barcode_content_payments.dart';
 
 /// The payload of a [Barcode], parsed into a typed value.
 ///
@@ -36,6 +38,7 @@ part 'barcode_content_industry.dart';
 /// | [PhoneContent] | `tel:` |
 /// | [SmsContent] | `sms:`, `smsto:`, `mms:`, `mmsto:` |
 /// | [GeoContent] | `geo:` |
+/// | [PaymentContent] | EPC/SEPA (`BCD`), Swiss QR-bill (`SPC`), ГОСТ Р 56042 (`ST0001`), UPI, EMVCo (PIX, PayNow, PromptPay…), SPAYD |
 /// | [OtpContent] | `otpauth://totp/…`, `otpauth://hotp/…` |
 /// | [EsimContent] | `LPA:1$…` |
 /// | [CryptoContent] | `bitcoin:`, `ethereum:`, `litecoin:`, `lightning:`, `lnbc…` |

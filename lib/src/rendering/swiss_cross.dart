@@ -1,0 +1,18 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+/// The Swiss cross of a Swiss QR-bill (Swiss Payment Standards, Style Guide
+/// QR-bill): 7 × 7 mm with a 0.5 mm white border, a white cross in the
+/// proportions of the Swiss flag on black. 280 × 280 px, grayscale PNG.
+final Uint8List swissCrossPng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAARgAAAEYCAAAAACi5bZQAAABjElEQVR42u3dwQ0A'
+  'IAgAMfZfWhfwYyQBtTcB9E+IoWWBAAwYMGDAgAEDBgwYMAIDBgwYMGDAPAITnwUG'
+  'DBgwYMCAAQMGDBgwYMCAAQMGDBgwYMCAAQMGDBgwYMCAAQMGDBgwYMCAAQMGDBgw'
+  'YMCAAVMDs3kIAgYMGDBgwIABAwYMGDBgwIABAwYMGDBgwIABAwYMGDBgwIABAwYM'
+  'GDBgwIABAwYMGDBgwIABAwYMGDBgwIABczzJaBkYMGDAgAEDBgwYMGDAgAEDBgwY'
+  'MGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgyYHjBZdzBJS2aNAwYM'
+  'GDBgwIABAwYMGDBgwIABAwYMGDBgwIABAwYMGDBgwIABAwYMGDBgwIABAwYMGDBg'
+  'wIABAwYMGDBgwIAB0y0wYMCAAQMGDBgwYMCAAQMGDBgwYMCAAQMGDBgwYMCAAQMG'
+  'DBgwYMCAAQMGDBgwYMCAAQMGDJimD7XqAwMGDBgwYMCAAQMGDBiBAQMGDBgwYC5s'
+  'AjcrbH98FC3HAAAAAElFTkSuQmCC',
+);

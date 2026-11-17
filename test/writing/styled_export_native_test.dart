@@ -129,6 +129,34 @@ void main() {
       expect(read?.ecLevel, 'H');
     });
 
+    test('the Swiss QR-bill style: the cross over M, still reads', () async {
+      const SwissQrBillContent bill = SwissQrBillContent(
+        iban: 'CH4431999123000889012',
+        creditor: SwissAddress(
+          name: 'Robert Schneider AG',
+          street: 'Rue du Lac',
+          buildingNumber: '1268',
+          postalCode: '2501',
+          town: 'Biel',
+          country: 'CH',
+        ),
+        amount: '1949.75',
+        referenceType: SwissReferenceType.qrr,
+        qrReference: '210000000003139471430009017',
+        message: 'Order of 15 June 2020',
+      );
+      final Uint8List png = await BarcodeStyle.swissQrBill.encodePng(
+        const BarcodeWriter(BarcodeFormat.qrCode),
+        bill.toPayload(),
+        size: 600,
+      );
+      final Barcode? barcode = await const BarcodeReader().read(png);
+      expect(barcode!.content, bill);
+      expect(barcode.ecLevel, 'M');
+      // 7 mm of a 46 mm code, as the Swiss Payment Standards require.
+      expect(BarcodeStyle.swissQrBill.logo!.size, closeTo(7 / 46, 1e-9));
+    });
+
     test('Data Matrix and Aztec dots', () async {
       for (final BarcodeFormat format in <BarcodeFormat>[
         BarcodeFormat.dataMatrix,

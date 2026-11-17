@@ -4,6 +4,7 @@ import 'package:flutter/painting.dart';
 import '../writing/barcode_writer.dart';
 import '../writing/symbol_layout.dart';
 import 'styled_export.dart';
+import 'swiss_cross.dart';
 import 'symbol_shapes.dart';
 
 /// How a barcode is drawn: by `BarcodeView`, and by [toPng], [toSvg],
@@ -29,6 +30,22 @@ final class BarcodeStyle {
 
   /// Black squares on white: the default.
   static const BarcodeStyle classic = BarcodeStyle();
+
+  /// A Swiss QR-bill: black on white with the Swiss cross in the middle,
+  /// 7 mm on a 46 mm code as the Swiss Payment Standards require, and error
+  /// correction M.
+  ///
+  /// ```dart
+  /// BarcodeView(bill.toPayload(), style: BarcodeStyle.swissQrBill)
+  /// ```
+  static final BarcodeStyle swissQrBill = BarcodeStyle(
+    logo: BarcodeLogo(
+      MemoryImage(swissCrossPng),
+      size: 7 / 46,
+      clearBackground: false,
+      errorCorrection: ErrorCorrection.medium,
+    ),
+  );
 
   /// Rounded modules that flow into each other, rounded eyes.
   static const BarcodeStyle soft = BarcodeStyle(
@@ -146,8 +163,8 @@ final class BarcodeStyle {
   }
 
   /// Encodes [data] with [writer] and renders it as an SVG document drawn
-  /// with this style; see [toSvg]. A QR code with a [logo] gets
-  /// [ErrorCorrection.high] unless the writer sets its own, as in
+  /// with this style; see [toSvg]. A QR code with a [logo] gets the logo's
+  /// [BarcodeLogo.errorCorrection] unless the writer sets its own, as in
   /// `BarcodeView`.
   ///
   /// Throws `BarcodeWriteException` if [data] cannot be encoded.
@@ -155,8 +172,8 @@ final class BarcodeStyle {
       toSvg(await _writer(writer).encode(data));
 
   /// Encodes [data] with [writer] and renders it as a PNG drawn with this
-  /// style; see [toPng]. A QR code with a [logo] gets
-  /// [ErrorCorrection.high] unless the writer sets its own, as in
+  /// style; see [toPng]. A QR code with a [logo] gets the logo's
+  /// [BarcodeLogo.errorCorrection] unless the writer sets its own, as in
   /// `BarcodeView`.
   ///
   /// Throws `BarcodeWriteException` if [data] cannot be encoded.
@@ -177,7 +194,7 @@ final class BarcodeStyle {
       logo != null &&
           writer.errorCorrection == null &&
           hasFinderPatterns(writer.format)
-      ? writer.copyWith(errorCorrection: ErrorCorrection.high)
+      ? writer.copyWith(errorCorrection: logo!.errorCorrection)
       : writer;
 
   /// Creates a copy with the given fields replaced.
@@ -256,6 +273,7 @@ final class BarcodeLogo {
     this.image, {
     this.size = 0.22,
     this.clearBackground = true,
+    this.errorCorrection = ErrorCorrection.high,
   });
 
   /// The image.
@@ -267,13 +285,21 @@ final class BarcodeLogo {
   /// Clear the modules behind the logo instead of drawing over them.
   final bool clearBackground;
 
+  /// The error correction a QR code gets under this logo when the writer or
+  /// `BarcodeView` sets none. Default [ErrorCorrection.high], which covers
+  /// the most modules; a standard may fix it lower, such as the Swiss
+  /// QR-bill's [ErrorCorrection.medium].
+  final ErrorCorrection errorCorrection;
+
   @override
   bool operator ==(Object other) =>
       other is BarcodeLogo &&
       other.image == image &&
       other.size == size &&
-      other.clearBackground == clearBackground;
+      other.clearBackground == clearBackground &&
+      other.errorCorrection == errorCorrection;
 
   @override
-  int get hashCode => Object.hash(image, size, clearBackground);
+  int get hashCode =>
+      Object.hash(image, size, clearBackground, errorCorrection);
 }

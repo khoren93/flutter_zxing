@@ -199,6 +199,37 @@ void main() {
       ),
       const PhoneContent('user@icloud.com', type: CallType.faceTime),
       LinkService.whatsApp.link('+374 91 234567', message: 'Hi'),
+      const EpcPaymentContent(
+        name: 'Kaffeehaus Lumen',
+        iban: 'DE89370400440532013000',
+        amount: '12.50',
+        text: 'Invoice 42',
+      ),
+      const GostPaymentContent(
+        name: 'ООО «Три кита»',
+        personalAccount: '40702810138250123017',
+        bankName: 'ОАО "БАНК"',
+        bic: '044525225',
+        correspondentAccount: '30101810400000000225',
+        amount: '1250.50',
+        purpose: 'Оплата по счёту № 7',
+      ),
+      const UpiPaymentContent(
+        address: 'shop@okbank',
+        name: 'Lumen Café',
+        amount: '99.50',
+      ),
+      EmvPaymentContent.pix(
+        key: 'fulano@example.com',
+        name: 'Fulano de Tal',
+        city: 'SAO PAULO',
+        amount: '10.50',
+      ),
+      const SpaydPaymentContent(
+        iban: 'CZ5855000000001265098001',
+        amount: '480.50',
+        currency: 'CZK',
+      ),
     ];
     for (final BarcodeContent content in contents) {
       test('$content', () async {

@@ -25,6 +25,18 @@
   `ArgumentError` with the same messages.
   `writer.encodeContent(content)` encodes any content, GS1 and binary
   included.
+* **Payment codes:** `PaymentContent` with `payee`, `account`, `amount`,
+  `currency` and `reference` for any of them, and a class per standard,
+  built and parsed: `EpcPaymentContent` (SEPA, "GiroCode"),
+  `SwissQrBillContent` (with `SwissAddress`), `GostPaymentContent` (ГОСТ Р
+  56042-2014, read in Windows-1251, UTF-8 and KOI8-R), `UpiPaymentContent`,
+  `EmvPaymentContent` (PIX, PayNow, PromptPay, QRIS, VietQR, DuitNow and
+  any EMVCo code; built with `EmvPaymentContent.pix`) and
+  `SpaydPaymentContent`. IBANs, creditor and QR references and EMVCo
+  checksums are checked; a code that fails is text.
+* **`BarcodeStyle.swissQrBill`:** the Swiss cross of a QR-bill, 7 mm on
+  46 mm, error correction M. `BarcodeLogo.errorCorrection` sets what a QR
+  code gets under a logo (`high` by default, as before).
 * **New content kinds:** `OtpContent` (`otpauth://`, for authenticator
   apps; the secret stays out of `toString()` and the result sheet),
   `EsimContent` (`LPA:1$…`), `CryptoContent` (BIP 21 `bitcoin:` and

@@ -322,8 +322,9 @@ switch (barcode.content) {
 }
 ```
 
-Also e-mail, phone and FaceTime, SMS, locations, events, one-time
-passwords (`otpauth://`), eSIM activation codes, cryptocurrency payments,
+Also payments (SEPA/EPC, Swiss QR-bill, ГОСТ Р 56042, UPI, PIX and other
+EMVCo codes, SPAYD, all as `PaymentContent`), e-mail, phone and FaceTime,
+SMS, locations, events, one-time passwords (`otpauth://`), eSIM activation codes, cryptocurrency payments,
 Wi‑Fi Easy Connect, Matter and HomeKit setup codes, boarding passes, US
 driver's licenses, VINs and products (EAN/UPC with ISBN and ISSN). The full
 list, with what each kind holds: [doc/content-types.md](doc/content-types.md).

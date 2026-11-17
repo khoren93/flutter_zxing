@@ -6,6 +6,7 @@ import 'app_content.dart';
 import 'barcode_content.dart';
 import 'gs1.dart';
 import 'industry_content.dart';
+import 'payment_content.dart';
 
 /// [BarcodeContent.parse].
 BarcodeContent parseBarcodeContent(Barcode barcode) {
@@ -31,6 +32,13 @@ BarcodeContent parseBarcodeContent(Barcode barcode) {
       return TextContent(barcode.text);
     case BarcodeContentType.text:
     case BarcodeContentType.mixed:
+      // ГОСТ Р 56042 codes in Windows-1251 or KOI8-R say so in their
+      // header; a reader may have guessed another charset.
+      if (decodeGostBytes(barcode.bytes) case final String gost) {
+        if (parseGost(gost) case final GostPaymentContent payment) {
+          return payment;
+        }
+      }
       final BarcodeContent content =
           parseProduct(barcode) ?? parseTextContent(barcode.text);
       // VINs are printed in Code 39, often without a valid check digit
@@ -76,6 +84,18 @@ BarcodeContent parseTextContent(String text) {
     content = _tel(t.substring(15), CallType.faceTimeAudio);
   } else if (has('FACETIME:')) {
     content = _tel(t.substring(9), CallType.faceTime);
+  } else if (has('BCD\n') || has('BCD\r')) {
+    content = parseEpc(t);
+  } else if (has('SPC\n') || has('SPC\r')) {
+    content = parseSwissQrBill(t);
+  } else if (has('ST0001')) {
+    content = parseGost(t);
+  } else if (has('UPI://PAY?')) {
+    content = parseUpi(t.substring(10));
+  } else if (has('000201')) {
+    content = parseEmv(t);
+  } else if (has('SPD*')) {
+    content = parseSpayd(t);
   } else if (has('OTPAUTH://')) {
     content = parseOtp(t.substring(10));
   } else if (has('LPA:')) {

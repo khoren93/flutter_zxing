@@ -28,6 +28,9 @@ const List<Type> _types = <Type>[
   CryptoCurrency, WifiDppContent, LinkService, LinkServiceInput,
   ProductContent, BoardingPassContent, BoardingPassLeg, DriverLicenseContent,
   VinContent, VinRegion, SmartHomeContent, SmartHomePlatform,
+  PaymentContent, EpcPaymentContent, SwissQrBillContent, SwissAddress,
+  SwissReferenceType, GostPaymentContent, UpiPaymentContent,
+  EmvPaymentContent, EmvScheme, SpaydPaymentContent,
   // Reading
   BarcodeReader, ReaderOptions, Binarizer, EanAddOn, PixelBuffer, PixelLayout,
   // Writing

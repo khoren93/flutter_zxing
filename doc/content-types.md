@@ -57,6 +57,38 @@ devices and will be added here.
 `BinaryContent` only from barcodes marked GS1 or binary: `parseText` cannot
 tell those apart in a saved string.
 
+## Payments
+
+Every payment code is a `PaymentContent` with the same five questions
+answered (`payee`, `account`, `amount`, `currency`, `reference`), and a
+subclass per standard with its own fields. Amounts are text with a decimal
+point, never a `double`. A code whose IBAN, reference or checksum is wrong
+is not a payment: it parses as `TextContent`.
+
+| Kind | Standard | Payload | Checks |
+|---|---|---|---|
+| `EpcPaymentContent` | EPC069-12 SEPA credit transfer ("GiroCode") | `BCD\n002\n1\nSCT\n…` | IBAN, BIC, RF reference, amount ≤ 999 999 999.99 EUR, 331 bytes |
+| `SwissQrBillContent` | Swiss Payment Standards 2.3 | `SPC\n0200\n1\n…\nEPD` | IBAN or QR-IBAN, QR reference (mod 10) or RF, structured addresses, 997 characters |
+| `GostPaymentContent` | ГОСТ Р 56042-2014 | `ST00012\|Name=…\|…` | account, BIC, correspondent account, INN, KPP; read in Windows-1251, UTF-8 and KOI8-R, written in UTF-8 |
+| `UpiPaymentContent` | NPCI UPI | `upi://pay?pa=…` | UPI address, amount, INR |
+| `EmvPaymentContent` | EMVCo merchant-presented QR: PIX, PayNow, PromptPay, QRIS, VietQR, DuitNow and others | `000201…6304XXXX` | CRC16; built with `EmvPaymentContent.pix(...)` |
+| `SpaydPaymentContent` | Short Payment Descriptor (Czech Republic) | `SPD*1.0*ACC:…` | IBAN, BIC, symbols |
+
+```dart
+const epc = EpcPaymentContent(
+  name: 'Kaffeehaus Lumen',
+  iban: 'DE89370400440532013000',
+  amount: '12.50',
+  text: 'Invoice 42',
+);
+BarcodeView(epc.toPayload(), errorCorrection: ErrorCorrection.medium);
+
+// A Swiss QR-bill with the Swiss cross the standard requires
+BarcodeView(bill.toPayload(), style: BarcodeStyle.swissQrBill);
+```
+
+PAY by square (Slovakia) is not supported yet: it is LZMA-compressed.
+
 ## Links to services
 
 `LinkService` builds links to messengers, social networks, music, app

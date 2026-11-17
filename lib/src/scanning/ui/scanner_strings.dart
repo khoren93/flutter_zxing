@@ -62,6 +62,7 @@ final class ScannerStrings {
     this.location = 'Location',
     this.gs1 = 'GS1',
     this.faceTime = 'FaceTime',
+    this.payment = 'Payment',
     this.otp = 'One-time password',
     this.esim = 'eSIM',
     this.crypto = 'Crypto payment',
@@ -241,6 +242,9 @@ final class ScannerStrings {
 
   /// The kind of a [PhoneContent] with [CallType.faceTime] or [CallType.faceTimeAudio].
   final String faceTime;
+
+  /// The kind of a [PaymentContent].
+  final String payment;
 
   /// The kind of a [OtpContent].
   final String otp;
@@ -423,6 +427,7 @@ final class ScannerStrings {
     PhoneContent() => faceTime,
     SmsContent() => sms,
     GeoContent() => location,
+    PaymentContent() => payment,
     OtpContent() => otp,
     EsimContent() => esim,
     CryptoContent() => crypto,
@@ -480,6 +485,7 @@ final class ScannerStrings {
       other.location == location &&
       other.gs1 == gs1 &&
       other.faceTime == faceTime &&
+      other.payment == payment &&
       other.otp == otp &&
       other.esim == esim &&
       other.crypto == crypto &&
@@ -578,6 +584,7 @@ final class ScannerStrings {
     location,
     gs1,
     faceTime,
+    payment,
     otp,
     esim,
     crypto,

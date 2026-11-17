@@ -4,7 +4,6 @@
 // Show the test codes on a second screen (a tablet, a laptop, an emulator:
 // --dart-define=PAGE=codes opens them directly) and scan them with the
 // phone. The demo app of stage 8 replaces this launcher.
-import 'dart:convert';
 import 'dart:ui' show FrameTiming;
 
 // material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
@@ -248,18 +247,21 @@ class _ShowcasePageState extends State<ShowcasePage> {
   }
 }
 
-/// The sheet of the payments template: an EPC QR code ("BCD" payload, the
-/// SEPA credit transfer QR printed on European invoices).
+/// The sheet of the payments template: any payment code the library reads
+/// (EPC/SEPA, Swiss QR-bill, ГОСТ, UPI, PIX and other EMVCo codes, SPAYD).
 Widget _paymentSheet(
   BuildContext context,
   Barcode barcode,
   VoidCallback scanAgain,
 ) {
-  final _Epc? epc = _Epc.parse(barcode.text);
-  if (epc == null) {
+  final BarcodeContent content = barcode.content;
+  if (content is! PaymentContent) {
     return BarcodeResultSheet(barcode, onScanAgain: scanAgain);
   }
   final ScannerTheme theme = ScannerTheme.of(context);
+  final String? amount = content.amount == null
+      ? null
+      : '${content.amount} ${content.currency ?? ''}'.trim();
   return ScannerSheet(
     label: 'Payment request',
     child: Column(
@@ -268,17 +270,19 @@ Widget _paymentSheet(
       children: <Widget>[
         Text('PAYMENT REQUEST', style: theme.overlineStyle),
         const SizedBox(height: 4),
-        Text(epc.name, style: theme.titleStyle),
-        const SizedBox(height: 16),
-        Text(epc.amount, style: theme.displayStyle),
-        if (epc.reference.isNotEmpty)
-          Text('Reference ${epc.reference}', style: theme.mutedStyle),
+        Text(content.payee ?? 'Payment', style: theme.titleStyle),
+        if (amount != null) ...<Widget>[
+          const SizedBox(height: 16),
+          Text(amount, style: theme.displayStyle),
+        ],
+        if (content.reference case final String reference)
+          Text('Reference $reference', style: theme.mutedStyle),
         const SizedBox(height: 16),
         ScannerChip(barcode.format.displayName),
         const SizedBox(height: 16),
         ScannerActions(<ScannerAction>[
           ScannerAction(
-            label: 'Pay ${epc.amount}',
+            label: amount == null ? 'Pay' : 'Pay $amount',
             primary: true,
             onPressed: () => Navigator.of(context).pop(),
           ),
@@ -287,28 +291,6 @@ Widget _paymentSheet(
       ],
     ),
   );
-}
-
-final class _Epc {
-  const _Epc(this.name, this.amount, this.reference);
-
-  final String name;
-  final String amount;
-  final String reference;
-
-  static _Epc? parse(String text) {
-    final List<String> lines = const LineSplitter().convert(text);
-    if (lines.length < 7 || lines[0] != 'BCD' || lines[3] != 'SCT') {
-      return null;
-    }
-    String at(int i) => i < lines.length ? lines[i].trim() : '';
-    final String money = at(7);
-    final String amount = money.startsWith('EUR')
-        ? '€${money.substring(3)}'
-        : money;
-    final String reference = at(9).isNotEmpty ? at(9) : at(10);
-    return _Epc(at(5), amount, reference);
-  }
 }
 
 /// The sheet of the tickets template: an IATA boarding pass (BCBP).

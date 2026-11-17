@@ -152,6 +152,23 @@ Described describe(Barcode barcode) {
       icon: Icons.memory_rounded,
       title: '${bytes.length} bytes',
     ),
+    PaymentContent payment => Described(
+      kind: 'Payment',
+      icon: Icons.payments_outlined,
+      title: payment.amount == null
+          ? or(payment.payee, 'Payment')
+          : '${payment.amount} ${payment.currency ?? ''}'.trim(),
+      fields: <(String, String)>[
+        if (payment.payee != null) ('Payee', payment.payee!),
+        if (payment.account != null) ('Account', payment.account!),
+        if (payment.reference != null) ('Reference', payment.reference!),
+        if (payment case EmvPaymentContent(:final EmvScheme scheme))
+          ('Scheme', scheme.name),
+        if (payment case EpcPaymentContent(bic: final String bic)) ('BIC', bic),
+        if (payment case GostPaymentContent(:final String bankName))
+          ('Bank', bankName),
+      ],
+    ),
     OtpContent otp => Described(
       kind: 'One-time password',
       icon: Icons.password_rounded,

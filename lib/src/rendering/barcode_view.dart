@@ -91,8 +91,9 @@ class BarcodeView extends StatefulWidget {
   /// The symbology; must be writable ([BarcodeFormat.canWrite]).
   final BarcodeFormat format;
 
-  /// Error correction; `null` uses the format's default, or
-  /// [ErrorCorrection.high] for a QR code with a [BarcodeStyle.logo].
+  /// Error correction; `null` uses the format's default, or for a QR code
+  /// with a [BarcodeStyle.logo] the logo's [BarcodeLogo.errorCorrection]
+  /// ([ErrorCorrection.high] unless it says otherwise).
   final ErrorCorrection? errorCorrection;
 
   /// Encode [data] as GS1: Application Identifiers in parentheses,
@@ -377,11 +378,12 @@ final class _Request {
       gs1 = view.gs1,
       showText = view.showText,
       quietZone = view.style.quietZone,
-      // A logo covers modules: QR codes then get the most error correction.
+      // A logo covers modules: QR codes then get the logo's error
+      // correction, the most unless a standard fixes it.
       errorCorrection =
           view.errorCorrection ??
-          (view.style.logo != null && hasFinderPatterns(view.format)
-              ? ErrorCorrection.high
+          (hasFinderPatterns(view.format)
+              ? view.style.logo?.errorCorrection
               : null);
 
   final String? data;
