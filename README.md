@@ -309,9 +309,12 @@ const BarcodeView(
 
 `BarcodeStyle` sets colors or a gradient, square, rounded or dot modules,
 square, rounded or round QR finder patterns, and a logo in the middle of a QR
-code (error correction goes up to H by itself). Every style is checked to read
-back with this package's reader. Ready-made styles: `BarcodeStyle.soft`,
-`dots`, `lagoon`, `ink`, `night`.
+code. Every style is checked to read back with this package's reader.
+Ready-made styles: `BarcodeStyle.soft`, `dots`, `lagoon`, `ink`, `night`.
+
+QR codes get error correction M unless you set it. Under a logo it rises by
+the logo's size, as far as reading tests show it is needed: up to 12% of the
+width M, up to 20% Q, larger H (`BarcodeLogo.neededErrorCorrection`).
 
 ```dart
 BarcodeView(
@@ -325,7 +328,27 @@ BarcodeView(
 )
 ```
 
-`BarcodeStyle` exports PNG and SVG with the same look. `BarcodeWriter` on
+A title above the code, a caption under it and a card under all of it, like
+a profile code in a messenger. Sizes are fractions of the code's width, so an
+export looks like the screen:
+
+```dart
+BarcodeView(
+  'https://t.me/flutterdev',
+  width: 240,
+  style: const BarcodeStyle(
+    moduleShape: ModuleShape.rounded,
+    finderShape: FinderShape.rounded,
+    caption: BarcodeCaption('@FLUTTERDEV'),
+    card: BarcodeCard(elevation: 0.04),
+  ),
+)
+```
+
+`BarcodeStyle` exports PNG and SVG with the same look, text and card
+included (around a card, the PNG is transparent). In an SVG the text is
+`<text>` with the font named; the program that shows the file picks the
+closest font it has. `BarcodeWriter` on
 its own exports them black on white (`writer.toPng(data)`,
 `writer.toSvg(data)`), or gives the module matrix to draw yourself:
 

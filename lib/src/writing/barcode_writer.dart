@@ -47,7 +47,8 @@ final class BarcodeWriter {
   final BarcodeFormat format;
 
   /// Error correction, for formats that have it; `null` uses the format's
-  /// default. See [ErrorCorrection].
+  /// default: [ErrorCorrection.medium] for QR codes (zxing-cpp's own
+  /// default is low), zxing-cpp's for the others. See [ErrorCorrection].
   final ErrorCorrection? errorCorrection;
 
   /// Symbol size, for formats that have versions (QR: 1–40, Data Matrix:
@@ -139,7 +140,13 @@ final class BarcodeWriter {
   @visibleForTesting
   String get creatorOptions => writing.creatorOptions(
     format,
-    errorCorrection: errorCorrection,
+    // M rather than zxing-cpp's L: often no larger, and it survives print,
+    // glare and scratches far better.
+    errorCorrection:
+        errorCorrection ??
+        (format == BarcodeFormat.qrCode || format == BarcodeFormat.qrCodeModel2
+            ? ErrorCorrection.medium
+            : null),
     version: version,
     gs1: gs1,
     options: options,

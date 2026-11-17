@@ -155,7 +155,7 @@ void main() {
         color: Color(0x801B4DFF),
       ).toSvg(qr);
       expect(svg, contains('fill="#1b4dff" fill-opacity="0.502"'));
-      expect(svg, contains('<rect width="100%" height="100%" fill="#fff"/>'));
+      expect(svg, contains('<rect width="23" height="23" fill="#fff"/>'));
       expect(svg, contains('shape-rendering="crispEdges"'));
     });
 

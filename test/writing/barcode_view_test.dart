@@ -345,7 +345,7 @@ void main() {
       expect((await _readScreen(tester))?.text, url);
     });
 
-    testWidgets('a logo, with error correction raised to high', (
+    testWidgets('a logo, with the error correction it needs', (
       WidgetTester tester,
     ) async {
       final Uint8List png = (await tester.runAsync(_logoPng))!;
@@ -410,6 +410,42 @@ void main() {
           );
         }
       }
+    });
+  });
+
+  group('title, caption and card', () {
+    const BarcodeStyle style = BarcodeStyle(
+      moduleShape: ModuleShape.rounded,
+      title: BarcodeCaption('Studio 5G', size: 0.06),
+      caption: BarcodeCaption('@flutterdev', size: 0.06),
+      card: BarcodeCard(elevation: 0.04),
+    );
+
+    testWidgets('taller than wide; still reads', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        _host(const BarcodeView(url, width: 260, style: style)),
+      );
+      await _settle(tester);
+      final Size size = tester.getSize(find.byType(BarcodeView));
+      expect(size.width, 260);
+      expect(size.height, greaterThan(300));
+      expect((await _readScreen(tester))?.text, url);
+    });
+
+    testWidgets('the text is in the label', (WidgetTester tester) async {
+      final SemanticsHandle handle = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _host(const BarcodeView('hello', width: 200, style: style)),
+      );
+      await _settle(tester);
+      expect(
+        tester.getSemantics(find.byType(BarcodeView)),
+        matchesSemantics(
+          label: 'Studio 5G. QR Code barcode: hello. @flutterdev',
+          isImage: true,
+        ),
+      );
+      handle.dispose();
     });
   });
 }

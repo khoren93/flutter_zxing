@@ -9,16 +9,19 @@ import 'package:flutter/rendering.dart' show CustomPainter;
 import '../writing/barcode_writer.dart';
 import '../writing/symbol_layout.dart';
 import 'barcode_style.dart';
+import 'frame_layout.dart';
 import 'symbol_shapes.dart';
 
-/// Paints [symbol] into the painter's size: centred, keeping its aspect
-/// ratio, with the module size snapped to whole device pixels where that
-/// keeps it at least two pixels, so that the edges stay sharp.
+/// Paints [symbol] into the painter's size with its frame (title, caption,
+/// card): centred, keeping its aspect ratio, with the module size snapped
+/// to whole device pixels where that keeps it at least two pixels, so that
+/// the edges stay sharp.
 final class BarcodePainter extends CustomPainter {
   /// Creates a painter.
   BarcodePainter({
     required this.symbol,
     required this.layout,
+    required this.frame,
     required this.style,
     required this.devicePixelRatio,
     required this.textStyle,
@@ -31,6 +34,9 @@ final class BarcodePainter extends CustomPainter {
 
   /// Its geometry ([SymbolLayout] of [symbol]).
   final SymbolLayout layout;
+
+  /// The code with its title, caption and card ([FrameLayout] of [layout]).
+  final FrameLayout frame;
 
   /// Colors and shapes.
   final BarcodeStyle style;
@@ -50,29 +56,68 @@ final class BarcodePainter extends CustomPainter {
   /// Size of one module in logical pixels when painted into [size].
   double moduleSize(Size size) {
     final double fit = math.min(
-      size.width / layout.width,
-      size.height / layout.height,
+      size.width / frame.width,
+      size.height / frame.height,
     );
     final double device = fit * devicePixelRatio;
-    return device >= 2 ? device.floorToDouble() / devicePixelRatio : fit;
+    // A hair over, so that a size of exactly n modules is not floored to
+    // n - 1 by rounding.
+    return device >= 2
+        ? (device + 1e-6).floorToDouble() / devicePixelRatio
+        : fit;
   }
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (style.backgroundColor.a > 0) {
+    final double m = moduleSize(size);
+    final Offset frameOrigin = Offset(
+      _snap((size.width - frame.width * m) / 2),
+      _snap((size.height - frame.height * m) / 2),
+    );
+    final Color? cardColor = frame.cardColor;
+    if (cardColor != null) {
+      final RRect card = frame.cardRRect;
+      final RRect shown = RRect.fromLTRBR(
+        frameOrigin.dx + card.left * m,
+        frameOrigin.dy + card.top * m,
+        frameOrigin.dx + card.right * m,
+        frameOrigin.dy + card.bottom * m,
+        Radius.circular(frame.cardRadius * m),
+      );
+      if (frame.shadowBlur > 0) {
+        canvas.drawRRect(
+          shown.shift(Offset(0, frame.shadowOffset * m)),
+          Paint()
+            ..color = FrameLayout.shadowColor
+            ..maskFilter = MaskFilter.blur(
+              BlurStyle.normal,
+              Shadow.convertRadiusToSigma(frame.shadowBlur * m),
+            ),
+        );
+      }
+      canvas.drawRRect(shown, Paint()..color = cardColor);
+    } else if (style.backgroundColor.a > 0) {
       canvas.drawRect(
         Offset.zero & size,
         Paint()..color = style.backgroundColor,
       );
     }
-    final double m = moduleSize(size);
     if (m <= 0) {
       return;
     }
     final Offset origin = Offset(
-      _snap((size.width - layout.width * m) / 2),
-      _snap((size.height - layout.height * m) / 2),
+      frameOrigin.dx + _snap(frame.codeOrigin.dx * m),
+      frameOrigin.dy + _snap(frame.codeOrigin.dy * m),
     );
+    // A card of another color: the code keeps its own background.
+    if (cardColor != null &&
+        cardColor != style.backgroundColor &&
+        style.backgroundColor.a > 0) {
+      canvas.drawRect(
+        origin & Size(layout.width * m, layout.height * m),
+        Paint()..color = style.backgroundColor,
+      );
+    }
     final SymbolShapes shapes = SymbolShapes(symbol, layout, style);
     final Paint ink = Paint();
     final Gradient? gradient = style.gradient;
@@ -107,6 +152,19 @@ final class BarcodePainter extends CustomPainter {
     final String? text = layout.text;
     if (text != null) {
       _paintText(canvas, text, origin, m);
+    }
+    for (final FrameText? t in <FrameText?>[frame.title, frame.caption]) {
+      if (t != null) {
+        final TextPainter tp = t.painter(m, textDirection);
+        tp.paint(
+          canvas,
+          Offset(
+            frameOrigin.dx + t.rect.left * m,
+            frameOrigin.dy + t.rect.top * m,
+          ),
+        );
+        tp.dispose();
+      }
     }
   }
 
@@ -162,6 +220,7 @@ final class BarcodePainter extends CustomPainter {
   @override
   bool shouldRepaint(BarcodePainter old) =>
       !identical(old.symbol, symbol) ||
+      !identical(old.frame, frame) ||
       old.style != style ||
       old.devicePixelRatio != devicePixelRatio ||
       old.textStyle != textStyle ||

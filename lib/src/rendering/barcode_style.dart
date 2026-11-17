@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
 import '../writing/barcode_writer.dart';
-import '../writing/symbol_layout.dart';
 import 'styled_export.dart';
 import 'swiss_cross.dart';
 import 'symbol_shapes.dart';
@@ -26,6 +25,9 @@ final class BarcodeStyle {
     this.finderShape = FinderShape.square,
     this.quietZone = true,
     this.logo,
+    this.title,
+    this.caption,
+    this.card,
   });
 
   /// Black squares on white: the default.
@@ -121,6 +123,26 @@ final class BarcodeStyle {
   /// An image in the middle of a QR code.
   final BarcodeLogo? logo;
 
+  /// Text above the code, such as a network's name.
+  final BarcodeCaption? title;
+
+  /// Text under the code, such as `@handle` or "Scan to pay".
+  ///
+  /// ```dart
+  /// BarcodeView(
+  ///   'https://t.me/flutterdev',
+  ///   style: BarcodeStyle(
+  ///     caption: BarcodeCaption('@FLUTTERDEV'),
+  ///     card: BarcodeCard(),
+  ///   ),
+  /// )
+  /// ```
+  final BarcodeCaption? caption;
+
+  /// A card under the code, [title] and [caption]: a rounded plate, like a
+  /// profile code in a messenger.
+  final BarcodeCard? card;
+
   /// Renders [symbol] as an SVG document drawn with this style: the
   /// colors, gradient, module and finder shapes and logo of `BarcodeView`.
   ///
@@ -143,7 +165,8 @@ final class BarcodeStyle {
   ///
   /// Give either [size] (fit into `size` × `size` pixels with whole-pixel
   /// modules) or [moduleSize] (pixels per module). Defaults to 4 pixels per
-  /// module.
+  /// module. The [title], [caption] and [card] are part of the image; around
+  /// a card the image is transparent.
   ///
   /// Throws [ArgumentError] if both are given or one is not positive.
   ///
@@ -153,14 +176,8 @@ final class BarcodeStyle {
   ///   moduleShape: ModuleShape.circle,
   /// ).toPng(symbol, size: 1024);
   /// ```
-  Future<Uint8List> toPng(
-    BarcodeSymbol symbol, {
-    int? size,
-    int? moduleSize,
-  }) async {
-    final SymbolLayout layout = SymbolLayout(styledSymbol(symbol, this));
-    return styledPng(symbol, this, pixelsPerModule(layout, size, moduleSize));
-  }
+  Future<Uint8List> toPng(BarcodeSymbol symbol, {int? size, int? moduleSize}) =>
+      styledPng(symbol, this, size: size, moduleSize: moduleSize);
 
   /// Encodes [data] with [writer] and renders it as an SVG document drawn
   /// with this style; see [toSvg]. A QR code with a [logo] gets the logo's
@@ -173,8 +190,8 @@ final class BarcodeStyle {
 
   /// Encodes [data] with [writer] and renders it as a PNG drawn with this
   /// style; see [toPng]. A QR code with a [logo] gets the logo's
-  /// [BarcodeLogo.errorCorrection] unless the writer sets its own, as in
-  /// `BarcodeView`.
+  /// [BarcodeLogo.neededErrorCorrection] unless the writer sets its own, as
+  /// in `BarcodeView`.
   ///
   /// Throws `BarcodeWriteException` if [data] cannot be encoded.
   Future<Uint8List> encodePng(
@@ -188,13 +205,13 @@ final class BarcodeStyle {
     moduleSize: moduleSize,
   );
 
-  /// [writer] as `BarcodeView` uses it for this style: the most error
-  /// correction under a logo.
+  /// [writer] as `BarcodeView` uses it for this style: the error correction
+  /// the logo needs ([BarcodeLogo.neededErrorCorrection]).
   BarcodeWriter _writer(BarcodeWriter writer) =>
       logo != null &&
           writer.errorCorrection == null &&
           hasFinderPatterns(writer.format)
-      ? writer.copyWith(errorCorrection: logo!.errorCorrection)
+      ? writer.copyWith(errorCorrection: logo!.neededErrorCorrection)
       : writer;
 
   /// Creates a copy with the given fields replaced.
@@ -206,6 +223,9 @@ final class BarcodeStyle {
     FinderShape? finderShape,
     bool? quietZone,
     BarcodeLogo? logo,
+    BarcodeCaption? title,
+    BarcodeCaption? caption,
+    BarcodeCard? card,
   }) => BarcodeStyle(
     color: color ?? this.color,
     backgroundColor: backgroundColor ?? this.backgroundColor,
@@ -214,6 +234,9 @@ final class BarcodeStyle {
     finderShape: finderShape ?? this.finderShape,
     quietZone: quietZone ?? this.quietZone,
     logo: logo ?? this.logo,
+    title: title ?? this.title,
+    caption: caption ?? this.caption,
+    card: card ?? this.card,
   );
 
   @override
@@ -225,7 +248,10 @@ final class BarcodeStyle {
       other.moduleShape == moduleShape &&
       other.finderShape == finderShape &&
       other.quietZone == quietZone &&
-      other.logo == logo;
+      other.logo == logo &&
+      other.title == title &&
+      other.caption == caption &&
+      other.card == card;
 
   @override
   int get hashCode => Object.hash(
@@ -236,6 +262,9 @@ final class BarcodeStyle {
     finderShape,
     quietZone,
     logo,
+    title,
+    caption,
+    card,
   );
 }
 
@@ -273,7 +302,7 @@ final class BarcodeLogo {
     this.image, {
     this.size = 0.22,
     this.clearBackground = true,
-    this.errorCorrection = ErrorCorrection.high,
+    this.errorCorrection,
   });
 
   /// The image.
@@ -286,10 +315,26 @@ final class BarcodeLogo {
   final bool clearBackground;
 
   /// The error correction a QR code gets under this logo when the writer or
-  /// `BarcodeView` sets none. Default [ErrorCorrection.high], which covers
-  /// the most modules; a standard may fix it lower, such as the Swiss
+  /// `BarcodeView` sets none. `null` (the default) picks it by [size]; see
+  /// [neededErrorCorrection]. A standard may fix it, such as the Swiss
   /// QR-bill's [ErrorCorrection.medium].
-  final ErrorCorrection errorCorrection;
+  final ErrorCorrection? errorCorrection;
+
+  /// The error correction a QR code gets under this logo: [errorCorrection]
+  /// if set, otherwise by [size], from reading tests: up to 0.12 of the
+  /// width, [ErrorCorrection.medium]; up to 0.2 (a messenger's profile
+  /// code), [ErrorCorrection.quartile]; larger (the default logo, 0.22),
+  /// [ErrorCorrection.high]. At each level the code still reads at least
+  /// nine times in ten with a blot a quarter of the logo's size elsewhere
+  /// on it. A smaller level keeps the code sparse, so it reads from farther
+  /// away.
+  ErrorCorrection get neededErrorCorrection =>
+      errorCorrection ??
+      (size <= 0.12
+          ? ErrorCorrection.medium
+          : size <= 0.2
+          ? ErrorCorrection.quartile
+          : ErrorCorrection.high);
 
   @override
   bool operator ==(Object other) =>
@@ -302,4 +347,105 @@ final class BarcodeLogo {
   @override
   int get hashCode =>
       Object.hash(image, size, clearBackground, errorCorrection);
+}
+
+/// Text drawn with a barcode: [BarcodeStyle.title] above it,
+/// [BarcodeStyle.caption] under it. On screen and in the PNG and SVG
+/// exports alike.
+///
+/// Sizes are fractions of the code's width without its quiet zone, so a
+/// 1024-pixel export looks like the screen. The text keeps out of the quiet
+/// zone: a gap smaller than it grows to it.
+@immutable
+final class BarcodeCaption {
+  /// Creates a caption. [text] may hold line breaks; longer lines wrap to
+  /// the code's width, up to [maxLines].
+  const BarcodeCaption(
+    this.text, {
+    this.size = 0.09,
+    this.style,
+    this.align = TextAlign.center,
+    this.gap = 0.05,
+    this.maxLines = 2,
+  });
+
+  /// The text.
+  final String text;
+
+  /// Font size, as a fraction of the code's width.
+  final double size;
+
+  /// Color, weight, font family and letter spacing; [TextStyle.fontSize] is
+  /// ignored in favour of [size], and [TextStyle.letterSpacing] is a
+  /// fraction of the font size (like CSS `em`), so that it scales too. Without a color, the code's: its
+  /// [BarcodeStyle.color], or the first color of its gradient. Without a
+  /// weight, bold. In an SVG the font is named; the program that shows the
+  /// file picks the closest one it has.
+  final TextStyle? style;
+
+  /// Alignment within the code's width.
+  final TextAlign align;
+
+  /// Space between the text and the code, as a fraction of the code's
+  /// width; at least the code's quiet zone, if it has one.
+  final double gap;
+
+  /// Lines at most; more are cut with an ellipsis.
+  final int maxLines;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BarcodeCaption &&
+      other.text == text &&
+      other.size == size &&
+      other.style == style &&
+      other.align == align &&
+      other.gap == gap &&
+      other.maxLines == maxLines;
+
+  @override
+  int get hashCode => Object.hash(text, size, style, align, gap, maxLines);
+}
+
+/// A rounded plate under a barcode and its text: [BarcodeStyle.card].
+///
+/// Lengths are fractions of the code's width without its quiet zone. The
+/// quiet zone is the least padding the card gets, never added on top of it.
+/// The area around the card stays transparent: in `BarcodeView` and in a
+/// PNG.
+@immutable
+final class BarcodeCard {
+  /// Creates a card.
+  const BarcodeCard({
+    this.color,
+    this.radius = 0.12,
+    this.padding = 0.1,
+    this.elevation = 0,
+  });
+
+  /// The card's color; `null` uses [BarcodeStyle.backgroundColor]. Another
+  /// color puts the code on its own background square, like a code printed
+  /// on a colored card.
+  final Color? color;
+
+  /// Corner radius.
+  final double radius;
+
+  /// Space between the card's edge and its content.
+  final double padding;
+
+  /// A soft shadow under the card, as a fraction of the code's width
+  /// (0.04 is a gentle one); 0 for none. Exports grow by the shadow's reach.
+  final double elevation;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BarcodeCard &&
+      other.color == color &&
+      other.radius == radius &&
+      other.padding == padding &&
+      other.elevation == elevation;
+
+  @override
+  int get hashCode => Object.hash(color, radius, padding, elevation);
 }

@@ -295,7 +295,7 @@ in an EAN-13, throws `BarcodeWriteException`.
 | `format` | `BarcodeWriter(format)` |
 | `width`, `height` | `toPng(size:)` or `toPng(moduleSize:)`; `BarcodeView(width:, height:)` |
 | `margin` | `BarcodeWriter(quietZone:)`: the quiet zone the symbology requires, or none |
-| `eccLevel` | `BarcodeWriter(errorCorrection: ErrorCorrection.high)` |
+| `eccLevel` | `BarcodeWriter(errorCorrection: ErrorCorrection.high)`; without it, QR codes get M (3.x wrote zxing-cpp's L) |
 
 ### In a widget: `WriterWidget` → `BarcodeView`
 
@@ -312,8 +312,9 @@ const BarcodeView(
 
 `BarcodeView` draws vectors, sharp at any size. `BarcodeStyle` sets the
 colors or a gradient, rounded or dot modules, rounded or round QR finder
-patterns, and a logo in the middle of a QR code. `BarcodeView.bytes` shows
-binary data.
+patterns, a logo in the middle of a QR code (error correction rises by its
+size), and a title, a caption and a card around the code
+(`BarcodeCaption`, `BarcodeCard`). `BarcodeView.bytes` shows binary data.
 
 ## Formats
 

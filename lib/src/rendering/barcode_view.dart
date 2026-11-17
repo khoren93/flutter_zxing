@@ -9,6 +9,7 @@ import '../writing/barcode_writer.dart';
 import '../writing/symbol_layout.dart';
 import 'barcode_painter.dart';
 import 'barcode_style.dart';
+import 'frame_layout.dart';
 import 'symbol_shapes.dart';
 
 /// Shows a barcode. Drawn as vectors from the module matrix, so it is sharp
@@ -91,9 +92,9 @@ class BarcodeView extends StatefulWidget {
   /// The symbology; must be writable ([BarcodeFormat.canWrite]).
   final BarcodeFormat format;
 
-  /// Error correction; `null` uses the format's default, or for a QR code
-  /// with a [BarcodeStyle.logo] the logo's [BarcodeLogo.errorCorrection]
-  /// ([ErrorCorrection.high] unless it says otherwise).
+  /// Error correction; `null` uses the format's default (M for a QR code),
+  /// or for a QR code with a [BarcodeStyle.logo] what the logo needs
+  /// ([BarcodeLogo.neededErrorCorrection]).
   final ErrorCorrection? errorCorrection;
 
   /// Encode [data] as GS1: Application Identifiers in parentheses,
@@ -272,12 +273,35 @@ class _BarcodeViewState extends State<BarcodeView> {
     synchronousCall ? apply() : setState(apply);
   }
 
+  /// The frame of the last build, kept while its inputs stay the same: its
+  /// text is measured.
+  FrameLayout? _frame;
+  (SymbolLayout, BarcodeStyle, TextStyle)? _frameKey;
+
+  FrameLayout _frameOf(SymbolLayout layout, TextStyle base) {
+    final (SymbolLayout, BarcodeStyle, TextStyle)? key = _frameKey;
+    if (_frame == null ||
+        key == null ||
+        !identical(key.$1, layout) ||
+        key.$2 != widget.style ||
+        key.$3 != base) {
+      _frame = FrameLayout(layout, widget.style, base: base);
+      _frameKey = (layout, widget.style, base);
+    }
+    return _frame!;
+  }
+
   String get _semanticLabel {
     final String? data = widget.data;
+    final String code = data == null
+        ? '${widget.format.displayName} barcode'
+        : '${widget.format.displayName} barcode: $data';
     return widget.semanticLabel ??
-        (data == null
-            ? '${widget.format.displayName} barcode'
-            : '${widget.format.displayName} barcode: $data');
+        <String>[
+          ?widget.style.title?.text,
+          code,
+          ?widget.style.caption?.text,
+        ].where((String s) => s.isNotEmpty).join('. ');
   }
 
   @override
@@ -304,7 +328,6 @@ class _BarcodeViewState extends State<BarcodeView> {
       );
     }
 
-    final double ratio = layout.width / layout.height;
     final double devicePixelRatio =
         MediaQuery.maybeDevicePixelRatioOf(context) ?? 1;
     // Only the app's font: no decoration (outside a Material the default
@@ -316,6 +339,14 @@ class _BarcodeViewState extends State<BarcodeView> {
       fontFamilyFallback: ambient.fontFamilyFallback,
       fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
     );
+    final FrameLayout frame = _frameOf(
+      layout,
+      TextStyle(
+        fontFamily: ambient.fontFamily,
+        fontFamilyFallback: ambient.fontFamilyFallback,
+      ),
+    );
+    final double ratio = frame.width / frame.height;
     return Semantics(
       container: true,
       image: true,
@@ -339,7 +370,7 @@ class _BarcodeViewState extends State<BarcodeView> {
             } else if (tall) {
               w = constraints.maxHeight * ratio;
             } else {
-              w = layout.width * 4.0;
+              w = frame.width * 4.0;
             }
             h = w / ratio;
           }
@@ -352,6 +383,7 @@ class _BarcodeViewState extends State<BarcodeView> {
               painter: BarcodePainter(
                 symbol: symbol,
                 layout: layout,
+                frame: frame,
                 style: widget.style,
                 devicePixelRatio: devicePixelRatio,
                 textStyle: textStyle,
@@ -378,12 +410,12 @@ final class _Request {
       gs1 = view.gs1,
       showText = view.showText,
       quietZone = view.style.quietZone,
-      // A logo covers modules: QR codes then get the logo's error
-      // correction, the most unless a standard fixes it.
+      // A logo covers modules: QR codes then get the error correction it
+      // needs.
       errorCorrection =
           view.errorCorrection ??
           (hasFinderPatterns(view.format)
-              ? view.style.logo?.errorCorrection
+              ? view.style.logo?.neededErrorCorrection
               : null);
 
   final String? data;

@@ -12,6 +12,7 @@ import '../writing/barcode_writer.dart';
 import '../writing/symbol_layout.dart';
 import 'barcode_painter.dart';
 import 'barcode_style.dart';
+import 'frame_layout.dart';
 import 'symbol_shapes.dart';
 
 /// Loads the image of [logo], or `null` without one. The caller disposes
@@ -41,31 +42,38 @@ Future<ImageInfo?> loadLogo(BarcodeLogo? logo) async {
   return done.future;
 }
 
-/// [symbol] drawn with [style] as a PNG, [moduleSize] pixels per module.
+/// [symbol] drawn with [style] as a PNG, its frame included: [size] or
+/// [moduleSize] as in `BarcodeStyle.toPng`.
 Future<Uint8List> styledPng(
   BarcodeSymbol symbol,
-  BarcodeStyle style,
-  int moduleSize,
-) async {
+  BarcodeStyle style, {
+  int? size,
+  int? moduleSize,
+}) async {
   final BarcodeSymbol shown = styledSymbol(symbol, style);
   final SymbolLayout layout = SymbolLayout(shown);
+  final FrameLayout frame = FrameLayout(layout, style);
+  final int m = frame.pixelsPerModule(size, moduleSize);
   final ImageInfo? logo = SymbolShapes(shown, layout, style).logo != null
       ? await loadLogo(style.logo)
       : null;
   try {
-    final int width = layout.width * moduleSize;
-    final int height = layout.height * moduleSize;
+    final double outset = frame.outset * m;
+    final int width = (frame.width * m + 2 * outset).ceil();
+    final int height = (frame.height * m + 2 * outset).ceil();
     final ui.PictureRecorder recorder = ui.PictureRecorder();
+    final ui.Canvas canvas = ui.Canvas(recorder)..translate(outset, outset);
     BarcodePainter(
       symbol: shown,
       layout: layout,
+      frame: frame,
       style: style,
       devicePixelRatio: 1,
       textStyle: const TextStyle(
         fontFeatures: <ui.FontFeature>[ui.FontFeature.tabularFigures()],
       ),
       logo: logo?.image,
-    ).paint(ui.Canvas(recorder), ui.Size(width.toDouble(), height.toDouble()));
+    ).paint(canvas, ui.Size(frame.width * m, frame.height * m));
     final ui.Picture picture = recorder.endRecording();
     final ui.Image image = await picture.toImage(width, height);
     picture.dispose();
@@ -82,12 +90,14 @@ Future<Uint8List> styledPng(
   }
 }
 
-/// [symbol] drawn with [style] as an SVG document; one unit is one module.
+/// [symbol] drawn with [style] as an SVG document, its frame included; one
+/// unit is one module.
 ///
 /// Throws [UnsupportedError] for a [SweepGradient], which SVG cannot draw.
 Future<String> styledSvg(BarcodeSymbol symbol, BarcodeStyle style) async {
   final BarcodeSymbol shown = styledSymbol(symbol, style);
   final SymbolLayout layout = SymbolLayout(shown);
+  final FrameLayout frame = FrameLayout(layout, style);
   final SymbolShapes shapes = SymbolShapes(shown, layout, style);
   final Gradient? gradient = style.gradient;
   if (gradient is SweepGradient) {
@@ -115,6 +125,9 @@ Future<String> styledSvg(BarcodeSymbol symbol, BarcodeStyle style) async {
     logoPng = null;
   }
 
+  final double o = frame.outset;
+  final String w = _n(frame.width + 2 * o);
+  final String h = _n(frame.height + 2 * o);
   final String fill = gradient == null ? _color(style.color) : 'url(#ink)';
   final String opacity = gradient == null ? _opacity('fill', style.color) : '';
   final StringBuffer svg = StringBuffer()
@@ -123,22 +136,69 @@ Future<String> styledSvg(BarcodeSymbol symbol, BarcodeStyle style) async {
     svg.write('xmlns:xlink="http://www.w3.org/1999/xlink" ');
   }
   svg
-    ..write('viewBox="0 0 ${layout.width} ${layout.height}" ')
-    ..write('width="${layout.width}" height="${layout.height}"');
-  if (shapes.plain) {
-    svg.write(' shape-rendering="crispEdges"');
+    ..write('viewBox="${_n(-o)} ${_n(-o)} $w $h" ')
+    ..write('width="$w" height="$h">');
+  final bool shadow = frame.shadowBlur > 0;
+  if (gradient != null || shadow) {
+    svg.write('<defs>');
+    if (gradient != null) {
+      svg.write(_gradient(gradient, shapes.symbolArea));
+    }
+    if (shadow) {
+      final String sigma = _n(Shadow.convertRadiusToSigma(frame.shadowBlur));
+      svg.write(
+        '<filter id="shadow" x="-50%" y="-50%" width="200%" height="200%"> '
+        '<feGaussianBlur stdDeviation="$sigma"/></filter>',
+      );
+    }
+    svg.write('</defs>');
   }
-  svg.write('>');
-  if (gradient != null) {
-    svg.write('<defs>${_gradient(gradient, shapes.symbolArea)}</defs>');
-  }
-  if (style.backgroundColor.a > 0) {
+  final Color? cardColor = frame.cardColor;
+  if (cardColor != null) {
+    final String size =
+        'width="${_n(frame.width)}" height="${_n(frame.height)}" '
+        'rx="${_n(frame.cardRadius)}"';
+    if (shadow) {
+      svg.write(
+        '<rect y="${_n(frame.shadowOffset)}" $size '
+        'fill="${_color(FrameLayout.shadowColor)}"'
+        '${_opacity('fill', FrameLayout.shadowColor)} filter="url(#shadow)"/>',
+      );
+    }
+    if (cardColor.a > 0) {
+      svg.write(
+        '<rect $size fill="${_color(cardColor)}"'
+        '${_opacity('fill', cardColor)}/>',
+      );
+    }
+  } else if (style.backgroundColor.a > 0) {
     svg.write(
-      '<rect width="100%" height="100%" '
+      '<rect width="${_n(frame.width)}" height="${_n(frame.height)}" '
       'fill="${_color(style.backgroundColor)}"'
       '${_opacity('fill', style.backgroundColor)}/>',
     );
   }
+  // A card of another color: the code keeps its own background.
+  if (cardColor != null &&
+      cardColor != style.backgroundColor &&
+      style.backgroundColor.a > 0) {
+    final ui.Rect r = frame.codeRect;
+    svg.write(
+      '<rect x="${_n(r.left)}" y="${_n(r.top)}" '
+      'width="${_n(r.width)}" height="${_n(r.height)}" '
+      'fill="${_color(style.backgroundColor)}"'
+      '${_opacity('fill', style.backgroundColor)}/>',
+    );
+  }
+  final ui.Offset at = frame.codeOrigin;
+  svg.write('<g');
+  if (at != ui.Offset.zero) {
+    svg.write(' transform="translate(${_n(at.dx)} ${_n(at.dy)})"');
+  }
+  if (shapes.plain) {
+    svg.write(' shape-rendering="crispEdges"');
+  }
+  svg.write('>');
   final _SvgSink modules = _SvgSink();
   shapes.modules(modules);
   svg.write('<path d="$modules" fill="$fill"$opacity/>');
@@ -168,8 +228,52 @@ Future<String> styledSvg(BarcodeSymbol symbol, BarcodeStyle style) async {
       ..write(xmlEscape(text))
       ..write('</text>');
   }
+  svg.write('</g>');
+  for (final FrameText? t in <FrameText?>[frame.title, frame.caption]) {
+    if (t != null) {
+      _caption(svg, t);
+    }
+  }
   svg.write('</svg>');
   return svg.toString();
+}
+
+/// [t] as `<text>` lines: SVG does not wrap, so each line as laid out.
+void _caption(StringBuffer svg, FrameText t) {
+  final TextStyle s = t.style;
+  final ui.Rect r = t.rect;
+  final (String anchor, double x) = switch (t.caption.align) {
+    TextAlign.center => ('middle', r.center.dx),
+    TextAlign.right || TextAlign.end => ('end', r.right),
+    _ => ('start', r.left),
+  };
+  final Color color = s.color ?? const Color(0xFF000000);
+  final String family = <String>[
+    ?s.fontFamily,
+    ...?s.fontFamilyFallback,
+    'sans-serif',
+  ].map((String f) => f.contains(' ') ? "'$f'" : f).join(', ');
+  svg
+    ..write('<text font-family="${xmlEscape(family)}" ')
+    ..write('font-size="${_n(t.fontSize)}" ')
+    ..write('font-weight="${(s.fontWeight ?? FontWeight.w700).value}" ');
+  if (s.fontStyle == FontStyle.italic) {
+    svg.write('font-style="italic" ');
+  }
+  if (s.letterSpacing case final double spacing) {
+    svg.write('letter-spacing="${_n(spacing * t.fontSize)}" ');
+  }
+  svg.write(
+    'text-anchor="$anchor" fill="${_color(color)}"'
+    '${_opacity('fill', color)}>',
+  );
+  for (final (String line, double baseline) in t.lines) {
+    svg.write(
+      '<tspan x="${_n(x)}" y="${_n(r.top + baseline)}">'
+      '${xmlEscape(line)}</tspan>',
+    );
+  }
+  svg.write('</text>');
 }
 
 /// Writes shapes as SVG path data. Every shape runs clockwise, so that the

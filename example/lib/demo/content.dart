@@ -360,6 +360,7 @@ String dartCode(
   ErrorCorrection? errorCorrection,
   String? content,
   bool gs1 = false,
+  bool showText = false,
 }) {
   String hex(Color c) =>
       'Color(0x${c.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()})';
@@ -375,16 +376,44 @@ String dartCode(
   if (gs1) {
     b.writeln('  gs1: true,');
   }
+  if (showText) {
+    b.writeln('  showText: true,');
+  }
   if (errorCorrection != null && format.hasErrorCorrection) {
     b.writeln('  errorCorrection: ErrorCorrection.${errorCorrection.name},');
   }
-  final BarcodeStyle plain = style.copyWith();
+  // The look alone, without the logo, text and card: to name a preset.
+  final BarcodeStyle look = BarcodeStyle(
+    color: style.color,
+    backgroundColor: style.backgroundColor,
+    gradient: style.gradient,
+    moduleShape: style.moduleShape,
+    finderShape: style.finderShape,
+    quietZone: style.quietZone,
+  );
+  final List<String> extras = <String>[
+    if (style.logo case final BarcodeLogo logo)
+      "logo: BarcodeLogo(AssetImage('assets/logo.png'), "
+          'size: ${logo.size.toStringAsFixed(2)}),',
+    if (style.title case final BarcodeCaption t)
+      'title: ${_captionDart(t, quoted)},',
+    if (style.caption case final BarcodeCaption c)
+      'caption: ${_captionDart(c, quoted)},',
+    if (style.card case final BarcodeCard card)
+      'card: ${_cardDart(card, hex)},',
+  ];
   if (identical(style, BarcodeStyle.swissQrBill)) {
     b.writeln('  style: BarcodeStyle.swissQrBill,');
-  } else if (presetName != null &&
-      BarcodeStyle.presets[presetName] == plain &&
-      style.logo == null) {
-    b.writeln('  style: BarcodeStyle.$presetName,');
+  } else if (presetName != null && BarcodeStyle.presets[presetName] == look) {
+    if (extras.isEmpty) {
+      b.writeln('  style: BarcodeStyle.$presetName,');
+    } else {
+      b.writeln('  style: BarcodeStyle.$presetName.copyWith(');
+      for (final String e in extras) {
+        b.writeln('    $e');
+      }
+      b.writeln('  ),');
+    }
   } else if (style != BarcodeStyle.classic) {
     b.writeln('  style: BarcodeStyle(');
     const BarcodeStyle d = BarcodeStyle.classic;
@@ -409,11 +438,8 @@ String dartCode(
     if (!style.quietZone) {
       b.writeln('    quietZone: false,');
     }
-    if (style.logo != null) {
-      b.writeln(
-        "    logo: BarcodeLogo(AssetImage('assets/logo.png'), "
-        'size: ${style.logo!.size.toStringAsFixed(2)}),',
-      );
+    for (final String e in extras) {
+      b.writeln('    $e');
     }
     b.writeln('  ),');
   }
@@ -450,3 +476,25 @@ String contentClassName(BarcodeContent content) => switch (content) {
   VinContent() => 'VinContent',
   ProductContent() => 'ProductContent',
 };
+
+/// `BarcodeCaption('…', size: …)`, with what differs from the defaults.
+String _captionDart(BarcodeCaption c, String Function(String) quoted) {
+  final List<String> args = <String>[
+    quoted(c.text),
+    if (c.size != 0.09) 'size: ${c.size}',
+    if (c.style?.color case final Color color)
+      'style: TextStyle(color: Color(0x${color.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()}))',
+  ];
+  return 'BarcodeCaption(${args.join(', ')})';
+}
+
+/// `BarcodeCard(…)`, with what differs from the defaults.
+String _cardDart(BarcodeCard c, String Function(Color) hex) {
+  final List<String> args = <String>[
+    if (c.color case final Color color) 'color: ${hex(color)}',
+    if (c.radius != 0.12) 'radius: ${c.radius}',
+    if (c.padding != 0.1) 'padding: ${c.padding}',
+    if (c.elevation != 0) 'elevation: ${c.elevation}',
+  ];
+  return 'BarcodeCard(${args.join(', ')})';
+}

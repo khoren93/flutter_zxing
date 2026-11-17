@@ -67,6 +67,7 @@ final class SymbolLayout {
       rects: List<ModuleRect>.unmodifiable(_mergedRects(symbol, q)),
       text: hasText ? text : null,
       textTop: q + symbol.height + textGap,
+      quietZone: q,
     );
   }
 
@@ -76,6 +77,7 @@ final class SymbolLayout {
     required this.rects,
     required this.text,
     required this.textTop,
+    required this.quietZone,
   });
 
   /// Space between the bars and the text, in modules.
@@ -98,6 +100,9 @@ final class SymbolLayout {
 
   /// Top of the text box.
   final int textTop;
+
+  /// The quiet zone on every side, in modules.
+  final int quietZone;
 
   /// Horizontal centre of the text.
   double get textCenter => width / 2;

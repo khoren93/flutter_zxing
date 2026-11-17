@@ -117,17 +117,26 @@ void main() {
       expect((await const BarcodeReader().read(png))?.text, url);
     });
 
-    test('a logo raises error correction and still reads', () async {
-      final Uint8List logo = await _logoPng();
-      final Uint8List png = await BarcodeStyle(
-        moduleShape: ModuleShape.rounded,
-        finderShape: FinderShape.rounded,
-        logo: BarcodeLogo(MemoryImage(logo), size: 0.25),
-      ).encodePng(qr, url, moduleSize: 6);
-      final Barcode? read = await const BarcodeReader().read(png);
-      expect(read?.text, url);
-      expect(read?.ecLevel, 'H');
-    });
+    test(
+      'a logo raises error correction by its size and still reads',
+      () async {
+        final Uint8List logo = await _logoPng();
+        for (final (double size, String level) in <(double, String)>[
+          (0.12, 'M'),
+          (0.2, 'Q'),
+          (0.3, 'H'),
+        ]) {
+          final Uint8List png = await BarcodeStyle(
+            moduleShape: ModuleShape.rounded,
+            finderShape: FinderShape.rounded,
+            logo: BarcodeLogo(MemoryImage(logo), size: size),
+          ).encodePng(qr, url, moduleSize: 6);
+          final Barcode? read = await const BarcodeReader().read(png);
+          expect(read?.text, url, reason: 'logo $size');
+          expect(read?.ecLevel, level, reason: 'logo $size');
+        }
+      },
+    );
 
     test('the Swiss QR-bill style: the cross over M, still reads', () async {
       const SwissQrBillContent bill = SwissQrBillContent(
@@ -209,20 +218,23 @@ void main() {
   });
 
   group('toSvg', () {
-    test('a logo is embedded and the QR gets error correction H', () async {
-      final String svg = await BarcodeStyle(
-        logo: BarcodeLogo(MemoryImage(await _logoPng())),
-      ).encodeSvg(qr, url);
-      expect(svg, contains('xlink:href="data:image/png;base64,'));
-      // The logo only goes on with the most error correction: the same text
-      // gives a larger symbol than at the default level.
-      final BarcodeSymbol plain = await qr.encode(url);
-      final BarcodeSymbol high = await qr
-          .copyWith(errorCorrection: ErrorCorrection.high)
-          .encode(url);
-      expect(high.width, greaterThan(plain.width));
-      final int side = high.width + 2 * high.quietZone;
-      expect(svg, contains('viewBox="0 0 $side $side"'));
-    });
+    test(
+      'a logo is embedded and the QR gets the error correction it needs',
+      () async {
+        final String svg = await BarcodeStyle(
+          logo: BarcodeLogo(MemoryImage(await _logoPng())),
+        ).encodeSvg(qr, url);
+        expect(svg, contains('xlink:href="data:image/png;base64,'));
+        // The default logo (0.22 of the width) needs H: the same text gives a
+        // larger symbol than at the default level, M.
+        final BarcodeSymbol plain = await qr.encode(url);
+        final BarcodeSymbol needed = await qr
+            .copyWith(errorCorrection: ErrorCorrection.high)
+            .encode(url);
+        expect(needed.width, greaterThan(plain.width));
+        final int side = needed.width + 2 * needed.quietZone;
+        expect(svg, contains('viewBox="0 0 $side $side"'));
+      },
+    );
   });
 }

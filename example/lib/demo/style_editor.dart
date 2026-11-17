@@ -52,6 +52,9 @@ BarcodeStyle rebuildStyle(
   FinderShape? finderShape,
   bool? quietZone,
   BarcodeLogo? Function()? logo,
+  BarcodeCaption? Function()? title,
+  BarcodeCaption? Function()? caption,
+  BarcodeCard? Function()? card,
 }) => BarcodeStyle(
   color: color ?? s.color,
   backgroundColor: backgroundColor ?? s.backgroundColor,
@@ -60,6 +63,9 @@ BarcodeStyle rebuildStyle(
   finderShape: finderShape ?? s.finderShape,
   quietZone: quietZone ?? s.quietZone,
   logo: logo == null ? s.logo : logo(),
+  title: title == null ? s.title : title(),
+  caption: caption == null ? s.caption : caption(),
+  card: card == null ? s.card : card(),
 );
 
 /// A sample logo drawn in code: the demo ships no image files.
@@ -275,7 +281,10 @@ class StyleEditor extends StatelessWidget {
             children: <Widget>[
               const Expanded(child: FzLabel('Logo')),
               Text(
-                logo == null ? '' : 'Error correction rises to H',
+                logo == null
+                    ? ''
+                    : 'Error correction: '
+                          '${const <String>['L', 'M', 'Q', 'H'][logo.neededErrorCorrection.index]}',
                 style: TextStyle(fontSize: 13, color: fz.inkMuted),
               ),
             ],
@@ -326,6 +335,8 @@ class StyleEditor extends StatelessWidget {
             ],
           ),
         ],
+        const SizedBox(height: 16),
+        TextAndCard(style: style, onChanged: onChanged),
         const SizedBox(height: 8),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
@@ -493,6 +504,211 @@ class _LogoTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Text sizes of the editor, as fractions of the code's width.
+const List<(String, double)> _textSizes = <(String, double)>[
+  ('S', 0.06),
+  ('M', 0.09),
+  ('L', 0.12),
+];
+
+/// Card colors; `null` is the code's own background.
+const List<(String, Color?)> _cards = <(String, Color?)>[
+  ('Background', null),
+  ('Black', Color(0xFF0E1218)),
+  ('Cream', Color(0xFFF4EFE4)),
+  ('Blue', Color(0xFFE8F0FF)),
+];
+
+/// Card corners: small, large.
+const List<(String, double)> _corners = <(String, double)>[
+  ('S', 0.05),
+  ('L', 0.12),
+];
+
+/// Text above and under the code, and a card under all of it.
+class TextAndCard extends StatefulWidget {
+  const TextAndCard({super.key, required this.style, required this.onChanged});
+
+  final BarcodeStyle style;
+  final ValueChanged<BarcodeStyle> onChanged;
+
+  @override
+  State<TextAndCard> createState() => _TextAndCardState();
+}
+
+class _TextAndCardState extends State<TextAndCard> {
+  late final TextEditingController _title = TextEditingController(
+    text: widget.style.title?.text ?? '',
+  );
+  late final TextEditingController _caption = TextEditingController(
+    text: widget.style.caption?.text ?? '',
+  );
+
+  @override
+  void didUpdateWidget(TextAndCard old) {
+    super.didUpdateWidget(old);
+    // A preset or a reset replaced the style: show its text.
+    void sync(TextEditingController c, BarcodeCaption? t) {
+      if ((t?.text ?? '') != c.text) {
+        c.text = t?.text ?? '';
+      }
+    }
+
+    sync(_title, widget.style.title);
+    sync(_caption, widget.style.caption);
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _caption.dispose();
+    super.dispose();
+  }
+
+  double get _size =>
+      widget.style.caption?.size ?? widget.style.title?.size ?? 0.09;
+
+  /// Light text on a dark card; otherwise the code's color.
+  TextStyle? _textStyle(BarcodeCard? card) {
+    final Color? color = card?.color;
+    return color != null && color.computeLuminance() < 0.3
+        ? const TextStyle(color: Color(0xFFFFFFFF))
+        : null;
+  }
+
+  BarcodeCaption? _line(String text, double size, BarcodeCard? card) =>
+      text.trim().isEmpty
+      ? null
+      : BarcodeCaption(text.trim(), size: size, style: _textStyle(card));
+
+  /// The style with this section's values.
+  void _apply({
+    String? title,
+    String? caption,
+    double? size,
+    BarcodeCard? Function()? card,
+  }) {
+    final BarcodeCard? c = card == null ? widget.style.card : card();
+    final double z = size ?? _size;
+    widget.onChanged(
+      rebuildStyle(
+        widget.style,
+        title: () => _line(title ?? _title.text, z, c),
+        caption: () => _line(caption ?? _caption.text, z, c),
+        card: () => c,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Fz fz = Fz.of(context);
+    final BarcodeCard? card = widget.style.card;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        const FzLabel('Text'),
+        const SizedBox(height: 10),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: TextField(
+                controller: _title,
+                decoration: const InputDecoration(labelText: 'Above'),
+                onChanged: (String v) => _apply(title: v),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _caption,
+                decoration: const InputDecoration(labelText: 'Below'),
+                onChanged: (String v) => _apply(caption: v),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SegmentedButton<double>(
+          showSelectedIcon: false,
+          segments: <ButtonSegment<double>>[
+            for (final (String label, double v) in _textSizes)
+              ButtonSegment<double>(value: v, label: Text(label)),
+          ],
+          selected: <double>{
+            _textSizes
+                .map(((String, double) e) => e.$2)
+                .reduce(
+                  (double a, double b) =>
+                      (a - _size).abs() <= (b - _size).abs() ? a : b,
+                ),
+          },
+          onSelectionChanged: (Set<double> s) => _apply(size: s.first),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: <Widget>[
+            const Expanded(child: FzLabel('Card')),
+            Switch(
+              value: card != null,
+              onChanged: (bool on) => _apply(
+                card: () => on ? const BarcodeCard(elevation: 0.03) : null,
+              ),
+            ),
+          ],
+        ),
+        if (card != null) ...<Widget>[
+          const SizedBox(height: 6),
+          Row(
+            children: <Widget>[
+              for (final (String name, Color? c) in _cards)
+                Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: _Swatch(
+                    label: '$name card',
+                    fill: BoxDecoration(
+                      color: c ?? widget.style.backgroundColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: fz.line),
+                    ),
+                    selected: card.color == c,
+                    onTap: () => _apply(
+                      card: () => BarcodeCard(
+                        color: c,
+                        radius: card.radius,
+                        elevation: card.elevation,
+                      ),
+                    ),
+                  ),
+                ),
+              const Spacer(),
+              SegmentedButton<double>(
+                showSelectedIcon: false,
+                style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                segments: <ButtonSegment<double>>[
+                  for (final (String label, double v) in _corners)
+                    ButtonSegment<double>(value: v, label: Text(label)),
+                ],
+                selected: <double>{
+                  card.radius < 0.085 ? _corners[0].$2 : _corners[1].$2,
+                },
+                onSelectionChanged: (Set<double> s) => _apply(
+                  card: () => BarcodeCard(
+                    color: card.color,
+                    radius: s.first,
+                    elevation: card.elevation,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }

@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+* **Text and a card around a code:** `BarcodeStyle.title` (above),
+  `BarcodeStyle.caption` (under), both a `BarcodeCaption` (text, size,
+  style, alignment, gap, lines), and `BarcodeStyle.card`, a `BarcodeCard`
+  (color, corner radius, padding, shadow). Sizes are fractions of the
+  code's width. Drawn by `BarcodeView` and in the PNG and SVG exports;
+  `BarcodeView`'s semantic label reads the text too.
+* **Behaviour change (since rc.1): QR codes get error correction M by
+  default** instead of zxing-cpp's L: often the same size, and it survives
+  print, glare and scratches far better. Set `errorCorrection` for another
+  level.
+* **Behaviour change (since rc.1): the error correction under a logo
+  follows its size.** `BarcodeLogo.errorCorrection` is now `null` by
+  default, and `BarcodeLogo.neededErrorCorrection` picks M up to 12% of the
+  width, Q up to 20% and H above, from reading tests with a blot added. The
+  default logo (22%) keeps H; smaller logos give sparser codes.
 * **Eleven new scanner templates:** `product()` (EAN and UPC, the GTIN or
   ISBN), `small()` (a small window, 2× zoom from the start), `signIn()`
   (closes with the code accepted), `checkIn(check:)` (scanning never stops,
@@ -35,7 +50,7 @@
   (`BarcodeSymbol.toSvg()` is synchronous again). With colors, shapes or a
   logo: `style.toSvg(symbol)`, `style.toPng(symbol, size: …)`,
   `style.encodeSvg(writer, data)` and `style.encodePng(writer, data, size: …)`;
-  the last two still raise a QR code's error correction to high under a logo.
+  the last two still raise a QR code's error correction under a logo.
 * **Layers you can import on their own:** `package:flutter_zxing/core.dart`
   (zxing-cpp: reading and writing), `content.dart` (`barcode.content`),
   `rendering.dart` (`BarcodeView`, `BarcodeStyle`) and `scanner.dart`.

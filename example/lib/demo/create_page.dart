@@ -301,10 +301,32 @@ class _CreatePageState extends State<CreatePage> {
     errorCorrection: _ecc,
     content: _contentDart,
     gs1: _gs1,
+    showText: _showText,
   );
 
-  BarcodeWriter get _writer =>
-      BarcodeWriter(_format, errorCorrection: _ecc, gs1: _gs1);
+  BarcodeWriter get _writer => BarcodeWriter(
+    _format,
+    errorCorrection: _ecc,
+    gs1: _gs1,
+    showText: _showText,
+  );
+
+  /// Whether linear barcodes show their digits under the bars.
+  bool _textUnderBars = true;
+
+  bool get _showText => _format.isLinear && _textUnderBars;
+
+  /// The level Auto picks, in words: M for a QR code, or what its logo
+  /// needs.
+  String? get _autoLevel {
+    if (_format != BarcodeFormat.qrCode) {
+      return null;
+    }
+    final BarcodeLogo? logo = _style.logo;
+    final ErrorCorrection level =
+        logo?.neededErrorCorrection ?? ErrorCorrection.medium;
+    return eccLabel(_format, level);
+  }
 
   /// Changes state from the page's parts, which are separate widgets.
   void _update(VoidCallback change) => setState(change);
@@ -532,6 +554,26 @@ class _CreatePageState extends State<CreatePage> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: _Form(this),
     ),
+    if (_format.isLinear && _format != BarcodeFormat.dxFilmEdge)
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text(
+            'Digits under the bars',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            'showText: the human-readable line',
+            style: TextStyle(color: Fz.of(context).inkMuted),
+          ),
+          value: _textUnderBars,
+          onChanged: (bool v) {
+            setState(() => _textUnderBars = v);
+            _scheduleCheck();
+          },
+        ),
+      ),
     const SizedBox(height: 12),
     Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1360,12 +1402,23 @@ class _EccMenu extends StatelessWidget {
         ),
         PopupMenuItem<int>(
           value: -1,
-          child: Text(page._style.logo != null && qr ? 'Auto (H)' : 'Auto'),
+          child: Text(switch (page._autoLevel) {
+            null => 'Auto',
+            final String l when page._style.logo != null =>
+              'Auto: $l, for the logo',
+            final String l => 'Auto: $l',
+          }),
         ),
         for (final ErrorCorrection e in ErrorCorrection.values)
           PopupMenuItem<int>(value: e.index, child: Text(label(e))),
       ],
-      child: _Pill(ecc == null ? 'ECC auto' : 'ECC ${eccLabel(format, ecc)}'),
+      child: _Pill(
+        ecc != null
+            ? 'ECC ${eccLabel(format, ecc)}'
+            : page._autoLevel == null
+            ? 'ECC auto'
+            : 'ECC auto · ${page._autoLevel}',
+      ),
     );
   }
 }
@@ -1426,8 +1479,11 @@ class _Preview extends StatelessWidget {
           ? const EdgeInsets.all(16)
           : EdgeInsets.all(style.quietZone ? size * 0.07 : 6),
       decoration: BoxDecoration(
+        // A card brings its own ground: around it, the page's.
         color: problems.isNotEmpty
             ? bad.withValues(alpha: 0.10)
+            : style.card != null
+            ? fz.surface
             : style.backgroundColor,
         borderRadius: BorderRadius.circular(18),
       ),
@@ -1471,7 +1527,15 @@ class _Preview extends StatelessWidget {
               format: page._format,
               errorCorrection: page._ecc,
               gs1: page._gs1,
-              style: style.copyWith(quietZone: false),
+              showText: page._showText,
+              // Without text or a card, the quiet zone would look like empty
+              // space; with them it sets the spacing, as in the export.
+              style:
+                  style.title == null &&
+                      style.caption == null &&
+                      style.card == null
+                  ? style.copyWith(quietZone: false)
+                  : style,
               errorBuilder: (BuildContext context, BarcodeWriteException e) =>
                   Center(
                     child: Text(
@@ -1532,10 +1596,15 @@ class _Presets extends StatelessWidget {
                 label: '${title(p.key)} style',
                 child: InkWell(
                   borderRadius: BorderRadius.circular(18),
+                  // The preset's look; the logo, text and card stay.
                   onTap: () => page._setStyle(
-                    page._style.logo == null
-                        ? p.value
-                        : p.value.copyWith(logo: page._style.logo),
+                    rebuildStyle(
+                      p.value,
+                      logo: () => page._style.logo,
+                      title: () => page._style.title,
+                      caption: () => page._style.caption,
+                      card: () => page._style.card,
+                    ),
                     preset: p.key,
                   ),
                   child: SizedBox(
