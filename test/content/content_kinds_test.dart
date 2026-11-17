@@ -24,7 +24,6 @@ BarcodeContent _read(
     text: text,
     bytes: Uint8List.fromList(utf8.encode(text)),
     position: _nowhere,
-    contentType: BarcodeContentType.text,
   ),
 );
 
@@ -58,8 +57,10 @@ void main() {
     test('all parameters, HOTP, an encoded label', () {
       expect(
         _parse(
-          'otpauth://hotp/ACME%20Co:john.doe%40email.com?secret=hxdm vjec'
-          '&algorithm=SHA256&digits=8&counter=7',
+          <String>[
+            'otpauth://hotp/ACME%20Co:john.doe%40email.com?secret=hxdm vjec',
+            '&algorithm=SHA256&digits=8&counter=7',
+          ].join(),
         ),
         const OtpContent(
           secret: 'HXDMVJEC',
@@ -388,7 +389,7 @@ void main() {
       );
     });
 
-    test("a whole link to the service is taken as it is", () {
+    test('a whole link to the service is taken as it is', () {
       const String url = 'https://www.instagram.com/p/C1234/';
       expect(LinkService.instagram.link(url).url, Uri.parse(url));
     });
@@ -518,10 +519,12 @@ void main() {
     });
 
     test('two legs, airline data after the first', () {
-      final String text =
-          'M2${'DESMARAIS/LUC'.padRight(20)}EABC123 YULFRAAC 0834 326J001A0025 106'
-          'XYZ789'
-          'DEF456 FRAGVALH 3664 327C012C0026 100';
+      final String text = <String>[
+        'M2${'DESMARAIS/LUC'.padRight(20)}',
+        'EABC123 YULFRAAC 0834 326J001A0025 106',
+        'XYZ789',
+        'DEF456 FRAGVALH 3664 327C012C0026 100',
+      ].join();
       final BoardingPassContent pass = _parse(text) as BoardingPassContent;
       expect(pass.legs, hasLength(2));
       expect(pass.legs[1].from, 'FRA');
@@ -624,7 +627,7 @@ void main() {
     test('HomeKit', () {
       // Category 5 (light), setup code 518-08-582, as an accessory encodes
       // it: setup code in bits 0–26, category from bit 31.
-      final int value = 51808582 + 5 * 2147483648;
+      const int value = 51808582 + 5 * 2147483648;
       final String payload =
           'X-HM://${value.toRadixString(36).toUpperCase().padLeft(9, '0')}7G2K';
       expect(
