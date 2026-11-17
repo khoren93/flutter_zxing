@@ -376,7 +376,7 @@ void main() {
       expect(find.byType(BarcodeResultSheet), findsOneWidget);
       expect(find.text('LINK'), findsOneWidget);
       expect(find.text('pub.dev'), findsOneWidget);
-      expect(find.text('QR Code · ]Q1'), findsOneWidget);
+      expect(find.text('QR Code'), findsOneWidget);
       // The hint and the bottom buttons give way to the sheet.
       expect(
         tester

@@ -402,7 +402,7 @@ class ScannerActionButton extends StatelessWidget {
       };
 }
 
-/// A chip with the symbology of a code ("QR Code · ]Q1").
+/// A chip with the symbology of a code ("QR Code", "GS1-128 · GS1").
 class ScannerChip extends StatelessWidget {
   /// Creates a chip.
   const ScannerChip(this.text, {super.key});

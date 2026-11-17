@@ -274,9 +274,7 @@ Widget _paymentSheet(
         if (epc.reference.isNotEmpty)
           Text('Reference ${epc.reference}', style: theme.mutedStyle),
         const SizedBox(height: 16),
-        ScannerChip(
-          '${barcode.format.displayName} · ${barcode.symbologyIdentifier}',
-        ),
+        ScannerChip(barcode.format.displayName),
         const SizedBox(height: 16),
         ScannerActions(<ScannerAction>[
           ScannerAction(
@@ -343,9 +341,7 @@ Widget _ticketSheet(
           'Sequence': pass.sequence,
         }),
         const SizedBox(height: 16),
-        ScannerChip(
-          '${barcode.format.displayName} · ${barcode.symbologyIdentifier}',
-        ),
+        ScannerChip(barcode.format.displayName),
         const SizedBox(height: 16),
         ScannerActions(<ScannerAction>[
           ScannerAction(

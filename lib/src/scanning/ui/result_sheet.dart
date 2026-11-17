@@ -114,9 +114,7 @@ class BarcodeResultSheet extends StatelessWidget {
               primary: true,
             ),
         ];
-    final String symbology = barcode.symbologyIdentifier.isEmpty
-        ? barcode.format.displayName
-        : '${barcode.format.displayName} · ${barcode.symbologyIdentifier}';
+    final String symbology = _symbology(barcode);
     final VoidCallback? scanAgain = onScanAgain;
     final bool close =
         scanAgain != null &&
@@ -687,9 +685,7 @@ class _Row extends StatelessWidget {
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
     final Barcode barcode = item.barcode;
-    final String symbology = barcode.symbologyIdentifier.isEmpty
-        ? barcode.format.displayName
-        : '${barcode.format.displayName} · ${barcode.symbologyIdentifier}';
+    final String symbology = _symbology(barcode);
     return AnimatedContainer(
       duration: const Duration(milliseconds: 240),
       padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
@@ -741,3 +737,12 @@ class _Row extends StatelessWidget {
     );
   }
 }
+
+/// The format of [barcode] for a chip: "QR Code", or "QR Code · GS1" when
+/// it holds GS1 data. The ISO/IEC 15424 identifier (`]Q1`) is for systems,
+/// not people; it stays in [Barcode.symbologyIdentifier].
+String _symbology(Barcode barcode) => switch (barcode.contentType) {
+  BarcodeContentType.gs1 => '${barcode.format.displayName} · GS1',
+  BarcodeContentType.iso15434 => '${barcode.format.displayName} · ISO 15434',
+  _ => barcode.format.displayName,
+};

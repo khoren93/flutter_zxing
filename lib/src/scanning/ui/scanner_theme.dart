@@ -323,7 +323,7 @@ final class ScannerTheme with Diagnosticable {
     fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
   );
 
-  /// Symbology chips ("QR Code · ]Q1").
+  /// Symbology chips ("QR Code").
   TextStyle get chipStyle => dataStyle.copyWith(
     fontSize: 12,
     height: 16 / 12,

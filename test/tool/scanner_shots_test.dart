@@ -427,7 +427,7 @@ void main() {
                       Text('€4.80', style: theme.displayStyle),
                       Text('Reference A7F3-21', style: theme.mutedStyle),
                       const SizedBox(height: 16),
-                      const ScannerChip('QR Code · ]Q1'),
+                      const ScannerChip('QR Code'),
                       const SizedBox(height: 16),
                       ScannerActions(<ScannerAction>[
                         ScannerAction(
@@ -538,7 +538,7 @@ void main() {
                         'Sequence': '34',
                       }),
                       const SizedBox(height: 16),
-                      const ScannerChip('PDF417 · ]L2'),
+                      const ScannerChip('PDF417'),
                       const SizedBox(height: 16),
                       ScannerActions(<ScannerAction>[
                         ScannerAction(
