@@ -128,5 +128,6 @@ mobile_scanner only scans. Here the same package draws codes:
 const BarcodeView('https://pub.dev', width: 200)
 ```
 
-and exports them with the same style: `BarcodeWriter(BarcodeFormat.qrCode)`
-`.toPng(text, size: 1024, style: style)` or `.toSvg(text, style: style)`.
+and exports them with the same style:
+`style.encodePng(const BarcodeWriter(BarcodeFormat.qrCode), text, size: 1024)`
+or `style.encodeSvg(writer, text)`.

@@ -4,9 +4,9 @@
 import 'dart:ui';
 
 import '../barcode/barcode_format.dart';
+import '../writing/barcode_writer.dart';
+import '../writing/symbol_layout.dart';
 import 'barcode_style.dart';
-import 'barcode_writer.dart';
-import 'symbol_layout.dart';
 
 /// Receives shapes, in module units (quiet zone included).
 abstract interface class ShapeSink {

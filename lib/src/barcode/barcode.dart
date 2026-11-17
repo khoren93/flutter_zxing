@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
-import '../content/barcode_content.dart';
 import '../writing/barcode_writer.dart';
 import 'barcode_format.dart';
 
@@ -51,23 +50,6 @@ final class Barcode {
 
   /// How to interpret the payload.
   final BarcodeContentType contentType;
-
-  /// The payload parsed into a typed value: a URL, a Wi-Fi network, a
-  /// contact, GS1 data and so on. Falls back to [TextContent] or
-  /// [BinaryContent].
-  ///
-  /// ```dart
-  /// switch (barcode.content) {
-  ///   case UrlContent(:final url): openUrl(url);
-  ///   case WifiContent(:final ssid, :final password): connect(ssid, password);
-  ///   default: print(barcode.text);
-  /// }
-  /// ```
-  BarcodeContent get content => _contents[this] ??= BarcodeContent.parse(this);
-
-  static final Expando<BarcodeContent> _contents = Expando<BarcodeContent>(
-    'BarcodeContent',
-  );
 
   /// Clockwise rotation of the symbol in degrees.
   final int orientation;

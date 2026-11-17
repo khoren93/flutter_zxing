@@ -6,7 +6,7 @@
 /// working, on the same engine, until 5.0.
 library;
 
-import 'src/api.dart';
+import 'scanner.dart';
 
 // `CameraImage` and `XFile` appear in the 3.x API's own signatures, so they
 // are re-exported: without them callers had to import `package:camera`
@@ -20,5 +20,5 @@ export 'package:camera/camera.dart'
         ResolutionPreset,
         XFile;
 
-export 'src/api.dart';
+export 'scanner.dart';
 export 'src/legacy/legacy.dart';

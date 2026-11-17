@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+* **Breaking: styled export moved to `BarcodeStyle`.** The core no longer
+  knows about styles: `BarcodeSymbol.toSvg()` and `toPng()` and
+  `BarcodeWriter.toSvg(data)` and `toPng(data)` export black on white
+  (`BarcodeSymbol.toSvg()` is synchronous again). With colors, shapes or a
+  logo: `style.toSvg(symbol)`, `style.toPng(symbol, size: …)`,
+  `style.encodeSvg(writer, data)` and `style.encodePng(writer, data, size: …)`;
+  the last two still raise a QR code's error correction to high under a logo.
+* **Layers you can import on their own:** `package:flutter_zxing/core.dart`
+  (zxing-cpp: reading and writing), `content.dart` (`barcode.content`),
+  `rendering.dart` (`BarcodeView`, `BarcodeStyle`) and `scanner.dart`.
+  `flutter_zxing.dart` still exports everything. `barcode.content` is now an
+  extension from the content layer; code that uses it does not change.
+* **The result sheet** shows the format as "QR Code", or "QR Code · GS1",
+  instead of the ISO/IEC 15424 identifier (`]Q1`), which is meant for
+  systems; `Barcode.symbologyIdentifier` still has it.
 * **Automatic zoom on iPhones** (`ScannerController(autoZoom: true)`, the
   default; `setAutoZoom`, `toggleAutoZoom`, `ScannerState.autoZoom`). The
   scanner reads where the camera's lens is focused and moves between the

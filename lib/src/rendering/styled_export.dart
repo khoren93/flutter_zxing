@@ -1,4 +1,4 @@
-// BarcodeSymbol.toPng and BarcodeSymbol.toSvg with a BarcodeStyle: the
+// BarcodeStyle.toPng and BarcodeStyle.toSvg: the
 // same shapes as BarcodeView, written to a PNG or an SVG document. Not
 // exported from the package.
 import 'dart:async';
@@ -8,10 +8,10 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
 
+import '../writing/barcode_writer.dart';
+import '../writing/symbol_layout.dart';
 import 'barcode_painter.dart';
 import 'barcode_style.dart';
-import 'barcode_writer.dart';
-import 'symbol_layout.dart';
 import 'symbol_shapes.dart';
 
 /// Loads the image of [logo], or `null` without one. The caller disposes
@@ -171,13 +171,6 @@ Future<String> styledSvg(BarcodeSymbol symbol, BarcodeStyle style) async {
   svg.write('</svg>');
   return svg.toString();
 }
-
-/// Escapes text for XML content and attributes.
-String xmlEscape(String s) => s
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
 
 /// Writes shapes as SVG path data. Every shape runs clockwise, so that the
 /// nonzero fill of overlapping shapes leaves no holes.

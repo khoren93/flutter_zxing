@@ -57,13 +57,10 @@ void main() {
         final BarcodeSymbol written = await writer.encode(
           List<String>.generate(length, (int i) => 'abcdefghij'[i % 10]).join(),
         );
-        final Uint8List png = await written.toPng(
-          moduleSize: 6,
-          style: BarcodeStyle(
-            finderShape: finder,
-            moduleShape: ModuleShape.rounded,
-          ),
-        );
+        final Uint8List png = await BarcodeStyle(
+          finderShape: finder,
+          moduleShape: ModuleShape.rounded,
+        ).toPng(written, moduleSize: 6);
         final Barcode? read = await const BarcodeReader(
           formats: <BarcodeFormat>{BarcodeFormat.qrCode},
         ).read(png);

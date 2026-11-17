@@ -284,14 +284,15 @@ BarcodeView(
 )
 ```
 
-`BarcodeWriter` exports PNG and SVG with the same style, or gives the module
-matrix to draw yourself:
+`BarcodeStyle` exports PNG and SVG with the same look. `BarcodeWriter` on
+its own exports them black on white (`writer.toPng(data)`,
+`writer.toSvg(data)`), or gives the module matrix to draw yourself:
 
 ```dart
 const writer = BarcodeWriter(BarcodeFormat.qrCode);
 const style = BarcodeStyle.lagoon;
-final Uint8List png = await writer.toPng('https://pub.dev', size: 1024, style: style);
-final String svg = await writer.toSvg('https://pub.dev', style: style);
+final Uint8List png = await style.encodePng(writer, 'https://pub.dev', size: 1024);
+final String svg = await style.encodeSvg(writer, 'https://pub.dev');
 
 final BarcodeSymbol symbol = await const BarcodeWriter(BarcodeFormat.dataMatrix)
     .encodeBytes(Uint8List.fromList([0x00, 0x01, 0xFE, 0xFF]));
@@ -446,6 +447,22 @@ run `flutter clean` once.
 
 [Migrating to 4.0](doc/migrating-to-4.0.md) shows the replacements side by
 side; the [CHANGELOG](CHANGELOG.md) lists the few behaviour changes.
+
+## Layers
+
+The package is zxing-cpp for Flutter first. Everything else is a layer on
+top of that core, and each layer can be imported on its own:
+
+| Import | What it has |
+|---|---|
+| `package:flutter_zxing/core.dart` | zxing-cpp: `BarcodeReader`, `BarcodeWriter`, `Barcode`, `BarcodeFormat`, `ReaderOptions`, `BarcodeSymbol` with plain SVG and PNG |
+| `package:flutter_zxing/content.dart` | `barcode.content`: parsed URLs, Wi-Fi, contacts, events, GS1… |
+| `package:flutter_zxing/rendering.dart` | `BarcodeView`, `BarcodeStyle` and styled export |
+| `package:flutter_zxing/scanner.dart` | `BarcodeScanner`, `ScannerController`, templates, themes, widgets |
+| `package:flutter_zxing/flutter_zxing.dart` | all of the above and the deprecated 3.x API |
+
+Each layer exports the ones it builds on. The core never depends on the
+layers above it.
 
 ## Contributing
 

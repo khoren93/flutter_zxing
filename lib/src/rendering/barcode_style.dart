@@ -1,8 +1,19 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
-/// How a barcode is drawn: by `BarcodeView`, and by
-/// `BarcodeSymbol.toPng` and `BarcodeSymbol.toSvg` when exported.
+import '../writing/barcode_writer.dart';
+import '../writing/symbol_layout.dart';
+import 'styled_export.dart';
+import 'symbol_shapes.dart';
+
+/// How a barcode is drawn: by `BarcodeView`, and by [toPng], [toSvg],
+/// [encodePng] and [encodeSvg] when exported.
+///
+/// ```dart
+/// const writer = BarcodeWriter(BarcodeFormat.qrCode);
+/// final png = await BarcodeStyle.dots.encodePng(writer, 'https://pub.dev', size: 1024);
+/// final svg = await BarcodeStyle.dots.toSvg(await writer.encode('https://pub.dev'));
+/// ```
 @immutable
 final class BarcodeStyle {
   /// Creates a style. The defaults are black on white with square modules.
@@ -92,6 +103,82 @@ final class BarcodeStyle {
 
   /// An image in the middle of a QR code.
   final BarcodeLogo? logo;
+
+  /// Renders [symbol] as an SVG document drawn with this style: the
+  /// colors, gradient, module and finder shapes and logo of `BarcodeView`.
+  ///
+  /// One SVG unit is one module, quiet zone included; scale it with the
+  /// `width`/`height` of the element that shows it. The logo is embedded
+  /// as a PNG. Asynchronous because the logo is loaded first.
+  ///
+  /// Throws [UnsupportedError] for a [SweepGradient], which SVG cannot
+  /// draw; use [toPng] for it.
+  ///
+  /// ```dart
+  /// final symbol = await const BarcodeWriter(BarcodeFormat.qrCode).encode('https://pub.dev');
+  /// await File('qr.svg').writeAsString(
+  ///   await const BarcodeStyle(moduleShape: ModuleShape.rounded).toSvg(symbol),
+  /// );
+  /// ```
+  Future<String> toSvg(BarcodeSymbol symbol) => styledSvg(symbol, this);
+
+  /// Renders [symbol] as a PNG drawn with this style, like `BarcodeView`.
+  ///
+  /// Give either [size] (fit into `size` × `size` pixels with whole-pixel
+  /// modules) or [moduleSize] (pixels per module). Defaults to 4 pixels per
+  /// module.
+  ///
+  /// Throws [ArgumentError] if both are given or one is not positive.
+  ///
+  /// ```dart
+  /// final png = await const BarcodeStyle(
+  ///   color: Color(0xFF1B4DFF),
+  ///   moduleShape: ModuleShape.circle,
+  /// ).toPng(symbol, size: 1024);
+  /// ```
+  Future<Uint8List> toPng(
+    BarcodeSymbol symbol, {
+    int? size,
+    int? moduleSize,
+  }) async {
+    final SymbolLayout layout = SymbolLayout(styledSymbol(symbol, this));
+    return styledPng(symbol, this, pixelsPerModule(layout, size, moduleSize));
+  }
+
+  /// Encodes [data] with [writer] and renders it as an SVG document drawn
+  /// with this style; see [toSvg]. A QR code with a [logo] gets
+  /// [ErrorCorrection.high] unless the writer sets its own, as in
+  /// `BarcodeView`.
+  ///
+  /// Throws `BarcodeWriteException` if [data] cannot be encoded.
+  Future<String> encodeSvg(BarcodeWriter writer, String data) async =>
+      toSvg(await _writer(writer).encode(data));
+
+  /// Encodes [data] with [writer] and renders it as a PNG drawn with this
+  /// style; see [toPng]. A QR code with a [logo] gets
+  /// [ErrorCorrection.high] unless the writer sets its own, as in
+  /// `BarcodeView`.
+  ///
+  /// Throws `BarcodeWriteException` if [data] cannot be encoded.
+  Future<Uint8List> encodePng(
+    BarcodeWriter writer,
+    String data, {
+    int? size,
+    int? moduleSize,
+  }) async => toPng(
+    await _writer(writer).encode(data),
+    size: size,
+    moduleSize: moduleSize,
+  );
+
+  /// [writer] as `BarcodeView` uses it for this style: the most error
+  /// correction under a logo.
+  BarcodeWriter _writer(BarcodeWriter writer) =>
+      logo != null &&
+          writer.errorCorrection == null &&
+          hasFinderPatterns(writer.format)
+      ? writer.copyWith(errorCorrection: ErrorCorrection.high)
+      : writer;
 
   /// Creates a copy with the given fields replaced.
   BarcodeStyle copyWith({

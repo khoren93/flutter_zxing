@@ -41,7 +41,7 @@ into `~/.cache/flutter_zxing/emsdk` the first time).
 
 | Path | What |
 |---|---|
-| `lib/src/` | The Dart package: `barcode/`, `reading/`, `writing/`, `scanning/`, `content/`, `engine/`; `legacy/` is the deprecated 3.x API |
+| `lib/src/` | The Dart package, in layers (below): `barcode/`, `engine/`, `reading/`, `writing/` (core), `content/`, `rendering/`, `scanning/`; `legacy/` is the deprecated 3.x API |
 | `native/` | `fzx`, the small C API over zxing-cpp used by every platform |
 | `hook/` | The build hook that compiles the native engine |
 | `assets/web/` | The Web Worker; the built WebAssembly lands here |
@@ -50,6 +50,32 @@ into `~/.cache/flutter_zxing/emsdk` the first time).
 | `tool/` | Engine tools: WebAssembly build, source list, test corpus, browser tests |
 | `benchmark/` | Scan benchmarks and their raw data |
 | `doc/` | Guides |
+
+### Layers
+
+flutter_zxing is zxing-cpp for Flutter first. The core works without
+anything else, and every other feature is a layer on top of it.
+Dependencies only go down; `test/architecture_test.dart` checks the imports.
+
+| Layer | Folders in `lib/src/` | What belongs there | May import |
+|---|---|---|---|
+| core | `barcode/`, `engine/`, `reading/`, `writing/`, `errors.dart` | what zxing-cpp does: reading, writing, the module matrix, plain SVG/PNG/raster | the core; Flutter only for `dart:ui` types (`foundation`, `painting`), no widgets |
+| content | `content/` | payloads parsed and built by their standards (Wi-Fi, vCard, GS1…) | core |
+| rendering | `rendering/` | `BarcodeView`, `BarcodeStyle`, styled export | core |
+| scanner | `scanning/` | camera, controller, templates, UI | core, content, rendering |
+| legacy | `legacy/` | the 3.x API over the core | core |
+
+Where a new feature goes:
+
+- **Core:** only what zxing-cpp has, close to its own API. No interpreting of
+  payloads, no UI.
+- **A layer in the package:** based on a standard, or useful to many apps.
+- **The example:** only code that shows the API. Logic that users of the
+  package would need belongs in the package.
+
+Each layer has its entry point (`lib/core.dart`, `content.dart`,
+`rendering.dart`, `scanner.dart`), which exports the entry points of the
+layers it builds on; `lib/flutter_zxing.dart` exports everything.
 
 ## Running the demo
 

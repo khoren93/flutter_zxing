@@ -8,11 +8,8 @@ import 'package:flutter/foundation.dart';
 import '../barcode/barcode_format.dart';
 import '../engine/engine.dart';
 import '../engine/engine_protocol.dart';
-import 'barcode_style.dart';
 import 'creator_options.dart' as writing;
-import 'styled_export.dart';
 import 'symbol_layout.dart';
-import 'symbol_shapes.dart';
 
 /// Creates barcodes from text or binary data.
 ///
@@ -30,7 +27,7 @@ import 'symbol_shapes.dart';
 ///
 /// // Binary data: encode, then render the symbol.
 /// final BarcodeSymbol symbol = await writer.encodeBytes(bytes);
-/// final String binarySvg = await symbol.toSvg();
+/// final String binarySvg = symbol.toSvg();
 /// ```
 @immutable
 final class BarcodeWriter {
@@ -91,7 +88,7 @@ final class BarcodeWriter {
   /// ```dart
   /// final Uint8List key = Uint8List.fromList([0x00, 0xff, 0x10, 0x80]);
   /// final symbol = await const BarcodeWriter(BarcodeFormat.qrCode).encodeBytes(key);
-  /// final String svg = await symbol.toSvg();
+  /// final String svg = symbol.toSvg();
   /// ```
   ///
   /// Throws [BarcodeWriteException] if [data] cannot be encoded, and
@@ -148,31 +145,20 @@ final class BarcodeWriter {
     options: options,
   );
 
-  /// Encodes text and returns it as an SVG document drawn with [style].
-  /// Same as `(await encode(data)).toSvg(style: style)`, except that a QR
-  /// code with a [BarcodeStyle.logo] gets [ErrorCorrection.high] unless
-  /// [errorCorrection] is set, as in `BarcodeView`.
+  /// Encodes text and returns it as an SVG document, black on white. Same
+  /// as `(await encode(data)).toSvg()`; for colors, shapes and a logo use
+  /// `BarcodeStyle.encodeSvg`.
   ///
   /// Throws [BarcodeWriteException] if [data] cannot be encoded.
-  Future<String> toSvg(
-    String data, {
-    BarcodeStyle style = BarcodeStyle.classic,
-  }) async => (await _forStyle(style).encode(data)).toSvg(style: style);
+  Future<String> toSvg(String data) async => (await encode(data)).toSvg();
 
-  /// Encodes text and returns it as a PNG drawn with [style]. Same as
-  /// `(await encode(data)).toPng(...)` (see [BarcodeSymbol.toPng]), except
-  /// that a QR code with a [BarcodeStyle.logo] gets [ErrorCorrection.high]
-  /// unless [errorCorrection] is set, as in `BarcodeView`.
+  /// Encodes text and returns it as a PNG, black on white. Same as
+  /// `(await encode(data)).toPng(...)` (see [BarcodeSymbol.toPng]); for
+  /// colors, shapes and a logo use `BarcodeStyle.encodePng`.
   ///
   /// Throws [BarcodeWriteException] if [data] cannot be encoded.
-  Future<Uint8List> toPng(
-    String data, {
-    int? size,
-    int? moduleSize,
-    BarcodeStyle style = BarcodeStyle.classic,
-  }) async => (await _forStyle(
-    style,
-  ).encode(data)).toPng(size: size, moduleSize: moduleSize, style: style);
+  Future<Uint8List> toPng(String data, {int? size, int? moduleSize}) async =>
+      (await encode(data)).toPng(size: size, moduleSize: moduleSize);
 
   /// Encodes text and returns it as a grayscale image (black on white, no
   /// style: for printers and image processing). Same as
@@ -184,13 +170,6 @@ final class BarcodeWriter {
     int? size,
     int? moduleSize,
   }) async => (await encode(data)).toImage(size: size, moduleSize: moduleSize);
-
-  /// This writer as `BarcodeView` uses it for [style]: the most error
-  /// correction under a logo.
-  BarcodeWriter _forStyle(BarcodeStyle style) =>
-      style.logo != null && errorCorrection == null && hasFinderPatterns(format)
-      ? copyWith(errorCorrection: ErrorCorrection.high)
-      : this;
 
   /// Creates a copy with the given fields replaced.
   BarcodeWriter copyWith({
@@ -359,26 +338,47 @@ final class BarcodeSymbol {
   /// Whether the module at column [x], row [y] is dark.
   bool isDark(int x, int y) => modules[y * width + x] != 0;
 
-  /// Renders the symbol as an SVG document drawn with [style]: the colors,
-  /// gradient, module and finder shapes and logo of `BarcodeView`.
+  /// Renders the symbol as an SVG document, black on white: one path,
+  /// crisp at any size. For colors, shapes and a logo use
+  /// `BarcodeStyle.toSvg`.
   ///
   /// One SVG unit is one module, quiet zone included; scale it with the
-  /// `width`/`height` of the element that shows it. The logo is embedded
-  /// as a PNG. Asynchronous because the logo is loaded first.
-  ///
-  /// Throws [UnsupportedError] for a `SweepGradient`, which SVG cannot
-  /// draw; use [toPng] for it.
+  /// `width`/`height` of the element that shows it.
   ///
   /// ```dart
   /// final symbol = await const BarcodeWriter(BarcodeFormat.qrCode).encode('https://pub.dev');
-  /// await File('qr.svg').writeAsString(await symbol.toSvg(
-  ///   style: const BarcodeStyle(moduleShape: ModuleShape.rounded),
-  /// ));
+  /// await File('qr.svg').writeAsString(symbol.toSvg());
   /// ```
-  Future<String> toSvg({BarcodeStyle style = BarcodeStyle.classic}) =>
-      styledSvg(this, style);
+  String toSvg() {
+    final SymbolLayout layout = SymbolLayout(this);
+    final StringBuffer path = StringBuffer();
+    for (final ModuleRect r in layout.rects) {
+      path.write('M${r.x} ${r.y}h${r.width}v${r.height}h-${r.width}z');
+    }
+    final String? text = layout.text;
+    final StringBuffer svg = StringBuffer()
+      ..write('<svg xmlns="http://www.w3.org/2000/svg" ')
+      ..write('viewBox="0 0 ${layout.width} ${layout.height}" ')
+      ..write('width="${layout.width}" height="${layout.height}" ')
+      ..write('shape-rendering="crispEdges">')
+      ..write('<rect width="100%" height="100%" fill="#fff"/>')
+      ..write('<path d="$path" fill="#000"/>');
+    if (text != null) {
+      svg
+        ..write('<text x="${layout.textCenter}" ')
+        ..write('y="${layout.textTop + SymbolLayout.textFontSize}" ')
+        ..write('font-family="monospace" ')
+        ..write('font-size="${SymbolLayout.textFontSize}" ')
+        ..write('text-anchor="middle" fill="#000">')
+        ..write(xmlEscape(text))
+        ..write('</text>');
+    }
+    svg.write('</svg>');
+    return svg.toString();
+  }
 
-  /// Renders the symbol as a PNG drawn with [style], like `BarcodeView`.
+  /// Renders the symbol as a PNG, black on white: [toImage] encoded as
+  /// PNG. For colors, shapes and a logo use `BarcodeStyle.toPng`.
   ///
   /// Give either [size] (fit into `size` × `size` pixels with whole-pixel
   /// modules) or [moduleSize] (pixels per module). Defaults to 4 pixels per
@@ -387,30 +387,10 @@ final class BarcodeSymbol {
   /// Throws [ArgumentError] if both are given or one is not positive.
   ///
   /// ```dart
-  /// final png = await symbol.toPng(
-  ///   size: 1024,
-  ///   style: const BarcodeStyle(color: Color(0xFF1B4DFF), moduleShape: ModuleShape.circle),
-  /// );
+  /// await File('qr.png').writeAsBytes(await symbol.toPng(size: 1024));
   /// ```
-  Future<Uint8List> toPng({
-    int? size,
-    int? moduleSize,
-    BarcodeStyle style = BarcodeStyle.classic,
-  }) async {
-    final SymbolLayout layout = SymbolLayout(styledSymbol(this, style));
-    return styledPng(this, style, _moduleSize(layout, size, moduleSize));
-  }
-
-  /// Pixels per module for [size] or [moduleSize] (default 4).
-  static int _moduleSize(SymbolLayout layout, int? size, int? moduleSize) {
-    if (size != null && moduleSize != null) {
-      throw ArgumentError('Give either size or moduleSize, not both');
-    }
-    if ((size ?? 1) < 1 || (moduleSize ?? 1) < 1) {
-      throw ArgumentError('size and moduleSize must be positive');
-    }
-    return size != null ? layout.moduleSizeFor(size) : moduleSize ?? 4;
-  }
+  Future<Uint8List> toPng({int? size, int? moduleSize}) async =>
+      (await toImage(size: size, moduleSize: moduleSize)).toPng();
 
   /// Renders the symbol as an 8-bit grayscale image.
   ///
@@ -426,7 +406,7 @@ final class BarcodeSymbol {
   /// ```
   Future<BarcodeImage> toImage({int? size, int? moduleSize}) async {
     final SymbolLayout layout = SymbolLayout(this);
-    final int m = _moduleSize(layout, size, moduleSize);
+    final int m = pixelsPerModule(layout, size, moduleSize);
     final int w = layout.width * m;
     final int h = layout.height * m;
     final Uint8List pixels = Uint8List(w * h)..fillRange(0, w * h, 255);

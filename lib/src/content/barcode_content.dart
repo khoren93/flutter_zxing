@@ -5,7 +5,7 @@ import 'content_parser.dart';
 
 /// The payload of a [Barcode], parsed into a typed value.
 ///
-/// Get it with [Barcode.content] and use pattern matching:
+/// Get it with [BarcodeContentOf.content] (`barcode.content`) and use pattern matching:
 ///
 /// ```dart
 /// switch (barcode.content) {
@@ -38,7 +38,7 @@ import 'content_parser.dart';
 sealed class BarcodeContent {
   const BarcodeContent();
 
-  /// Parses the payload of [barcode]. [Barcode.content] calls this once per
+  /// Parses the payload of [barcode]. `barcode.content` calls this once per
   /// barcode and keeps the result.
   static BarcodeContent parse(Barcode barcode) => parseBarcodeContent(barcode);
 
@@ -47,6 +47,27 @@ sealed class BarcodeContent {
   /// payload is GS1 or binary is known only from the barcode itself.
   static BarcodeContent parseText(String text) => parseTextContent(text);
 }
+
+/// `barcode.content`: the payload parsed into a typed value. Lives in the
+/// content layer, so the core [Barcode] does not depend on parsing.
+extension BarcodeContentOf on Barcode {
+  /// The payload parsed into a typed value: a URL, a Wi-Fi network, a
+  /// contact, GS1 data and so on. Falls back to [TextContent] or
+  /// [BinaryContent]. Parsed once per barcode.
+  ///
+  /// ```dart
+  /// switch (barcode.content) {
+  ///   case UrlContent(:final url): openUrl(url);
+  ///   case WifiContent(:final ssid, :final password): connect(ssid, password);
+  ///   default: print(barcode.text);
+  /// }
+  /// ```
+  BarcodeContent get content => _contents[this] ??= BarcodeContent.parse(this);
+}
+
+final Expando<BarcodeContent> _contents = Expando<BarcodeContent>(
+  'BarcodeContent',
+);
 
 /// Plain text, or anything not recognised as a more specific type.
 final class TextContent extends BarcodeContent {

@@ -6,9 +6,9 @@ import 'dart:ui' as ui;
 import 'package:flutter/painting.dart';
 import 'package:flutter/rendering.dart' show CustomPainter;
 
+import '../writing/barcode_writer.dart';
+import '../writing/symbol_layout.dart';
 import 'barcode_style.dart';
-import 'barcode_writer.dart';
-import 'symbol_layout.dart';
 import 'symbol_shapes.dart';
 
 /// Paints [symbol] into the painter's size: centred, keeping its aspect

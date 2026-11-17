@@ -5,10 +5,10 @@ import 'package:flutter/widgets.dart';
 
 import '../barcode/barcode_format.dart';
 import '../errors.dart';
+import '../writing/barcode_writer.dart';
+import '../writing/symbol_layout.dart';
 import 'barcode_painter.dart';
 import 'barcode_style.dart';
-import 'barcode_writer.dart';
-import 'symbol_layout.dart';
 import 'symbol_shapes.dart';
 
 /// Shows a barcode. Drawn as vectors from the module matrix, so it is sharp

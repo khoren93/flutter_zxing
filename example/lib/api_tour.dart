@@ -136,19 +136,19 @@ Future<void> generate() async {
     moduleShape: ModuleShape.rounded,
     finderShape: FinderShape.rounded,
   );
-  final Uint8List styledPng = await writer.toPng(
+  final Uint8List styledPng = await style.encodePng(
+    writer,
     'https://pub.dev',
     size: 1024,
-    style: style,
   );
-  final String styledSvg = await writer.toSvg('https://pub.dev', style: style);
+  final String styledSvg = await style.encodeSvg(writer, 'https://pub.dev');
   print('${styledPng.length} ${styledSvg.length}');
 
   // Binary data: encode once, render as needed.
   final BarcodeSymbol symbol = await const BarcodeWriter(
     BarcodeFormat.dataMatrix,
   ).encodeBytes(Uint8List.fromList([0x00, 0x01, 0xFE, 0xFF]));
-  final String binarySvg = await symbol.toSvg();
+  final String binarySvg = symbol.toSvg();
   final BarcodeImage binaryImage = await symbol.toImage(moduleSize: 8);
   print(
     '${symbol.width}x${symbol.height} ${binarySvg.length} ${binaryImage.width}',

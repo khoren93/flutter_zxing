@@ -144,3 +144,24 @@ final class SymbolLayout {
   /// The pixels per module that fit the layout into [size] x [size].
   int moduleSizeFor(int size) => math.max(1, size ~/ math.max(width, height));
 }
+
+/// Pixels per module for [size] (fit into `size` × `size`) or [moduleSize];
+/// 4 without either.
+///
+/// Throws [ArgumentError] if both are given or one is not positive.
+int pixelsPerModule(SymbolLayout layout, int? size, int? moduleSize) {
+  if (size != null && moduleSize != null) {
+    throw ArgumentError('Give either size or moduleSize, not both');
+  }
+  if ((size ?? 1) < 1 || (moduleSize ?? 1) < 1) {
+    throw ArgumentError('size and moduleSize must be positive');
+  }
+  return size != null ? layout.moduleSizeFor(size) : moduleSize ?? 4;
+}
+
+/// Escapes text for XML content and attributes.
+String xmlEscape(String s) => s
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
