@@ -640,6 +640,25 @@ void main() {
       );
     });
 
+    test('a binary AAMVA license is a license, other ASCII stays binary', () {
+      const String aamva =
+          '@\n\x1e\rANSI 636014080102DL00410288ZC03290015DLDAQD1234562\n'
+          'DCSPUBLIC\nDACJOHN\nDBB08311977\nDCGUSA\r';
+      expect(
+        _barcode(
+          '',
+          type: BarcodeContentType.binary,
+          bytes: ascii.encode(aamva),
+        ).content,
+        isA<DriverLicenseContent>(),
+      );
+      final List<int> plain = ascii.encode('just\x1etext');
+      expect(
+        _barcode('', type: BarcodeContentType.binary, bytes: plain).content,
+        BinaryContent(Uint8List.fromList(plain)),
+      );
+    });
+
     test('ISO 15434 and unknown ECI are text, never parsed', () {
       expect(
         _barcode('https://x.org', type: BarcodeContentType.iso15434).content,

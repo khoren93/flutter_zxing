@@ -8,6 +8,26 @@ import 'gs1.dart';
 import 'industry_content.dart';
 import 'payment_content.dart';
 
+/// [bytes] as text if they are printable ASCII, line breaks, tabs and the
+/// separators FS, GS, RS (0x1C–0x1E); otherwise `null`.
+String? _asciiWithSeparators(List<int> bytes) {
+  if (bytes.isEmpty) {
+    return null;
+  }
+  for (final int b in bytes) {
+    final bool ok =
+        (b >= 0x20 && b < 0x7F) ||
+        b == 0x09 ||
+        b == 0x0A ||
+        b == 0x0D ||
+        (b >= 0x1C && b <= 0x1E);
+    if (!ok) {
+      return null;
+    }
+  }
+  return ascii.decode(bytes);
+}
+
 /// [BarcodeContent.parse].
 BarcodeContent parseBarcodeContent(Barcode barcode) {
   switch (barcode.contentType) {
@@ -26,6 +46,15 @@ BarcodeContent parseBarcodeContent(Barcode barcode) {
           ? TextContent(barcode.text)
           : Gs1Content(elements);
     case BarcodeContentType.binary:
+      // zxing-cpp calls ASCII with control characters binary. AAMVA
+      // driver's licenses always have them (`@\n\x1e\r ANSI …`): parse such
+      // bytes as text and keep the result only if it is a known kind.
+      if (_asciiWithSeparators(barcode.bytes) case final String text) {
+        final BarcodeContent content = parseTextContent(text);
+        if (content is! TextContent) {
+          return content;
+        }
+      }
       return BinaryContent(barcode.bytes);
     case BarcodeContentType.iso15434:
     case BarcodeContentType.unknownEci:

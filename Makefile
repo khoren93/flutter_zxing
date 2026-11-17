@@ -23,7 +23,7 @@ RUN_FLAGS = -t lib/$(APP).dart --$(MODE) $(if $(TAB),--dart-define=TAB=$(TAB),) 
 first_device = $(or $(DEVICE),$(shell cd example && flutter devices --machine 2>/dev/null | \
 	python3 -c "import json,sys; d=sorted((x for x in json.load(sys.stdin) if x['targetPlatform'].startswith('$(1)')), key=lambda x: 'iPad' in x['name'] or 'tablet' in x['name'].lower()); print(d[0]['id'] if d else '')"))
 
-.PHONY: help publish publish-dry test analyze fixtures wasm sources \
+.PHONY: help publish publish-dry test analyze sheets fixtures wasm sources \
 	devices run run-android run-ios run-web run-macos run-windows run-linux \
 	run-desktop web-engine
 
@@ -41,6 +41,8 @@ help:
 	@echo "Development:"
 	@echo "  make test            Run the Dart tests"
 	@echo "  make analyze         Run the analyzer"
+	@echo "  make sheets          Draw every supported code on pages to scan from the"
+	@echo "                       screen and read them back (build/check_sheets/)"
 	@echo ""
 	@echo "Running the example app (example/):"
 	@echo "  make devices         List the connected devices"
@@ -81,6 +83,12 @@ test:
 
 analyze:
 	flutter analyze
+
+# FLUTTER_ROOT gives the sheets Roboto from the Flutter SDK.
+sheets:
+	FLUTTER_ROOT="$(abspath $(dir $(realpath $(shell which flutter)))..)" \
+		SHEETS=build/check_sheets flutter test test/tool/check_sheets_test.dart
+	-open build/check_sheets/index.html
 
 fixtures:
 	cd tool && dart pub get && dart run make_fixtures.dart
