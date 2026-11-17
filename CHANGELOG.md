@@ -25,6 +25,23 @@
   `ArgumentError` with the same messages.
   `writer.encodeContent(content)` encodes any content, GS1 and binary
   included.
+* **New content kinds:** `OtpContent` (`otpauth://`, for authenticator
+  apps; the secret stays out of `toString()` and the result sheet),
+  `EsimContent` (`LPA:1$…`), `CryptoContent` (BIP 21 `bitcoin:` and
+  `litecoin:`, EIP-681 `ethereum:`, Lightning), built and parsed; parsed
+  only: `WifiDppContent` (Wi‑Fi Easy Connect), `SmartHomeContent` (Matter
+  `MT:`, HomeKit `X-HM://`), `BoardingPassContent` (IATA BCBP, every leg),
+  `DriverLicenseContent` (AAMVA), `VinContent` (region, model year, check
+  digit) and `ProductContent` (EAN/UPC with ISBN-13, ISBN-10 and ISSN).
+  FaceTime links are `PhoneContent` with `type: CallType.faceTime`. See
+  [doc/content-types.md](doc/content-types.md).
+* **Breaking:** EAN/UPC barcodes are now `ProductContent` instead of
+  `TextContent`; `BarcodeContent` has more subclasses, so an exhaustive
+  `switch` needs their cases or a `default`.
+* **Links to services:** `LinkService.whatsApp.link('+374 91 234567')`
+  builds links to 24 messengers, social networks, music services, app
+  stores and maps, and `UrlContent.service` recognises them; the result
+  sheet names the service ("Instagram") instead of "Link".
 * **New fields:** `ContactContent.birthday` (vCard and MeCard `BDAY`),
   `EventContent.allDay` (events with dates and no times).
 * **`BarcodeView(…, gs1: true)`** encodes GS1 data, as `BarcodeWriter` could.

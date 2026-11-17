@@ -162,12 +162,24 @@ List<ContentIssue> _validateNumber(String field, String number) {
 /// [PhoneContent.toPayload].
 String buildPhone(PhoneContent c) {
   _check(validatePhone(c));
-  return 'tel:${_dialable(c.number).replaceAll('#', '%23')}';
+  final String scheme = switch (c.type) {
+    CallType.voice => 'tel',
+    CallType.faceTime => 'facetime',
+    CallType.faceTimeAudio => 'facetime-audio',
+  };
+  final String number = c.number.trim();
+  // FaceTime also calls Apple accounts by e-mail address.
+  final String target = _emailAddress.hasMatch(number)
+      ? number
+      : _dialable(number).replaceAll('#', '%23');
+  return '$scheme:$target';
 }
 
 /// [PhoneContent.validate].
 List<ContentIssue> validatePhone(PhoneContent c) =>
-    _validateNumber('number', c.number);
+    c.type != CallType.voice && _emailAddress.hasMatch(c.number.trim())
+    ? const <ContentIssue>[]
+    : _validateNumber('number', c.number);
 
 /// [SmsContent.toPayload].
 String buildSms(SmsContent c) {

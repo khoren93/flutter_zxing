@@ -47,7 +47,7 @@ Described describe(Barcode barcode) {
       s == null || s.isEmpty ? fallback : s;
   return switch (content) {
     UrlContent(:final Uri url, :final String? title) => Described(
-      kind: 'Link',
+      kind: content.service?.displayName ?? 'Link',
       icon: Icons.link_rounded,
       title: or(title, url.host.isEmpty ? url.toString() : url.host),
       fields: <(String, String)>[('Address', url.toString())],
@@ -152,10 +152,136 @@ Described describe(Barcode barcode) {
       icon: Icons.memory_rounded,
       title: '${bytes.length} bytes',
     ),
+    OtpContent otp => Described(
+      kind: 'One-time password',
+      icon: Icons.password_rounded,
+      title: or(otp.issuer, otp.account),
+      fields: <(String, String)>[
+        ('Account', otp.account),
+        if (otp.issuer != null) ('Issuer', otp.issuer!),
+        ('Type', otp.type.name.toUpperCase()),
+        ('Algorithm', otp.algorithm.name.toUpperCase()),
+        ('Digits', '${otp.digits}'),
+        if (otp.type == OtpType.totp) ('Period', '${otp.period} s'),
+        if (otp.type == OtpType.hotp) ('Counter', '${otp.counter}'),
+      ],
+      // The secret only behind its own copy button, never in the list.
+      secret: otp.secret,
+    ),
+    EsimContent esim => Described(
+      kind: 'eSIM',
+      icon: Icons.sim_card_outlined,
+      title: esim.smdpAddress,
+      fields: <(String, String)>[
+        ('SM-DP+', esim.smdpAddress),
+        if (esim.matchingId != null) ('Matching ID', esim.matchingId!),
+        if (esim.oid != null) ('OID', esim.oid!),
+        if (esim.confirmationCodeRequired) ('Confirmation code', 'Required'),
+      ],
+    ),
+    CryptoContent crypto => Described(
+      kind: 'Crypto · ${crypto.currency.symbol}',
+      icon: Icons.currency_bitcoin_rounded,
+      title: crypto.amount == null
+          ? or(crypto.label, crypto.currency.name)
+          : '${crypto.amount} ${crypto.currency.symbol}',
+      fields: <(String, String)>[
+        ('Network', crypto.currency.name),
+        ('Address', crypto.address),
+        if (crypto.amount != null) ('Amount', crypto.amount!),
+        if (crypto.label != null) ('Label', crypto.label!),
+        if (crypto.message != null) ('Message', crypto.message!),
+        if (crypto.chainId != null) ('Chain id', '${crypto.chainId}'),
+      ],
+    ),
+    WifiDppContent dpp => Described(
+      kind: 'Wi‑Fi device',
+      icon: Icons.router_outlined,
+      title: or(dpp.information, or(dpp.macAddress, 'Wi‑Fi Easy Connect')),
+      fields: <(String, String)>[
+        if (dpp.macAddress != null) ('MAC', dpp.macAddress!),
+        if (dpp.channels != null) ('Channels', dpp.channels!),
+        ('Public key', dpp.publicKey),
+      ],
+    ),
+    SmartHomeContent home => Described(
+      kind: home.platform == SmartHomePlatform.matter ? 'Matter' : 'HomeKit',
+      icon: Icons.home_outlined,
+      title: home.setupCode,
+      fields: <(String, String)>[
+        ('Setup code', home.setupCode),
+        if (home.vendorId != null)
+          ('Vendor id', '0x${home.vendorId!.toRadixString(16).toUpperCase()}'),
+        if (home.productId != null)
+          (
+            'Product id',
+            '0x${home.productId!.toRadixString(16).toUpperCase()}',
+          ),
+        if (home.discriminator != null)
+          ('Discriminator', '${home.discriminator}'),
+        if (home.category != null) ('Category', '${home.category}'),
+        if (home.setupId != null) ('Setup id', home.setupId!),
+      ],
+    ),
+    BoardingPassContent pass => Described(
+      kind: 'Boarding pass',
+      icon: Icons.flight_takeoff_rounded,
+      title: '${pass.legs.first.from} → ${pass.legs.first.to}',
+      fields: <(String, String)>[
+        ('Passenger', pass.passengerName),
+        for (final BoardingPassLeg leg in pass.legs) ...<(String, String)>[
+          (
+            'Flight',
+            '${leg.carrier} ${leg.flightNumber}, ${leg.from} → ${leg.to}',
+          ),
+          ('Booking', leg.bookingReference),
+          if (leg.seat.isNotEmpty) ('Seat', leg.seat),
+        ],
+      ],
+    ),
+    DriverLicenseContent id => Described(
+      kind: "Driver's license",
+      icon: Icons.badge_outlined,
+      title: <String>[?id.firstName, ?id.lastName].join(' '),
+      fields: <(String, String)>[
+        if (id.licenseNumber != null) ('Number', id.licenseNumber!),
+        if (id.dateOfBirth != null) ('Born', _date(id.dateOfBirth!)),
+        if (id.expiryDate != null) ('Expires', _date(id.expiryDate!)),
+        if (id.state != null) ('State', id.state!),
+        if (id.city != null) ('City', id.city!),
+      ],
+    ),
+    VinContent vin => Described(
+      kind: 'Vehicle',
+      icon: Icons.directions_car_outlined,
+      title: vin.vin,
+      fields: <(String, String)>[
+        ('WMI', vin.wmi),
+        ('Region', vin.region.name),
+        (
+          'Check digit',
+          vin.hasValidCheckDigit ? 'Valid' : 'Not North American',
+        ),
+        if (vin.hasValidCheckDigit && vin.modelYear != null)
+          ('Model year', '${vin.modelYear}'),
+      ],
+    ),
+    ProductContent product => Described(
+      kind: product.isbn13 != null || product.issn != null ? 'Book' : 'Product',
+      icon: product.isbn13 != null
+          ? Icons.menu_book_outlined
+          : Icons.view_week_outlined,
+      title: product.gtin,
+      fields: <(String, String)>[
+        ('GTIN', product.gtin),
+        if (product.isbn13 != null) ('ISBN-13', product.isbn13!),
+        if (product.isbn10 != null) ('ISBN-10', product.isbn10!),
+        if (product.issn != null) ('ISSN', product.issn!),
+        if (product.addOn != null) ('Add-on', product.addOn!),
+      ],
+    ),
     TextContent(:final String text) => Described(
-      kind: barcode.format.isLinear && _digits.hasMatch(text)
-          ? 'Product'
-          : 'Text',
+      kind: 'Text',
       icon: barcode.format.isLinear
           ? Icons.view_week_outlined
           : Icons.notes_rounded,
@@ -164,7 +290,8 @@ Described describe(Barcode barcode) {
   };
 }
 
-final RegExp _digits = RegExp(r'^\d{8,14}$');
+String _date(DateTime d) =>
+    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
 String _security(WifiSecurity s) => switch (s) {
   WifiSecurity.none => 'None',

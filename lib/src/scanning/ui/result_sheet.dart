@@ -203,6 +203,14 @@ class BarcodeResultSheet extends StatelessWidget {
     PhoneContent() => ScannerIcons.phone,
     SmsContent() => ScannerIcons.sms,
     GeoContent() => ScannerIcons.location,
+    // Until the icons of these kinds are drawn: the nearest existing ones.
+    OtpContent() => ScannerIcons.check,
+    EsimContent() => ScannerIcons.phone,
+    CryptoContent() => ScannerIcons.link,
+    WifiDppContent() || SmartHomeContent() => ScannerIcons.wifi,
+    BoardingPassContent() => ScannerIcons.qrCode,
+    DriverLicenseContent() => ScannerIcons.contact,
+    VinContent() || ProductContent() => ScannerIcons.barcode,
     Gs1Content() => ScannerIcons.parcel,
     BinaryContent() => ScannerIcons.binary,
     TextContent() => ScannerIcons.text,
@@ -284,6 +292,82 @@ final class _Summary {
           '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}',
           detail: query,
           payload: text,
+        );
+      case OtpContent(:final String account, :final String? issuer):
+        // Never the secret: the payload holds it.
+        return _Summary(
+          issuer ?? account,
+          detail: issuer == null ? null : account,
+        );
+      case EsimContent(:final String smdpAddress, :final String? matchingId):
+        return _Summary(smdpAddress, detail: matchingId);
+      case CryptoContent(
+        :final CryptoCurrency currency,
+        :final String address,
+        :final String? amount,
+        :final String? label,
+      ):
+        return _Summary(
+          amount != null
+              ? '$amount ${currency.symbol}'
+              : label ?? currency.symbol,
+          detail: <String>[?label, address].join(' · '),
+        );
+      case WifiDppContent(
+        :final String? information,
+        :final String? macAddress,
+      ):
+        return _Summary(
+          information ?? macAddress ?? strings.wifiDevice,
+          detail: information != null ? macAddress : null,
+        );
+      case SmartHomeContent(
+        :final SmartHomePlatform platform,
+        :final String setupCode,
+      ):
+        return _Summary(
+          setupCode,
+          detail: platform == SmartHomePlatform.matter ? 'Matter' : 'HomeKit',
+        );
+      case BoardingPassContent(
+        :final String passengerName,
+        :final List<BoardingPassLeg> legs,
+      ):
+        final BoardingPassLeg leg = legs.first;
+        return _Summary(
+          '${leg.from} → ${leg.to}',
+          detail: <String>[
+            '${leg.carrier} ${leg.flightNumber}',
+            passengerName,
+            if (leg.seat.isNotEmpty) leg.seat,
+          ].join(' · '),
+        );
+      case DriverLicenseContent(
+        :final String? firstName,
+        :final String? lastName,
+        :final String? state,
+        :final String? licenseNumber,
+      ):
+        return _Summary(
+          <String>[?firstName, ?lastName].join(' '),
+          detail: <String>[?state, ?licenseNumber].join(' · '),
+        );
+      case VinContent(:final String vin):
+        final int? year = content.hasValidCheckDigit ? content.modelYear : null;
+        return _Summary(vin, detail: year?.toString());
+      case ProductContent(
+        :final String gtin,
+        :final String? isbn13,
+        :final String? issn,
+        :final String? addOn,
+      ):
+        return _Summary(
+          isbn13 != null
+              ? 'ISBN $isbn13'
+              : issn != null
+              ? 'ISSN $issn'
+              : gtin,
+          detail: addOn,
         );
       case Gs1Content(:final Map<String, String> elements):
         return _Summary(elements['01'] ?? elements.values.firstOrNull ?? text);

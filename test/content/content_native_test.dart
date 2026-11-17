@@ -185,6 +185,20 @@ void main() {
         start: DateTime(2026, 12, 25),
         allDay: true,
       ),
+      const OtpContent(
+        secret: 'JBSWY3DPEHPK3PXP',
+        account: 'alice@example.com',
+        issuer: 'Big Corp',
+      ),
+      const EsimContent(smdpAddress: 'rsp.example.com', matchingId: 'ABC-123'),
+      const CryptoContent(
+        currency: CryptoCurrency.bitcoin,
+        address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
+        amount: '0.0015',
+        label: 'Café',
+      ),
+      const PhoneContent('user@icloud.com', type: CallType.faceTime),
+      LinkService.whatsApp.link('+374 91 234567', message: 'Hi'),
     ];
     for (final BarcodeContent content in contents) {
       test('$content', () async {
@@ -212,6 +226,19 @@ void main() {
       });
       expect(await readBack(gs1, BarcodeFormat.dataMatrix), gs1);
       expect(await readBack(gs1, BarcodeFormat.code128), gs1);
+    });
+
+    test('EAN-13 is a product, Code 39 VIN a vehicle', () async {
+      final BarcodeContent book = await readBack(
+        const TextContent('9780306406157'),
+        BarcodeFormat.ean13,
+      );
+      expect((book as ProductContent).isbn10, '0306406152');
+      final BarcodeContent vin = await readBack(
+        const TextContent('WVWZZZ1JZXW000001'),
+        BarcodeFormat.code39,
+      );
+      expect((vin as VinContent).region, VinRegion.europe);
     });
 
     test('binary', () async {

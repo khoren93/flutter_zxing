@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../content/barcode_content.dart';
+import '../../content/link_service.dart';
 import 'scanner_theme.dart';
 
 /// The texts of the scanner widgets: button labels for screen readers,
@@ -60,6 +61,17 @@ final class ScannerStrings {
     this.sms = 'Text message',
     this.location = 'Location',
     this.gs1 = 'GS1',
+    this.faceTime = 'FaceTime',
+    this.otp = 'One-time password',
+    this.esim = 'eSIM',
+    this.crypto = 'Crypto payment',
+    this.wifiDevice = 'Wi‑Fi device',
+    this.smartHome = 'Smart home device',
+    this.boardingPass = 'Boarding pass',
+    this.driverLicense = "Driver's license",
+    this.vehicle = 'Vehicle',
+    this.product = 'Product',
+    this.book = 'Book',
     this.binary = 'Binary data',
     this.text = 'Text',
   });
@@ -183,6 +195,39 @@ final class ScannerStrings {
   /// The kind of a [Gs1Content].
   final String gs1;
 
+  /// The kind of a [PhoneContent] with [CallType.faceTime] or [CallType.faceTimeAudio].
+  final String faceTime;
+
+  /// The kind of a [OtpContent].
+  final String otp;
+
+  /// The kind of a [EsimContent].
+  final String esim;
+
+  /// The kind of a [CryptoContent].
+  final String crypto;
+
+  /// The kind of a [WifiDppContent].
+  final String wifiDevice;
+
+  /// The kind of a [SmartHomeContent].
+  final String smartHome;
+
+  /// The kind of a [BoardingPassContent].
+  final String boardingPass;
+
+  /// The kind of a [DriverLicenseContent].
+  final String driverLicense;
+
+  /// The kind of a [VinContent].
+  final String vehicle;
+
+  /// The kind of a [ProductContent].
+  final String product;
+
+  /// The kind of a [ProductContent] with an ISBN or ISSN.
+  final String book;
+
   /// The kind of a [BinaryContent].
   final String binary;
 
@@ -190,15 +235,28 @@ final class ScannerStrings {
   final String text;
 
   /// The kind of [content], as shown above a result's title.
+  /// A link to a known service is named after it ("Instagram").
   String kindOf(BarcodeContent content) => switch (content) {
+    UrlContent(:final LinkService service) => service.displayName,
     UrlContent() => link,
     WifiContent() => wifi,
     ContactContent() => contact,
     EventContent() => event,
     EmailContent() => email,
-    PhoneContent() => phone,
+    PhoneContent(type: CallType.voice) => phone,
+    PhoneContent() => faceTime,
     SmsContent() => sms,
     GeoContent() => location,
+    OtpContent() => otp,
+    EsimContent() => esim,
+    CryptoContent() => crypto,
+    WifiDppContent() => wifiDevice,
+    SmartHomeContent() => smartHome,
+    BoardingPassContent() => boardingPass,
+    DriverLicenseContent() => driverLicense,
+    VinContent() => vehicle,
+    ProductContent(isbn13: null, issn: null) => product,
+    ProductContent() => book,
     Gs1Content() => gs1,
     BinaryContent() => binary,
     TextContent() => text,
@@ -245,6 +303,17 @@ final class ScannerStrings {
       other.sms == sms &&
       other.location == location &&
       other.gs1 == gs1 &&
+      other.faceTime == faceTime &&
+      other.otp == otp &&
+      other.esim == esim &&
+      other.crypto == crypto &&
+      other.wifiDevice == wifiDevice &&
+      other.smartHome == smartHome &&
+      other.boardingPass == boardingPass &&
+      other.driverLicense == driverLicense &&
+      other.vehicle == vehicle &&
+      other.product == product &&
+      other.book == book &&
       other.binary == binary &&
       other.text == text;
 
@@ -288,6 +357,17 @@ final class ScannerStrings {
     sms,
     location,
     gs1,
+    faceTime,
+    otp,
+    esim,
+    crypto,
+    wifiDevice,
+    smartHome,
+    boardingPass,
+    driverLicense,
+    vehicle,
+    product,
+    book,
     binary,
     text,
   ]);

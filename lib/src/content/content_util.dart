@@ -1,0 +1,47 @@
+import 'barcode_content.dart';
+
+// Helpers shared by the parsers and builders of the content kinds.
+
+/// Throws the problems `validate` found, as `toPayload` documents.
+void checkIssues(List<ContentIssue> issues) {
+  if (issues.isNotEmpty) {
+    throw ArgumentError(issues.join('; '));
+  }
+}
+
+/// `null` for `null` and empty strings.
+String? orNull(String? value) => value == null || value.isEmpty ? null : value;
+
+/// Percent-decodes [value]; malformed escapes stay as they are.
+String decodeComponent(String value) {
+  try {
+    return Uri.decodeComponent(value);
+  } on ArgumentError {
+    return value;
+  } on FormatException {
+    return value;
+  }
+}
+
+/// The `key=value` pairs after the `?` of [query], keys lower case, values
+/// percent-decoded. A key that occurs twice keeps its first value.
+Map<String, String> queryParameters(String query) {
+  final Map<String, String> params = <String, String>{};
+  for (final String pair in query.split('&')) {
+    if (pair.isEmpty) {
+      continue;
+    }
+    final int eq = pair.indexOf('=');
+    final String key = (eq < 0 ? pair : pair.substring(0, eq)).toLowerCase();
+    params.putIfAbsent(
+      key,
+      () => eq < 0 ? '' : decodeComponent(pair.substring(eq + 1)),
+    );
+  }
+  return params;
+}
+
+/// Whether [text] starts with [prefix], ignoring case.
+bool hasPrefix(String text, String prefix) =>
+    text.length >= prefix.length &&
+    text.substring(0, prefix.length).toUpperCase() == prefix;

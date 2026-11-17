@@ -1,8 +1,14 @@
 import 'package:flutter/foundation.dart';
 
 import '../barcode/barcode.dart';
+import 'app_content.dart';
 import 'content_builder.dart';
 import 'content_parser.dart';
+import 'industry_content.dart';
+import 'link_service.dart';
+
+part 'barcode_content_apps.dart';
+part 'barcode_content_industry.dart';
 
 /// The payload of a [Barcode], parsed into a typed value.
 ///
@@ -30,6 +36,15 @@ import 'content_parser.dart';
 /// | [PhoneContent] | `tel:` |
 /// | [SmsContent] | `sms:`, `smsto:`, `mms:`, `mmsto:` |
 /// | [GeoContent] | `geo:` |
+/// | [OtpContent] | `otpauth://totp/…`, `otpauth://hotp/…` |
+/// | [EsimContent] | `LPA:1$…` |
+/// | [CryptoContent] | `bitcoin:`, `ethereum:`, `litecoin:`, `lightning:`, `lnbc…` |
+/// | [WifiDppContent] | `DPP:` (Wi-Fi Easy Connect) |
+/// | [SmartHomeContent] | `MT:` (Matter), `X-HM://` (HomeKit) |
+/// | [BoardingPassContent] | IATA boarding passes (`M1…`) |
+/// | [DriverLicenseContent] | AAMVA driver's licenses and IDs (`@…ANSI …`) |
+/// | [VinContent] | vehicle identification numbers |
+/// | [ProductContent] | EAN/UPC barcodes: GTIN, ISBN, ISSN |
 /// | [Gs1Content] | GS1 barcodes ([BarcodeContentType.gs1]) |
 /// | [BinaryContent] | binary barcodes ([BarcodeContentType.binary]) |
 ///
@@ -195,6 +210,11 @@ final class UrlContent extends BarcodeContent {
   /// A title, if the format carries one (`MEBKM:`, `URLTO:`).
   final String? title;
 
+  /// The service the address belongs to, such as [LinkService.instagram]
+  /// for `https://instagram.com/…`, or `null`. Build such links with
+  /// [LinkService.link].
+  LinkService? get service => linkServiceOf(url);
+
   /// The address; with a [title], a `MEBKM:` bookmark. An address without
   /// a scheme (`example.com`) gets `https://`. Only `http` and `https`
   /// addresses can be built; put other links in [TextContent].
@@ -319,16 +339,33 @@ final class EmailContent extends BarcodeContent {
   String toString() => 'EmailContent($address)';
 }
 
-/// A phone number (`tel:`).
+/// How a [PhoneContent] calls.
+enum CallType {
+  /// A phone call (`tel:`).
+  voice,
+
+  /// A FaceTime video call (`facetime:`), Apple devices only.
+  faceTime,
+
+  /// A FaceTime audio call (`facetime-audio:`), Apple devices only.
+  faceTimeAudio,
+}
+
+/// A phone number to call (`tel:`, `facetime:`, `facetime-audio:`).
 final class PhoneContent extends BarcodeContent {
   /// Creates phone content.
-  const PhoneContent(this.number);
+  const PhoneContent(this.number, {this.type = CallType.voice});
 
-  /// The number as written in the barcode.
+  /// The number as written in the barcode; for FaceTime, also an e-mail
+  /// address.
   final String number;
 
-  /// `tel:+12125551234`. Visual separators (spaces, `-`, `.`, brackets)
-  /// are removed; `+`, digits, `*` and `#` are kept.
+  /// Phone or FaceTime.
+  final CallType type;
+
+  /// `tel:+12125551234` (`facetime:`, `facetime-audio:`). Visual
+  /// separators (spaces, `-`, `.`, brackets) are removed; `+`, digits, `*`
+  /// and `#` are kept.
   @override
   String toPayload() => buildPhone(this);
 
@@ -337,13 +374,14 @@ final class PhoneContent extends BarcodeContent {
 
   @override
   bool operator ==(Object other) =>
-      other is PhoneContent && other.number == number;
+      other is PhoneContent && other.number == number && other.type == type;
 
   @override
-  int get hashCode => number.hashCode;
+  int get hashCode => Object.hash(number, type);
 
   @override
-  String toString() => 'PhoneContent($number)';
+  String toString() =>
+      'PhoneContent($number${type == CallType.voice ? '' : ', ${type.name}'})';
 }
 
 /// A text message draft (`sms:`, `smsto:`, `mms:`, `mmsto:`).

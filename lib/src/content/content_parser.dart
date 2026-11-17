@@ -1,8 +1,11 @@
 import 'dart:convert';
 
 import '../barcode/barcode.dart';
+import '../barcode/barcode_format.dart';
+import 'app_content.dart';
 import 'barcode_content.dart';
 import 'gs1.dart';
+import 'industry_content.dart';
 
 /// [BarcodeContent.parse].
 BarcodeContent parseBarcodeContent(Barcode barcode) {
@@ -28,7 +31,15 @@ BarcodeContent parseBarcodeContent(Barcode barcode) {
       return TextContent(barcode.text);
     case BarcodeContentType.text:
     case BarcodeContentType.mixed:
-      return parseTextContent(barcode.text);
+      final BarcodeContent content =
+          parseProduct(barcode) ?? parseTextContent(barcode.text);
+      // VINs are printed in Code 39, often without a valid check digit
+      // outside North America.
+      if (content is TextContent &&
+          barcode.format.symbology == BarcodeFormat.code39) {
+        return parseVin(barcode.text, trusted: true) ?? content;
+      }
+      return content;
   }
 }
 
@@ -61,6 +72,24 @@ BarcodeContent parseTextContent(String text) {
     content = _smtp(t.substring(5));
   } else if (has('TEL:')) {
     content = _tel(t.substring(4));
+  } else if (has('FACETIME-AUDIO:')) {
+    content = _tel(t.substring(15), CallType.faceTimeAudio);
+  } else if (has('FACETIME:')) {
+    content = _tel(t.substring(9), CallType.faceTime);
+  } else if (has('OTPAUTH://')) {
+    content = parseOtp(t.substring(10));
+  } else if (has('LPA:')) {
+    content = parseEsim(t.substring(4));
+  } else if (isCryptoPayload(t)) {
+    content = parseCrypto(t);
+  } else if (has('DPP:')) {
+    content = parseWifiDpp(t.substring(4), text);
+  } else if (has('MT:')) {
+    content = parseMatter(t.substring(3), text);
+  } else if (has('X-HM://')) {
+    content = parseHomeKit(t.substring(7), text);
+  } else if (isAamva(t)) {
+    content = parseDriverLicense(text);
   } else if (has('SMSTO:') || has('MMSTO:')) {
     content = _smsTo(t.substring(6));
   } else if (has('SMS:') || has('MMS:')) {
@@ -68,7 +97,7 @@ BarcodeContent parseTextContent(String text) {
   } else if (has('GEO:')) {
     content = _geo(t.substring(4));
   } else {
-    content = _webAddress(t);
+    content = _webAddress(t) ?? parseBoardingPass(text) ?? parseVin(text);
   }
   return content ?? TextContent(text);
 }
@@ -596,9 +625,13 @@ EmailContent? _smtp(String body) {
   );
 }
 
-PhoneContent? _tel(String body) {
-  final String number = _decode(body).trim();
-  return number.isEmpty ? null : PhoneContent(number);
+PhoneContent? _tel(String body, [CallType type = CallType.voice]) {
+  // `facetime://` as well as `facetime:`.
+  final String b = type != CallType.voice && body.startsWith('//')
+      ? body.substring(2)
+      : body;
+  final String number = _decode(b).trim();
+  return number.isEmpty ? null : PhoneContent(number, type: type);
 }
 
 /// `SMSTO:number:text`.

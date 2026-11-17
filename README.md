@@ -322,8 +322,23 @@ switch (barcode.content) {
 }
 ```
 
-Also `EmailContent`, `PhoneContent`, `SmsContent`, `GeoContent` and
-`EventContent`. vCard and MeCard contacts are both read.
+Also e-mail, phone and FaceTime, SMS, locations, events, one-time
+passwords (`otpauth://`), eSIM activation codes, cryptocurrency payments,
+Wi‑Fi Easy Connect, Matter and HomeKit setup codes, boarding passes, US
+driver's licenses, VINs and products (EAN/UPC with ISBN and ISSN). The full
+list, with what each kind holds: [doc/content-types.md](doc/content-types.md).
+
+The other way round, every kind builds the text for a code, escaped as its
+format needs, and parsing reads it back as an equal value:
+
+```dart
+const wifi = WifiContent(ssid: 'Home', password: 'secret;12');
+BarcodeView(wifi.toPayload()); // WIFI:T:WPA;S:Home;P:secret\;12;;
+
+final issues = wifi.validate(); // for forms: field and message, no throw
+
+BarcodeView(LinkService.whatsApp.link('+374 91 234567').toPayload());
+```
 
 ## Formats
 
@@ -456,7 +471,7 @@ top of that core, and each layer can be imported on its own:
 | Import | What it has |
 |---|---|
 | `package:flutter_zxing/core.dart` | zxing-cpp: `BarcodeReader`, `BarcodeWriter`, `Barcode`, `BarcodeFormat`, `ReaderOptions`, `BarcodeSymbol` with plain SVG and PNG |
-| `package:flutter_zxing/content.dart` | `barcode.content`: parsed URLs, Wi-Fi, contacts, events, GS1… |
+| `package:flutter_zxing/content.dart` | `barcode.content`: parsed URLs, Wi-Fi, contacts, events, GS1…; `toPayload()` builds them |
 | `package:flutter_zxing/rendering.dart` | `BarcodeView`, `BarcodeStyle` and styled export |
 | `package:flutter_zxing/scanner.dart` | `BarcodeScanner`, `ScannerController`, templates, themes, widgets |
 | `package:flutter_zxing/flutter_zxing.dart` | all of the above and the deprecated 3.x API |

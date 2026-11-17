@@ -317,10 +317,13 @@ Widget _ticketSheet(
   Barcode barcode,
   VoidCallback scanAgain,
 ) {
-  final _Bcbp? pass = _Bcbp.parse(barcode.text);
-  if (pass == null) {
+  final BarcodeContent content = barcode.content;
+  if (content is! BoardingPassContent) {
     return BarcodeResultSheet(barcode, onScanAgain: scanAgain);
   }
+  final BoardingPassLeg leg = content.legs.first;
+  // The pass gives the day of the year, not the year: this year's.
+  final DateTime? day = leg.dateIn(DateTime.now().year);
   final ScannerTheme theme = ScannerTheme.of(context);
   return ScannerSheet(
     label: 'Boarding pass',
@@ -328,17 +331,20 @@ Widget _ticketSheet(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Text('BOARDING PASS · ${pass.flight}', style: theme.overlineStyle),
+        Text(
+          'BOARDING PASS · ${leg.carrier} ${leg.flightNumber}',
+          style: theme.overlineStyle,
+        ),
         const SizedBox(height: 4),
-        Text('${pass.from} → ${pass.to}', style: theme.titleStyle),
+        Text('${leg.from} → ${leg.to}', style: theme.titleStyle),
         const SizedBox(height: 16),
         ScannerFields(<String, String>{
-          'Passenger': pass.name,
-          'Date': pass.date,
-          'Seat': pass.seat,
-          'Class': pass.cabin,
-          'Booking': pass.booking,
-          'Sequence': pass.sequence,
+          'Passenger': content.passengerName,
+          if (day != null) 'Date': '${day.day} ${_months[day.month - 1]}',
+          'Seat': leg.seat,
+          'Class': leg.cabin,
+          'Booking': leg.bookingReference,
+          'Sequence': leg.sequenceNumber,
         }),
         const SizedBox(height: 16),
         ScannerChip(barcode.format.displayName),
@@ -356,64 +362,10 @@ Widget _ticketSheet(
   );
 }
 
-final class _Bcbp {
-  const _Bcbp({
-    required this.name,
-    required this.booking,
-    required this.from,
-    required this.to,
-    required this.flight,
-    required this.date,
-    required this.cabin,
-    required this.seat,
-    required this.sequence,
-  });
-
-  final String name;
-  final String booking;
-  final String from;
-  final String to;
-  final String flight;
-  final String date;
-  final String cabin;
-  final String seat;
-  final String sequence;
-
-  static const List<String> _months = <String>[
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-
-  /// The mandatory fields of the first leg.
-  static _Bcbp? parse(String text) {
-    if (text.length < 58 || text[0] != 'M') {
-      return null;
-    }
-    String field(int start, int length) =>
-        text.substring(start, start + length).trim();
-    final int? day = int.tryParse(field(44, 3));
-    String date = field(44, 3);
-    if (day != null && day >= 1 && day <= 366) {
-      final DateTime d = DateTime(
-        DateTime.now().year,
-      ).add(Duration(days: day - 1));
-      date = '${d.day} ${_months[d.month - 1]}';
-    }
-    final String carrier = field(36, 3);
-    final String number = field(39, 5).replaceFirst(RegExp('^0+'), '');
-    return _Bcbp(
-      name: field(2, 20),
-      booking: field(23, 7),
-      from: field(30, 3),
-      to: field(33, 3),
-      flight: '$carrier $number',
-      date: date,
-      cabin: field(47, 1),
-      seat: field(48, 4).replaceFirst(RegExp('^0+'), ''),
-      sequence: field(52, 5).replaceFirst(RegExp('^0+'), ''),
-    );
-  }
-}
+const List<String> _months = <String>[
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
 
 /// The buttons of the content template: what an app would do with each
 /// kind of content. Opening links and joining networks needs plugins

@@ -7,3 +7,4 @@ library;
 export 'core.dart';
 export 'src/content/barcode_content.dart';
 export 'src/content/content_writer.dart';
+export 'src/content/link_service.dart' show LinkService, LinkServiceInput;
