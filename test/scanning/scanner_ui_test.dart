@@ -158,6 +158,25 @@ void main() {
         ScannerIcons.binary,
         ScannerIcons.cameraOff,
         ScannerIcons.cameraAlert,
+        ScannerIcons.otp,
+        ScannerIcons.esim,
+        ScannerIcons.crypto,
+        ScannerIcons.wifiDevice,
+        ScannerIcons.smartHome,
+        ScannerIcons.boardingPass,
+        ScannerIcons.driverLicense,
+        ScannerIcons.vehicle,
+        ScannerIcons.book,
+        ScannerIcons.faceTime,
+        ScannerIcons.messenger,
+        ScannerIcons.profile,
+        ScannerIcons.video,
+        ScannerIcons.music,
+        ScannerIcons.apps,
+        ScannerIcons.review,
+        ScannerIcons.show,
+        ScannerIcons.hide,
+        ScannerIcons.add,
       ];
       for (final ScannerIconData icon in icons) {
         for (final String data in <String>[icon.stroke, icon.fill]) {
@@ -1388,6 +1407,124 @@ void main() {
         ),
       );
     }
+
+    testWidgets('a one-time password: the secret only on request', (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        _barcode(
+          'otpauth://totp/GitHub:alice@example.com?secret=JBSWY3DPEHPK3PXP'
+          '&issuer=GitHub',
+        ),
+      );
+      expect(find.text('ONE-TIME PASSWORD'), findsOneWidget);
+      expect(find.text('GitHub'), findsOneWidget);
+      expect(find.text('alice@example.com'), findsOneWidget);
+      expect(find.text('Time-based'), findsOneWidget);
+      expect(find.textContaining('JBSW'), findsNothing);
+      // Copying would copy the secret: only "Scan again".
+      expect(find.text('Copy'), findsNothing);
+      await tester.tap(find.text('Show'));
+      await tester.pump();
+      expect(find.text('JBSW Y3DP EHPK 3PXP'), findsOneWidget);
+      expect(find.text('Hide'), findsOneWidget);
+    });
+
+    testWidgets('a crypto payment: the amount large, the address', (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        _barcode(
+          'bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?amount=0.0015'
+          '&label=Caf%C3%A9%20Lumen&message=Order%2012',
+        ),
+      );
+      expect(find.text('CRYPTO PAYMENT · BITCOIN'), findsOneWidget);
+      expect(find.text('Café Lumen'), findsOneWidget);
+      expect(find.text('0.0015 BTC'), findsOneWidget);
+      expect(find.text('Order 12'), findsOneWidget);
+    });
+
+    testWidgets('a link to a service: named after it, with its target', (
+      WidgetTester tester,
+    ) async {
+      await show(tester, _barcode('https://wa.me/37491234567?text=Hi'));
+      expect(find.text('WHATSAPP'), findsOneWidget);
+      expect(find.text('+37491234567'), findsOneWidget);
+      expect(find.text('Hi'), findsOneWidget);
+      await show(tester, _barcode('https://www.instagram.com/flutter.dev'));
+      expect(find.text('@flutter.dev'), findsOneWidget);
+    });
+
+    testWidgets('Matter: the setup code in two groups', (
+      WidgetTester tester,
+    ) async {
+      await show(tester, _barcode('MT:Y.K9042C00KA0648G00'));
+      expect(find.text('SMART HOME DEVICE · MATTER'), findsOneWidget);
+      expect(find.text('2020-2021'), findsOneWidget);
+      expect(find.text('0xFFF1'), findsOneWidget);
+      expect(find.text('3840'), findsOneWidget);
+    });
+
+    testWidgets("a driver's license past its expiry date", (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        _barcode(
+          '@\n\x1e\rANSI 636014080102DL00410288ZC03290015DLDAQD1234562\n'
+          'DCSPUBLIC\nDACJOHN\nDADQUINCY\nDBB08311977\nDBA08312020\n'
+          'DAJCA\nDCGUSA\r',
+          format: BarcodeFormat.pdf417,
+        ),
+      );
+      expect(find.text("DRIVER'S LICENSE · CA"), findsOneWidget);
+      expect(find.text('JOHN QUINCY PUBLIC'), findsOneWidget);
+      expect(find.text('31 Aug 1977'), findsOneWidget);
+      expect(find.text('Expired'), findsOneWidget);
+    });
+
+    testWidgets('a book: the ISBN and its other numbers', (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        _barcode('9780306406157', format: BarcodeFormat.ean13, id: ']E0'),
+      );
+      expect(find.text('BOOK'), findsOneWidget);
+      expect(find.text('ISBN 9780306406157'), findsOneWidget);
+      expect(find.text('0306406152'), findsOneWidget);
+      expect(find.text('ISBN'), findsOneWidget);
+    });
+
+    testWidgets('a boarding pass with two flights', (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        _barcode(
+          'M2${'DESMARAIS/LUC'.padRight(20)}EABC123 YULFRAAC 0834 326J001A0025 '
+          '100DEF456 FRAGVALH 3664 327C012C0026 100',
+          format: BarcodeFormat.pdf417,
+        ),
+      );
+      expect(find.text('BOARDING PASS · AC 834'), findsOneWidget);
+      expect(find.text('YUL → FRA'), findsOneWidget);
+      expect(find.text('Flight 1 of 2'), findsOneWidget);
+      expect(find.text('1A'), findsOneWidget);
+    });
+
+    testWidgets('a VIN: the region, the number and what it says', (
+      WidgetTester tester,
+    ) async {
+      await show(tester, _barcode('1M8GDM9AXKP042788'));
+      expect(find.text('VEHICLE · VIN'), findsOneWidget);
+      expect(find.text('North America'), findsOneWidget);
+      expect(find.text('1M8GDM9AXKP042788'), findsOneWidget);
+      expect(find.text('1989'), findsOneWidget);
+    });
 
     testWidgets('a link: its host, the URL and the symbology', (
       WidgetTester tester,

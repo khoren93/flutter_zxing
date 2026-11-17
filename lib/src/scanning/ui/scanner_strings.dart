@@ -72,6 +72,50 @@ final class ScannerStrings {
     this.vehicle = 'Vehicle',
     this.product = 'Product',
     this.book = 'Book',
+    this.secret = 'Secret',
+    this.show = 'Show',
+    this.hide = 'Hide',
+    this.otpType = 'Type',
+    this.otpTimeBased = 'Time-based',
+    this.otpCounterBased = 'Counter-based',
+    this.otpDigits = 'Digits',
+    this.otpPeriod = 'Every',
+    this.otpCounter = 'Counter',
+    this.seconds = _seconds,
+    this.matchingId = 'Matching ID',
+    this.confirmationCode = 'Confirmation code',
+    this.needed = 'Needed',
+    this.setupCode = 'Setup code',
+    this.vendorId = 'Vendor',
+    this.productId = 'Product',
+    this.discriminator = 'Discriminator',
+    this.category = 'Category',
+    this.setupId = 'Setup ID',
+    this.gtin = 'GTIN',
+    this.addOn = 'Add-on',
+    this.passenger = 'Passenger',
+    this.date = 'Date',
+    this.seat = 'Seat',
+    this.cabin = 'Class',
+    this.booking = 'Booking',
+    this.sequence = 'Sequence',
+    this.flightOf = _flightOf,
+    this.licenseNumber = 'Number',
+    this.born = 'Born',
+    this.expires = 'Expires',
+    this.city = 'City',
+    this.state = 'State',
+    this.country = 'Country',
+    this.expired = 'Expired',
+    this.makerCode = 'Maker code',
+    this.modelYear = 'Model year',
+    this.checkDigit = 'Check digit',
+    this.valid = 'Valid',
+    this.macAddress = 'MAC',
+    this.channels = 'Channels',
+    this.dayAndMonth = _dayAndMonth,
+    this.fullDate = _fullDate,
+    this.vinRegion = _vinRegion,
     this.binary = 'Binary data',
     this.text = 'Text',
   });
@@ -228,6 +272,138 @@ final class ScannerStrings {
   /// The kind of a [ProductContent] with an ISBN or ISSN.
   final String book;
 
+  /// The label of a hidden secret, such as an [OtpContent] key.
+  final String secret;
+
+  /// The button that shows a hidden secret.
+  final String show;
+
+  /// The button that hides a shown secret again.
+  final String hide;
+
+  /// The label of an [OtpContent]'s type.
+  final String otpType;
+
+  /// An [OtpContent] of [OtpType.totp].
+  final String otpTimeBased;
+
+  /// An [OtpContent] of [OtpType.hotp].
+  final String otpCounterBased;
+
+  /// The label of [OtpContent.digits].
+  final String otpDigits;
+
+  /// The label of [OtpContent.period].
+  final String otpPeriod;
+
+  /// The label of [OtpContent.counter].
+  final String otpCounter;
+
+  /// A number of seconds: "30 s".
+  final String Function(int seconds) seconds;
+
+  /// The label of [EsimContent.matchingId].
+  final String matchingId;
+
+  /// The label of [EsimContent.confirmationCodeRequired].
+  final String confirmationCode;
+
+  /// A confirmation code is needed.
+  final String needed;
+
+  /// The title of a [SmartHomeContent].
+  final String setupCode;
+
+  /// The label of [SmartHomeContent.vendorId].
+  final String vendorId;
+
+  /// The label of [SmartHomeContent.productId].
+  final String productId;
+
+  /// The label of [SmartHomeContent.discriminator].
+  final String discriminator;
+
+  /// The label of [SmartHomeContent.category].
+  final String category;
+
+  /// The label of [SmartHomeContent.setupId].
+  final String setupId;
+
+  /// The label of [ProductContent.gtin].
+  final String gtin;
+
+  /// The label of [ProductContent.addOn].
+  final String addOn;
+
+  /// The label of [BoardingPassContent.passengerName].
+  final String passenger;
+
+  /// The label of a boarding pass's date.
+  final String date;
+
+  /// The label of [BoardingPassLeg.seat].
+  final String seat;
+
+  /// The label of [BoardingPassLeg.cabin].
+  final String cabin;
+
+  /// The label of [BoardingPassLeg.bookingReference].
+  final String booking;
+
+  /// The label of [BoardingPassLeg.sequenceNumber].
+  final String sequence;
+
+  /// Which leg of a pass the sheet shows: "Flight 1 of 2".
+  final String Function(int flight, int count) flightOf;
+
+  /// The label of [DriverLicenseContent.licenseNumber].
+  final String licenseNumber;
+
+  /// The label of [DriverLicenseContent.dateOfBirth].
+  final String born;
+
+  /// The label of [DriverLicenseContent.expiryDate].
+  final String expires;
+
+  /// The label of [DriverLicenseContent.city].
+  final String city;
+
+  /// The label of [DriverLicenseContent.state].
+  final String state;
+
+  /// The label of [DriverLicenseContent.country].
+  final String country;
+
+  /// A document past its expiry date.
+  final String expired;
+
+  /// The label of [VinContent.wmi].
+  final String makerCode;
+
+  /// The label of [VinContent.modelYear].
+  final String modelYear;
+
+  /// The label of [VinContent.hasValidCheckDigit].
+  final String checkDigit;
+
+  /// A check digit that is right.
+  final String valid;
+
+  /// The label of [WifiDppContent.macAddress].
+  final String macAddress;
+
+  /// The label of [WifiDppContent.channels].
+  final String channels;
+
+  /// A date without its year: "14 Nov".
+  final String Function(DateTime date) dayAndMonth;
+
+  /// A date: "31 Aug 1977".
+  final String Function(DateTime date) fullDate;
+
+  /// Where a vehicle was made: "North America".
+  final String Function(VinRegion region) vinRegion;
+
   /// The kind of a [BinaryContent].
   final String binary;
 
@@ -314,6 +490,50 @@ final class ScannerStrings {
       other.vehicle == vehicle &&
       other.product == product &&
       other.book == book &&
+      other.secret == secret &&
+      other.show == show &&
+      other.hide == hide &&
+      other.otpType == otpType &&
+      other.otpTimeBased == otpTimeBased &&
+      other.otpCounterBased == otpCounterBased &&
+      other.otpDigits == otpDigits &&
+      other.otpPeriod == otpPeriod &&
+      other.otpCounter == otpCounter &&
+      other.seconds == seconds &&
+      other.matchingId == matchingId &&
+      other.confirmationCode == confirmationCode &&
+      other.needed == needed &&
+      other.setupCode == setupCode &&
+      other.vendorId == vendorId &&
+      other.productId == productId &&
+      other.discriminator == discriminator &&
+      other.category == category &&
+      other.setupId == setupId &&
+      other.gtin == gtin &&
+      other.addOn == addOn &&
+      other.passenger == passenger &&
+      other.date == date &&
+      other.seat == seat &&
+      other.cabin == cabin &&
+      other.booking == booking &&
+      other.sequence == sequence &&
+      other.flightOf == flightOf &&
+      other.licenseNumber == licenseNumber &&
+      other.born == born &&
+      other.expires == expires &&
+      other.city == city &&
+      other.state == state &&
+      other.country == country &&
+      other.expired == expired &&
+      other.makerCode == makerCode &&
+      other.modelYear == modelYear &&
+      other.checkDigit == checkDigit &&
+      other.valid == valid &&
+      other.macAddress == macAddress &&
+      other.channels == channels &&
+      other.dayAndMonth == dayAndMonth &&
+      other.fullDate == fullDate &&
+      other.vinRegion == vinRegion &&
       other.binary == binary &&
       other.text == text;
 
@@ -368,6 +588,50 @@ final class ScannerStrings {
     vehicle,
     product,
     book,
+    secret,
+    show,
+    hide,
+    otpType,
+    otpTimeBased,
+    otpCounterBased,
+    otpDigits,
+    otpPeriod,
+    otpCounter,
+    seconds,
+    matchingId,
+    confirmationCode,
+    needed,
+    setupCode,
+    vendorId,
+    productId,
+    discriminator,
+    category,
+    setupId,
+    gtin,
+    addOn,
+    passenger,
+    date,
+    seat,
+    cabin,
+    booking,
+    sequence,
+    flightOf,
+    licenseNumber,
+    born,
+    expires,
+    city,
+    state,
+    country,
+    expired,
+    makerCode,
+    modelYear,
+    checkDigit,
+    valid,
+    macAddress,
+    channels,
+    dayAndMonth,
+    fullDate,
+    vinRegion,
     binary,
     text,
   ]);
@@ -375,4 +639,28 @@ final class ScannerStrings {
   static String _itemCount(int count) => count == 1 ? '1 item' : '$count items';
 
   static String _byteCount(int count) => count == 1 ? '1 byte' : '$count bytes';
+
+  static String _seconds(int seconds) => '$seconds s';
+
+  static String _flightOf(int flight, int count) => 'Flight $flight of $count';
+
+  static const List<String> _months = <String>[
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  static String _dayAndMonth(DateTime date) =>
+      '${date.day} ${_months[date.month - 1]}';
+
+  static String _fullDate(DateTime date) =>
+      '${_dayAndMonth(date)} ${date.year}';
+
+  static String _vinRegion(VinRegion region) => switch (region) {
+    VinRegion.africa => 'Africa',
+    VinRegion.asia => 'Asia',
+    VinRegion.europe => 'Europe',
+    VinRegion.northAmerica => 'North America',
+    VinRegion.oceania => 'Oceania',
+    VinRegion.southAmerica => 'South America',
+  };
 }

@@ -405,24 +405,35 @@ class ScannerActionButton extends StatelessWidget {
 /// A chip with the symbology of a code ("QR Code", "GS1-128 · GS1").
 class ScannerChip extends StatelessWidget {
   /// Creates a chip.
-  const ScannerChip(this.text, {super.key});
+  const ScannerChip(this.text, {super.key, this.warning = false});
 
   /// The text.
   final String text;
+
+  /// In the signal color instead of the accent, for problems ("Expired").
+  final bool warning;
 
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
     return DecoratedBox(
       decoration: ShapeDecoration(
-        color: theme.lockSoftColor,
+        color: warning
+            ? theme.signalColor.withValues(alpha: 0.2)
+            : theme.lockSoftColor,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(10)),
         ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        child: Text(text, style: theme.chipStyle, maxLines: 1),
+        child: Text(
+          text,
+          style: warning
+              ? theme.chipStyle.copyWith(color: theme.signalInkColor)
+              : theme.chipStyle,
+          maxLines: 1,
+        ),
       ),
     );
   }

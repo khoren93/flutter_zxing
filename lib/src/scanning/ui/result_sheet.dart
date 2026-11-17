@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../barcode/barcode.dart';
 import '../../content/barcode_content.dart';
+import '../../content/link_service.dart';
 import 'glass.dart';
 import 'pressable.dart';
 import 'scanner_icons.dart';
@@ -106,7 +107,9 @@ class BarcodeResultSheet extends StatelessWidget {
     final List<ScannerAction> actions =
         this.actions ??
         <ScannerAction>[
-          ScannerAction.copy(barcode.text, primary: onScanAgain == null),
+          // A code with a secret (an OTP key) is not copied unasked.
+          if (summary.secret == null)
+            ScannerAction.copy(barcode.text, primary: onScanAgain == null),
           if (onScanAgain != null)
             ScannerAction(
               label: strings.scanAgain,
@@ -124,7 +127,13 @@ class BarcodeResultSheet extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Text(strings.kindOf(content).toUpperCase(), style: theme.overlineStyle),
+        Text(
+          <String>[
+            strings.kindOf(content),
+            ?summary.kindDetail,
+          ].join(' · ').toUpperCase(),
+          style: theme.overlineStyle,
+        ),
         const SizedBox(height: 4),
         Text(
           summary.title,
@@ -156,6 +165,10 @@ class BarcodeResultSheet extends StatelessWidget {
               ],
             ],
           ),
+          if (summary.display case final String display) ...<Widget>[
+            const SizedBox(height: 16),
+            Text(display, style: theme.displayStyle, maxLines: 1),
+          ],
           if (summary.detail case final String detail) ...<Widget>[
             const SizedBox(height: 16),
             Text(
@@ -182,8 +195,37 @@ class BarcodeResultSheet extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ],
+          if (summary.code case final String code) ...<Widget>[
+            const SizedBox(height: 16),
+            Text(
+              code,
+              style: theme.dataStyle.copyWith(
+                fontSize: summary.largeCode ? 28 : 20,
+                height: summary.largeCode ? 36 / 28 : 28 / 20,
+                fontWeight: FontWeight.w600,
+                letterSpacing: summary.largeCode ? 1.7 : 0.8,
+              ),
+            ),
+          ],
+          if (summary.fields.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 16),
+            ScannerFields(summary.fields, columns: summary.fieldColumns),
+          ],
+          if (summary.secret case final String secret) ...<Widget>[
+            const SizedBox(height: 16),
+            _SecretField(secret, strings: strings),
+          ],
           const SizedBox(height: 16),
-          ScannerChip(symbology),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              ScannerChip(symbology),
+              for (final String chip in summary.chips) ScannerChip(chip),
+              if (summary.warning case final String warning)
+                ScannerChip(warning, warning: true),
+            ],
+          ),
           if (actions.isNotEmpty) ...<Widget>[
             const SizedBox(height: 16),
             ScannerActions(actions),
@@ -193,24 +235,48 @@ class BarcodeResultSheet extends StatelessWidget {
     );
   }
 
+  /// A neutral sign of [service]'s kind: a chat bubble for messengers, a
+  /// profile for social networks and so on. Never a brand's logo.
+  static ScannerIconData serviceIconOf(LinkService service) =>
+      switch (service) {
+        LinkService.whatsApp ||
+        LinkService.telegram ||
+        LinkService.signal ||
+        LinkService.discord => ScannerIcons.messenger,
+        LinkService.youTube || LinkService.twitch => ScannerIcons.video,
+        LinkService.spotify ||
+        LinkService.appleMusic ||
+        LinkService.soundCloud => ScannerIcons.music,
+        LinkService.appStore || LinkService.googlePlay => ScannerIcons.apps,
+        LinkService.googleMaps ||
+        LinkService.appleMaps ||
+        LinkService.yandexMaps => ScannerIcons.location,
+        LinkService.googleReview => ScannerIcons.review,
+        _ => ScannerIcons.profile,
+      };
+
   /// The icon of [content]'s kind.
   static ScannerIconData iconOf(BarcodeContent content) => switch (content) {
+    UrlContent(:final LinkService service) => serviceIconOf(service),
     UrlContent() => ScannerIcons.link,
     WifiContent() => ScannerIcons.wifi,
     ContactContent() => ScannerIcons.contact,
     EventContent() => ScannerIcons.event,
     EmailContent() => ScannerIcons.email,
-    PhoneContent() => ScannerIcons.phone,
+    PhoneContent(type: CallType.voice) => ScannerIcons.phone,
+    PhoneContent() => ScannerIcons.faceTime,
     SmsContent() => ScannerIcons.sms,
     GeoContent() => ScannerIcons.location,
-    // Until the icons of these kinds are drawn: the nearest existing ones.
-    OtpContent() => ScannerIcons.check,
-    EsimContent() => ScannerIcons.phone,
-    CryptoContent() => ScannerIcons.link,
-    WifiDppContent() || SmartHomeContent() => ScannerIcons.wifi,
-    BoardingPassContent() => ScannerIcons.qrCode,
-    DriverLicenseContent() => ScannerIcons.contact,
-    VinContent() || ProductContent() => ScannerIcons.barcode,
+    OtpContent() => ScannerIcons.otp,
+    EsimContent() => ScannerIcons.esim,
+    CryptoContent() => ScannerIcons.crypto,
+    WifiDppContent() => ScannerIcons.wifiDevice,
+    SmartHomeContent() => ScannerIcons.smartHome,
+    BoardingPassContent() => ScannerIcons.boardingPass,
+    DriverLicenseContent() => ScannerIcons.driverLicense,
+    VinContent() => ScannerIcons.vehicle,
+    ProductContent(isbn13: null, issn: null) => ScannerIcons.barcode,
+    ProductContent() => ScannerIcons.book,
     Gs1Content() => ScannerIcons.parcel,
     BinaryContent() => ScannerIcons.binary,
     TextContent() => ScannerIcons.text,
@@ -219,7 +285,21 @@ class BarcodeResultSheet extends StatelessWidget {
 
 /// Title, details and payload of a result.
 final class _Summary {
-  const _Summary(this.title, {this.detail, this.payload, this.titleLines = 2});
+  const _Summary(
+    this.title, {
+    this.detail,
+    this.payload,
+    this.titleLines = 2,
+    this.kindDetail,
+    this.display,
+    this.code,
+    this.largeCode = true,
+    this.fields = const <String, String>{},
+    this.fieldColumns = 3,
+    this.secret,
+    this.chips = const <String>[],
+    this.warning,
+  });
 
   factory _Summary.of(
     Barcode barcode,
@@ -229,6 +309,15 @@ final class _Summary {
     final String text = barcode.text;
     String? raw(String shown) => text.trim() == shown.trim() ? null : text;
     switch (content) {
+      case UrlContent(:final Uri url, :final LinkService service):
+        return _Summary(
+          _serviceTarget(url, service),
+          detail: service == LinkService.whatsApp
+              ? url.queryParameters['text']
+              : null,
+          // The address without its query: a message is the detail above.
+          payload: '${url.host.replaceFirst(RegExp(r'^www\.'), '')}${url.path}',
+        );
       case UrlContent(:final Uri url, :final String? title):
         final String host = url.host.isEmpty ? url.toString() : url.host;
         return _Summary(
@@ -293,81 +382,144 @@ final class _Summary {
           detail: query,
           payload: text,
         );
-      case OtpContent(:final String account, :final String? issuer):
-        // Never the secret: the payload holds it.
+      case final OtpContent otp:
+        // Never the secret in the title or the payload: the code holds it.
         return _Summary(
-          issuer ?? account,
-          detail: issuer == null ? null : account,
+          otp.issuer ?? otp.account,
+          detail: otp.issuer == null ? null : otp.account,
+          fields: <String, String>{
+            strings.otpType: otp.type == OtpType.totp
+                ? strings.otpTimeBased
+                : strings.otpCounterBased,
+            strings.otpDigits: '${otp.digits}',
+            if (otp.type == OtpType.totp)
+              strings.otpPeriod: strings.seconds(otp.period)
+            else
+              strings.otpCounter: '${otp.counter}',
+          },
+          secret: otp.secret,
         );
-      case EsimContent(:final String smdpAddress, :final String? matchingId):
-        return _Summary(smdpAddress, detail: matchingId);
-      case CryptoContent(
-        :final CryptoCurrency currency,
-        :final String address,
-        :final String? amount,
-        :final String? label,
-      ):
+      case final EsimContent esim:
         return _Summary(
-          amount != null
-              ? '$amount ${currency.symbol}'
-              : label ?? currency.symbol,
-          detail: <String>[?label, address].join(' · '),
+          esim.smdpAddress,
+          fields: <String, String>{
+            if (esim.matchingId case final String id) strings.matchingId: id,
+            if (esim.confirmationCodeRequired)
+              strings.confirmationCode: strings.needed,
+          },
+          fieldColumns: 2,
         );
-      case WifiDppContent(
-        :final String? information,
-        :final String? macAddress,
-      ):
+      case final CryptoContent crypto:
+        final String? amount = crypto.amount;
+        final String currency = _currencyName(crypto.currency);
         return _Summary(
-          information ?? macAddress ?? strings.wifiDevice,
-          detail: information != null ? macAddress : null,
+          crypto.label ?? currency,
+          kindDetail: currency,
+          display: amount == null
+              ? null
+              : crypto.currency == CryptoCurrency.ethereum
+              ? '$amount wei'
+              : '$amount ${crypto.currency.symbol}',
+          detail: crypto.message,
+          payload: crypto.address,
         );
-      case SmartHomeContent(
-        :final SmartHomePlatform platform,
-        :final String setupCode,
-      ):
+      case final WifiDppContent dpp:
         return _Summary(
-          setupCode,
-          detail: platform == SmartHomePlatform.matter ? 'Matter' : 'HomeKit',
+          dpp.information ?? dpp.macAddress ?? strings.wifiDevice,
+          fields: <String, String>{
+            if (dpp.macAddress case final String mac)
+              strings.macAddress: _mac(mac),
+            if (dpp.channels case final String channels)
+              strings.channels: channels,
+          },
+          fieldColumns: 2,
         );
-      case BoardingPassContent(
-        :final String passengerName,
-        :final List<BoardingPassLeg> legs,
-      ):
-        final BoardingPassLeg leg = legs.first;
+      case final SmartHomeContent home:
+        final bool matter = home.platform == SmartHomePlatform.matter;
+        return _Summary(
+          strings.setupCode,
+          kindDetail: matter ? 'Matter' : 'HomeKit',
+          code: matter && home.setupCode.length == 8
+              ? '${home.setupCode.substring(0, 4)}-${home.setupCode.substring(4)}'
+              : home.setupCode,
+          fields: <String, String>{
+            if (home.vendorId case final int id) strings.vendorId: _hexId(id),
+            if (home.productId case final int id) strings.productId: _hexId(id),
+            if (home.discriminator case final int d)
+              strings.discriminator: '$d',
+            if (home.category case final int c) strings.category: '$c',
+            if (home.setupId case final String id) strings.setupId: id,
+          },
+        );
+      case final BoardingPassContent pass:
+        final BoardingPassLeg leg = pass.legs.first;
+        final DateTime? day = leg.dateIn(DateTime.now().year);
         return _Summary(
           '${leg.from} → ${leg.to}',
-          detail: <String>[
-            '${leg.carrier} ${leg.flightNumber}',
-            passengerName,
-            if (leg.seat.isNotEmpty) leg.seat,
-          ].join(' · '),
+          kindDetail: '${leg.carrier} ${leg.flightNumber}',
+          fields: <String, String>{
+            strings.passenger: pass.passengerName,
+            if (day != null) strings.date: strings.dayAndMonth(day),
+            if (leg.seat.isNotEmpty) strings.seat: leg.seat,
+            if (leg.cabin.isNotEmpty) strings.cabin: leg.cabin,
+            strings.booking: leg.bookingReference,
+            if (leg.sequenceNumber.isNotEmpty)
+              strings.sequence: leg.sequenceNumber,
+          },
+          chips: <String>[
+            if (pass.legs.length > 1) strings.flightOf(1, pass.legs.length),
+          ],
         );
-      case DriverLicenseContent(
-        :final String? firstName,
-        :final String? lastName,
-        :final String? state,
-        :final String? licenseNumber,
-      ):
+      case final DriverLicenseContent id:
+        final DateTime? expiry = id.expiryDate;
         return _Summary(
-          <String>[?firstName, ?lastName].join(' '),
-          detail: <String>[?state, ?licenseNumber].join(' · '),
+          <String>[?id.firstName, ?id.middleName, ?id.lastName].join(' '),
+          kindDetail: id.state,
+          fields: <String, String>{
+            if (id.licenseNumber case final String n) strings.licenseNumber: n,
+            if (id.dateOfBirth case final DateTime d)
+              strings.born: strings.fullDate(d),
+            if (expiry != null) strings.expires: strings.fullDate(expiry),
+            if (id.city case final String c) strings.city: c,
+            if (id.state case final String s) strings.state: s,
+            if (id.country case final String c) strings.country: c,
+          },
+          warning: expiry != null && expiry.isBefore(DateTime.now())
+              ? strings.expired
+              : null,
         );
-      case VinContent(:final String vin):
-        final int? year = content.hasValidCheckDigit ? content.modelYear : null;
-        return _Summary(vin, detail: year?.toString());
-      case ProductContent(
-        :final String gtin,
-        :final String? isbn13,
-        :final String? issn,
-        :final String? addOn,
-      ):
+      case final VinContent vin:
+        final bool checked = vin.hasValidCheckDigit;
         return _Summary(
-          isbn13 != null
-              ? 'ISBN $isbn13'
+          strings.vinRegion(vin.region),
+          kindDetail: 'VIN',
+          code: vin.vin,
+          largeCode: false,
+          fields: <String, String>{
+            strings.makerCode: vin.wmi,
+            if (checked && vin.modelYear != null)
+              strings.modelYear: '${vin.modelYear}',
+            if (checked) strings.checkDigit: strings.valid,
+          },
+        );
+      case final ProductContent product:
+        final String? isbn = product.isbn13;
+        final String? issn = product.issn;
+        return _Summary(
+          isbn != null
+              ? 'ISBN $isbn'
               : issn != null
               ? 'ISSN $issn'
-              : gtin,
-          detail: addOn,
+              : product.gtin,
+          fields: <String, String>{
+            if (product.isbn10 case final String isbn10) 'ISBN-10': isbn10,
+            if (isbn != null || issn != null) strings.gtin: product.gtin,
+            if (product.addOn case final String addOn) strings.addOn: addOn,
+          },
+          fieldColumns: 2,
+          chips: <String>[
+            if (isbn != null) 'ISBN' else if (issn != null) 'ISSN',
+          ],
         );
       case Gs1Content(:final Map<String, String> elements):
         return _Summary(elements['01'] ?? elements.values.firstOrNull ?? text);
@@ -393,6 +545,30 @@ final class _Summary {
   final String? detail;
   final String? payload;
 
+  /// After the kind above the title: "BOARDING PASS · LX 423".
+  final String? kindDetail;
+
+  /// A large number below the title, such as an amount.
+  final String? display;
+
+  /// A code a person types, in large monospace: a setup code, a VIN.
+  final String? code;
+  final bool largeCode;
+
+  /// Labelled values in a grid.
+  final Map<String, String> fields;
+  final int fieldColumns;
+
+  /// A value shown only on request, and never copied by default: an OTP
+  /// secret.
+  final String? secret;
+
+  /// More chips after the symbology ("ISBN", "Flight 1 of 2").
+  final List<String> chips;
+
+  /// A chip in the signal color ("Expired").
+  final String? warning;
+
   /// How many lines the title may take before an ellipsis.
   final int titleLines;
 
@@ -408,11 +584,162 @@ final class _Summary {
   static bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
+  static String _currencyName(CryptoCurrency currency) => switch (currency) {
+    CryptoCurrency.bitcoin => 'Bitcoin',
+    CryptoCurrency.ethereum => 'Ethereum',
+    CryptoCurrency.litecoin => 'Litecoin',
+    CryptoCurrency.lightning => 'Lightning',
+  };
+
+  /// `0xFFF1`.
+  static String _hexId(int id) => '0x${id.toRadixString(16).toUpperCase()}';
+
+  /// `5254005828e5` → `52:54:00:58:28:e5`.
+  static String _mac(String mac) => RegExp(r'^[0-9a-fA-F]{12}$').hasMatch(mac)
+      ? <String>[
+          for (int i = 0; i < 12; i += 2) mac.substring(i, i + 2),
+        ].join(':')
+      : mac;
+
+  /// Who or what a link to a service leads to: `+374 91 234567` becomes
+  /// `+37491234567`, an Instagram profile `@name`, a map its search.
+  static String _serviceTarget(Uri url, LinkService service) {
+    final List<String> path = url.pathSegments
+        .where((String p) => p.isNotEmpty)
+        .toList();
+    String? at(int i) => i < path.length ? path[i] : null;
+    String handle(String? name) => name == null
+        ? url.host
+        : name.startsWith('@')
+        ? name
+        : '@$name';
+    return switch (service) {
+      LinkService.whatsApp => at(0) == null ? url.host : '+${at(0)}',
+      LinkService.signal =>
+        url.fragment.startsWith('p/') ? url.fragment.substring(2) : url.host,
+      LinkService.linkedIn || LinkService.snapchat => handle(at(1) ?? at(0)),
+      LinkService.reddit =>
+        at(0) == 'r' && at(1) != null ? 'r/${at(1)}' : handle(at(1) ?? at(0)),
+      LinkService.discord => at(0) ?? url.host,
+      LinkService.googleMaps ||
+      LinkService.appleMaps ||
+      LinkService.yandexMaps =>
+        url.queryParameters['query'] ??
+            url.queryParameters['q'] ??
+            url.queryParameters['text'] ??
+            url.host,
+      LinkService.appStore ||
+      LinkService.googlePlay ||
+      LinkService.spotify ||
+      LinkService.appleMusic ||
+      LinkService.googleReview => url.host.replaceFirst('www.', ''),
+      _ => handle(at(0)),
+    };
+  }
+
   static String _hex(Uint8List bytes) {
     final Iterable<String> shown = bytes
         .take(24)
         .map((int b) => b.toRadixString(16).padLeft(2, '0'));
     return '${shown.join(' ')}${bytes.length > 24 ? ' …' : ''}';
+  }
+}
+
+/// A secret behind dots, shown on request: an OTP key.
+class _SecretField extends StatefulWidget {
+  const _SecretField(this.secret, {required this.strings});
+
+  final String secret;
+  final ScannerStrings strings;
+
+  @override
+  State<_SecretField> createState() => _SecretFieldState();
+}
+
+class _SecretFieldState extends State<_SecretField> {
+  bool _shown = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final ScannerTheme theme = ScannerTheme.of(context);
+    final ScannerStrings strings = widget.strings;
+    // Groups of four, as authenticator apps print keys.
+    final String grouped = <String>[
+      for (int i = 0; i < widget.secret.length; i += 4)
+        widget.secret.substring(i, math.min(i + 4, widget.secret.length)),
+    ].join(' ');
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: theme.lineColor),
+          borderRadius: const BorderRadius.all(Radius.circular(16)),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    strings.secret.toUpperCase(),
+                    style: theme.overlineStyle,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _shown ? grouped : '•••• •••• •••• ••••',
+                    style: theme.dataStyle.copyWith(
+                      color: _shown ? theme.inkColor : theme.inkMutedColor,
+                      letterSpacing: _shown ? 0.6 : 2.7,
+                    ),
+                    // The dots on one line, whatever the font's width.
+                    maxLines: _shown ? null : 1,
+                    softWrap: _shown,
+                    overflow: _shown ? null : TextOverflow.clip,
+                  ),
+                ],
+              ),
+            ),
+            Semantics(
+              button: true,
+              child: Pressable(
+                onPressed: () => setState(() => _shown = !_shown),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 44),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        ScannerIcon(
+                          _shown ? ScannerIcons.hide : ScannerIcons.show,
+                          size: 20,
+                          color: theme.lockInkColor,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _shown ? strings.hide : strings.show,
+                          style: theme.hintStyle.copyWith(
+                            color: theme.lockInkColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

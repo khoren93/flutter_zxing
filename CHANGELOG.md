@@ -35,6 +35,15 @@
   digit) and `ProductContent` (EAN/UPC with ISBN-13, ISBN-10 and ISSN).
   FaceTime links are `PhoneContent` with `type: CallType.faceTime`. See
   [doc/content-types.md](doc/content-types.md).
+* **Result sheets of the new kinds:** `BarcodeResultSheet` shows each
+  kind's fields (a boarding pass's seat and booking, a license's dates, a
+  setup code in large type, an amount), an "Expired" chip on a license past
+  its date (`ScannerChip(warning: true)`), and an OTP secret only behind
+  "Show"; a code with a secret gets no copy button by default. New
+  `ScannerIcons` for every kind and neutral signs for services (messenger,
+  profile, video, music, apps, review; never a brand's logo), and
+  `BarcodeResultSheet.serviceIconOf`. `ScannerStrings` has the new labels,
+  dates and region names to translate.
 * **Breaking:** EAN/UPC barcodes are now `ProductContent` instead of
   `TextContent`; `BarcodeContent` has more subclasses, so an exhaustive
   `switch` needs their cases or a `default`.

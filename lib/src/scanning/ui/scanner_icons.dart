@@ -176,6 +176,121 @@ abstract final class ScannerIcons {
     stroke: 'M6 4h3v7H6zM15 4v7M6 13v7M15 13h3v7h-3z',
   );
 
+  /// A key: a one-time password.
+  static const ScannerIconData otp = ScannerIconData(
+    stroke: 'M4 15a4 4 0 1 0 8 0a4 4 0 1 0-8 0zM11 12l9-9M16 7l3 3M14 9l2 2',
+  );
+
+  /// A SIM card: an eSIM.
+  static const ScannerIconData esim = ScannerIconData(
+    stroke:
+        'M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM10 11h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z',
+  );
+
+  /// A coin: a cryptocurrency payment.
+  static const ScannerIconData crypto = ScannerIconData(
+    stroke:
+        'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0zM9.5 7.5h4a2.25 2.25 0 0 1 0 4.5h-4zM9.5 12h4.5a2.25 2.25 0 0 1 0 4.5H9.5zM9.5 7.5v9M11 6v1.5M11 16.5V18',
+  );
+
+  /// A router: a Wi‑Fi device to add.
+  static const ScannerIconData wifiDevice = ScannerIconData(
+    stroke:
+        'M5 13h14a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-14a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2zM15 13V9.5M12 8Q15 5.5 18 8M9.5 5.5Q15 1 20.5 5.5',
+    fill:
+        'M6.2 16.5a0.8 0.8 0 1 0 1.6 0a0.8 0.8 0 1 0-1.6 0zM9.7 16.5a0.8 0.8 0 1 0 1.6 0a0.8 0.8 0 1 0-1.6 0z',
+  );
+
+  /// A house: a smart home device.
+  static const ScannerIconData smartHome = ScannerIconData(
+    stroke: 'M3 11l9-7 9 7M5 9.5V20h14V9.5M10 20v-5h4v5',
+  );
+
+  /// An airplane: a boarding pass.
+  static const ScannerIconData boardingPass = ScannerIconData(
+    stroke:
+        'M3 13.5l7-2.5V5a2 2 0 0 1 4 0v6l7 2.5V16l-7-1.5v4l2 1.5v1.5L12 20.5 8 21.5V20l2-1.5v-4L3 16z',
+  );
+
+  /// An ID card: a driver's license.
+  static const ScannerIconData driverLicense = ScannerIconData(
+    stroke:
+        'M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-14a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2zM7 11a2 2 0 1 0 4 0a2 2 0 1 0-4 0zM5.5 16c0.7-1.4 1.9-2 3.5-2c1.6 0 2.8 0.6 3.5 2M14.5 10h4M14.5 13h3',
+  );
+
+  /// A car: a vehicle identification number.
+  static const ScannerIconData vehicle = ScannerIconData(
+    stroke:
+        'M4 16v-4l2.2-5A2 2 0 0 1 8 6h8a2 2 0 0 1 1.8 1L20 12v4M3 16h18v2a1 1 0 0 1-1 1h-2v-3M6 19H4a1 1 0 0 1-1-1M4 12h16',
+    fill:
+        'M6.7 15a0.8 0.8 0 1 0 1.6 0a0.8 0.8 0 1 0-1.6 0zM15.7 15a0.8 0.8 0 1 0 1.6 0a0.8 0.8 0 1 0-1.6 0z',
+  );
+
+  /// A book: an ISBN or ISSN.
+  static const ScannerIconData book = ScannerIconData(
+    stroke:
+        'M5 5a2 2 0 0 1 2-2h12v15H7a2 2 0 0 0-2 2zM5 20a2 2 0 0 0 2 2h12v-4M9 7h6',
+  );
+
+  /// A video camera: a FaceTime call.
+  static const ScannerIconData faceTime = ScannerIconData(
+    stroke:
+        'M5 7h8a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2zM15 11l6-3v8l-6-3',
+  );
+
+  /// A chat bubble: a link to a messenger.
+  static const ScannerIconData messenger = ScannerIconData(
+    stroke: 'M4 5h16v11H9l-5 4zM8 9.5h8M8 12.5h5',
+  );
+
+  /// A profile: a link to a social network.
+  static const ScannerIconData profile = ScannerIconData(
+    stroke:
+        'M8.5 9a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0zM5 20c1.2-3.5 3.8-5 7-5c3.2 0 5.8 1.5 7 5',
+  );
+
+  /// A player: a link to a video service.
+  static const ScannerIconData video = ScannerIconData(
+    stroke:
+        'M6 5h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-12a3 3 0 0 1-3-3v-8a3 3 0 0 1 3-3zM10 9.5v5l4.5-2.5z',
+  );
+
+  /// A note: a link to a music service.
+  static const ScannerIconData music = ScannerIconData(
+    stroke:
+        'M9 18V5l11-2v13M4 18a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0zM15 16a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0z',
+  );
+
+  /// Four tiles: a link to an app store.
+  static const ScannerIconData apps = ScannerIconData(
+    stroke:
+        'M5.5 4h4a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a1.5 1.5 0 0 1-1.5-1.5v-4a1.5 1.5 0 0 1 1.5-1.5zM14.5 4h4a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a1.5 1.5 0 0 1-1.5-1.5v-4a1.5 1.5 0 0 1 1.5-1.5zM5.5 13h4a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a1.5 1.5 0 0 1-1.5-1.5v-4a1.5 1.5 0 0 1 1.5-1.5zM14.5 13h4a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a1.5 1.5 0 0 1-1.5-1.5v-4a1.5 1.5 0 0 1 1.5-1.5z',
+  );
+
+  /// A star: a link to write a review.
+  static const ScannerIconData review = ScannerIconData(
+    stroke:
+        'M12 3.5l2.6 5.4 5.9 0.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-0.8z',
+  );
+
+  /// An eye: show a hidden value.
+  static const ScannerIconData show = ScannerIconData(
+    stroke:
+        'M2 12c0 0 3.5-7 10-7c6.5 0 10 7 10 7c0 0-3.5 7-10 7C5.5 19 2 12 2 12zM9 12a3 3 0 1 0 6 0a3 3 0 1 0-6 0z',
+  );
+
+  /// An eye, crossed out: hide a value again.
+  static const ScannerIconData hide = ScannerIconData(
+    stroke:
+        'M2 12c0 0 3.5-7 10-7c6.5 0 10 7 10 7c0 0-3.5 7-10 7C5.5 19 2 12 2 12zM9 12a3 3 0 1 0 6 0a3 3 0 1 0-6 0zM4 4l16 16',
+  );
+
+  /// A plus: add.
+  static const ScannerIconData add = ScannerIconData(
+    stroke: 'M12 5v14M5 12h14',
+    strokeWidth: 2,
+  );
+
   /// A camera, crossed out: no camera permission.
   static const ScannerIconData cameraOff = ScannerIconData(
     stroke: '${_camera}M8.5 13a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0zM3 3l18 18',

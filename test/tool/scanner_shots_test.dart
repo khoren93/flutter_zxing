@@ -598,6 +598,98 @@ void main() {
     );
   }, skip: _out == null);
 
+  testWidgets('content kinds', (WidgetTester tester) async {
+    // The result sheets of the kinds added in 4.0 rc.2, as in the designs:
+    // dark glass, the kind's icon next to the title.
+    final Map<String, (String, BarcodeFormat)>
+    kinds = <String, (String, BarcodeFormat)>{
+      'otp': (
+        'otpauth://totp/GitHub:alice@example.com?secret=JBSWY3DPEHPK3PXP&issuer=GitHub',
+        BarcodeFormat.qrCode,
+      ),
+      'esim': (
+        r'LPA:1$rsp.lumen-mobile.example$QRF-8H2K-PMRD$$1',
+        BarcodeFormat.qrCode,
+      ),
+      'crypto': (
+        'bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?amount=0.0015&label=Caf%C3%A9%20Lumen&message=Order%20%2312',
+        BarcodeFormat.qrCode,
+      ),
+      'service': (
+        'https://wa.me/37491234567?text=Hi%2C%20is%20the%20table%20for%20two%20free%20tonight%3F',
+        BarcodeFormat.qrCode,
+      ),
+      'smart-home': ('MT:Y.K9042C00KA0648G00', BarcodeFormat.qrCode),
+      'product': ('9780306406157', BarcodeFormat.ean13),
+      'boarding': (
+        <String>[
+          'M2ZXING/FLUTTER       EE7QK3TPZRHAMSLX 0423 318Y012C0034 100',
+          'E7QK3TPAMSGVALX 0731 318Y004A0035 100',
+        ].join(),
+        BarcodeFormat.pdf417,
+      ),
+      'license': (
+        '@\n\x1e\rANSI 636014080102DL00410288ZC03290015DLDAQD1234562\n'
+            'DCSPUBLIC\nDACJOHN\nDADQUINCY\nDBB08311977\nDBA08312020\n'
+            'DAIANYTOWN\nDAJCA\nDCGUSA\r',
+        BarcodeFormat.pdf417,
+      ),
+      'vin': ('1M8GDM9AXKP042788', BarcodeFormat.code39),
+      'wifi-device': (
+        'DPP:C:81/1,115/36;M:5254005828e5;I:SN4321;K:MDkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDIgADM2206avxHJaHXgLMkq/24e0rsrfMP9K1Tm8gx+ovP0I=;;',
+        BarcodeFormat.qrCode,
+      ),
+    };
+    tester.view
+      ..physicalSize = _phone * 2
+      ..devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    for (final MapEntry<String, (String, BarcodeFormat)> kind
+        in kinds.entries) {
+      final Barcode barcode = _code(
+        kind.value.$2,
+        kind.value.$1,
+        const BarcodePosition(
+          topLeft: Offset(100, 100),
+          topRight: Offset(200, 100),
+          bottomRight: Offset(200, 200),
+          bottomLeft: Offset(100, 200),
+        ),
+        '',
+      );
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: _boundary,
+          child: MediaQuery(
+            data: const MediaQueryData(
+              size: _phone,
+              padding: EdgeInsets.only(top: 47, bottom: 34),
+            ),
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: ScannerScope(
+                theme: const ScannerTheme(brightness: Brightness.dark),
+                child: ColoredBox(
+                  color: const Color(0xFF232A33),
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: BarcodeResultSheet(
+                      barcode,
+                      showIcon: true,
+                      onScanAgain: () {},
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await _save(tester, 'kind-${kind.key}');
+    }
+  }, skip: _out == null);
+
   testWidgets('states', (WidgetTester tester) async {
     await shot(
       tester,
