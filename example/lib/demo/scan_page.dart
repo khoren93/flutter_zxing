@@ -1,6 +1,7 @@
 // The Scan tab: a scanner template picked from a menu, every read code kept
 // in the history, and the decoder's numbers for developers.
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 // material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
@@ -15,22 +16,108 @@ import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
 
 import 'content.dart';
 import 'cpu_usage_stub.dart' if (dart.library.ffi) 'cpu_usage.dart';
+import 'field_demo_page.dart';
 import 'history.dart';
 import 'lens_numbers.dart';
 import 'tokens.dart';
 
-/// The templates of the picker.
-enum DemoTemplate {
-  minimal('Minimal', 'Any code, one at a time', Icons.crop_free_rounded),
-  payment('Payments', 'Pay, receipts', Icons.credit_card_rounded),
-  retail('Retail', 'Many barcodes, counted', Icons.view_week_outlined),
-  ticket('Tickets', 'Boarding passes, IDs', Icons.confirmation_number_outlined),
-  content('Content', 'Wi‑Fi, contacts, links', Icons.wifi_rounded);
+/// The groups of the template picker.
+enum TemplateGroup {
+  everyday('Everyday'),
+  shopping('Shopping and payments'),
+  work('Work');
 
-  const DemoTemplate(this.label, this.note, this.icon);
+  const TemplateGroup(this.label);
 
   final String label;
-  final String note;
+}
+
+/// The templates of the picker: every preset of [ScannerTemplate].
+enum DemoTemplate {
+  minimal(
+    'Minimal',
+    'minimal()',
+    TemplateGroup.everyday,
+    Icons.crop_free_rounded,
+  ),
+  content('Content', 'content()', TemplateGroup.everyday, Icons.wifi_rounded),
+  signIn('Sign in', 'signIn()', TemplateGroup.everyday, Icons.login_rounded),
+  small(
+    'Small codes',
+    'small()',
+    TemplateGroup.everyday,
+    Icons.zoom_in_rounded,
+  ),
+  pick(
+    'Pick from many',
+    'pick()',
+    TemplateGroup.everyday,
+    Icons.touch_app_outlined,
+  ),
+  fullscreen(
+    'Fullscreen',
+    'fullscreen()',
+    TemplateGroup.everyday,
+    Icons.fullscreen_rounded,
+  ),
+  payment(
+    'Payments',
+    'payment()',
+    TemplateGroup.shopping,
+    Icons.credit_card_rounded,
+  ),
+  product(
+    'Product, book',
+    'product()',
+    TemplateGroup.shopping,
+    Icons.menu_book_outlined,
+  ),
+  retail(
+    'Retail',
+    'retail()',
+    TemplateGroup.shopping,
+    Icons.view_week_outlined,
+  ),
+  loyalty(
+    'Loyalty card',
+    'loyalty()',
+    TemplateGroup.shopping,
+    Icons.loyalty_outlined,
+  ),
+  logistics(
+    'Logistics',
+    'logistics()',
+    TemplateGroup.work,
+    Icons.inventory_2_outlined,
+  ),
+  pharma('Pharma', 'pharma()', TemplateGroup.work, Icons.medication_outlined),
+  vin(
+    'Vehicle VIN',
+    'vin()',
+    TemplateGroup.work,
+    Icons.directions_car_outlined,
+  ),
+  checkIn(
+    'Event check-in',
+    'checkIn()',
+    TemplateGroup.work,
+    Icons.how_to_reg_outlined,
+  ),
+  kiosk('Kiosk', 'kiosk()', TemplateGroup.work, Icons.desktop_windows_outlined),
+  ticket(
+    'Tickets, IDs',
+    'ticket()',
+    TemplateGroup.work,
+    Icons.confirmation_number_outlined,
+  );
+
+  const DemoTemplate(this.label, this.api, this.group, this.icon);
+
+  final String label;
+
+  /// The preset's constructor.
+  final String api;
+  final TemplateGroup group;
   final IconData icon;
 }
 
@@ -73,6 +160,7 @@ class _ScanPageState extends State<ScanPage> {
 
   void _pick(DemoTemplate t) {
     setState(() {
+      _checkedIn.clear();
       _picked = t;
       _template = _build(t);
       _menu = false;
@@ -86,29 +174,89 @@ class _ScanPageState extends State<ScanPage> {
       closeButton: false,
       actionsBuilder: _actions,
     ),
+    DemoTemplate.content => ScannerTemplate.content(
+      closeButton: false,
+      actionsBuilder: _actions,
+    ),
+    DemoTemplate.signIn => const ScannerTemplate.signIn(closeButton: false),
+    DemoTemplate.small => ScannerTemplate.small(
+      closeButton: false,
+      actionsBuilder: _actions,
+    ),
+    DemoTemplate.pick => ScannerTemplate.pick(
+      closeButton: false,
+      actionsBuilder: _actions,
+    ),
+    DemoTemplate.fullscreen => ScannerTemplate.fullscreen(
+      closeButton: false,
+      actionsBuilder: _actions,
+    ),
     DemoTemplate.payment => ScannerTemplate.payment(
       closeButton: false,
       title: null, // The picker above names the template.
       actionsBuilder: _actions,
     ),
+    DemoTemplate.product => ScannerTemplate.product(
+      closeButton: false,
+      actionsBuilder: _actions,
+    ),
     DemoTemplate.retail => ScannerTemplate.retail(
       closeButton: false,
-      onDone: (List<CollectedBarcode> items) {
-        for (final CollectedBarcode b in items) {
-          unawaited(HistoryStore.instance.addScan(b.barcode, cutOut: b.cutOut));
-        }
-      },
+      onDone: _saveAll,
     ),
+    DemoTemplate.loyalty => ScannerTemplate.loyalty(
+      closeButton: false,
+      actionsBuilder: _actions,
+    ),
+    DemoTemplate.logistics => ScannerTemplate.logistics(
+      closeButton: false,
+      onDone: _saveAll,
+    ),
+    DemoTemplate.pharma => ScannerTemplate.pharma(
+      closeButton: false,
+      actionsBuilder: _actions,
+    ),
+    DemoTemplate.vin => ScannerTemplate.vin(
+      closeButton: false,
+      actionsBuilder: _actions,
+    ),
+    DemoTemplate.checkIn => ScannerTemplate.checkIn(
+      check: _checkIn,
+      closeButton: false,
+    ),
+    DemoTemplate.kiosk => ScannerTemplate.kiosk(check: _checkIn),
     DemoTemplate.ticket => ScannerTemplate.ticket(
       closeButton: false,
       title: null, // The picker above names the template.
       actionsBuilder: _actions,
     ),
-    DemoTemplate.content => ScannerTemplate.content(
-      closeButton: false,
-      actionsBuilder: _actions,
-    ),
   };
+
+  /// The codes checked in since the template was picked.
+  final Set<String> _checkedIn = <String>{};
+
+  /// The demo's door: any ticket-like code (a text or a link) once; a
+  /// second time it is already in; anything else is no ticket.
+  ScanVerdict _checkIn(Barcode barcode) {
+    final BarcodeContent content = barcode.content;
+    if (content is! TextContent && content is! UrlContent) {
+      return ScanVerdict.reject(
+        title: 'Not a ticket',
+        message: describe(barcode).kind,
+      );
+    }
+    final String title = describe(barcode).title;
+    if (!_checkedIn.add(barcode.text)) {
+      return ScanVerdict.warn(title: title, message: 'Already checked in');
+    }
+    return ScanVerdict.accept(title: title, message: 'Welcome in');
+  }
+
+  void _saveAll(List<CollectedBarcode> items) {
+    for (final CollectedBarcode b in items) {
+      unawaited(HistoryStore.instance.addScan(b.barcode, cutOut: b.cutOut));
+    }
+  }
 
   List<ScannerAction> _actions(
     BuildContext context,
@@ -212,10 +360,25 @@ class _ScanPageState extends State<ScanPage> {
                 ),
               ),
               Positioned(
-                left: 16,
+                left: 8 + top.left,
                 top: top.top + 64,
-                width: 260,
-                child: _Menu(picked: _picked, onPick: _pick),
+                bottom: bottom + 8,
+                width: math.min(440, mq.size.width - 16 - top.horizontal),
+                child: _Menu(
+                  picked: _picked,
+                  onPick: _pick,
+                  onForm: () {
+                    setState(() => _menu = false);
+                    unawaited(
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (BuildContext context) =>
+                              const FieldDemoPage(),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
             ],
             if (_numbers)
@@ -308,82 +471,194 @@ class _Picker extends StatelessWidget {
   );
 }
 
+/// Every template, in groups, two to a row; and the form that scans
+/// into its fields.
 class _Menu extends StatelessWidget {
-  const _Menu({required this.picked, required this.onPick});
+  const _Menu({
+    required this.picked,
+    required this.onPick,
+    required this.onForm,
+  });
 
   final DemoTemplate picked;
   final ValueChanged<DemoTemplate> onPick;
+  final VoidCallback onForm;
 
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
-    return _menu(theme);
-  }
-
-  Widget _menu(ScannerTheme theme) => ScannerGlass(
-    strong: true,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-    padding: const EdgeInsets.all(8),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        for (final DemoTemplate t in DemoTemplate.values)
-          Material(
-            type: MaterialType.transparency,
-            child: InkWell(
+    Widget label(String text) => Padding(
+      padding: const EdgeInsets.fromLTRB(8, 12, 8, 6),
+      child: Text(
+        text.toUpperCase(),
+        style: TextStyle(
+          fontSize: 12,
+          letterSpacing: 0.5,
+          fontWeight: FontWeight.w600,
+          color: theme.inkMutedColor,
+        ),
+      ),
+    );
+    Widget row({
+      required IconData icon,
+      required String title,
+      required String api,
+      required bool selected,
+      required VoidCallback onTap,
+      bool trailing = false,
+    }) => Semantics(
+      button: true,
+      selected: selected,
+      label: title,
+      excludeSemantics: true,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Ink(
+            decoration: BoxDecoration(
+              color: selected ? const Color(0x2E2EE6B5) : null,
               borderRadius: BorderRadius.circular(16),
-              onTap: () => onPick(t),
-              child: Ink(
-                decoration: BoxDecoration(
-                  color: t == picked ? const Color(0x2E2EE6B5) : null,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(7),
+              child: Row(
+                children: <Widget>[
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? Fz.lock
+                          : theme.inkMutedColor.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(
+                      icon,
+                      size: 20,
+                      color: selected ? Fz.onLock : theme.inkColor,
+                    ),
                   ),
-                  child: Row(
-                    children: <Widget>[
-                      Icon(t.icon, size: 22, color: theme.inkColor),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              t.label,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: theme.inkColor,
-                              ),
-                            ),
-                            Text(
-                              t.note,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: theme.inkMutedColor,
-                              ),
-                            ),
-                          ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: theme.inkColor,
+                          ),
                         ),
-                      ),
-                      if (t == picked)
-                        Icon(
-                          Icons.check_rounded,
-                          size: 20,
-                          color: theme.lockInkColor,
+                        Text(
+                          api,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                            color: theme.inkMutedColor,
+                          ),
                         ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                  if (trailing)
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: theme.inkMutedColor,
+                    ),
+                ],
               ),
             ),
           ),
-      ],
-    ),
-  );
+        ),
+      ),
+    );
+
+    return ScannerGlass(
+      strong: true,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+      padding: EdgeInsets.zero,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              'Templates',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: theme.inkColor,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              '${DemoTemplate.values.length} presets of ScannerTemplate',
+              style: TextStyle(fontSize: 13, color: theme.inkMutedColor),
+            ),
+          ),
+          for (final TemplateGroup g in TemplateGroup.values) ...<Widget>[
+            label(g.label),
+            LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints c) {
+                final List<DemoTemplate> items = <DemoTemplate>[
+                  for (final DemoTemplate t in DemoTemplate.values)
+                    if (t.group == g) t,
+                ];
+                final double w = (c.maxWidth - 4) / 2;
+                return Wrap(
+                  spacing: 4,
+                  runSpacing: 2,
+                  children: <Widget>[
+                    for (final DemoTemplate t in items)
+                      SizedBox(
+                        width: w,
+                        child: row(
+                          icon: t.icon,
+                          title: t.label,
+                          api: t.api,
+                          selected: t == picked,
+                          onTap: () => onPick(t),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ],
+          const SizedBox(height: 12),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: theme.inkMutedColor.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(3),
+              child: row(
+                icon: Icons.input_rounded,
+                title: 'Scan into a form',
+                api: 'ScanFieldButton',
+                selected: false,
+                onTap: onForm,
+                trailing: true,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// The decoder's numbers over the camera: decode time, frame rate, drops,

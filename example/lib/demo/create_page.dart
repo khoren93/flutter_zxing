@@ -14,6 +14,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'content.dart';
 import 'history.dart';
+import 'kinds.dart';
 import 'style_editor.dart';
 import 'tokens.dart';
 
@@ -52,9 +53,20 @@ class CreatePage extends StatefulWidget {
 
 class _CreatePageState extends State<CreatePage> {
   CreateKind _kind = CreateKind.wifi;
+  LinkService _service = LinkService.whatsApp;
+
+  /// The form's fields, by kind and key: each kind keeps what was typed.
   final Map<String, TextEditingController> _fields =
       <String, TextEditingController>{};
-  WifiSecurity _security = WifiSecurity.wpa;
+
+  /// The kinds' choices, by kind and key.
+  final Map<String, String> _choices = <String, String>{};
+
+  /// Whether the service chips show all services, not the first few.
+  bool _allServices = false;
+
+  /// The groups open in the wide layout's rail.
+  final Set<KindGroup> _openGroups = <KindGroup>{KindGroup.basics};
   BarcodeFormat _format = BarcodeFormat.qrCode;
 
   /// The value of a format that holds a short or restricted value (EAN-13,
@@ -77,7 +89,6 @@ class _CreatePageState extends State<CreatePage> {
   @override
   void initState() {
     super.initState();
-    _fillDefaults();
     createWithText.addListener(_onTextFromElsewhere);
     _onTextFromElsewhere();
     _scheduleCheck();
@@ -107,14 +118,34 @@ class _CreatePageState extends State<CreatePage> {
     _scheduleCheck();
   }
 
-  void _fillDefaults() {
-    for (final (String key, String _, String example) in _kind.fields) {
-      _fields.putIfAbsent(key, () {
-        final TextEditingController c = TextEditingController(text: example);
+  /// The form of the kind in use: a service link asks for what its service
+  /// takes.
+  List<KindField> get _formFields => _kind == CreateKind.service
+      ? <KindField>[
+          serviceField(_service),
+          if (_service == LinkService.whatsApp) whatsAppMessage,
+        ]
+      : _kind.fields;
+
+  String _fieldId(KindField f) =>
+      _kind == CreateKind.service && f.key == 'value'
+      ? 'service/${_service.name}/value'
+      : '${_kind.name}/${f.key}';
+
+  /// The field's controller, made with the field's example the first time.
+  TextEditingController _controller(KindField f) =>
+      _fields.putIfAbsent(_fieldId(f), () {
+        final TextEditingController c = TextEditingController(text: f.example);
         c.addListener(_onEdit);
         return c;
       });
-    }
+
+  String _choice(KindChoice c) =>
+      _choices['${_kind.name}/${c.key}'] ?? c.options.first.$1;
+
+  void _setChoice(KindChoice c, String value) {
+    setState(() => _choices['${_kind.name}/${c.key}'] = value);
+    _scheduleCheck();
   }
 
   void _onEdit() {
@@ -122,9 +153,57 @@ class _CreatePageState extends State<CreatePage> {
     _scheduleCheck();
   }
 
+  void _pickKind(CreateKind kind, {LinkService? service}) {
+    final CreateKind before = _kind;
+    setState(() {
+      _kind = kind;
+      _service = service ?? _service;
+      _raw = null;
+      _openGroups.add(kind.group);
+      // GS1 data goes in a Data Matrix; back to QR when leaving it.
+      if (kind.format != before.format || !_anyText) {
+        _format = kind.format;
+      }
+      // The error correction a standard asks for, and back to auto after.
+      if (kind.errorCorrection != null) {
+        _ecc = kind.errorCorrection;
+      } else if (before.errorCorrection != null) {
+        _ecc = null;
+      }
+      // The Swiss cross belongs to a QR-bill, and only to it.
+      if (kind == CreateKind.swiss) {
+        _style = BarcodeStyle.swissQrBill;
+        _preset = null;
+      } else if (identical(_style, BarcodeStyle.swissQrBill)) {
+        _style = BarcodeStyle.lagoon;
+        _preset = 'lagoon';
+      }
+    });
+    _scheduleCheck();
+  }
+
+  /// Opens the sheet with every kind (phone layout).
+  Future<void> _openKinds() async {
+    final (CreateKind, LinkService?)? picked =
+        await showModalBottomSheet<(CreateKind, LinkService?)>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          showDragHandle: true,
+          builder: (BuildContext context) =>
+              _KindSheet(kind: _kind, service: _service),
+        );
+    if (picked != null && mounted) {
+      _pickKind(picked.$1, service: picked.$2);
+    }
+  }
+
   /// Whether the format takes the kinds' forms (links, Wi-Fi, contacts):
   /// otherwise one field with the format's own value.
   bool get _anyText => _format.input!.anyText;
+
+  /// Whether the code is written as GS1 (FNC1 first).
+  bool get _gs1 => _anyText && _raw == null && _kind.gs1Flag;
 
   /// The code is square, or 1.4 by 0.7 (linear, PDF417 and rMQR).
   bool get _square =>
@@ -146,20 +225,86 @@ class _CreatePageState extends State<CreatePage> {
     _scheduleCheck();
   }
 
-  /// What the kind's form describes; the library builds its text.
-  BarcodeContent get _content => _kind.content(<String, String>{
-    for (final MapEntry<String, TextEditingController> e in _fields.entries)
-      e.key: e.value.text,
-  }, security: _security);
+  /// What the kind's form describes, or why it cannot: the library builds
+  /// the text and finds the problems (`validate`).
+  (BarcodeContent?, List<FieldProblem>) get _built {
+    final Map<String, String> values = <String, String>{
+      for (final KindField f in _formFields) f.key: _controller(f).text,
+    };
+    final Map<String, String> choices = <String, String>{
+      for (final KindChoice c in _kind.choices) c.key: _choice(c),
+    };
+    try {
+      final BarcodeContent content = _kind.content(
+        values,
+        choices,
+        linkService: _service,
+      );
+      return (
+        content,
+        <FieldProblem>[
+          for (final ContentIssue i in content.validate())
+            FieldProblem(i.field, i.message),
+        ],
+      );
+    } on FieldProblem catch (p) {
+      return (null, <FieldProblem>[p]);
+    }
+  }
 
-  /// Why the form cannot be encoded yet (`BarcodeContent.validate`).
-  String? get _issue => !_anyText || _raw != null
-      ? null
-      : _content.validate().firstOrNull?.message;
+  /// What is wrong with the form; empty when it builds.
+  List<FieldProblem> get _problems =>
+      !_anyText || _raw != null ? const <FieldProblem>[] : _built.$2;
 
-  String get _data => !_anyText
-      ? _value.text
-      : _raw ?? (_issue == null ? _content.toPayload() : '');
+  /// The field a problem belongs to: its own, or the first of its group
+  /// (`creditor` → `creditor.name`); `null` for the form as a whole.
+  String? _fieldOf(FieldProblem p) {
+    for (final KindField f in _formFields) {
+      if (f.key == p.field || f.key.startsWith('${p.field}.')) {
+        return f.key;
+      }
+    }
+    return null;
+  }
+
+  String get _data {
+    if (!_anyText) {
+      return _value.text;
+    }
+    if (_raw != null) {
+      return _raw!;
+    }
+    final (BarcodeContent? content, List<FieldProblem> problems) = _built;
+    return content == null || problems.isNotEmpty ? '' : content.toPayload();
+  }
+
+  /// The Dart that builds the form's content, for "Copy as Dart".
+  String? get _contentDart {
+    if (!_anyText || _raw != null) {
+      return null;
+    }
+    final (BarcodeContent? content, List<FieldProblem> problems) = _built;
+    if (content == null || problems.isNotEmpty) {
+      return null;
+    }
+    return _kind.dart(<String, String>{
+          for (final KindField f in _formFields) f.key: _controller(f).text,
+        }, linkService: _service) ??
+        contentDart(content);
+  }
+
+  String get _dart => dartCode(
+    _data,
+    _format,
+    _style,
+    presetName: _preset,
+    errorCorrection: _ecc,
+    content: _contentDart,
+    gs1: _gs1,
+  );
+
+  BarcodeWriter get _writer =>
+      BarcodeWriter(_format, errorCorrection: _ecc, gs1: _gs1);
 
   /// Changes state from the page's parts, which are separate widgets.
   void _update(VoidCallback change) => setState(change);
@@ -183,9 +328,20 @@ class _CreatePageState extends State<CreatePage> {
       final BarcodeFormat format = _format;
       bool ok;
       String? error;
+      if (data.isEmpty) {
+        // The form has a problem: the preview says which, the badge says
+        // the data is invalid.
+        if (mounted && run == _check) {
+          setState(() {
+            _reads = false;
+            _error = null;
+          });
+        }
+        return;
+      }
       try {
         final Uint8List png = await _style.encodePng(
-          BarcodeWriter(format, errorCorrection: _ecc),
+          _writer,
           data,
           moduleSize: 4,
         );
@@ -215,14 +371,15 @@ class _CreatePageState extends State<CreatePage> {
     });
   }
 
-  String get _fileName {
-    final String base = _kind.name;
-    return 'flutter_zxing_$base';
-  }
+  String get _fileName => 'flutter_zxing_${_kind.name}';
 
   Future<void> _export(String what) async {
     final String data = _data;
-    final BarcodeWriter writer = BarcodeWriter(_format, errorCorrection: _ecc);
+    if (data.isEmpty) {
+      _toast(_problems.firstOrNull?.message ?? 'Nothing to export');
+      return;
+    }
+    final BarcodeWriter writer = _writer;
     try {
       // XFile.fromData has no path off the web, so its own name is empty:
       // the share needs the name given separately.
@@ -261,17 +418,7 @@ class _CreatePageState extends State<CreatePage> {
   }
 
   Future<void> _copyDart() async {
-    await Clipboard.setData(
-      ClipboardData(
-        text: dartCode(
-          _data,
-          _format,
-          _style,
-          presetName: _preset,
-          errorCorrection: _ecc,
-        ),
-      ),
-    );
+    await Clipboard.setData(ClipboardData(text: _dart));
     _toast('Dart code copied');
   }
 
@@ -348,19 +495,36 @@ class _CreatePageState extends State<CreatePage> {
             style: Theme.of(context).textTheme.headlineMedium,
           ),
         ),
-        ReadCheck(reads: _reads, invalid: _error != null),
+        ReadCheck(
+          reads: _reads,
+          invalid: _error != null || _problems.isNotEmpty,
+        ),
       ],
     ),
   );
 
-  /// Everything but the code card: the kinds, the form, the style. The
+  /// Everything but the code card: the kind, the form, the style. The
   /// title goes first in the wide layout; the phone keeps it above the card.
+  /// With the rail, the kind is picked there.
   List<Widget> _sections(
     BuildContext context, {
     bool title = false,
+    bool rail = false,
   }) => <Widget>[
     if (title) ...<Widget>[_title(context), const SizedBox(height: 14)],
-    if (_anyText) ...<Widget>[_KindChips(this), const SizedBox(height: 18)]
+    if (_anyText && !rail) ...<Widget>[
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: _KindButton(this),
+      ),
+      const SizedBox(height: 18),
+    ] else if (_anyText && rail) ...<Widget>[
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: _KindHeading(this),
+      ),
+      const SizedBox(height: 14),
+    ]
     // Room for the field's floating label.
     else
       const SizedBox(height: 10),
@@ -409,33 +573,49 @@ class _CreatePageState extends State<CreatePage> {
   );
 
   /// The phone layout split in two: the code card on the left, filling the
-  /// height, and the rest on the right, scrolling.
-  Widget _buildWide(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: <Widget>[
-      Expanded(
-        // The same 12 points above and below the card: the bottom inset is
-        // left out, as it is at the top, where landscape has none.
-        child: SafeArea(
-          right: false,
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: _codeCard(fill: true),
+  /// height, and the rest on the right, scrolling. With room, a rail of
+  /// every kind, in groups, comes first.
+  Widget _buildWide(BuildContext context) => LayoutBuilder(
+    builder: (BuildContext context, BoxConstraints c) {
+      final bool rail = c.maxWidth >= 960 && _anyText;
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          if (rail)
+            SizedBox(
+              width: 220,
+              child: SafeArea(
+                right: false,
+                bottom: false,
+                child: _KindRail(this),
+              ),
+            ),
+          Expanded(
+            // The same 12 points above and below the card: the bottom inset
+            // is left out, as it is at the top, where landscape has none.
+            child: SafeArea(
+              left: !rail,
+              right: false,
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: _codeCard(fill: true),
+              ),
+            ),
           ),
-        ),
-      ),
-      Expanded(
-        child: SafeArea(
-          left: false,
-          bottom: false,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(0, 12, 0, 120),
-            children: _sections(context, title: true),
+          Expanded(
+            child: SafeArea(
+              left: false,
+              bottom: false,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(0, 12, 0, 120),
+                children: _sections(context, title: true, rail: rail),
+              ),
+            ),
           ),
-        ),
-      ),
-    ],
+        ],
+      );
+    },
   );
 }
 
@@ -467,13 +647,7 @@ class _DartCode extends StatelessWidget {
           border: Border.all(color: Fz.of(context).line),
         ),
         child: SelectableText(
-          dartCode(
-            page._data,
-            page._format,
-            page._style,
-            presetName: page._preset,
-            errorCorrection: page._ecc,
-          ),
+          page._dart,
           style: const TextStyle(
             fontFamily: 'monospace',
             fontSize: 13,
@@ -486,42 +660,466 @@ class _DartCode extends StatelessWidget {
   );
 }
 
-class _KindChips extends StatelessWidget {
-  const _KindChips(this.page);
+/// The kind in use, with its group; a tap opens every kind.
+class _KindButton extends StatelessWidget {
+  const _KindButton(this.page);
 
   final _CreatePageState page;
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> chips = <Widget>[
-      for (final CreateKind k in CreateKind.values)
-        ChoiceChip(
-          avatar: page._kind == k
-              ? Icon(k.icon, size: 18, color: Fz.of(context).raised)
-              : null,
-          label: Text(k.label),
-          selected: page._kind == k && page._raw == null,
-          onSelected: (_) {
-            page._update(() {
-              page._kind = k;
-              page._raw = null;
-              page._fillDefaults();
-            });
-            page._scheduleCheck();
-          },
+    final Fz fz = Fz.of(context);
+    final CreateKind kind = page._kind;
+    return Semantics(
+      button: true,
+      label: 'What goes in the code: ${_kindTitle(page)}',
+      excludeSemantics: true,
+      child: Material(
+        color: fz.raised,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: fz.line),
         ),
-    ];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => unawaited(page._openKinds()),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: fz.lockSoft,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: kind == CreateKind.service
+                      ? ScannerIcon(
+                          BarcodeResultSheet.serviceIconOf(page._service),
+                          size: 22,
+                          color: fz.lockInk,
+                        )
+                      : Icon(kind.icon, size: 22, color: fz.lockInk),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: _KindTitle(page)),
+                const Icon(Icons.expand_more_rounded),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The kind's title over the form, when the rail picks the kind.
+class _KindHeading extends StatelessWidget {
+  const _KindHeading(this.page);
+
+  final _CreatePageState page;
+
+  @override
+  Widget build(BuildContext context) => _KindTitle(page, large: true);
+}
+
+String _kindTitle(_CreatePageState page) => page._raw != null
+    ? 'Text from a scan'
+    : page._kind == CreateKind.service
+    ? page._service == LinkService.whatsApp
+          ? 'WhatsApp chat'
+          : page._service.displayName
+    : page._kind.title;
+
+class _KindTitle extends StatelessWidget {
+  const _KindTitle(this.page, {this.large = false});
+
+  final _CreatePageState page;
+  final bool large;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: <Widget>[
+      Text(
+        page._kind.group.label.toUpperCase(),
+        style: TextStyle(
+          fontSize: 11,
+          height: 14 / 11,
+          letterSpacing: 0.6,
+          fontWeight: FontWeight.w600,
+          color: Fz.of(context).inkMuted,
+        ),
+      ),
+      Text(
+        _kindTitle(page),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: large
+            ? Theme.of(context).textTheme.titleLarge
+            : const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+    ],
+  );
+}
+
+/// The tiles of the "Social and apps" group: a few services and the rest.
+const List<LinkService> _featured = <LinkService>[
+  LinkService.whatsApp,
+  LinkService.telegram,
+  LinkService.instagram,
+];
+
+/// Every kind, in groups, with a search: the phone's picker.
+class _KindSheet extends StatefulWidget {
+  const _KindSheet({required this.kind, required this.service});
+
+  final CreateKind kind;
+  final LinkService service;
+
+  @override
+  State<_KindSheet> createState() => _KindSheetState();
+}
+
+class _KindSheetState extends State<_KindSheet> {
+  String _query = '';
+
+  bool _matches(String s) => s.toLowerCase().contains(_query.toLowerCase());
+
+  void _pick(CreateKind kind, [LinkService? service]) =>
+      Navigator.of(context).pop((kind, service));
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> groups = <Widget>[];
+    for (final KindGroup g in KindGroup.values) {
+      final bool groupMatches = _query.isEmpty || _matches(g.label);
+      final List<Widget> tiles = <Widget>[
+        if (g == KindGroup.social) ...<Widget>[
+          for (final LinkService s in LinkService.values)
+            if (_query.isEmpty
+                ? _featured.contains(s)
+                : groupMatches || _matches(s.displayName))
+              _KindTile(
+                label: s.displayName,
+                icon: BarcodeResultSheet.serviceIconOf(s),
+                selected:
+                    widget.kind == CreateKind.service && widget.service == s,
+                onTap: () => _pick(CreateKind.service, s),
+              ),
+          if (_query.isEmpty)
+            _KindTile(
+              label: 'All ${LinkService.values.length}',
+              icon: Icons.apps_rounded,
+              selected:
+                  widget.kind == CreateKind.service &&
+                  !_featured.contains(widget.service),
+              onTap: () => _pick(CreateKind.service),
+            ),
+        ] else
+          for (final CreateKind k in g.kinds)
+            if (groupMatches || _matches(k.label) || _matches(k.title))
+              _KindTile(
+                label: k.label,
+                icon: k.icon,
+                selected: widget.kind == k,
+                onTap: () => _pick(k),
+              ),
+      ];
+      if (tiles.isEmpty) {
+        continue;
+      }
+      groups.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(child: FzLabel(g.label)),
+                  Text(
+                    switch (g) {
+                      KindGroup.social =>
+                        '${LinkService.values.length} services',
+                      KindGroup.payments => '${g.kinds.length} standards',
+                      _ => '',
+                    },
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Fz.of(context).inkMuted,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              GridView.count(
+                crossAxisCount: 4,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 0.98,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                children: tiles,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.86,
+      maxChildSize: 0.94,
+      builder: (BuildContext context, ScrollController scroll) => ListView(
+        controller: scroll,
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         children: <Widget>[
-          for (final Widget c in chips)
-            Padding(padding: const EdgeInsets.only(right: 8), child: c),
+          Text(
+            'What goes in the code',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            decoration: const InputDecoration(
+              hintText: 'Search kinds and services',
+              prefixIcon: Icon(Icons.search_rounded),
+            ),
+            onChanged: (String q) => setState(() => _query = q.trim()),
+          ),
+          const SizedBox(height: 18),
+          ...groups,
+          if (groups.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Text(
+                'Nothing called “$_query”',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Fz.of(context).inkMuted),
+              ),
+            ),
         ],
       ),
     );
   }
+}
+
+class _KindTile extends StatelessWidget {
+  const _KindTile({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+
+  /// An [IconData] or a [ScannerIconData].
+  final Object icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final Fz fz = Fz.of(context);
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? fz.lockSoft : fz.raised,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: selected ? Fz.lock : fz.line,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                _glyph(icon, 22, selected ? fz.lockInk : fz.inkMuted),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 16 / 12,
+                    fontWeight: FontWeight.w600,
+                    color: selected ? fz.lockInk : fz.ink,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Every kind, in groups that open and close: the wide layout's picker.
+class _KindRail extends StatelessWidget {
+  const _KindRail(this.page);
+
+  final _CreatePageState page;
+
+  @override
+  Widget build(BuildContext context) {
+    final Fz fz = Fz.of(context);
+    Widget item(CreateKind k) {
+      final bool selected = page._kind == k && page._raw == null;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Material(
+          color: selected ? fz.ink : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => page._pickKind(k),
+            child: SizedBox(
+              height: 36,
+              child: Row(
+                children: <Widget>[
+                  const SizedBox(width: 12),
+                  Icon(
+                    k.icon,
+                    size: 18,
+                    color: selected ? fz.raised : fz.inkMuted,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      k == CreateKind.service ? 'Link to a service' : k.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: selected ? fz.raised : fz.ink,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(right: BorderSide(color: fz.line)),
+      ),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 24, 12, 24),
+        children: <Widget>[
+          const Padding(
+            padding: EdgeInsets.fromLTRB(10, 0, 10, 8),
+            child: FzLabel('What goes in'),
+          ),
+          for (final KindGroup g in KindGroup.values) ...<Widget>[
+            InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => page._update(() {
+                if (!page._openGroups.remove(g)) {
+                  page._openGroups.add(g);
+                }
+              }),
+              child: SizedBox(
+                height: 36,
+                child: Row(
+                  children: <Widget>[
+                    const SizedBox(width: 10),
+                    Expanded(child: FzLabel(g.label)),
+                    Text(
+                      '${g == KindGroup.social ? LinkService.values.length : g.kinds.length}',
+                      style: TextStyle(fontSize: 12, color: fz.inkMuted),
+                    ),
+                    Icon(
+                      page._openGroups.contains(g)
+                          ? Icons.expand_more_rounded
+                          : Icons.chevron_right_rounded,
+                      size: 18,
+                      color: fz.inkMuted,
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                ),
+              ),
+            ),
+            if (page._openGroups.contains(g))
+              for (final CreateKind k in g.kinds) item(k),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// How many services the chips show before "+N more".
+const int _firstServices = 7;
+
+/// A name and a category mark for a service: never a brand's logo.
+class _ServiceChips extends StatelessWidget {
+  const _ServiceChips(this.page);
+
+  final _CreatePageState page;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      Row(
+        children: <Widget>[
+          const Expanded(child: FzLabel('Service')),
+          Text(
+            'LinkService · ${LinkService.values.length}',
+            style: TextStyle(fontSize: 12, color: Fz.of(context).inkMuted),
+          ),
+        ],
+      ),
+      const SizedBox(height: 10),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: <Widget>[
+          for (final LinkService s in LinkService.values)
+            if (page._allServices ||
+                s.index < _firstServices ||
+                s == page._service)
+              ChoiceChip(
+                avatar: ScannerIcon(
+                  BarcodeResultSheet.serviceIconOf(s),
+                  size: 18,
+                ),
+                label: Text(s.displayName),
+                selected: page._service == s,
+                onSelected: (_) =>
+                    page._pickKind(CreateKind.service, service: s),
+              ),
+          if (!page._allServices)
+            ActionChip(
+              label: Text(
+                '+${LinkService.values.length - _firstServices - (page._service.index >= _firstServices ? 1 : 0)} more',
+              ),
+              onPressed: () => page._update(() => page._allServices = true),
+            ),
+        ],
+      ),
+      const SizedBox(height: 16),
+    ],
+  );
 }
 
 class _Form extends StatelessWidget {
@@ -571,55 +1169,89 @@ class _Form extends StatelessWidget {
         ),
       );
     }
+    final List<FieldProblem> problems = page._problems;
+    String? problemOf(KindField f) => problems
+        .where((FieldProblem p) => page._fieldOf(p) == f.key)
+        .map((FieldProblem p) => p.message)
+        .firstOrNull;
+    final List<FieldProblem> general = <FieldProblem>[
+      for (final FieldProblem p in problems)
+        if (page._fieldOf(p) == null) p,
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        for (final (String key, String label, String _) in page._kind.fields)
+        if (page._kind == CreateKind.service) _ServiceChips(page),
+        for (final KindField f in page._formFields)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: TextField(
-              controller: page._fields[key],
-              decoration: InputDecoration(labelText: label),
-              keyboardType: switch (key) {
-                'url' => TextInputType.url,
-                'email' || 'to' => TextInputType.emailAddress,
-                'phone' || 'number' => TextInputType.phone,
-                'text' => TextInputType.multiline,
+              controller: page._controller(f),
+              decoration: InputDecoration(
+                labelText: f.optional ? '${f.label} · optional' : f.label,
+                helperText: f.hint,
+                helperMaxLines: 2,
+                errorText: problemOf(f),
+                errorMaxLines: 3,
+              ),
+              keyboardType: switch (f.input) {
+                FieldInput.url => TextInputType.url,
+                FieldInput.email => TextInputType.emailAddress,
+                FieldInput.phone => TextInputType.phone,
+                FieldInput.multiline => TextInputType.multiline,
+                FieldInput.number => TextInputType.number,
+                FieldInput.decimal => const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 _ => TextInputType.text,
               },
-              maxLines: key == 'text' ? null : 1,
-              style: key == 'password'
-                  ? const TextStyle(fontFamily: 'monospace')
-                  : null,
+              maxLines: f.input == FieldInput.multiline ? null : 1,
+              style: f.mono ? const TextStyle(fontFamily: 'monospace') : null,
             ),
           ),
-        if (page._kind == CreateKind.wifi)
-          SegmentedButton<WifiSecurity>(
-            showSelectedIcon: false,
-            segments: const <ButtonSegment<WifiSecurity>>[
-              ButtonSegment<WifiSecurity>(
-                value: WifiSecurity.wpa,
-                label: Text('WPA / WPA2'),
-              ),
-              ButtonSegment<WifiSecurity>(
-                value: WifiSecurity.wep,
-                label: Text('WEP'),
-              ),
-              ButtonSegment<WifiSecurity>(
-                value: WifiSecurity.none,
-                label: Text('None'),
-              ),
-            ],
-            selected: <WifiSecurity>{page._security},
-            onSelectionChanged: (Set<WifiSecurity> s) {
-              page._update(() => page._security = s.first);
-              page._scheduleCheck();
-            },
+        for (final KindChoice c in page._kind.choices)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                if (page._kind.choices.length > 1 ||
+                    page._kind != CreateKind.wifi) ...<Widget>[
+                  FzLabel(c.label),
+                  const SizedBox(height: 6),
+                ],
+                SegmentedButton<String>(
+                  showSelectedIcon: false,
+                  segments: <ButtonSegment<String>>[
+                    for (final (String value, String label) in c.options)
+                      ButtonSegment<String>(value: value, label: Text(label)),
+                  ],
+                  selected: <String>{page._choice(c)},
+                  onSelectionChanged: (Set<String> s) =>
+                      page._setChoice(c, s.first),
+                ),
+              ],
+            ),
+          ),
+        for (final FieldProblem p in general)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              p.message,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
       ],
     );
   }
 }
+
+/// A Material icon or one of the scanner's own.
+Widget _glyph(Object icon, double size, Color color) => switch (icon) {
+  final ScannerIconData i => ScannerIcon(i, size: size, color: color),
+  final IconData i => Icon(i, size: size, color: color),
+  _ => SizedBox.square(dimension: size),
+};
 
 class _FormatMenu extends StatelessWidget {
   const _FormatMenu(this.page);
@@ -755,9 +1387,13 @@ class _Pill extends StatelessWidget {
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Text(
-          text,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          ),
         ),
         const SizedBox(width: 4),
         const Icon(Icons.expand_more_rounded, size: 18),
@@ -776,6 +1412,9 @@ class _Preview extends StatelessWidget {
   Widget build(BuildContext context) {
     final BarcodeStyle style = page._style;
     final bool square = page._square;
+    final List<FieldProblem> problems = page._problems;
+    final Fz fz = Fz.of(context);
+    final Color bad = Theme.of(context).colorScheme.error;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       width: square ? size : size * 1.4,
@@ -783,23 +1422,55 @@ class _Preview extends StatelessWidget {
       // The symbology's own quiet zone (four modules around a QR code) looks
       // like empty space on screen: the tile keeps a narrower margin in its
       // place. Exports keep the full one.
-      padding: EdgeInsets.all(style.quietZone ? size * 0.07 : 6),
+      padding: problems.isNotEmpty
+          ? const EdgeInsets.all(16)
+          : EdgeInsets.all(style.quietZone ? size * 0.07 : 6),
       decoration: BoxDecoration(
-        color: style.backgroundColor,
+        color: problems.isNotEmpty
+            ? bad.withValues(alpha: 0.10)
+            : style.backgroundColor,
         borderRadius: BorderRadius.circular(18),
       ),
-      child: page._issue != null
-          ? Center(
-              child: Text(
-                page._issue!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF4B5563)),
+      child: problems.isNotEmpty
+          // What validate() found: the code appears once it has nothing to
+          // say.
+          ? FittedBox(
+              fit: BoxFit.scaleDown,
+              child: SizedBox(
+                width: 200,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(Icons.error_outline_rounded, size: 28, color: bad),
+                    const SizedBox(height: 8),
+                    Text(
+                      problems.length == 1
+                          ? '1 field to fix'
+                          : '${problems.length} fields to fix',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: fz.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      problems.first.message,
+                      textAlign: TextAlign.center,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, color: fz.inkMuted),
+                    ),
+                  ],
+                ),
               ),
             )
           : BarcodeView(
               page._data,
               format: page._format,
               errorCorrection: page._ecc,
+              gs1: page._gs1,
               style: style.copyWith(quietZone: false),
               errorBuilder: (BuildContext context, BarcodeWriteException e) =>
                   Center(

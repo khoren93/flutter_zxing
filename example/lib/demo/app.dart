@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
+import 'built_with.dart';
 import 'create_page.dart';
 import 'history.dart';
 import 'history_page.dart';
@@ -69,7 +70,7 @@ class _DemoShellState extends State<DemoShell> {
   Widget _page(_Tab tab, {required bool wide}) => switch (tab) {
     _Tab.scan => ScanPage(bottomInset: wide ? 0 : 12, onOpen: _open),
     _Tab.create => CreatePage(wide: wide),
-    _Tab.history => HistoryPage(onOpen: _open),
+    _Tab.history => HistoryPage(onOpen: _open, builtWith: !wide),
   };
 
   @override
@@ -356,6 +357,8 @@ class _SideNav extends StatelessWidget {
             item(label, icon, t == tab, () => onTab(t)),
           if (!compact) ...<Widget>[
             const Spacer(),
+            const BuiltWithCard(),
+            const SizedBox(height: 10),
             FzCard(
               radius: 18,
               padding: const EdgeInsets.all(14),

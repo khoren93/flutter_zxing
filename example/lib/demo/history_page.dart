@@ -4,16 +4,21 @@
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 
+import 'built_with.dart';
 import 'content.dart';
 import 'history.dart';
 import 'result_page.dart';
 import 'tokens.dart';
 
 class HistoryPage extends StatefulWidget {
-  const HistoryPage({super.key, required this.onOpen});
+  const HistoryPage({super.key, required this.onOpen, this.builtWith = true});
 
   /// Opens an item's result page.
   final ValueChanged<HistoryItem> onOpen;
+
+  /// The ZXScanner card under the list; the wide layout has it in the side
+  /// menu.
+  final bool builtWith;
 
   @override
   State<HistoryPage> createState() => _HistoryPageState();
@@ -161,7 +166,16 @@ class _HistoryPageState extends State<HistoryPage> {
             else
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(8, 0, 8, 120),
-                sliver: SliverList.list(children: rows),
+                sliver: SliverList.list(
+                  children: <Widget>[
+                    ...rows,
+                    if (widget.builtWith)
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(8, 24, 8, 0),
+                        child: BuiltWithCard(),
+                      ),
+                  ],
+                ),
               ),
           ],
         );

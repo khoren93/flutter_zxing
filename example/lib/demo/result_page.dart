@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'aim.dart';
 import 'content.dart';
 import 'history.dart';
 import 'tokens.dart';
@@ -45,7 +46,6 @@ class _ResultPageState extends State<ResultPage> {
     final Described d = describe(barcode);
     final String? secret = d.secret;
     final Uri? open = d.open;
-    final String sid = barcode.symbologyIdentifier;
     return Scaffold(
       appBar: AppBar(
         backgroundColor: fz.surface,
@@ -104,9 +104,9 @@ class _ResultPageState extends State<ResultPage> {
                           runSpacing: 6,
                           children: <Widget>[
                             _Chip(
-                              sid.isEmpty
-                                  ? barcode.format.displayName
-                                  : '${barcode.format.displayName} · $sid',
+                              barcode.contentType == BarcodeContentType.gs1
+                                  ? '${barcode.format.displayName} · GS1'
+                                  : barcode.format.displayName,
                             ),
                             _Tag(
                               item.origin == HistoryOrigin.created
@@ -217,6 +217,8 @@ class _ResultPageState extends State<ResultPage> {
                   ),
                 ),
               ],
+              const SizedBox(height: 16),
+              _TechCard(barcode: barcode, kind: d.kind),
               const SizedBox(height: 16),
               const FzLabel('As read'),
               const SizedBox(height: 8),
@@ -343,4 +345,177 @@ class HistoryTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const _Tag('Created', made: true);
+}
+
+/// What a developer wants to know about a read: the format, the kind of
+/// content, the symbol's numbers, and the AIM ID in words.
+class _TechCard extends StatelessWidget {
+  const _TechCard({required this.barcode, required this.kind});
+
+  final Barcode barcode;
+  final String kind;
+
+  @override
+  Widget build(BuildContext context) {
+    final Fz fz = Fz.of(context);
+    final BarcodeSequence? sequence = barcode.sequence;
+    final String ec = barcode.ecLevel ?? '';
+    final String version = barcode.version ?? '';
+    final AimParts? aim = describeAim(barcode.symbologyIdentifier);
+    final List<(String, String, bool)> rows = <(String, String, bool)>[
+      ('Format', barcode.format.displayName, true),
+      ('Content', '$kind · ${contentClassName(barcode.content)}', true),
+      if (version.isNotEmpty || ec.isNotEmpty)
+        (
+          'Version · EC',
+          <String>[
+            if (version.isNotEmpty) version,
+            if (ec.isNotEmpty) 'EC $ec',
+          ].join(' · '),
+          true,
+        ),
+      (
+        'Orientation',
+        barcode.orientation == 0 ? 'Upright' : 'Turned ${barcode.orientation}°',
+        barcode.orientation != 0,
+      ),
+      (
+        'Mirrored',
+        '${barcode.isMirrored ? 'Yes' : 'No'} · '
+            '${barcode.isInverted ? 'inverted' : 'not inverted'}',
+        barcode.isMirrored || barcode.isInverted,
+      ),
+      (
+        'Sequence',
+        sequence == null
+            ? 'Not part of a structured append'
+            : 'Part ${sequence.index + 1} of ${sequence.size}'
+                  '${sequence.id.isEmpty ? '' : ' · id ${sequence.id}'}',
+        sequence != null,
+      ),
+    ];
+    Widget line(String k, Widget v) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SizedBox(
+            width: 116,
+            child: Text(k, style: TextStyle(color: fz.inkMuted)),
+          ),
+          Expanded(child: v),
+        ],
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        const FzLabel('Technical'),
+        const SizedBox(height: 8),
+        FzCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              for (final (int i, (String k, String v, bool on))
+                  in rows.indexed) ...<Widget>[
+                if (i > 0) const Divider(),
+                line(
+                  k,
+                  Text(
+                    v,
+                    style: TextStyle(
+                      fontWeight: on ? FontWeight.w600 : FontWeight.w500,
+                      color: on ? fz.ink : fz.inkMuted,
+                    ),
+                  ),
+                ),
+              ],
+              if (aim != null) ...<Widget>[
+                const Divider(),
+                line(
+                  'AIM ID',
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: fz.ink,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        barcode.symbologyIdentifier,
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.w600,
+                          color: fz.raised,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: fz.surface,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    children: <Widget>[
+                      for (final (String c, String meaning)
+                          in <(String, String)>[
+                            (']', 'Symbology identifier follows'),
+                            (barcode.symbologyIdentifier[1], aim.symbology),
+                            (
+                              barcode.symbologyIdentifier.substring(2),
+                              aim.modifier,
+                            ),
+                          ])
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              SizedBox(
+                                width: 40,
+                                child: Text(
+                                  c,
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontWeight: FontWeight.w600,
+                                    color: fz.lockInk,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  meaning,
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                  child: Text(
+                    'Read by scanners and PLCs to tell formats apart · '
+                    'ISO/IEC 15424',
+                    style: TextStyle(fontSize: 12, color: fz.inkMuted),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }

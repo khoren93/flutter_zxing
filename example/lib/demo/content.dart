@@ -138,13 +138,19 @@ Described describe(Barcode barcode) {
       title: summary,
       fields: <(String, String)>[('Starts', start.toLocal().toString())],
     ),
-    Gs1Content(:final Map<String, String> elements) => Described(
+    Gs1Content gs1 => Described(
       kind: 'GS1',
       icon: Icons.inventory_2_outlined,
-      title: elements['01'] ?? elements.values.first,
+      title: gs1.gtin ?? gs1.sscc ?? gs1.elements.values.first,
       fields: <(String, String)>[
-        for (final MapEntry<String, String> e in elements.entries)
-          ('(${e.key})', e.value),
+        for (final MapEntry<String, String> e in gs1.elements.entries)
+          switch (e.key) {
+            '17' when gs1.expiry != null => (
+              'Expiry',
+              '${_date(gs1.expiry!)}${gs1.isExpired() ? ' · expired' : ''}',
+            ),
+            _ => (_gs1Names[e.key] ?? '(${e.key})', e.value),
+          },
       ],
     ),
     BinaryContent(:final Uint8List bytes) => Described(
@@ -307,6 +313,19 @@ Described describe(Barcode barcode) {
   };
 }
 
+/// The names of the common GS1 Application Identifiers.
+const Map<String, String> _gs1Names = <String, String>{
+  '00': 'SSCC',
+  '01': 'GTIN',
+  '02': 'Content GTIN',
+  '10': 'Batch',
+  '11': 'Produced',
+  '15': 'Best before',
+  '17': 'Expiry',
+  '21': 'Serial',
+  '37': 'Count',
+};
+
 String _date(DateTime d) =>
     '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -330,87 +349,39 @@ Future<void> openUri(BuildContext context, Uri uri) async {
   }
 }
 
-/// The kinds the generator makes.
-enum CreateKind {
-  text('Text', Icons.notes_rounded),
-  link('Link', Icons.link_rounded),
-  wifi('Wi‑Fi', Icons.wifi_rounded),
-  contact('Contact', Icons.person_outline_rounded),
-  email('Email', Icons.mail_outline_rounded),
-  phone('Phone', Icons.call_outlined);
-
-  const CreateKind(this.label, this.icon);
-
-  final String label;
-  final IconData icon;
-
-  /// The fields the form asks for, by key: label and hint.
-  List<(String, String, String)> get fields => switch (this) {
-    text => <(String, String, String)>[('text', 'Text', 'Anything')],
-    link => <(String, String, String)>[
-      ('url', 'Address', 'https://pub.dev/packages/flutter_zxing'),
-    ],
-    wifi => <(String, String, String)>[
-      ('ssid', 'Network name', 'Studio 5G'),
-      ('password', 'Password', 'lime-orbit-42'),
-    ],
-    contact => <(String, String, String)>[
-      ('name', 'Name', 'Lilit Ohanyan'),
-      ('phone', 'Phone', '+374 91 234567'),
-      ('email', 'Email', 'lilit@example.com'),
-    ],
-    email => <(String, String, String)>[
-      ('to', 'To', 'hello@example.com'),
-      ('subject', 'Subject', 'Hello'),
-    ],
-    phone => <(String, String, String)>[('number', 'Number', '+374 10 123456')],
-  };
-
-  /// The content the form's [values] (keys of [fields]) describe.
-  BarcodeContent content(Map<String, String> values, {WifiSecurity? security}) {
-    String v(String key) => (values[key] ?? '').trim();
-    String? optional(String key) => v(key).isEmpty ? null : v(key);
-    return switch (this) {
-      text => TextContent(v('text')),
-      link => UrlContent(Uri.tryParse(v('url')) ?? Uri()),
-      wifi => WifiContent(
-        ssid: v('ssid'),
-        password: optional('password'),
-        security: security ?? WifiSecurity.wpa,
-      ),
-      contact => ContactContent(
-        name: optional('name'),
-        phones: <String>[if (optional('phone') case final String p) p],
-        emails: <String>[if (optional('email') case final String e) e],
-      ),
-      email => EmailContent(address: v('to'), subject: optional('subject')),
-      phone => PhoneContent(v('number')),
-    };
-  }
-}
-
 /// [style] for [data] in [format] as a BarcodeView in Dart, for "Copy as
-/// Dart".
+/// Dart". [content] is the Dart that builds the content, when the code
+/// was made from a form: the view then gets its `.toPayload()`.
 String dartCode(
   String data,
   BarcodeFormat format,
   BarcodeStyle style, {
   String? presetName,
   ErrorCorrection? errorCorrection,
+  String? content,
+  bool gs1 = false,
 }) {
   String hex(Color c) =>
       'Color(0x${c.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()})';
   String quoted(String s) =>
       "'${s.replaceAll(r'\', r'\\').replaceAll("'", r"\'").replaceAll('\n', r'\n')}'";
-  final StringBuffer b = StringBuffer('BarcodeView(\n  ${quoted(data)},\n');
+  final String first = content == null
+      ? quoted(data)
+      : '${content.split('\n').join('\n  ')}.toPayload()';
+  final StringBuffer b = StringBuffer('BarcodeView(\n  $first,\n');
   if (format != BarcodeFormat.qrCode) {
     b.writeln('  format: BarcodeFormat.${format.name},');
+  }
+  if (gs1) {
+    b.writeln('  gs1: true,');
   }
   if (errorCorrection != null && format.hasErrorCorrection) {
     b.writeln('  errorCorrection: ErrorCorrection.${errorCorrection.name},');
   }
   final BarcodeStyle plain = style.copyWith();
-  if (presetName != null &&
+  if (identical(style, BarcodeStyle.swissQrBill)) {
+    b.writeln('  style: BarcodeStyle.swissQrBill,');
+  } else if (presetName != null &&
       BarcodeStyle.presets[presetName] == plain &&
       style.logo == null) {
     b.writeln('  style: BarcodeStyle.$presetName,');
@@ -449,3 +420,33 @@ String dartCode(
   b.write(')');
   return b.toString();
 }
+
+/// The class of [content], by name: `runtimeType` is minified on the web.
+String contentClassName(BarcodeContent content) => switch (content) {
+  TextContent() => 'TextContent',
+  UrlContent() => 'UrlContent',
+  WifiContent() => 'WifiContent',
+  EmailContent() => 'EmailContent',
+  PhoneContent() => 'PhoneContent',
+  SmsContent() => 'SmsContent',
+  GeoContent() => 'GeoContent',
+  ContactContent() => 'ContactContent',
+  EventContent() => 'EventContent',
+  Gs1Content() => 'Gs1Content',
+  BinaryContent() => 'BinaryContent',
+  EpcPaymentContent() => 'EpcPaymentContent',
+  SwissQrBillContent() => 'SwissQrBillContent',
+  GostPaymentContent() => 'GostPaymentContent',
+  UpiPaymentContent() => 'UpiPaymentContent',
+  EmvPaymentContent() => 'EmvPaymentContent',
+  SpaydPaymentContent() => 'SpaydPaymentContent',
+  OtpContent() => 'OtpContent',
+  EsimContent() => 'EsimContent',
+  CryptoContent() => 'CryptoContent',
+  WifiDppContent() => 'WifiDppContent',
+  SmartHomeContent() => 'SmartHomeContent',
+  BoardingPassContent() => 'BoardingPassContent',
+  DriverLicenseContent() => 'DriverLicenseContent',
+  VinContent() => 'VinContent',
+  ProductContent() => 'ProductContent',
+};
