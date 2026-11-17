@@ -603,6 +603,38 @@ void main() {
     // dark glass, the kind's icon next to the title.
     final Map<String, (String, BarcodeFormat)>
     kinds = <String, (String, BarcodeFormat)>{
+      'pay-sepa': (
+        <String>[
+          'BCD', '002', '1', 'SCT', 'COBADEFFXXX', 'Kaffeehaus Lumen', //
+          'DE89370400440532013000', 'EUR12.50', '', '', 'Invoice 42',
+        ].join('\n'),
+        BarcodeFormat.qrCode,
+      ),
+      'pay-swiss': (
+        <String>[
+          'SPC', '0200', '1', 'CH4431999123000889012', //
+          'S', 'Robert Schneider AG', 'Rue du Lac', '1268', '2501', 'Biel',
+          'CH', '', '', '', '', '', '', '', '1949.75', 'CHF', //
+          'S', 'Pia-Maria Rutschmann-Schnyder', 'Grosse Marktgasse', '28',
+          '9400', 'Rorschach', 'CH', //
+          'QRR', '210000000003139471430009017', 'Order of 15 June 2020', 'EPD',
+        ].join('\n'),
+        BarcodeFormat.qrCode,
+      ),
+      'pay-gost': (
+        <String>[
+          'ST00012',
+          'Name=ООО «Три кита»',
+          'PersonalAcc=40702810138250123017',
+          'BankName=ОАО «Банк»',
+          'BIC=044525225',
+          'CorrespAcc=30101810400000000225',
+          'Sum=125050',
+          'Purpose=Оплата по счёту № 7',
+          'PayeeINN=7700000000',
+        ].join('|'),
+        BarcodeFormat.qrCode,
+      ),
       'otp': (
         'otpauth://totp/GitHub:alice@example.com?secret=JBSWY3DPEHPK3PXP&issuer=GitHub',
         BarcodeFormat.qrCode,

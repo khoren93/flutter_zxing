@@ -27,14 +27,13 @@ final class ScannerAction {
   }) : _copyText = null;
 
   /// Copies [text] to the clipboard; the button confirms with "Copied".
-  const ScannerAction.copy(String text, {this.primary = false})
-    : label = '',
-      icon = ScannerIcons.copy,
+  /// [label] replaces [ScannerStrings.copy], such as "Copy IBAN".
+  const ScannerAction.copy(String text, {this.primary = false, this.label = ''})
+    : icon = ScannerIcons.copy,
       onPressed = null,
       _copyText = text;
 
-  /// The text; empty for [ScannerAction.copy], which uses
-  /// [ScannerStrings.copy].
+  /// The text; for [ScannerAction.copy], empty uses [ScannerStrings.copy].
   final String label;
 
   /// An icon before the text.
@@ -109,7 +108,11 @@ class BarcodeResultSheet extends StatelessWidget {
         <ScannerAction>[
           // A code with a secret (an OTP key) is not copied unasked.
           if (summary.secret == null)
-            ScannerAction.copy(barcode.text, primary: onScanAgain == null),
+            ScannerAction.copy(
+              summary.copy ?? barcode.text,
+              label: summary.copyLabel ?? '',
+              primary: onScanAgain == null,
+            ),
           if (onScanAgain != null)
             ScannerAction(
               label: strings.scanAgain,
@@ -267,8 +270,7 @@ class BarcodeResultSheet extends StatelessWidget {
     PhoneContent() => ScannerIcons.faceTime,
     SmsContent() => ScannerIcons.sms,
     GeoContent() => ScannerIcons.location,
-    // Until the payment sheet is designed: the coin.
-    PaymentContent() => ScannerIcons.crypto,
+    PaymentContent() => ScannerIcons.payment,
     OtpContent() => ScannerIcons.otp,
     EsimContent() => ScannerIcons.esim,
     CryptoContent() => ScannerIcons.crypto,
@@ -301,6 +303,8 @@ final class _Summary {
     this.secret,
     this.chips = const <String>[],
     this.warning,
+    this.copy,
+    this.copyLabel,
   });
 
   factory _Summary.of(
@@ -385,16 +389,7 @@ final class _Summary {
           payload: text,
         );
       case final PaymentContent payment:
-        final String? amount = payment.amount;
-        return _Summary(
-          payment.payee ?? strings.payment,
-          kindDetail: _paymentStandard(payment),
-          display: amount == null
-              ? null
-              : '$amount ${payment.currency ?? ''}'.trim(),
-          detail: payment.reference,
-          payload: payment.account,
-        );
+        return _paymentSummary(payment, strings);
       case final OtpContent otp:
         // Never the secret in the title or the payload: the code holds it.
         return _Summary(
@@ -582,6 +577,11 @@ final class _Summary {
   /// A chip in the signal color ("Expired").
   final String? warning;
 
+  /// What the default copy button copies instead of the whole text, and
+  /// its label: a payment's account, "Copy IBAN".
+  final String? copy;
+  final String? copyLabel;
+
   /// How many lines the title may take before an ellipsis.
   final int titleLines;
 
@@ -596,6 +596,128 @@ final class _Summary {
 
   static bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
+
+  /// A payment as the approved design shows it: the payee, the amount
+  /// large, what it is for, the account and the standard's own fields.
+  static _Summary _paymentSummary(
+    PaymentContent payment,
+    ScannerStrings strings,
+  ) {
+    final String? amount = payment.amount;
+    String? detail;
+    Map<String, String> fields;
+    List<String> chips;
+    String? copyLabel;
+    String? copy = payment.account?.replaceAll(' ', '');
+    switch (payment) {
+      case final EpcPaymentContent epc:
+        detail = epc.text ?? epc.information;
+        fields = <String, String>{
+          strings.iban: _grouped(epc.iban),
+          if (epc.bic case final String bic) strings.bic: bic,
+          if (epc.creditorReference case final String r)
+            strings.paymentReference: _grouped(r),
+        };
+        chips = <String>['EPC'];
+        copyLabel = strings.copyIban;
+      case final SwissQrBillContent bill:
+        final SwissAddress c = bill.creditor;
+        detail = bill.message;
+        fields = <String, String>{
+          strings.accountNumber: _grouped(bill.iban),
+          if (bill.qrReference case final String r)
+            strings.paymentReference:
+                bill.referenceType == SwissReferenceType.qrr
+                ? _qrReference(r)
+                : _grouped(r),
+          strings.address: <String>[
+            <String>[?c.street, ?c.buildingNumber].join(' '),
+            '${c.postalCode} ${c.town}',
+          ].where((String s) => s.trim().isNotEmpty).join(', '),
+          if (bill.debtor case final SwissAddress d) strings.payableBy: d.name,
+        };
+        chips = <String>['Swiss QR-bill'];
+        copyLabel = strings.copyIban;
+      case final GostPaymentContent gost:
+        detail = gost.purpose;
+        fields = <String, String>{
+          strings.accountNumber: gost.personalAccount,
+          strings.bic: gost.bic,
+          strings.bank: gost.bankName,
+          if (gost.payeeInn case final String inn) strings.inn: inn,
+          if (gost.kpp case final String kpp) strings.kpp: kpp,
+        };
+        chips = <String>['ГОСТ Р 56042'];
+        copyLabel = strings.copyAccount;
+      case final UpiPaymentContent upi:
+        detail = upi.note;
+        fields = <String, String>{strings.upiId: upi.address};
+        chips = <String>['UPI'];
+        copyLabel = strings.copyUpiId;
+      case final EmvPaymentContent emv:
+        detail = emv.merchantCity;
+        fields = <String, String>{
+          if (emv.pixKey case final String key) strings.pixKey: key,
+          if (emv.reference case final String r) strings.transaction: r,
+          if (emv.pixKey == null && emv.merchantCity != null)
+            strings.city: emv.merchantCity!,
+          if (emv.pixKey == null && emv.merchantCategoryCode != null)
+            strings.category: emv.merchantCategoryCode!,
+        };
+        if (emv.pixKey == null) {
+          detail = null;
+        }
+        chips = <String>[
+          'EMVCo',
+          if (!emv.isDynamic && amount == null) strings.reusable,
+        ];
+        copyLabel = emv.pixKey == null ? null : strings.copyPixKey;
+        copy = emv.pixKey;
+      case final SpaydPaymentContent spayd:
+        detail = spayd.message;
+        fields = <String, String>{
+          strings.iban: _grouped(spayd.iban),
+          if (spayd.variableSymbol case final String vs)
+            strings.variableSymbol: vs,
+        };
+        chips = <String>['SPAYD'];
+        copyLabel = strings.copyIban;
+    }
+    return _Summary(
+      payment.payee ?? strings.payment,
+      kindDetail: _paymentStandard(payment),
+      display: amount == null ? null : strings.money(amount, payment.currency),
+      detail: amount == null
+          ? <String>[strings.payerEntersAmount, ?detail].join('\n')
+          : detail,
+      fields: fields,
+      fieldColumns: 2,
+      chips: chips,
+      copy: copy,
+      copyLabel: copy == null ? null : copyLabel,
+    );
+  }
+
+  /// An IBAN or RF reference in groups of four, as printed.
+  static String _grouped(String value) {
+    final String v = value.replaceAll(' ', '');
+    return <String>[
+      for (int i = 0; i < v.length; i += 4)
+        v.substring(i, math.min(i + 4, v.length)),
+    ].join(' ');
+  }
+
+  /// A Swiss QR reference as on the bill: 2 digits, then groups of five.
+  static String _qrReference(String value) {
+    final String v = value.replaceAll(' ', '');
+    if (v.length != 27) {
+      return v;
+    }
+    return <String>[
+      v.substring(0, 2),
+      for (int i = 2; i < 27; i += 5) v.substring(i, i + 5),
+    ].join(' ');
+  }
 
   static String _paymentStandard(PaymentContent payment) => switch (payment) {
     EpcPaymentContent() => 'SEPA',
@@ -925,7 +1047,11 @@ class ScannerActions extends StatelessWidget {
           primary: action.primary,
           onPressed: action.onPressed,
         )
-      : _CopyButton(text: action._copyText, primary: action.primary);
+      : _CopyButton(
+          text: action._copyText,
+          label: action.label,
+          primary: action.primary,
+        );
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -959,9 +1085,14 @@ class ScannerActions extends StatelessWidget {
 }
 
 class _CopyButton extends StatefulWidget {
-  const _CopyButton({required this.text, required this.primary});
+  const _CopyButton({
+    required this.text,
+    required this.label,
+    required this.primary,
+  });
 
   final String text;
+  final String label;
   final bool primary;
 
   @override
@@ -996,7 +1127,11 @@ class _CopyButtonState extends State<_CopyButton> {
   Widget build(BuildContext context) {
     final ScannerStrings strings = ScannerStrings.of(context);
     return ScannerActionButton(
-      label: _copied ? strings.copied : strings.copy,
+      label: _copied
+          ? strings.copied
+          : widget.label.isEmpty
+          ? strings.copy
+          : widget.label,
       icon: _copied ? ScannerIcons.check : ScannerIcons.copy,
       primary: widget.primary,
       onPressed: () => unawaited(_copy()),

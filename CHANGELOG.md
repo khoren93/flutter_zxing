@@ -34,6 +34,14 @@
   any EMVCo code; built with `EmvPaymentContent.pix`) and
   `SpaydPaymentContent`. IBANs, creditor and QR references and EMVCo
   checksums are checked; a code that fails is text.
+* **The payment sheet:** the payee, the amount large
+  (`ScannerStrings.money` formats it, "12.50 EUR" by default), what the
+  payment is for and each standard's fields: IBANs and RF references in
+  groups of four, a Swiss QR reference as on the bill, "The payer enters
+  the amount" and "Reusable" for codes without one. The default copy
+  button copies the account ("Copy IBAN", "Copy account", "Copy UPI ID",
+  "Copy key"), not the whole code; `ScannerAction.copy` takes a `label`.
+  New `ScannerIcons.payment`.
 * **`BarcodeStyle.swissQrBill`:** the Swiss cross of a QR-bill, 7 mm on
   46 mm, error correction M. `BarcodeLogo.errorCorrection` sets what a QR
   code gets under a logo (`high` by default, as before).

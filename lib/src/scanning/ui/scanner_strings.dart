@@ -117,6 +117,26 @@ final class ScannerStrings {
     this.dayAndMonth = _dayAndMonth,
     this.fullDate = _fullDate,
     this.vinRegion = _vinRegion,
+    this.money = _money,
+    this.payerEntersAmount = 'The payer enters the amount',
+    this.reusable = 'Reusable',
+    this.copyIban = 'Copy IBAN',
+    this.copyAccount = 'Copy account',
+    this.copyUpiId = 'Copy UPI ID',
+    this.copyPixKey = 'Copy key',
+    this.iban = 'IBAN',
+    this.bic = 'BIC',
+    this.accountNumber = 'Account',
+    this.paymentReference = 'Reference',
+    this.address = 'Address',
+    this.payableBy = 'Payable by',
+    this.bank = 'Bank',
+    this.inn = 'INN',
+    this.kpp = 'KPP',
+    this.upiId = 'UPI ID',
+    this.pixKey = 'PIX key',
+    this.transaction = 'Transaction',
+    this.variableSymbol = 'Variable symbol',
     this.binary = 'Binary data',
     this.text = 'Text',
   });
@@ -408,6 +428,66 @@ final class ScannerStrings {
   /// Where a vehicle was made: "North America".
   final String Function(VinRegion region) vinRegion;
 
+  /// An amount as the sheet shows it: "12.50 EUR". Give your own to format money for a locale, such as "€12,50".
+  final String Function(String amount, String? currency) money;
+
+  /// A payment code without an amount.
+  final String payerEntersAmount;
+
+  /// A payment code for any number of payments (EMVCo static).
+  final String reusable;
+
+  /// The copy button of a payment to an IBAN.
+  final String copyIban;
+
+  /// The copy button of a payment to an account number.
+  final String copyAccount;
+
+  /// The copy button of a UPI payment.
+  final String copyUpiId;
+
+  /// The copy button of a PIX payment.
+  final String copyPixKey;
+
+  /// The label of an IBAN.
+  final String iban;
+
+  /// The label of a bank's BIC.
+  final String bic;
+
+  /// The label of an account number.
+  final String accountNumber;
+
+  /// The label of a payment reference.
+  final String paymentReference;
+
+  /// The label of a payee's address.
+  final String address;
+
+  /// The label of who pays a Swiss QR-bill.
+  final String payableBy;
+
+  /// The label of a bank's name.
+  final String bank;
+
+  /// The label of a Russian taxpayer number.
+  final String inn;
+
+  /// The label of a Russian tax registration reason code.
+  final String kpp;
+
+  /// The label of a UPI address.
+  final String upiId;
+
+  /// The label of a PIX key.
+  final String pixKey;
+
+  /// The label of a payment's transaction id.
+  final String transaction;
+
+  /// The label of a Czech variable symbol.
+  final String variableSymbol;
+
   /// The kind of a [BinaryContent].
   final String binary;
 
@@ -540,6 +620,26 @@ final class ScannerStrings {
       other.dayAndMonth == dayAndMonth &&
       other.fullDate == fullDate &&
       other.vinRegion == vinRegion &&
+      other.money == money &&
+      other.payerEntersAmount == payerEntersAmount &&
+      other.reusable == reusable &&
+      other.copyIban == copyIban &&
+      other.copyAccount == copyAccount &&
+      other.copyUpiId == copyUpiId &&
+      other.copyPixKey == copyPixKey &&
+      other.iban == iban &&
+      other.bic == bic &&
+      other.accountNumber == accountNumber &&
+      other.paymentReference == paymentReference &&
+      other.address == address &&
+      other.payableBy == payableBy &&
+      other.bank == bank &&
+      other.inn == inn &&
+      other.kpp == kpp &&
+      other.upiId == upiId &&
+      other.pixKey == pixKey &&
+      other.transaction == transaction &&
+      other.variableSymbol == variableSymbol &&
       other.binary == binary &&
       other.text == text;
 
@@ -639,6 +739,26 @@ final class ScannerStrings {
     dayAndMonth,
     fullDate,
     vinRegion,
+    money,
+    payerEntersAmount,
+    reusable,
+    copyIban,
+    copyAccount,
+    copyUpiId,
+    copyPixKey,
+    iban,
+    bic,
+    accountNumber,
+    paymentReference,
+    address,
+    payableBy,
+    bank,
+    inn,
+    kpp,
+    upiId,
+    pixKey,
+    transaction,
+    variableSymbol,
     binary,
     text,
   ]);
@@ -648,6 +768,9 @@ final class ScannerStrings {
   static String _byteCount(int count) => count == 1 ? '1 byte' : '$count bytes';
 
   static String _seconds(int seconds) => '$seconds s';
+
+  static String _money(String amount, String? currency) =>
+      currency == null ? amount : '$amount $currency';
 
   static String _flightOf(int flight, int count) => 'Flight $flight of $count';
 

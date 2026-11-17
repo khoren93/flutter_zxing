@@ -158,6 +158,7 @@ void main() {
         ScannerIcons.binary,
         ScannerIcons.cameraOff,
         ScannerIcons.cameraAlert,
+        ScannerIcons.payment,
         ScannerIcons.otp,
         ScannerIcons.esim,
         ScannerIcons.crypto,
@@ -1659,6 +1660,111 @@ void main() {
       expect(close, findsOneWidget);
     });
 
+    testWidgets('a SEPA payment: the amount, the IBAN grouped and copied', (
+      WidgetTester tester,
+    ) async {
+      final List<MethodCall> calls = <MethodCall>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (MethodCall call) async {
+          calls.add(call);
+          return null;
+        },
+      );
+      await show(
+        tester,
+        _barcode(
+          'BCD\n002\n1\nSCT\nCOBADEFFXXX\nKaffeehaus Lumen\n'
+          'DE89370400440532013000\nEUR12.50\n\n\nInvoice 42',
+        ),
+      );
+      expect(find.text('PAYMENT · SEPA'), findsOneWidget);
+      expect(find.text('Kaffeehaus Lumen'), findsOneWidget);
+      expect(find.text('12.50 EUR'), findsOneWidget);
+      expect(find.text('Invoice 42'), findsOneWidget);
+      expect(find.text('DE89 3704 0044 0532 0130 00'), findsOneWidget);
+      expect(find.text('EPC'), findsOneWidget);
+      await tester.tap(find.text('Copy IBAN'));
+      await tester.pump();
+      final MethodCall copy = calls.singleWhere(
+        (MethodCall c) => c.method == 'Clipboard.setData',
+      );
+      expect(
+        (copy.arguments as Map<Object?, Object?>)['text'],
+        'DE89370400440532013000',
+      );
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('a Swiss QR-bill: the reference as on the bill', (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        _barcode(
+          <String>[
+            'SPC', '0200', '1', 'CH4431999123000889012', //
+            'S', 'Robert Schneider AG', 'Rue du Lac', '1268', '2501', 'Biel',
+            'CH', '', '', '', '', '', '', '', '1949.75', 'CHF', //
+            'S', 'Pia-Maria Rutschmann-Schnyder', 'Grosse Marktgasse', '28',
+            '9400', 'Rorschach', 'CH', //
+            'QRR', '210000000003139471430009017', 'Order of 15 June 2020',
+            'EPD',
+          ].join('\n'),
+        ),
+      );
+      expect(find.text('PAYMENT · QR-BILL'), findsOneWidget);
+      expect(find.text('1949.75 CHF'), findsOneWidget);
+      expect(find.text('21 00000 00003 13947 14300 09017'), findsOneWidget);
+      expect(find.text('Rue du Lac 1268, 2501 Biel'), findsOneWidget);
+      expect(find.text('Pia-Maria Rutschmann-Schnyder'), findsOneWidget);
+    });
+
+    testWidgets('an EMVCo code without an amount, money in a locale', (
+      WidgetTester tester,
+    ) async {
+      final String body =
+          '000201010211'
+          '${_tlv('26', _tlv('00', 'SG.PAYNOW') + _tlv('02', '201403121W'))}'
+          '52045812530370258'
+          '02SG5913Lumen Pte Ltd6009Singapore6304';
+      await show(tester, _barcode('$body${_crc(body)}'));
+      expect(find.text('PAYMENT · PAYNOW'), findsOneWidget);
+      expect(find.text('The payer enters the amount'), findsOneWidget);
+      expect(find.text('Reusable'), findsOneWidget);
+      expect(find.text('5812'), findsOneWidget);
+      // No account to copy: the whole text.
+      expect(find.text('Copy'), findsOneWidget);
+
+      await tester.pumpWidget(
+        _host(
+          ScannerScope(
+            strings: ScannerStrings(
+              money: (String amount, String? currency) => currency == 'BRL'
+                  ? 'R\$ ${amount.replaceAll('.', ',')}'
+                  : amount,
+            ),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: BarcodeResultSheet(
+                _barcode(
+                  EmvPaymentContent.pix(
+                    key: 'fulano@example.com',
+                    name: 'Fulano de Tal',
+                    city: 'SAO PAULO',
+                    amount: '10.50',
+                  ).toPayload(),
+                ),
+                onScanAgain: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.text(r'R$ 10,50'), findsOneWidget);
+      expect(find.text('Copy key'), findsOneWidget);
+    });
+
     testWidgets('copy confirms and resets', (WidgetTester tester) async {
       final List<MethodCall> calls = <MethodCall>[];
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -1696,3 +1802,21 @@ ScannerController _findController(WidgetTester tester) =>
             )
             .valueListenable
         as ScannerController;
+
+/// An EMVCo data object.
+String _tlv(String id, String value) =>
+    '$id${value.length.toString().padLeft(2, '0')}$value';
+
+/// CRC-16/CCITT-FALSE, as EMVCo codes end.
+String _crc(String text) {
+  int crc = 0xFFFF;
+  for (final int byte in utf8.encode(text)) {
+    crc ^= byte << 8;
+    for (int i = 0; i < 8; i++) {
+      crc = (crc & 0x8000) != 0
+          ? ((crc << 1) ^ 0x1021) & 0xFFFF
+          : (crc << 1) & 0xFFFF;
+    }
+  }
+  return crc.toRadixString(16).toUpperCase().padLeft(4, '0');
+}

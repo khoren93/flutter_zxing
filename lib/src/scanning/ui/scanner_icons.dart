@@ -176,6 +176,13 @@ abstract final class ScannerIcons {
     stroke: 'M6 4h3v7H6zM15 4v7M6 13v7M15 13h3v7h-3z',
   );
 
+  /// A banknote: a payment.
+  static const ScannerIconData payment = ScannerIconData(
+    stroke:
+        'M4.5 6h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-15a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z '
+        'M9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0zM6 9.5h0.01M18 14.5h0.01',
+  );
+
   /// A key: a one-time password.
   static const ScannerIconData otp = ScannerIconData(
     stroke: 'M4 15a4 4 0 1 0 8 0a4 4 0 1 0-8 0zM11 12l9-9M16 7l3 3M14 9l2 2',
