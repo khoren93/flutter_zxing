@@ -4,6 +4,7 @@ import '../barcode/barcode.dart';
 import 'app_content.dart';
 import 'content_builder.dart';
 import 'content_parser.dart';
+import 'gs1.dart';
 import 'industry_content.dart';
 import 'link_service.dart';
 import 'payment_content.dart';
@@ -634,6 +635,41 @@ final class Gs1Content extends BarcodeContent {
 
   /// GTIN (AI 01), if present.
   String? get gtin => elements['01'];
+
+  /// The Serial Shipping Container Code (AI 00) of a logistic unit, such
+  /// as a pallet, if present.
+  String? get sscc => elements['00'];
+
+  /// The batch or lot number (AI 10), if present.
+  String? get batch => elements['10'];
+
+  /// The serial number (AI 21), if present.
+  String? get serial => elements['21'];
+
+  /// How many trade items a logistic unit holds (AI 37), if present.
+  int? get count => switch (elements['37']) {
+    final String value => int.tryParse(value),
+    null => null,
+  };
+
+  /// The expiry date (AI 17), if present and valid; a day of `00` is the
+  /// last day of the month.
+  DateTime? get expiry => gs1Date(elements['17']);
+
+  /// The best before date (AI 15), if present and valid.
+  DateTime? get bestBefore => gs1Date(elements['15']);
+
+  /// Whether the [expiry] date has passed: the item may be used through
+  /// that day. `false` without an expiry date. [now] defaults to the
+  /// current time.
+  bool isExpired([DateTime? now]) {
+    final DateTime? expiry = gs1Date(elements['17'], now);
+    if (expiry == null) {
+      return false;
+    }
+    final DateTime today = now ?? DateTime.now();
+    return DateTime(today.year, today.month, today.day).isAfter(expiry);
+  }
 
   /// The elements with their identifiers in parentheses,
   /// `(01)09501101530003(17)250101`, the form GS1 encoding takes

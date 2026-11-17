@@ -72,9 +72,9 @@ List<String> _uris(File file) {
     // Conditional imports: `import 'a.dart' if (dart.library.io) 'b.dart'`.
     final String whole = m.group(0)!;
     uris.addAll(
-      RegExp(r"if\s*\([^)]*\)\s*'([^']+)'")
-          .allMatches(whole)
-          .map((RegExpMatch c) => c.group(1)!),
+      RegExp(
+        r"if\s*\([^)]*\)\s*'([^']+)'",
+      ).allMatches(whole).map((RegExpMatch c) => c.group(1)!),
     );
   }
   return uris;

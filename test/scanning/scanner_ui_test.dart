@@ -122,6 +122,33 @@ void main() {
       );
     });
 
+    test('status colors: defaults, own colors and text on them', () {
+      const ScannerTheme theme = ScannerTheme(brightness: Brightness.light);
+      expect(theme.warningColor, theme.signalColor);
+      expect(theme.dangerColor, const Color(0xFFFF4D42));
+      const ScannerTheme own = ScannerTheme(
+        warning: Color(0xFFFFEB3B),
+        danger: Color(0xFF8B0000),
+        brightness: Brightness.dark,
+      );
+      expect(own.warningColor, const Color(0xFFFFEB3B));
+      expect(_contrast(own.onWarningColor, own.warningColor), greaterThan(4.5));
+      expect(_contrast(own.onDangerColor, own.dangerColor), greaterThan(4.5));
+      expect(
+        _contrast(own.dangerInkColor, const Color(0xFF101318)),
+        greaterThanOrEqualTo(4.5),
+      );
+      expect(
+        const ScannerTheme(
+          danger: Color(0xFF8B0000),
+        ).merge(const ScannerTheme(warning: Color(0xFF00FF00))),
+        const ScannerTheme(
+          danger: Color(0xFF8B0000),
+          warning: Color(0xFF00FF00),
+        ),
+      );
+    });
+
     test('blur off makes the glass more opaque', () {
       expect(
         const ScannerTheme(blur: false).glassColor.a,
@@ -178,6 +205,11 @@ void main() {
         ScannerIcons.show,
         ScannerIcons.hide,
         ScannerIcons.add,
+        ScannerIcons.alert,
+        ScannerIcons.person,
+        ScannerIcons.closer,
+        ScannerIcons.card,
+        ScannerIcons.scan,
       ];
       for (final ScannerIconData icon in icons) {
         for (final String data in <String>[icon.stroke, icon.fill]) {
@@ -891,6 +923,440 @@ void main() {
     });
   });
 
+  group('stage 11 templates on a fake camera', () {
+    late FakeCamera camera;
+    DateTime now = DateTime(2026);
+
+    setUp(() {
+      camera = FakeCamera(transform: const FrameTransform(_phone));
+      ScannerControllerDebug.cameraFactory = () => camera;
+      ScannerControllerDebug.clock = () => now;
+    });
+
+    tearDown(() {
+      ScannerControllerDebug.cameraFactory = null;
+      ScannerControllerDebug.clock = null;
+    });
+
+    Future<void> phone(WidgetTester tester, [Size size = _phone]) async {
+      tester.view
+        ..physicalSize = size
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+    }
+
+    Future<void> push(WidgetTester tester, List<Barcode> barcodes) async {
+      camera.push(barcodes);
+      await tester.pump();
+      await tester.pump();
+    }
+
+    /// Lets timers and animations run for [ms] milliseconds.
+    Future<void> wait(WidgetTester tester, int ms) async {
+      for (int t = 0; t < ms; t += 100) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    Widget app(Widget Function(BuildContext context) home) => WidgetsApp(
+      color: const Color(0xFF000000),
+      pageRouteBuilder: <T>(RouteSettings settings, WidgetBuilder builder) =>
+          PageRouteBuilder<T>(
+            settings: settings,
+            pageBuilder:
+                (
+                  BuildContext context,
+                  Animation<double> _,
+                  Animation<double> _,
+                ) => builder(context),
+          ),
+      home: Builder(builder: home),
+    );
+
+    test('presets configure detection, formats and the camera', () {
+      final ScannerTemplate checkIn = ScannerTemplate.checkIn(
+        check: (Barcode b) => null,
+      );
+      expect(checkIn.mode, ScannerMode.continuous);
+      expect(checkIn.detection, DetectionMode.distinct);
+      expect(checkIn.maxBarcodes, 1);
+      expect(checkIn.counter, isTrue);
+      expect(const ScannerTemplate.pick().maxBarcodes, isNull);
+      expect(const ScannerTemplate.logistics().mode, ScannerMode.collect);
+      expect(const ScannerTemplate.kiosk().facing, CameraFacing.front);
+      expect(const ScannerTemplate.kiosk().largeHint, isTrue);
+      expect(const ScannerTemplate.small().initialZoom, 2);
+      expect(const ScannerTemplate.signIn().closeOnResult, isTrue);
+      expect(const ScannerTemplate.loyalty().resultAsCard, isTrue);
+      expect(const ScannerTemplate.minimal().detection, DetectionMode.once);
+      expect(
+        ScannerTemplate.minimal(check: (Barcode b) => null).detection,
+        DetectionMode.distinct,
+      );
+      final ScannerTemplate copy = const ScannerTemplate.minimal().copyWith(
+        mode: ScannerMode.pick,
+        initialZoom: 3,
+      );
+      expect(copy.mode, ScannerMode.pick);
+      expect(copy.initialZoom, 3);
+    });
+
+    testWidgets('small starts zoomed in, kiosk on the front camera', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.small())),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(camera.zoom, 2);
+      expect(find.text('Move closer'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.kiosk())),
+      );
+      await tester.pump();
+      expect(camera.opened.last, CameraFacing.front);
+      // Large title and hint, no buttons.
+      expect(find.text('Scan your ticket'), findsOneWidget);
+      expect(find.text('Hold the code up to the camera'), findsOneWidget);
+      expect(find.byType(ScannerHint), findsNothing);
+      expect(find.byType(ScannerButton), findsNothing);
+    });
+
+    testWidgets('a refused code flashes and scanning goes on', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      final List<String> checked = <String>[];
+      await tester.pumpWidget(
+        _host(
+          BarcodeScanner(
+            template: ScannerTemplate.minimal(
+              check: (Barcode b) async {
+                checked.add(b.text);
+                return b.text.startsWith('ok')
+                    ? null
+                    : const ScanVerdict.reject(
+                        title: 'Not ours',
+                        message: 'Try another',
+                      );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await push(tester, <Barcode>[_barcode('bad')]);
+      await tester.pump();
+      expect(checked, <String>['bad']);
+      expect(find.text('Not ours · Try another'), findsOneWidget);
+      final ScannerController controller = _findController(tester);
+      expect(controller.value.status, ScannerStatus.running);
+      expect(find.byType(BarcodeResultSheet), findsNothing);
+      // The same code in view is not checked again.
+      await push(tester, <Barcode>[_barcode('bad')]);
+      expect(checked, <String>['bad']);
+
+      now = now.add(const Duration(seconds: 2));
+      await push(tester, <Barcode>[]);
+      now = now.add(const Duration(seconds: 2));
+      await push(tester, <Barcode>[_barcode('ok-1')]);
+      await tester.pump();
+      expect(controller.value.status, ScannerStatus.paused);
+      await wait(tester, 800);
+      expect(find.byType(BarcodeResultSheet), findsOneWidget);
+      expect(find.text('ok-1'), findsOneWidget);
+      await wait(tester, 3000);
+    });
+
+    testWidgets('check-in: verdicts, colors and the counter', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      await tester.pumpWidget(
+        _host(
+          BarcodeScanner(
+            template: ScannerTemplate.checkIn(
+              check: (Barcode b) => switch (b.text) {
+                'T-1' => const ScanVerdict.accept(
+                  title: 'Anna Petrova',
+                  message: 'Row 4, seat 12',
+                ),
+                'T-2' => const ScanVerdict.warn(
+                  title: 'Anna Petrova',
+                  message: 'Already checked in',
+                ),
+                _ => const ScanVerdict.reject(title: 'Invalid ticket'),
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('0 checked in'), findsOneWidget);
+      expect(find.text('Point at the ticket'), findsOneWidget);
+
+      await push(tester, <Barcode>[_barcode('T-1')]);
+      await tester.pump();
+      expect(find.text('ACCEPTED'), findsOneWidget);
+      expect(find.text('Anna Petrova'), findsOneWidget);
+      expect(find.text('Row 4, seat 12'), findsOneWidget);
+      expect(find.text('1 checked in'), findsOneWidget);
+      final ScannerController controller = _findController(tester);
+      expect(controller.value.status, ScannerStatus.running);
+      // The brackets take the verdict's color.
+      expect(
+        ScannerTheme.of(
+          tester.element(find.byType(ScanWindowOverlay)),
+        ).lockColor,
+        ScannerTheme.defaultAccent,
+      );
+
+      now = now.add(const Duration(seconds: 2));
+      await push(tester, <Barcode>[]);
+      now = now.add(const Duration(seconds: 2));
+      await push(tester, <Barcode>[_barcode('T-2')]);
+      await tester.pump();
+      expect(find.text('CHECK THIS CODE'), findsOneWidget);
+      expect(find.text('1 checked in'), findsOneWidget);
+      expect(
+        ScannerTheme.of(
+          tester.element(find.byType(ScanWindowOverlay)),
+        ).lockColor,
+        const ScannerTheme().warningColor,
+      );
+
+      await push(tester, <Barcode>[_barcode('T-9')]);
+      await tester.pump();
+      expect(find.text('NOT ACCEPTED'), findsOneWidget);
+      expect(find.text('Invalid ticket'), findsOneWidget);
+      expect(
+        ScannerTheme.of(
+          tester.element(find.byType(ScanWindowOverlay)),
+        ).lockColor,
+        const ScannerTheme().dangerColor,
+      );
+      // The verdict hides by itself.
+      await wait(tester, 2600);
+      expect(find.text('Invalid ticket'), findsNothing);
+      expect(find.text('Point at the ticket'), findsOneWidget);
+    });
+
+    testWidgets('pick: a label on every code, a tap picks one', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      final SemanticsHandle semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.pick())),
+      );
+      await tester.pump();
+      expect(find.text('Tap a code'), findsOneWidget);
+      expect(find.byType(WindowScrim), findsNothing);
+      await push(tester, <Barcode>[
+        _barcode('https://www.flutter.dev/x'),
+        _barcode(
+          'WIFI:T:WPA;S:Office;P:secret;;',
+          rect: const Rect.fromLTWH(200, 500, 100, 100),
+        ),
+      ]);
+      expect(find.text('2 codes'), findsOneWidget);
+      expect(find.text('flutter.dev'), findsOneWidget);
+      expect(find.text('Office'), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp(r'^2\. Wi')), findsOneWidget);
+      // Nothing is picked by itself.
+      expect(find.byType(BarcodeResultSheet), findsNothing);
+      await tester.tap(find.text('Office'));
+      await tester.pump();
+      final ScannerController controller = _findController(tester);
+      expect(controller.value.status, ScannerStatus.paused);
+      await wait(tester, 800);
+      expect(find.byType(BarcodeResultSheet), findsOneWidget);
+      expect(find.text('WI‑FI NETWORK'), findsOneWidget);
+      semantics.dispose();
+    });
+
+    testWidgets('fullscreen: no window until a code locks', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.fullscreen())),
+      );
+      await tester.pump();
+      expect(find.byType(WindowScrim), findsNothing);
+      await push(tester, <Barcode>[_barcode('hello')]);
+      await wait(tester, 800);
+      expect(find.byType(BarcodeResultSheet), findsOneWidget);
+    });
+
+    testWidgets('sign in: the screen closes with the code accepted', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      Barcode? result;
+      await tester.pumpWidget(
+        app(
+          (BuildContext context) => GestureDetector(
+            onTap: () async {
+              result = await Navigator.of(context).push<Barcode>(
+                PageRouteBuilder<Barcode>(
+                  pageBuilder:
+                      (
+                        BuildContext context,
+                        Animation<double> _,
+                        Animation<double> _,
+                      ) => BarcodeScanner(
+                        template: ScannerTemplate.signIn(
+                          check: (Barcode b) =>
+                              b.text.startsWith('https://example.com/')
+                              ? null
+                              : const ScanVerdict.reject(
+                                  title: 'Not a sign-in code',
+                                ),
+                        ),
+                      ),
+                ),
+              );
+            },
+            child: const Text('sign in'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('sign in'));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Scan to sign in'), findsOneWidget);
+      await push(tester, <Barcode>[_barcode('https://evil.test/')]);
+      await tester.pump();
+      expect(find.text('Not a sign-in code'), findsOneWidget);
+      now = now.add(const Duration(seconds: 2));
+      await push(tester, <Barcode>[]);
+      now = now.add(const Duration(seconds: 2));
+      await push(tester, <Barcode>[_barcode('https://example.com/d?c=1')]);
+      await wait(tester, 1200);
+      expect(result!.text, 'https://example.com/d?c=1');
+      expect(find.text('sign in'), findsOneWidget);
+    });
+
+    testWidgets('ScanFieldButton fills its field from a sheet scanner', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      final SemanticsHandle semantics = tester.ensureSemantics();
+      final TextEditingController field = TextEditingController();
+      addTearDown(field.dispose);
+      Barcode? scanned;
+      await tester.pumpWidget(
+        app(
+          (BuildContext context) => Center(
+            child: ScanFieldButton(
+              controller: field,
+              title: 'Tracking number',
+              check: (Barcode b) => b.text.length == 16
+                  ? null
+                  : const ScanVerdict.reject(title: 'Not a tracking number'),
+              valueOf: (Barcode b) => b.text.toUpperCase(),
+              onScanned: (Barcode b) => scanned = b,
+            ),
+          ),
+        ),
+      );
+      expect(
+        find.bySemanticsLabel('Scan a code: Tracking number'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byType(ScanFieldButton));
+      await tester.pump();
+      await wait(tester, 400);
+      expect(find.text('Tracking number'), findsOneWidget);
+      // A sheet: the page under it stays.
+      expect(find.byType(ScanFieldButton), findsOneWidget);
+      await push(tester, <Barcode>[_barcode('short')]);
+      await tester.pump();
+      expect(find.text('Not a tracking number'), findsOneWidget);
+      now = now.add(const Duration(seconds: 2));
+      await push(tester, <Barcode>[]);
+      now = now.add(const Duration(seconds: 2));
+      await push(tester, <Barcode>[_barcode('1z999aa10123456x')]);
+      await wait(tester, 1200);
+      expect(field.text, '1Z999AA10123456X');
+      expect(field.selection.baseOffset, 16);
+      expect(scanned!.text, '1z999aa10123456x');
+      expect(find.text('Tracking number'), findsNothing);
+      semantics.dispose();
+    });
+
+    testWidgets('loyalty: the card number large, in groups', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.loyalty())),
+      );
+      await tester.pump();
+      await push(tester, <Barcode>[
+        _barcode('6034992144770815', format: BarcodeFormat.code128, id: ']C0'),
+      ]);
+      await wait(tester, 800);
+      expect(find.text('LOYALTY CARD'), findsOneWidget);
+      expect(find.text('Card number'), findsOneWidget);
+      expect(find.text('6034 9921 4477 0815'), findsOneWidget);
+    });
+
+    testWidgets('logistics: SSCC and GS1 fields in the list', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.logistics())),
+      );
+      await tester.pump();
+      await push(tester, <Barcode>[
+        _barcode(
+          '(00)106141412345678908',
+          format: BarcodeFormat.code128,
+          id: ']C1',
+          type: BarcodeContentType.gs1,
+        ),
+        _barcode(
+          '(02)09501101530003(37)24(10)LOT-0423',
+          format: BarcodeFormat.code128,
+          id: ']C1',
+          type: BarcodeContentType.gs1,
+          rect: const Rect.fromLTWH(20, 160, 300, 60),
+        ),
+      ]);
+      expect(find.text('106141412345678908'), findsOneWidget);
+      expect(find.textContaining('SSCC'), findsOneWidget);
+      expect(find.text('2 items'), findsOneWidget);
+    });
+
+    testWidgets('kiosk in landscape: the panel at the side', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester, const Size(1180, 820));
+      await tester.pumpWidget(
+        const MediaQuery(
+          data: MediaQueryData(size: Size(1180, 820)),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: BarcodeScanner(template: ScannerTemplate.kiosk()),
+          ),
+        ),
+      );
+      await tester.pump();
+      await wait(tester, 400);
+      expect(
+        tester.getCenter(find.text('Scan your ticket')).dx,
+        greaterThan(590),
+      );
+    });
+  });
+
   group('found in review', () {
     late FakeCamera camera;
     final DateTime now = DateTime(2026);
@@ -1593,10 +2059,30 @@ void main() {
           type: BarcodeContentType.gs1,
         ),
       );
-      expect(find.text('GS1'), findsOneWidget);
-      expect(find.text('09501101530003'), findsNWidgets(2));
-      expect(find.text('(17)'), findsOneWidget);
-      expect(find.text('261231'), findsOneWidget);
+      expect(find.text('GS1 · GTIN'), findsOneWidget);
+      expect(find.text('09501101530003'), findsOneWidget);
+      expect(find.text('EXPIRES'), findsOneWidget);
+      expect(find.text('31 Dec 2026'), findsOneWidget);
+    });
+
+    testWidgets('GS1 of a medicine pack: batch, serial, expired', (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        _barcode(
+          '(01)09501101530003(17)250100(10)AB12C(21)7C4K9M2(240)X-1',
+          format: BarcodeFormat.dataMatrix,
+          id: ']d2',
+          type: BarcodeContentType.gs1,
+        ),
+      );
+      expect(find.text('09501101530003'), findsOneWidget);
+      expect(find.text('31 Jan 2025'), findsOneWidget);
+      expect(find.text('AB12C'), findsOneWidget);
+      expect(find.text('7C4K9M2'), findsOneWidget);
+      expect(find.text('(240)'), findsOneWidget);
+      expect(find.text('Expired'), findsOneWidget);
     });
 
     testWidgets('binary data in hex', (WidgetTester tester) async {

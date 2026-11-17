@@ -22,10 +22,12 @@ import 'camera/camera_source.dart';
 import 'frame_geometry.dart';
 import 'scan_window.dart';
 import 'snapshot.dart';
+import 'ui/scan_verdict.dart';
 import 'ui/scanner_strings.dart';
 import 'ui/scanner_template.dart';
 import 'ui/scanner_theme.dart';
 import 'ui/states.dart';
+import 'ui/template_overlay.dart';
 import 'ui/window_overlay.dart';
 
 part 'barcode_scanner.dart';

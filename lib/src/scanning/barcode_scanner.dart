@@ -105,6 +105,7 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
           scanWindow: template.scanWindow,
           detection: template.detection,
           maxBarcodes: template.maxBarcodes,
+          facing: template.facing ?? CameraFacing.back,
         );
 
   @override
@@ -408,8 +409,18 @@ final class VisibleBarcode {
   ).bounds;
 }
 
-/// Opens a full-screen scanner and returns the first barcode found, or
-/// `null` if the user closes it.
+/// How [scanBarcode] shows its scanner.
+enum ScannerPresentation {
+  /// A full-screen page.
+  page,
+
+  /// A sheet over the lower part of the screen; the page under it, such as
+  /// the form being filled in, stays in view. A tap above it closes it.
+  sheet,
+}
+
+/// Opens a scanner and returns the first barcode found (and accepted by
+/// [check]), or `null` if the user closes it.
 ///
 /// ```dart
 /// final Barcode? barcode = await scanBarcode(context, formats: {BarcodeFormat.qrCode});
@@ -419,13 +430,17 @@ final class VisibleBarcode {
 /// its result sheet: the brackets lock onto the code and the screen
 /// closes. [formats] and [scanWindow] replace the template's; [hint] is
 /// shown under the scan window, e.g. "Point the camera at a QR code" (pass
-/// your own localized text, or an empty string for none).
+/// your own localized text, or an empty string for none). A [check] that
+/// refuses a code keeps the scanner open with the verdict's text.
+/// [presentation] opens it as a page or as a sheet.
 Future<Barcode?> scanBarcode(
   BuildContext context, {
   Set<BarcodeFormat>? formats,
   ScanWindow? scanWindow,
-  CameraFacing facing = CameraFacing.back,
+  CameraFacing? facing,
   String? hint,
+  ScannerCheck? check,
+  ScannerPresentation presentation = ScannerPresentation.page,
   ScannerTemplate? template,
   ScannerTheme? theme,
   ScannerStrings? strings,
@@ -444,26 +459,31 @@ Future<Barcode?> scanBarcode(
     photoButton: base.photoButton,
     zoomButtons: base.zoomButtons,
     switchCameraButton: base.switchCameraButton,
+    check: check ?? base.check,
     showResult: false,
+    closeOnResult: true,
+    initialZoom: base.initialZoom,
+    facing: facing ?? base.facing,
     haptics: base.haptics,
     sound: base.sound,
   );
   // The page has no Material: keep the caller's font.
   final TextStyle text = DefaultTextStyle.of(context).style;
-  return Navigator.of(context).push<Barcode>(
-    PageRouteBuilder<Barcode>(
+  final Widget scanner = DefaultTextStyle(
+    style: text,
+    child: _ScanPage(
+      template: page,
+      theme: theme,
+      strings: strings,
+      sheet: presentation == ScannerPresentation.sheet,
+    ),
+  );
+  return Navigator.of(context).push<Barcode>(switch (presentation) {
+    ScannerPresentation.page => PageRouteBuilder<Barcode>(
       reverseTransitionDuration: const Duration(milliseconds: 200),
       pageBuilder:
           (BuildContext context, Animation<double> _, Animation<double> _) =>
-              DefaultTextStyle(
-                style: text,
-                child: _ScanPage(
-                  template: page,
-                  facing: facing,
-                  theme: theme,
-                  strings: strings,
-                ),
-              ),
+              scanner,
       transitionsBuilder:
           (
             BuildContext context,
@@ -475,21 +495,49 @@ Future<Barcode?> scanBarcode(
             child: child,
           ),
     ),
-  );
+    ScannerPresentation.sheet => PageRouteBuilder<Barcode>(
+      opaque: false,
+      barrierDismissible: true,
+      barrierColor: const Color(0x6B06090D),
+      barrierLabel: (strings ?? const ScannerStrings()).close,
+      transitionDuration: const Duration(milliseconds: 320),
+      reverseTransitionDuration: const Duration(milliseconds: 240),
+      pageBuilder:
+          (BuildContext context, Animation<double> _, Animation<double> _) =>
+              scanner,
+      transitionsBuilder:
+          (
+            BuildContext context,
+            Animation<double> animation,
+            Animation<double> _,
+            Widget child,
+          ) => SlideTransition(
+            position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+                .animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                    reverseCurve: Curves.easeInCubic,
+                  ),
+                ),
+            child: child,
+          ),
+    ),
+  });
 }
 
 class _ScanPage extends StatefulWidget {
   const _ScanPage({
     required this.template,
-    required this.facing,
     required this.theme,
     required this.strings,
+    required this.sheet,
   });
 
   final ScannerTemplate template;
-  final CameraFacing facing;
   final ScannerTheme? theme;
   final ScannerStrings? strings;
+  final bool sheet;
 
   @override
   State<_ScanPage> createState() => _ScanPageState();
@@ -499,10 +547,9 @@ class _ScanPageState extends State<_ScanPage> {
   late final ScannerController _controller = ScannerController(
     formats: widget.template.formats,
     scanWindow: widget.template.scanWindow,
-    facing: widget.facing,
-    detection: DetectionMode.once,
+    facing: widget.template.facing ?? CameraFacing.back,
+    detection: widget.template.detection,
   );
-  bool _done = false;
 
   @override
   void dispose() {
@@ -510,29 +557,68 @@ class _ScanPageState extends State<_ScanPage> {
     super.dispose();
   }
 
-  Future<void> _found(BarcodeCapture capture) async {
-    if (_done) {
-      return;
-    }
-    _done = true;
-    // Let the code fly into the window before the screen closes.
-    await Future<void>.delayed(const Duration(milliseconds: 450));
-    // Not when the page is already closing (the user closed it during the
-    // delay): popping then would close the page below it.
-    if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
-      Navigator.of(context).pop(capture.barcode);
-    }
-  }
-
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: const Color(0xFF000000),
-    child: BarcodeScanner(
+  Widget build(BuildContext context) {
+    // The template's overlay closes the page with the code accepted.
+    final Widget scanner = BarcodeScanner(
       controller: _controller,
       template: widget.template,
       theme: widget.theme,
       strings: widget.strings,
-      onDetect: (BarcodeCapture capture) => unawaited(_found(capture)),
-    ),
-  );
+    );
+    if (!widget.sheet) {
+      return ColoredBox(color: const Color(0xFF000000), child: scanner);
+    }
+    final Size screen = MediaQuery.sizeOf(context);
+    final double height = math.min(
+      screen.height - MediaQuery.viewPaddingOf(context).top - 24,
+      math.max(420, screen.height * 0.62),
+    );
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 640, maxHeight: height),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          child: ColoredBox(
+            color: const Color(0xFF000000),
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                // The sheet is below the status bar.
+                MediaQuery.removeViewPadding(
+                  context: context,
+                  removeTop: true,
+                  child: MediaQuery.removePadding(
+                    context: context,
+                    removeTop: true,
+                    child: scanner,
+                  ),
+                ),
+                // A handle: the sheet can be closed.
+                const Align(
+                  alignment: Alignment.topCenter,
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 6),
+                    child: IgnorePointer(
+                      child: SizedBox(
+                        width: 40,
+                        height: 5,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Color(0x8CFFFFFF),
+                            borderRadius: BorderRadius.all(Radius.circular(3)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

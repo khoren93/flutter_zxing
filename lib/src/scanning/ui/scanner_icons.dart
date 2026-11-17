@@ -298,6 +298,37 @@ abstract final class ScannerIcons {
     strokeWidth: 2,
   );
 
+  /// A circle with an exclamation mark: a code that needs a look.
+  static const ScannerIconData alert = ScannerIconData(
+    stroke: 'M12 7.5v5.5M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0z',
+    fill: 'M10.8 16.5a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0z',
+    strokeWidth: 2,
+  );
+
+  /// A person: people checked in.
+  static const ScannerIconData person = ScannerIconData(
+    stroke: 'M8 8a4 4 0 1 0 8 0a4 4 0 1 0-8 0zM4 21a8 8 0 0 1 16 0',
+  );
+
+  /// A magnifier with a plus: move closer to a small code.
+  static const ScannerIconData closer = ScannerIconData(
+    stroke: 'M5 11a6 6 0 1 0 12 0a6 6 0 1 0-12 0zM20 20l-4.5-4.5M11 8v6M8 11h6',
+  );
+
+  /// A plastic card: a loyalty card.
+  static const ScannerIconData card = ScannerIconData(
+    stroke:
+        'M5.5 5h13A2.5 2.5 0 0 1 21 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-13 '
+        'A2.5 2.5 0 0 1 3 16.5v-9A2.5 2.5 0 0 1 5.5 5zM3 10h18M7 15h4',
+  );
+
+  /// Corners of a scan window around bars: scan a code into a field.
+  static const ScannerIconData scan = ScannerIconData(
+    stroke:
+        'M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2 '
+        'M8 20H6a2 2 0 0 1-2-2v-2M8 9v6M11 9v6M14 9v6M17 9v6',
+  );
+
   /// A camera, crossed out: no camera permission.
   static const ScannerIconData cameraOff = ScannerIconData(
     stroke: '${_camera}M8.5 13a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0zM3 3l18 18',

@@ -133,7 +133,7 @@ class _ScanPageState extends State<ScanPage> {
   }
 
   Future<void> _onDetect(BarcodeCapture capture) async {
-    if (_template.collect) {
+    if (_template.mode == ScannerMode.collect) {
       return; // Retail keeps its own list; onDone saves it.
     }
     ui.Image? cut;

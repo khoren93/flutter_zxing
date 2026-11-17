@@ -101,6 +101,17 @@ onto the code, and a sheet with what the code holds and what to do with it.
 | `ScannerTemplate.retail()` | Product and shipping barcodes in a row: dark glass, the torch, a list with counts |
 | `ScannerTemplate.ticket()` | Boarding passes, tickets and IDs (PDF417, Aztec, QR, Data Matrix), your sheet with the fields |
 | `ScannerTemplate.content()` | Everyday QR codes (links, Wi-Fi, contacts, events): dark glass, your actions such as "Open" or "Connect" |
+| `ScannerTemplate.product()` | Products and books: EAN and UPC, a sheet with the GTIN or ISBN |
+| `ScannerTemplate.small()` | Small codes on parts and boards: a small window, 2× zoom from the start |
+| `ScannerTemplate.signIn()` | Signing in or pairing with a QR code on another screen: closes with the code accepted |
+| `ScannerTemplate.checkIn(check:)` | Tickets at the door: scanning never stops, a green, amber or red verdict for each code, a counter |
+| `ScannerTemplate.pharma()` | Medicine packs: GS1 Data Matrix with the GTIN, batch, serial and expiry date, marked when expired |
+| `ScannerTemplate.pick()` | Several codes in view: no window, a label on every code, a tap picks one |
+| `ScannerTemplate.logistics()` | Shipping labels: GS1-128 with SSCC, GTIN, quantity and batch in a list |
+| `ScannerTemplate.kiosk()` | Self-service: the front camera, no buttons, large text, verdicts that hide by themselves |
+| `ScannerTemplate.fullscreen()` | The whole camera without a window: the brackets appear on the code |
+| `ScannerTemplate.vin()` | Vehicle identification numbers on the windshield or the door pillar |
+| `ScannerTemplate.loyalty()` | Loyalty and membership cards: the card number large |
 
 `ScannerTheme` sets your accent color, the shape of the scan window and
 buttons, and light or dark glass. `ScannerStrings` translates every text.
@@ -125,6 +136,36 @@ final Barcode? barcode = await scanBarcode(
   formats: {BarcodeFormat.qrCode},
   hint: 'Point the camera at a QR code',
 );
+```
+
+A `check` accepts, flags or refuses each code before anything else
+happens, such as a ticket at the door or a sign-in code of your own service.
+It may be asynchronous:
+
+```dart
+BarcodeScanner(
+  template: ScannerTemplate.checkIn(
+    check: (barcode) async {
+      final ticket = await tickets.find(barcode.text);
+      if (ticket == null) return const ScanVerdict.reject(title: 'Invalid ticket');
+      if (ticket.used) return ScanVerdict.warn(title: ticket.name, message: 'Already checked in');
+      return ScanVerdict.accept(title: ticket.name, message: ticket.seat);
+    },
+  ),
+)
+```
+
+To fill a text field from a barcode, put a `ScanFieldButton` in it. It
+opens the scanner in a sheet over the form:
+
+```dart
+TextField(
+  controller: tracking,
+  decoration: InputDecoration(
+    labelText: 'Tracking number',
+    suffixIcon: ScanFieldButton(controller: tracking, title: 'Tracking number'),
+  ),
+)
 ```
 
 ### Your own UI

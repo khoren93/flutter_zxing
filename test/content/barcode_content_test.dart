@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing/src/content/gs1.dart';
 
 const BarcodePosition _nowhere = BarcodePosition(
   topLeft: Offset.zero,
@@ -581,6 +582,49 @@ void main() {
         _parse('(01)09501101530003'),
         const TextContent('(01)09501101530003'),
       );
+    });
+  });
+
+  group('GS1 fields', () {
+    test('names the common identifiers', () {
+      const Gs1Content gs1 = Gs1Content(<String, String>{
+        '00': '106141412345678908',
+        '01': '09501101530003',
+        '10': 'AB12C',
+        '21': '7C4K9M2',
+        '37': '24',
+        '17': '250100',
+        '15': '261231',
+      });
+      expect(gs1.sscc, '106141412345678908');
+      expect(gs1.gtin, '09501101530003');
+      expect(gs1.batch, 'AB12C');
+      expect(gs1.serial, '7C4K9M2');
+      expect(gs1.count, 24);
+      // Day 00: the last day of the month.
+      expect(gs1.expiry, DateTime(2025, 1, 31));
+      expect(gs1.bestBefore, DateTime(2026, 12, 31));
+    });
+
+    test('expired after the expiry day, not on it', () {
+      const Gs1Content gs1 = Gs1Content(<String, String>{'17': '261117'});
+      expect(gs1.isExpired(DateTime(2026, 11, 17, 23, 59)), isFalse);
+      expect(gs1.isExpired(DateTime(2026, 11, 18)), isTrue);
+      expect(const Gs1Content(<String, String>{}).isExpired(), isFalse);
+    });
+
+    test('dates: the century of GS1 7.12, invalid dates', () {
+      final DateTime now = DateTime(2026, 6);
+      expect(gs1Date('760101', now), DateTime(2076));
+      expect(gs1Date('770101', now), DateTime(1977));
+      expect(gs1Date('770101', DateTime(2027)), DateTime(2077));
+      expect(gs1Date('970101', DateTime(2050)), DateTime(2097));
+      expect(gs1Date('000229', now), DateTime(2000, 2, 29));
+      expect(gs1Date('010229', now), isNull);
+      expect(gs1Date('251301', now), isNull);
+      expect(gs1Date('2501', now), isNull);
+      expect(gs1Date(null, now), isNull);
+      expect(const Gs1Content(<String, String>{'37': 'x'}).count, isNull);
     });
   });
 

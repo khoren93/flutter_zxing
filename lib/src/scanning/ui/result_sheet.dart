@@ -75,7 +75,12 @@ class BarcodeResultSheet extends StatelessWidget {
     this.showIcon = false,
     this.showPicture = true,
     this.cutOut,
+    this.asCard = false,
   });
+
+  /// Shows the text as the number of a card, such as a loyalty card: large,
+  /// in groups of four, under a card badge ([ScannerTemplate.loyalty]).
+  final bool asCard;
 
   /// The code.
   final Barcode barcode;
@@ -102,7 +107,10 @@ class BarcodeResultSheet extends StatelessWidget {
     final ScannerTheme theme = ScannerTheme.of(context);
     final ScannerStrings strings = ScannerStrings.of(context);
     final BarcodeContent content = barcode.content;
-    final _Summary summary = _Summary.of(barcode, content, strings);
+    final _Summary summary = asCard
+        ? _Summary.card(barcode.text, strings)
+        : _Summary.of(barcode, content, strings);
+    final String kind = summary.kind ?? strings.kindOf(content);
     final List<ScannerAction> actions =
         this.actions ??
         <ScannerAction>[
@@ -131,10 +139,7 @@ class BarcodeResultSheet extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Text(
-          <String>[
-            strings.kindOf(content),
-            ?summary.kindDetail,
-          ].join(' · ').toUpperCase(),
+          <String>[kind, ?summary.kindDetail].join(' · ').toUpperCase(),
           style: theme.overlineStyle,
         ),
         const SizedBox(height: 4),
@@ -147,15 +152,17 @@ class BarcodeResultSheet extends StatelessWidget {
       ],
     );
     return ScannerSheet(
-      label: '${strings.kindOf(content)}: ${summary.title}',
+      label: '$kind: ${summary.title}',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Row(
             children: <Widget>[
-              if (showIcon) ...<Widget>[
-                ScannerBadge(icon: iconOf(content)),
+              if (showIcon || asCard) ...<Widget>[
+                ScannerBadge(
+                  icon: asCard ? ScannerIcons.card : iconOf(content),
+                ),
                 const SizedBox(width: 16),
               ] else if (showPicture) ...<Widget>[
                 BarcodeThumbnail(barcode, cutOut: cutOut, size: 72),
@@ -181,15 +188,7 @@ class BarcodeResultSheet extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ],
-          if (content case Gs1Content(
-            :final Map<String, String> elements,
-          )) ...<Widget>[
-            const SizedBox(height: 16),
-            ScannerFields(<String, String>{
-              for (final MapEntry<String, String> e in elements.entries)
-                '(${e.key})': e.value,
-            }),
-          ] else if (summary.payload case final String payload) ...<Widget>[
+          if (summary.payload case final String payload) ...<Widget>[
             const SizedBox(height: 16),
             Text(
               payload,
@@ -227,6 +226,8 @@ class BarcodeResultSheet extends StatelessWidget {
               for (final String chip in summary.chips) ScannerChip(chip),
               if (summary.warning case final String warning)
                 ScannerChip(warning, warning: true),
+              if (summary.danger case final String danger)
+                ScannerChip(danger, danger: true),
             ],
           ),
           if (actions.isNotEmpty) ...<Widget>[
@@ -303,9 +304,29 @@ final class _Summary {
     this.secret,
     this.chips = const <String>[],
     this.warning,
+    this.danger,
     this.copy,
     this.copyLabel,
+    this.kind,
   });
+
+  /// A card number: [text] large, in groups of four when it has no spaces.
+  factory _Summary.card(String text, ScannerStrings strings) {
+    final String trimmed = text.trim();
+    final String code = trimmed.contains(' ')
+        ? trimmed
+        : <String>[
+            for (int i = 0; i < trimmed.length; i += 4)
+              trimmed.substring(i, (i + 4).clamp(0, trimmed.length)),
+          ].join(' ');
+    return _Summary(
+      strings.cardNumber,
+      kind: strings.loyaltyCard,
+      code: code,
+      largeCode: trimmed.length <= 12,
+      copy: trimmed,
+    );
+  }
 
   factory _Summary.of(
     Barcode barcode,
@@ -529,8 +550,10 @@ final class _Summary {
             if (isbn != null) 'ISBN' else if (issn != null) 'ISSN',
           ],
         );
-      case Gs1Content(:final Map<String, String> elements):
-        return _Summary(elements['01'] ?? elements.values.firstOrNull ?? text);
+      case final Gs1Content gs1:
+        return gs1.elements.isEmpty
+            ? _Summary(text)
+            : _gs1Summary(gs1, strings);
       case BinaryContent(:final Uint8List bytes):
         return _Summary(strings.byteCount(bytes.length), payload: _hex(bytes));
       case TextContent(:final String text):
@@ -574,8 +597,14 @@ final class _Summary {
   /// More chips after the symbology ("ISBN", "Flight 1 of 2").
   final List<String> chips;
 
-  /// A chip in the signal color ("Expired").
+  /// A chip in the signal color.
   final String? warning;
+
+  /// A chip in the danger color ("Expired").
+  final String? danger;
+
+  /// The kind above the title instead of [ScannerStrings.kindOf].
+  final String? kind;
 
   /// What the default copy button copies instead of the whole text, and
   /// its label: a payment's account, "Copy IBAN".
@@ -596,6 +625,68 @@ final class _Summary {
 
   static bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
+
+  /// GS1 data: the GTIN or SSCC as the title, the dates, batch, serial and
+  /// quantity by name, and every other element by its identifier.
+  static _Summary _gs1Summary(Gs1Content gs1, ScannerStrings strings) {
+    final Map<String, String> elements = gs1.elements;
+    final Set<String> named = <String>{};
+    String? take(String ai) {
+      final String? value = elements[ai];
+      if (value != null) {
+        named.add(ai);
+      }
+      return value;
+    }
+
+    String? kindDetail;
+    // AI 02: the trade items a logistic unit contains.
+    String? title = take('01') ?? take('02');
+    if (title != null) {
+      kindDetail = strings.gtin;
+    } else if (take('00') case final String sscc) {
+      title = sscc;
+      kindDetail = strings.sscc;
+    }
+    final DateTime? expiry = gs1.expiry;
+    final DateTime? bestBefore = gs1.bestBefore;
+    final Map<String, String> fields = <String, String>{
+      if (expiry != null) strings.expires: strings.fullDate(expiry),
+      if (bestBefore != null) strings.bestBefore: strings.fullDate(bestBefore),
+      if (take('10') case final String batch) strings.batch: batch,
+      if (take('21') case final String serial) strings.serial: serial,
+      if (gs1.count case final int count) strings.quantity: '$count',
+      if (title != elements['00'])
+        if (take('00') case final String sscc) strings.sscc: sscc,
+    };
+    if (expiry != null) {
+      named.add('17');
+    }
+    if (bestBefore != null) {
+      named.add('15');
+    }
+    if (gs1.count != null) {
+      named.add('37');
+    }
+    for (final MapEntry<String, String> e in elements.entries) {
+      if (!named.contains(e.key)) {
+        fields['(${e.key})'] = e.value;
+      }
+    }
+    if (title == null) {
+      final MapEntry<String, String> first = elements.entries.first;
+      title = first.value;
+      fields.remove('(${first.key})');
+      kindDetail = '(${first.key})';
+    }
+    return _Summary(
+      title,
+      kindDetail: kindDetail,
+      fields: fields,
+      fieldColumns: 2,
+      danger: gs1.isExpired() ? strings.expired : null,
+    );
+  }
 
   /// A payment as the approved design shows it: the payee, the amount
   /// large, what it is for, the account and the standard's own fields.
@@ -1261,7 +1352,26 @@ class _Row extends StatelessWidget {
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
     final Barcode barcode = item.barcode;
-    final String symbology = _symbology(barcode);
+    String title = barcode.text;
+    String detail = _symbology(barcode);
+    // GS1 labels of logistics: the container or trade item number, with
+    // what the label says about it.
+    if (barcode.content case final Gs1Content gs1
+        when gs1.sscc != null ||
+            gs1.gtin != null ||
+            gs1.elements['02'] != null) {
+      final ScannerStrings strings = ScannerStrings.of(context);
+      final String? sscc = gs1.sscc;
+      title = sscc ?? gs1.gtin ?? gs1.elements['02']!;
+      detail = <String>[
+        if (sscc != null) strings.sscc else strings.gtin,
+        if (gs1.count case final int count) '${strings.quantity} $count',
+        if (gs1.batch case final String batch) '${strings.batch} $batch',
+        if (gs1.expiry case final DateTime expiry)
+          '${strings.expires} ${strings.fullDate(expiry)}',
+        detail,
+      ].join(' · ');
+    }
     return AnimatedContainer(
       duration: const Duration(milliseconds: 240),
       padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
@@ -1279,14 +1389,16 @@ class _Row extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Text(
-                  barcode.text,
+                  title,
                   style: theme.dataStyle.copyWith(fontSize: 16, height: 1.5),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  symbology,
+                  detail,
                   style: theme.chipStyle.copyWith(color: theme.inkMutedColor),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

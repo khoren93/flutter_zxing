@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+* **Eleven new scanner templates:** `product()` (EAN and UPC, the GTIN or
+  ISBN), `small()` (a small window, 2× zoom from the start), `signIn()`
+  (closes with the code accepted), `checkIn(check:)` (scanning never stops,
+  a verdict and a counter), `pharma()` (GS1 Data Matrix, expiry date marked
+  when passed), `pick()` (a label on every code in view, a tap picks one),
+  `logistics()` (GS1-128 labels in a list), `kiosk()` (front camera, no
+  buttons, large text), `fullscreen()` (no window), `vin()` and `loyalty()`
+  (the card number large).
+* **Breaking (since rc.1): `ScannerTemplate.collect` is now
+  `ScannerTemplate.mode`**, a `ScannerMode`: `single`, `collect`,
+  `continuous` (a short verdict per code while scanning goes on) or `pick`.
+* **Checking codes:** `ScannerTemplate.check`, a `ScannerCheck` that
+  returns `ScanVerdict.accept`, `.warn` or `.reject` with a title and a
+  message, synchronous or not. A refused code flashes the window in the
+  danger color and scanning goes on; each status has its own haptic and
+  sound. `scanBarcode(check:)` too.
+* **New template fields:** `closeOnResult` (pop the route with the code),
+  `resumeAfter`, `counter`, `initialZoom`, `facing`, `largeHint` and
+  `resultAsCard`. `ScannerTheme(warning:, danger:)` set the colors of the
+  verdicts and of problems; `ScannerChip(danger:)`.
+* **`ScanFieldButton`** fills a `TextEditingController` from a barcode,
+  with a scanner in a sheet over the form:
+  `scanBarcode(presentation: ScannerPresentation.sheet)`.
+* **GS1 fields:** `Gs1Content.sscc`, `batch`, `serial`, `count`,
+  `expiry`, `bestBefore` and `isExpired()`. The result sheet names them and
+  marks an expiry date that has passed; collected lists show them under the
+  SSCC or GTIN.
 * **Breaking: styled export moved to `BarcodeStyle`.** The core no longer
   knows about styles: `BarcodeSymbol.toSvg()` and `toPng()` and
   `BarcodeWriter.toSvg(data)` and `toPng(data)` export black on white

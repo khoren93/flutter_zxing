@@ -202,11 +202,24 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
     final ScannerTheme theme = ScannerTheme.of(context);
     final ScannerLayout layout = widget.layout;
     final double radius = theme.resolvedWindowRadius;
+    final Rect window = layout.scanWindow;
+    // A window over the whole scanner is no window: its brackets show only
+    // on a code.
+    final bool noWindow =
+        window.left <= 0.5 &&
+        window.top <= 0.5 &&
+        window.right >= layout.size.width - 0.5 &&
+        window.bottom >= layout.size.height - 0.5;
+    double lock() => lerpDouble(
+      _fromLock,
+      _toLock,
+      Curves.easeOutCubic.transform(_move.value),
+    )!;
     return IgnorePointer(
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          WindowScrim(window: layout.scanWindow, radius: radius),
+          if (!noWindow) WindowScrim(window: window, radius: radius),
           CustomPaint(
             size: layout.size,
             painter: BracketsPainter(
@@ -216,11 +229,8 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
                 final Rect window = layout.scanWindow;
                 return Rect.lerp(_from ?? window, _to ?? window, t)!;
               },
-              lock: () => lerpDouble(
-                _fromLock,
-                _toLock,
-                Curves.easeOutCubic.transform(_move.value),
-              )!,
+              lock: lock,
+              opacity: noWindow ? lock : null,
               tight: () => lerpDouble(
                 _fromTight,
                 _toTight,

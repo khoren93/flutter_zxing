@@ -170,13 +170,15 @@ Barcode _code(
   BarcodeFormat format,
   String text,
   BarcodePosition position,
-  String id,
-) => Barcode(
+  String id, {
+  BarcodeContentType type = BarcodeContentType.text,
+}) => Barcode(
   format: format,
   text: text,
   bytes: Uint8List.fromList(utf8.encode(text)),
   position: position,
   symbologyIdentifier: id,
+  contentType: type,
 );
 
 Widget _host(Widget child, {Size size = _phone}) => MediaQuery(
@@ -263,6 +265,7 @@ void main() {
     Size size = _phone,
     ScannerException? openError,
     bool start = true,
+    Duration wait = const Duration(milliseconds: 100),
   }) async {
     tester.view
       ..physicalSize = size * 2
@@ -305,7 +308,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 400));
     } else {
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(wait);
+      await tester.pump(wait);
     }
     await _save(tester, name);
     await tester.pumpWidget(const SizedBox());
@@ -720,6 +724,306 @@ void main() {
       await tester.pump();
       await _save(tester, 'kind-${kind.key}');
     }
+  }, skip: _out == null);
+
+  // The templates added in 4.0 rc.2 (page "New templates" of the designs).
+  testWidgets('new templates', (WidgetTester tester) async {
+    const Rect book = Rect.fromLTWH(112, 178, 166, 118);
+    await shot(
+      tester,
+      'product',
+      preview: _shelf(<Widget>[
+        _paper(
+          book,
+          -2,
+          const BarcodeView(
+            '9780306406157',
+            format: BarcodeFormat.ean13,
+            width: 150,
+            height: 99,
+            showText: true,
+          ),
+        ),
+      ]),
+      template: closable(const ScannerTemplate.product()),
+      barcodes: <Barcode>[
+        _code(
+          BarcodeFormat.ean13,
+          '9780306406157',
+          _corners(book.translate(0, -8), const Size(126, 70), -2),
+          ']E0',
+        ),
+      ],
+    );
+
+    const Rect board = Rect.fromLTWH(117, 357, 156, 60);
+    await shot(
+      tester,
+      'small',
+      preview: _cool(<Widget>[
+        _paper(
+          board,
+          -4,
+          const BarcodeView(
+            'SN 4F2A-9X17',
+            format: BarcodeFormat.dataMatrix,
+            width: 40,
+            height: 40,
+          ),
+        ),
+      ]),
+      template: closable(const ScannerTemplate.small()),
+    );
+
+    const Rect screen = Rect.fromLTWH(100, 279, 190, 190);
+    await shot(
+      tester,
+      'sign-in',
+      preview: _warm(<Widget>[
+        _paper(screen, -2, qr('https://example.com/device?code=8F3K-2QZ', 170)),
+      ]),
+      template: closable(const ScannerTemplate.signIn()),
+    );
+
+    const Rect pack = Rect.fromLTWH(140, 170, 112, 112);
+    const String pharma = '(01)09501101530003(17)250131(10)AB12C(21)7C4K9M2';
+    await shot(
+      tester,
+      'pharma',
+      preview: _cool(<Widget>[
+        _paper(
+          pack,
+          3,
+          const BarcodeView(
+            pharma,
+            format: BarcodeFormat.dataMatrix,
+            gs1: true,
+            width: 100,
+            height: 100,
+          ),
+        ),
+      ]),
+      template: closable(const ScannerTemplate.pharma()),
+      barcodes: <Barcode>[
+        _code(
+          BarcodeFormat.dataMatrix,
+          pharma,
+          _corners(pack, const Size(100, 100), 3),
+          ']d2',
+          type: BarcodeContentType.gs1,
+        ),
+      ],
+    );
+
+    await shot(
+      tester,
+      'vin',
+      preview: _cool(<Widget>[
+        _paper(
+          const Rect.fromLTWH(27, 258, 336, 96),
+          -1,
+          const BarcodeView(
+            '1HGCM82633A004352',
+            format: BarcodeFormat.code39,
+            width: 320,
+            height: 84,
+          ),
+        ),
+      ]),
+      template: closable(const ScannerTemplate.vin()),
+      torch: true,
+    );
+
+    const Rect card = Rect.fromLTWH(75, 236, 240, 108);
+    await shot(
+      tester,
+      'loyalty',
+      preview: _warm(<Widget>[
+        _paper(
+          card,
+          -3,
+          const BarcodeView(
+            '6034992144770815',
+            format: BarcodeFormat.code128,
+            width: 220,
+            height: 98,
+          ),
+        ),
+      ]),
+      template: closable(const ScannerTemplate.loyalty()),
+      barcodes: <Barcode>[
+        _code(
+          BarcodeFormat.code128,
+          '6034992144770815',
+          _corners(card, const Size(220, 98), -3),
+          ']C0',
+        ),
+      ],
+    );
+
+    const Rect ticket = Rect.fromLTWH(124, 228, 144, 144);
+    final Barcode ticketCode = _code(
+      BarcodeFormat.qrCode,
+      'TKT-2026-0042-7F3A',
+      _corners(ticket, const Size(130, 130), 5),
+      ']Q1',
+    );
+    for (final (String name, ScanVerdict verdict) in <(String, ScanVerdict)>[
+      (
+        'check-in-ok',
+        const ScanVerdict.accept(
+          title: 'Anna Petrova',
+          message: 'VIP · Row 4, seat 12',
+        ),
+      ),
+      (
+        'check-in-warn',
+        const ScanVerdict.warn(
+          title: 'Anna Petrova',
+          message: 'Already checked in at 19:42, gate 2',
+        ),
+      ),
+      (
+        'check-in-bad',
+        const ScanVerdict.reject(
+          title: 'Invalid ticket',
+          message: 'Not for Concert Hall · 21 Nov',
+        ),
+      ),
+    ]) {
+      await shot(
+        tester,
+        name,
+        preview: _warm(<Widget>[
+          _paper(ticket, 5, qr('TKT-2026-0042-7F3A', 130)),
+        ]),
+        template: closable(ScannerTemplate.checkIn(check: (_) => verdict)),
+        barcodes: <Barcode>[ticketCode],
+      );
+    }
+
+    const Rect a = Rect.fromLTWH(40, 210, 132, 132);
+    const Rect b = Rect.fromLTWH(214, 260, 132, 132);
+    const Rect c = Rect.fromLTWH(118, 470, 120, 120);
+    await shot(
+      tester,
+      'pick',
+      preview: _shelf(<Widget>[
+        _paper(a, -6, qr('https://flutter.dev', 116)),
+        _paper(b, 4, qr('WIFI:T:WPA;S:Office;P:secret;;', 116)),
+        _paper(
+          c,
+          -2,
+          const BarcodeView(
+            'TKT-2026-0117-B21C',
+            format: BarcodeFormat.aztec,
+            width: 104,
+            height: 104,
+          ),
+        ),
+      ]),
+      template: closable(const ScannerTemplate.pick()),
+      barcodes: <Barcode>[
+        _code(
+          BarcodeFormat.qrCode,
+          'https://flutter.dev',
+          _corners(a, const Size(116, 116), -6),
+          ']Q1',
+        ),
+        _code(
+          BarcodeFormat.qrCode,
+          'WIFI:T:WPA;S:Office;P:secret;;',
+          _corners(b, const Size(116, 116), 4),
+          ']Q1',
+        ),
+        _code(
+          BarcodeFormat.aztec,
+          'TKT-2026-0117-B21C',
+          _corners(c, const Size(104, 104), -2),
+          ']z0',
+        ),
+      ],
+    );
+
+    const Rect label = Rect.fromLTWH(47, 150, 296, 104);
+    await shot(
+      tester,
+      'logistics',
+      preview: _shelf(<Widget>[
+        _paper(
+          label,
+          0,
+          const BarcodeView(
+            '(00)106141412345678908',
+            format: BarcodeFormat.code128,
+            gs1: true,
+            width: 280,
+            height: 88,
+          ),
+        ),
+      ]),
+      template: closable(
+        ScannerTemplate.logistics(title: 'Pallet 3', onDone: (_) {}),
+      ),
+      torch: true,
+      barcodes: <Barcode>[
+        _code(
+          BarcodeFormat.code128,
+          '(00)106141412345678908',
+          _corners(label, const Size(280, 88), 0),
+          ']C1',
+          type: BarcodeContentType.gs1,
+        ),
+        _code(
+          BarcodeFormat.code128,
+          '(02)09501101530003(37)24(10)LOT-0423',
+          _corners(label.translate(0, 400), const Size(280, 60), 0),
+          ']C1',
+          type: BarcodeContentType.gs1,
+        ),
+      ],
+    );
+
+    const Rect loose = Rect.fromLTWH(196, 438, 150, 150);
+    await shot(
+      tester,
+      'fullscreen',
+      preview: _warm(<Widget>[
+        _paper(loose, 8, qr('https://flutter.dev', 132)),
+      ]),
+      template: closable(const ScannerTemplate.fullscreen()),
+    );
+    await shot(
+      tester,
+      'fullscreen-locked',
+      preview: _warm(<Widget>[
+        _paper(loose, 8, qr('https://flutter.dev', 132)),
+      ]),
+      template: closable(const ScannerTemplate.fullscreen()),
+      barcodes: <Barcode>[
+        _code(
+          BarcodeFormat.qrCode,
+          'https://flutter.dev',
+          _corners(loose, const Size(132, 132), 8),
+          ']Q1',
+        ),
+      ],
+    );
+
+    await shot(
+      tester,
+      'kiosk',
+      preview: _warm(<Widget>[
+        _paper(
+          const Rect.fromLTWH(275, 320, 180, 180),
+          -6,
+          qr('TKT-2026-0042-7F3A', 160),
+        ),
+      ]),
+      template: const ScannerTemplate.kiosk(),
+      size: const Size(1180, 820),
+      wait: const Duration(milliseconds: 400),
+    );
   }, skip: _out == null);
 
   testWidgets('states', (WidgetTester tester) async {

@@ -48,6 +48,8 @@ final class ScannerTheme with Diagnosticable {
     this.scrimBlur,
     this.fontFamily,
     this.monoFontFamily,
+    this.warning,
+    this.danger,
   });
 
   /// The accent of the default theme, a bright teal.
@@ -85,6 +87,15 @@ final class ScannerTheme with Diagnosticable {
   /// uses a monospaced system font.
   final String? monoFontFamily;
 
+  /// The color of a code that needs a look, such as a ticket already
+  /// checked in (`ScanVerdict.warn`). Default [signalColor], amber.
+  final Color? warning;
+
+  /// The color of a code that is refused (`ScanVerdict.reject`) and of
+  /// problems such as an expiry date that has passed. Default a bright
+  /// red.
+  final Color? danger;
+
   /// The theme of the nearest [ScannerScope], or the default theme; without
   /// a [brightness], the platform's (light where unknown).
   static ScannerTheme of(BuildContext context) {
@@ -114,6 +125,8 @@ final class ScannerTheme with Diagnosticable {
       scrimBlur: other.scrimBlur ?? scrimBlur,
       fontFamily: other.fontFamily ?? fontFamily,
       monoFontFamily: other.monoFontFamily ?? monoFontFamily,
+      warning: other.warning ?? warning,
+      danger: other.danger ?? danger,
     );
   }
 
@@ -127,6 +140,8 @@ final class ScannerTheme with Diagnosticable {
     bool? scrimBlur,
     String? fontFamily,
     String? monoFontFamily,
+    Color? warning,
+    Color? danger,
   }) => ScannerTheme(
     accent: accent ?? this.accent,
     brightness: brightness ?? this.brightness,
@@ -136,6 +151,8 @@ final class ScannerTheme with Diagnosticable {
     scrimBlur: scrimBlur ?? this.scrimBlur,
     fontFamily: fontFamily ?? this.fontFamily,
     monoFontFamily: monoFontFamily ?? this.monoFontFamily,
+    warning: warning ?? this.warning,
+    danger: danger ?? this.danger,
   );
 
   // ---------------------------------------------------------------------------
@@ -219,6 +236,25 @@ final class ScannerTheme with Diagnosticable {
   /// Text in the signal's hue, such as a warning.
   Color get signalInkColor =>
       isDark ? const Color(0xFFFFC857) : const Color(0xFF8A5A00);
+
+  /// A code that needs a look ([warning]).
+  Color get warningColor => warning ?? signalColor;
+
+  /// Text and icons on [warningColor].
+  Color get onWarningColor =>
+      warning == null ? onSignalColor : _onColor(warningColor);
+
+  /// A refused code and problems ([danger]).
+  Color get dangerColor => danger ?? const Color(0xFFFF4D42);
+
+  /// Text and icons on [dangerColor].
+  Color get onDangerColor =>
+      danger == null ? const Color(0xFFFFFFFF) : _onColor(dangerColor);
+
+  /// Text in the danger's hue on glass, such as "Expired".
+  Color get dangerInkColor => danger != null
+      ? _inkOf(dangerColor, isDark)
+      : (isDark ? const Color(0xFFFF8A80) : const Color(0xFFB3261E));
 
   /// The keyboard focus ring.
   Color get focusColor =>
@@ -351,7 +387,9 @@ final class ScannerTheme with Diagnosticable {
       other.blur == blur &&
       other.scrimBlur == scrimBlur &&
       other.fontFamily == fontFamily &&
-      other.monoFontFamily == monoFontFamily;
+      other.monoFontFamily == monoFontFamily &&
+      other.warning == warning &&
+      other.danger == danger;
 
   @override
   int get hashCode => Object.hash(
@@ -363,6 +401,8 @@ final class ScannerTheme with Diagnosticable {
     scrimBlur,
     fontFamily,
     monoFontFamily,
+    warning,
+    danger,
   );
 
   @override
@@ -378,7 +418,9 @@ final class ScannerTheme with Diagnosticable {
       ..add(StringProperty('fontFamily', fontFamily, defaultValue: null))
       ..add(
         StringProperty('monoFontFamily', monoFontFamily, defaultValue: null),
-      );
+      )
+      ..add(ColorProperty('warning', warning, defaultValue: null))
+      ..add(ColorProperty('danger', danger, defaultValue: null));
   }
 }
 
@@ -394,43 +436,51 @@ const List<double> _saturate140 = <double>[
 final class _Palette {
   _Palette(ScannerTheme theme) {
     final Color accent = theme.lockColor;
-    final bool dark = theme.isDark;
-    lockSoft = accent.withValues(alpha: dark ? 0.22 : 0.18);
-    // Text in the accent's hue: darker on light glass, lighter on dark
-    // glass, until it reads at 4.5:1.
-    final HSLColor hsl = HSLColor.fromColor(accent);
-    final Color background = dark
-        ? const Color(0xFF101318)
-        : const Color(0xFFF4F6F9);
-    double lightness = dark
-        ? (hsl.lightness + 0.08).clamp(0.0, 1.0)
-        : hsl.lightness;
-    Color ink = hsl.withLightness(lightness).toColor();
-    while (_contrast(ink, background) < 4.5 &&
-        (dark ? lightness < 1 : lightness > 0)) {
-      lightness = (lightness + (dark ? 0.02 : -0.02)).clamp(0.0, 1.0);
-      ink = hsl.withLightness(lightness).toColor();
-    }
-    lockInk = ink;
-    // On the accent: a near-black of its hue when that reads better than
-    // white, as on bright accents.
-    const Color white = Color(0xFFFFFFFF);
-    final Color deep = hsl
-        .withLightness(0.08)
-        .withSaturation(hsl.saturation * 0.9)
-        .toColor();
-    onLock = _contrast(deep, accent) >= _contrast(white, accent) ? deep : white;
+    lockSoft = accent.withValues(alpha: theme.isDark ? 0.22 : 0.18);
+    lockInk = _inkOf(accent, theme.isDark);
+    onLock = _onColor(accent);
   }
 
   late final Color lockSoft;
   late final Color lockInk;
   late final Color onLock;
+}
 
-  static double _contrast(Color a, Color b) {
-    final double la = a.computeLuminance();
-    final double lb = b.computeLuminance();
-    return la > lb ? (la + 0.05) / (lb + 0.05) : (lb + 0.05) / (la + 0.05);
+/// Text in [color]'s hue: darker on light glass, lighter on dark glass,
+/// until it reads at 4.5:1.
+Color _inkOf(Color color, bool dark) {
+  final HSLColor hsl = HSLColor.fromColor(color);
+  final Color background = dark
+      ? const Color(0xFF101318)
+      : const Color(0xFFF4F6F9);
+  double lightness = dark
+      ? (hsl.lightness + 0.08).clamp(0.0, 1.0)
+      : hsl.lightness;
+  Color ink = hsl.withLightness(lightness).toColor();
+  while (_contrast(ink, background) < 4.5 &&
+      (dark ? lightness < 1 : lightness > 0)) {
+    lightness = (lightness + (dark ? 0.02 : -0.02)).clamp(0.0, 1.0);
+    ink = hsl.withLightness(lightness).toColor();
   }
+  return ink;
+}
+
+/// Text on [color]: a near-black of its hue when that reads better than
+/// white, as on bright colors.
+Color _onColor(Color color) {
+  const Color white = Color(0xFFFFFFFF);
+  final HSLColor hsl = HSLColor.fromColor(color);
+  final Color deep = hsl
+      .withLightness(0.08)
+      .withSaturation(hsl.saturation * 0.9)
+      .toColor();
+  return _contrast(deep, color) >= _contrast(white, color) ? deep : white;
+}
+
+double _contrast(Color a, Color b) {
+  final double la = a.computeLuminance();
+  final double lb = b.computeLuminance();
+  return la > lb ? (la + 0.05) / (lb + 0.05) : (lb + 0.05) / (la + 0.05);
 }
 
 /// Gives the scanner widgets below it a theme and texts.

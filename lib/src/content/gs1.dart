@@ -120,3 +120,38 @@ String? gs1ElementIssue(String ai, String value) {
   }
   return null;
 }
+
+final RegExp _gs1DateDigits = RegExp(r'^\d{6}$');
+
+/// The date of a GS1 date field (`YYMMDD`: AI 11, 13, 15, 16, 17), or
+/// `null` if [value] is not one.
+///
+/// The century follows GS1 General Specifications 7.12: a year more than
+/// 50 years ahead of [now] is in the previous century, one more than 49
+/// years back is in the next. Day `00` means the last day of the month.
+DateTime? gs1Date(String? value, [DateTime? now]) {
+  if (value == null || !_gs1DateDigits.hasMatch(value)) {
+    return null;
+  }
+  final int yy = int.parse(value.substring(0, 2));
+  final int month = int.parse(value.substring(2, 4));
+  final int day = int.parse(value.substring(4, 6));
+  if (month < 1 || month > 12) {
+    return null;
+  }
+  final int current = (now ?? DateTime.now()).year;
+  final int century = current - current % 100;
+  int year = century + yy;
+  final int diff = yy - current % 100;
+  if (diff > 50) {
+    year -= 100;
+  } else if (diff < -49) {
+    year += 100;
+  }
+  // Day 0 of the next month is the last day of this one.
+  final int last = DateTime.utc(year, month + 1, 0).day;
+  if (day > last) {
+    return null;
+  }
+  return DateTime(year, month, day == 0 ? last : day);
+}

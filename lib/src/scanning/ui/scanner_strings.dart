@@ -139,6 +139,20 @@ final class ScannerStrings {
     this.variableSymbol = 'Variable symbol',
     this.binary = 'Binary data',
     this.text = 'Text',
+    this.batch = 'Batch',
+    this.serial = 'Serial',
+    this.sscc = 'SSCC',
+    this.quantity = 'Quantity',
+    this.bestBefore = 'Best before',
+    this.loyaltyCard = 'Loyalty card',
+    this.cardNumber = 'Card number',
+    this.accepted = 'Accepted',
+    this.needsAttention = 'Check this code',
+    this.rejected = 'Not accepted',
+    this.checkedIn = _checkedIn,
+    this.codesInView = _codesInView,
+    this.pickCode = 'Pick this code',
+    this.scanCode = 'Scan a code',
   });
 
   /// The strings of the nearest [ScannerScope], or the English defaults.
@@ -494,6 +508,48 @@ final class ScannerStrings {
   /// The kind of a [TextContent].
   final String text;
 
+  /// A batch or lot number (GS1 AI 10).
+  final String batch;
+
+  /// A serial number (GS1 AI 21).
+  final String serial;
+
+  /// The shipping container code of a pallet or parcel (GS1 AI 00).
+  final String sscc;
+
+  /// How many items a logistic unit holds (GS1 AI 37).
+  final String quantity;
+
+  /// A best before date (GS1 AI 15).
+  final String bestBefore;
+
+  /// The kind above a card read by `ScannerTemplate.loyalty`.
+  final String loyaltyCard;
+
+  /// The title of a card number.
+  final String cardNumber;
+
+  /// Above an accepted code without a title of its own (`ScanVerdict.accept`).
+  final String accepted;
+
+  /// Above a code to look at without a title of its own (`ScanVerdict.warn`).
+  final String needsAttention;
+
+  /// Above a refused code without a title of its own (`ScanVerdict.reject`).
+  final String rejected;
+
+  /// The counter of accepted codes (`ScannerTemplate.counter`): "12 checked in".
+  final String Function(int count) checkedIn;
+
+  /// How many codes `ScannerTemplate.pick` shows labels for: "3 codes".
+  final String Function(int count) codesInView;
+
+  /// Hint for screen readers on a code's label in `ScannerTemplate.pick`.
+  final String pickCode;
+
+  /// Label of `ScanFieldButton` for screen readers.
+  final String scanCode;
+
   /// The kind of [content], as shown above a result's title.
   /// A link to a known service is named after it ("Instagram").
   String kindOf(BarcodeContent content) => switch (content) {
@@ -641,7 +697,21 @@ final class ScannerStrings {
       other.transaction == transaction &&
       other.variableSymbol == variableSymbol &&
       other.binary == binary &&
-      other.text == text;
+      other.text == text &&
+      other.batch == batch &&
+      other.serial == serial &&
+      other.sscc == sscc &&
+      other.quantity == quantity &&
+      other.bestBefore == bestBefore &&
+      other.loyaltyCard == loyaltyCard &&
+      other.cardNumber == cardNumber &&
+      other.accepted == accepted &&
+      other.needsAttention == needsAttention &&
+      other.rejected == rejected &&
+      other.checkedIn == checkedIn &&
+      other.codesInView == codesInView &&
+      other.pickCode == pickCode &&
+      other.scanCode == scanCode;
 
   @override
   int get hashCode => Object.hashAll(<Object>[
@@ -761,9 +831,28 @@ final class ScannerStrings {
     variableSymbol,
     binary,
     text,
+    batch,
+    serial,
+    sscc,
+    quantity,
+    bestBefore,
+    loyaltyCard,
+    cardNumber,
+    accepted,
+    needsAttention,
+    rejected,
+    checkedIn,
+    codesInView,
+    pickCode,
+    scanCode,
   ]);
 
   static String _itemCount(int count) => count == 1 ? '1 item' : '$count items';
+
+  static String _checkedIn(int count) => '$count checked in';
+
+  static String _codesInView(int count) =>
+      count == 1 ? '1 code' : '$count codes';
 
   static String _byteCount(int count) => count == 1 ? '1 byte' : '$count bytes';
 

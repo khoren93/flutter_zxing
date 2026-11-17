@@ -118,7 +118,10 @@ BarcodeScanner(
 `ScannerTemplate.minimal` has close, torch, photo, zoom and camera buttons
 and shows a sheet with the parsed content of the code found;
 `ScannerTemplate.retail` collects codes in a list with counts. `payment`,
-`ticket` and `content` are the other presets. `ScannerStrings` translates
+`ticket`, `content`, `product`, `small`, `signIn`, `checkIn`, `pharma`,
+`pick`, `logistics`, `kiosk`, `fullscreen`, `vin` and `loyalty` are the
+other presets (see the README). A `check` accepts or refuses codes, and
+`ScanFieldButton` fills a text field from a barcode. `ScannerStrings` translates
 every text. `sound: true` plays the system click when a code is found.
 
 ### Several codes at once
