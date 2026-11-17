@@ -115,7 +115,9 @@ final class BarcodeEngine {
   Future<EngineReadResult> readImage(
     Uint8List encodedImage,
     EngineReadOptions options,
-  ) async => (await backend).readImage(encodedImage, options);
+  ) async => (await backend)
+      .readImage(encodedImage, options)
+      .then((EngineReadResult r) => r.asPrinted(options));
 
   /// See [EngineBackend.readPixels]. Throws [ArgumentError] if the buffer
   /// is smaller than its geometry says.
@@ -125,7 +127,9 @@ final class BarcodeEngine {
     bool mirrored = false,
   }) async {
     checkPixelBuffer(image);
-    return (await backend).readPixels(image, options, mirrored: mirrored);
+    return (await backend)
+        .readPixels(image, options, mirrored: mirrored)
+        .then((EngineReadResult r) => r.asPrinted(options));
   }
 
   /// See [EngineBackend.write].

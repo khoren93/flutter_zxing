@@ -227,11 +227,19 @@ Future<void> _runWriteCases(
         format: c.format.zxingName,
         options: c.options,
       );
+      final EngineReadOptions asked = EngineReadOptions.from(<BarcodeFormat>{
+        c.format,
+      }, const ReaderOptions());
+      // The engine's round trip, in zxing-cpp's terms: a UPC-A or UPC-E as
+      // 13 digits, as it creates them (the 4.0 API prints 12 and 8).
       final List<Barcode> read = (await engine.readPixels(
         _render(symbol),
-        EngineReadOptions.from(<BarcodeFormat>{
-          c.format,
-        }, const ReaderOptions()),
+        EngineReadOptions(
+          formats: asked.formats,
+          flags: asked.flags,
+          binarizer: asked.binarizer,
+          minLineCount: asked.minLineCount,
+        ),
       )).barcodes;
       final bool same =
           read.isNotEmpty &&

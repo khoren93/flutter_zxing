@@ -108,7 +108,8 @@ void main() {
         _symbol(<String>['#.#'], quietZone: 1, text: '42'),
       );
       expect(layout.text, '42');
-      expect(layout.textTop, 1 + 1 + SymbolLayout.textGap);
+      expect(layout.textRuns.single.text, '42');
+      expect(layout.textRuns.single.top, 1 + 1 + SymbolLayout.textGap);
       expect(
         layout.height,
         1 + 2 + SymbolLayout.textGap + SymbolLayout.textFontSize + 1,
@@ -271,7 +272,7 @@ void main() {
       final SymbolLayout layout = SymbolLayout(
         _symbol(<String>['#.#.#.#.#.'], text: '0123'),
       );
-      final int top = layout.textTop * 2;
+      final int top = layout.textRuns.single.top.toInt() * 2;
       final Iterable<int> textBox = image.pixels.skip(top * image.width);
       expect(textBox.any((int v) => v < 128), isTrue);
     });

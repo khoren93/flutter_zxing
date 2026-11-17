@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 
 import '../barcode/barcode_format.dart';
+import '../barcode/upc.dart';
 import '../engine/engine.dart';
 import '../engine/engine_protocol.dart';
 import 'creator_options.dart' as writing;
@@ -130,9 +131,22 @@ final class BarcodeWriter {
               format.isLinear &&
               format != BarcodeFormat.dxFilmEdge &&
               s.text.isNotEmpty
-          ? s.text
+          ? _printed(s.text)
           : null,
     );
+  }
+
+  /// [text] as printed under the bars: zxing-cpp gives a UPC-A and a UPC-E
+  /// as 13 digits, as they are transmitted; their labels show 12 and 8.
+  String _printed(String text) {
+    if (!RegExp(r'^0\d{12}$').hasMatch(text)) {
+      return text;
+    }
+    return switch (format) {
+      BarcodeFormat.upcA => text.substring(1),
+      BarcodeFormat.upcE => upcEFromUpcA(text.substring(1)) ?? text,
+      _ => text,
+    };
   }
 
   /// The zxing-cpp creator options for this writer: the typed fields, then
@@ -362,7 +376,6 @@ final class BarcodeSymbol {
     for (final ModuleRect r in layout.rects) {
       path.write('M${r.x} ${r.y}h${r.width}v${r.height}h-${r.width}z');
     }
-    final String? text = layout.text;
     final StringBuffer svg = StringBuffer()
       ..write('<svg xmlns="http://www.w3.org/2000/svg" ')
       ..write('viewBox="0 0 ${layout.width} ${layout.height}" ')
@@ -370,14 +383,16 @@ final class BarcodeSymbol {
       ..write('shape-rendering="crispEdges">')
       ..write('<rect width="100%" height="100%" fill="#fff"/>')
       ..write('<path d="$path" fill="#000"/>');
-    if (text != null) {
+    String n(double v) =>
+        v == v.roundToDouble() ? v.round().toString() : v.toString();
+    for (final TextRun t in layout.textRuns) {
       svg
-        ..write('<text x="${layout.textCenter}" ')
-        ..write('y="${layout.textTop + SymbolLayout.textFontSize}" ')
+        ..write('<text x="${n(t.x)}" ')
+        ..write('y="${n(t.top + t.fontSize)}" ')
         ..write('font-family="monospace" ')
-        ..write('font-size="${SymbolLayout.textFontSize}" ')
+        ..write('font-size="${n(t.fontSize)}" ')
         ..write('text-anchor="middle" fill="#000">')
-        ..write(xmlEscape(text))
+        ..write(xmlEscape(t.text))
         ..write('</text>');
     }
     svg.write('</svg>');
@@ -422,44 +437,63 @@ final class BarcodeSymbol {
         pixels.fillRange(y * w + r.x * m, y * w + (r.x + r.width) * m, 0);
       }
     }
-    final String? text = layout.text;
-    if (text != null) {
-      await _drawText(pixels, w, layout, m, text);
+    if (layout.textRuns.isNotEmpty) {
+      await _drawText(pixels, w, h, layout, m);
     }
     return BarcodeImage(width: w, height: h, pixels: pixels);
   }
 
-  /// Draws [text] into the text box of [layout] with the Flutter engine.
+  /// Draws the text of [layout] with the Flutter engine.
   static Future<void> _drawText(
     Uint8List pixels,
     int width,
+    int height,
     SymbolLayout layout,
     int m,
-    String text,
   ) async {
-    final int top = layout.textTop * m;
-    final int boxHeight = (SymbolLayout.textFontSize + 1) * m;
-    final ui.ParagraphBuilder builder =
-        ui.ParagraphBuilder(
-            ui.ParagraphStyle(
-              textAlign: ui.TextAlign.center,
-              fontSize: SymbolLayout.textFontSize * m.toDouble(),
-              height: 1,
-              maxLines: 1,
-            ),
-          )
-          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000)))
-          ..addText(text);
-    final ui.Paragraph paragraph = builder.build()
-      ..layout(ui.ParagraphConstraints(width: width.toDouble()));
+    final List<TextRun> runs = layout.textRuns;
+    final int top = runs
+        .map((TextRun t) => (t.top * m).floor())
+        .reduce(math.min);
+    final int bottom = math.min(
+      height,
+      runs
+          .map((TextRun t) => ((t.top + t.fontSize + 1) * m).ceil())
+          .reduce(math.max),
+    );
+    final int boxHeight = bottom - top;
+    final List<(ui.Paragraph, ui.Offset)>
+    paragraphs = <(ui.Paragraph, ui.Offset)>[
+      for (final TextRun t in runs)
+        () {
+          // A whole line spans the width; a digit gets a box of its own.
+          final double box = t.fit ? width.toDouble() : t.fontSize * m * 2;
+          final ui.Paragraph p =
+              (ui.ParagraphBuilder(
+                      ui.ParagraphStyle(
+                        textAlign: ui.TextAlign.center,
+                        fontSize: t.fontSize * m,
+                        height: 1,
+                        maxLines: 1,
+                      ),
+                    )
+                    ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000)))
+                    ..addText(t.text))
+                  .build()
+                ..layout(ui.ParagraphConstraints(width: box));
+          return (p, ui.Offset(t.fit ? 0 : t.x * m - box / 2, t.top * m - top));
+        }(),
+    ];
     final ui.PictureRecorder recorder = ui.PictureRecorder();
-    ui.Canvas(recorder)
-      ..drawColor(const ui.Color(0xFFFFFFFF), ui.BlendMode.src)
-      ..drawParagraph(paragraph, ui.Offset.zero);
+    final ui.Canvas canvas = ui.Canvas(recorder)
+      ..drawColor(const ui.Color(0xFFFFFFFF), ui.BlendMode.src);
+    for (final (ui.Paragraph p, ui.Offset at) in paragraphs) {
+      canvas.drawParagraph(p, at);
+      p.dispose();
+    }
     final ui.Picture picture = recorder.endRecording();
     final ui.Image image = await picture.toImage(width, boxHeight);
     picture.dispose();
-    paragraph.dispose();
     try {
       final ByteData rgba = (await image.toByteData())!;
       for (int y = 0; y < boxHeight; y++) {

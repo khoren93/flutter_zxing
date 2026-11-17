@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../barcode/barcode.dart';
 import '../barcode/barcode_format.dart';
+import '../barcode/upc.dart';
 import '../errors.dart';
 import '../reading/reader_options.dart';
 
@@ -75,6 +76,7 @@ final class EngineReadOptions {
     this.binarizer = 0,
     this.maxSymbols = 0,
     this.minLineCount = 2,
+    this.upcAsPrinted = false,
   });
 
   /// Converts the public reader settings. [maxSymbols] 0 means no limit.
@@ -98,6 +100,7 @@ final class EngineReadOptions {
     binarizer: options.binarizer.index,
     maxSymbols: maxSymbols,
     minLineCount: options.minLineCount,
+    upcAsPrinted: true,
   );
 
   /// Comma separated zxing-cpp format names, `''` for all formats.
@@ -115,6 +118,10 @@ final class EngineReadOptions {
   /// Scan lines that must agree on a linear barcode.
   final int minLineCount;
 
+  /// Give UPC-A and UPC-E as printed (12 and 8 digits, UPC-A not as
+  /// EAN-13): the 4.0 API. The 3.x API keeps zxing-cpp's 13 digits.
+  final bool upcAsPrinted;
+
   /// The same options with another [maxSymbols].
   EngineReadOptions withMaxSymbols(int maxSymbols) => EngineReadOptions(
     formats: formats,
@@ -122,6 +129,7 @@ final class EngineReadOptions {
     binarizer: binarizer,
     maxSymbols: maxSymbols,
     minLineCount: minLineCount,
+    upcAsPrinted: upcAsPrinted,
   );
 
   /// The engine form of a format filter: `null` (all formats) becomes `''`.
@@ -179,6 +187,22 @@ final class EngineReadResult {
   /// Time spent inside the engine call, without message passing. For
   /// benchmarks only.
   final int engineMicros;
+
+  /// This result with UPC-A and UPC-E as printed, if [options] ask for it.
+  EngineReadResult asPrinted(EngineReadOptions options) =>
+      !options.upcAsPrinted ||
+          !barcodes.any(
+            (Barcode b) => b.format.symbology == BarcodeFormat.eanUpc,
+          )
+      ? this
+      : EngineReadResult(
+          barcodes: <Barcode>[
+            for (final Barcode b in barcodes) upcAsPrinted(b, options.formats),
+          ],
+          imageWidth: imageWidth,
+          imageHeight: imageHeight,
+          engineMicros: engineMicros,
+        );
 
   /// The same result with [engineMicros] set.
   EngineReadResult withEngineMicros(int micros) => EngineReadResult(

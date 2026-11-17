@@ -149,9 +149,8 @@ final class BarcodePainter extends CustomPainter {
     }
     canvas.restore();
 
-    final String? text = layout.text;
-    if (text != null) {
-      _paintText(canvas, text, origin, m);
+    for (final TextRun t in layout.textRuns) {
+      _paintText(canvas, t, origin, m);
     }
     for (final FrameText? t in <FrameText?>[frame.title, frame.caption]) {
       if (t != null) {
@@ -188,12 +187,12 @@ final class BarcodePainter extends CustomPainter {
     );
   }
 
-  void _paintText(Canvas canvas, String text, Offset origin, double m) {
+  void _paintText(Canvas canvas, TextRun run, Offset origin, double m) {
     final double width = layout.width * m;
-    double fontSize = SymbolLayout.textFontSize * m;
+    double fontSize = run.fontSize * m;
     TextPainter painter() => TextPainter(
       text: TextSpan(
-        text: text,
+        text: run.text,
         style: textStyle.copyWith(
           color: style.color,
           fontSize: fontSize,
@@ -203,17 +202,26 @@ final class BarcodePainter extends CustomPainter {
       textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
       maxLines: 1,
-    )..layout(minWidth: width);
+    )..layout(minWidth: run.fit ? width : 0);
     TextPainter tp = painter();
-    final double natural = tp.computeLineMetrics().isEmpty
-        ? 0
-        : tp.computeLineMetrics().first.width;
-    if (natural > width && natural > 0) {
-      tp.dispose();
-      fontSize *= width / natural;
-      tp = painter();
+    if (run.fit) {
+      // One line under a whole code: shrunk to its width if longer.
+      final double natural = tp.computeLineMetrics().isEmpty
+          ? 0
+          : tp.computeLineMetrics().first.width;
+      if (natural > width && natural > 0) {
+        tp.dispose();
+        fontSize *= width / natural;
+        tp = painter();
+      }
+      tp.paint(canvas, Offset(origin.dx, origin.dy + run.top * m));
+    } else {
+      // A digit, centred on its symbol character.
+      tp.paint(
+        canvas,
+        Offset(origin.dx + run.x * m - tp.width / 2, origin.dy + run.top * m),
+      );
     }
-    tp.paint(canvas, Offset(origin.dx, origin.dy + layout.textTop * m));
     tp.dispose();
   }
 

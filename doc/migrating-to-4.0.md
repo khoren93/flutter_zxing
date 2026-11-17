@@ -322,6 +322,10 @@ size), and a title, a caption and a card around the code
 enum; pass a `Set` where several are allowed. A base symbology includes its
 variants: `{BarcodeFormat.qrCode}` also finds Micro QR and rMQR codes.
 
+UPC-A and UPC-E are reported as printed: a UPC-A as `BarcodeFormat.upcA`
+with 12 digits (3.x gave an EAN-13 starting with 0), a UPC-E with its 8
+digits (3.x gave 13). Asking for EAN-13 alone still gives EAN-13.
+
 | 3.x | 4.0 |
 |---|---|
 | `Format.any` | `null` (all formats) |

@@ -373,7 +373,10 @@ final class _WebFrame extends CameraFrame {
     final EngineBackend backend = await engine.backend;
     final EngineReadResult result;
     try {
-      result = await (backend as WebBackend).readBitmap(bitmap, options);
+      result = (await (backend as WebBackend).readBitmap(
+        bitmap,
+        options,
+      )).asPrinted(options);
     } on Object {
       unawaited(forCut.then((web.ImageBitmap? b) => b?.close()));
       rethrow;

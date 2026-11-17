@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+* **Behaviour change (since rc.1): UPC-A and UPC-E read as printed.** A
+  UPC-A is reported as `BarcodeFormat.upcA` with its 12 digits, no longer
+  as an EAN-13 starting with 0; a UPC-E has its 8 digits instead of the
+  13 of its EAN-13 form. An add-on stays after them. zxing-cpp transmits
+  both as 13 digits (ISO/IEC 15420) and reports UPC-A as EAN-13 whenever
+  EAN-13 is asked for; a reader asking for EAN-13 but not UPC-A still gets
+  EAN-13. `ProductContent` of a UPC-E no longer takes part of the number
+  for an add-on. The 3.x API is unchanged.
+* **The digits under EAN-13, EAN-8, UPC-A and UPC-E are laid out as GS1
+  prints them** (`showText: true`): each under its symbol character,
+  between the guard bars; the first digit of an EAN-13 and the outer digits
+  of a UPC-A and UPC-E outside the bars, the UPC ones smaller. A UPC-A
+  prints 12 digits, a UPC-E 8.
 * **Text and a card around a code:** `BarcodeStyle.title` (above),
   `BarcodeStyle.caption` (under), both a `BarcodeCaption` (text, size,
   style, alignment, gap, lines), and `BarcodeStyle.card`, a `BarcodeCard`

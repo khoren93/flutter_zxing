@@ -129,10 +129,12 @@ final class FrameLayout {
     // is never added on top: text stays out of it, and a card's padding
     // already keeps it clear.
     final double q = code.quietZone.toDouble();
-    final double unit = code.width - 2 * q;
+    // Left and right: the quiet zone, or the room of EAN/UPC digits outside.
+    final double qx = code.marginX.toDouble();
+    final double unit = code.width - 2 * qx;
     final BarcodeCard? card = style.card;
     final double pad = card == null ? 0 : card.padding * unit;
-    final double side = card == null ? q : math.max(pad, q);
+    final double side = card == null ? qx : math.max(pad, qx);
     final double width = unit + 2 * side;
     final double textLeft = card == null ? 0 : pad;
     final double textWidth = width - 2 * textLeft;
@@ -167,7 +169,7 @@ final class FrameLayout {
       code: code,
       width: width,
       height: bottom,
-      codeOrigin: Offset(side - q, contentTop - q),
+      codeOrigin: Offset(side - qx, contentTop - q),
       title: title,
       caption: caption,
       card: card,

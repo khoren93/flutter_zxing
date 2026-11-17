@@ -216,16 +216,15 @@ Future<String> styledSvg(BarcodeSymbol symbol, BarcodeStyle style) async {
       'xlink:href="data:image/png;base64,$logoPng"/>',
     );
   }
-  final String? text = layout.text;
-  if (text != null) {
+  for (final TextRun t in layout.textRuns) {
     svg
-      ..write('<text x="${layout.textCenter}" ')
-      ..write('y="${layout.textTop + SymbolLayout.textFontSize}" ')
+      ..write('<text x="${_n(t.x)}" ')
+      ..write('y="${_n(t.top + t.fontSize)}" ')
       ..write('font-family="monospace" ')
-      ..write('font-size="${SymbolLayout.textFontSize}" ')
+      ..write('font-size="${_n(t.fontSize)}" ')
       ..write('text-anchor="middle" fill="${_color(style.color)}"')
       ..write('${_opacity('fill', style.color)}>')
-      ..write(xmlEscape(text))
+      ..write(xmlEscape(t.text))
       ..write('</text>');
   }
   svg.write('</g>');
