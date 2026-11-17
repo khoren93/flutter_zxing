@@ -29,6 +29,7 @@ class BarcodeView extends StatefulWidget {
     super.key,
     this.format = BarcodeFormat.qrCode,
     this.errorCorrection,
+    this.gs1 = false,
     this.showText = false,
     this.style = BarcodeStyle.classic,
     this.width,
@@ -57,6 +58,7 @@ class BarcodeView extends StatefulWidget {
        bytes = null,
        format = symbol.format,
        errorCorrection = null,
+       gs1 = false,
        showText = symbol.text != null,
        errorBuilder = null;
 
@@ -74,6 +76,7 @@ class BarcodeView extends StatefulWidget {
     this.errorBuilder,
   }) : data = null,
        symbol = null,
+       gs1 = false,
        showText = false;
 
   /// The text to encode, or `null` for [BarcodeView.bytes].
@@ -91,6 +94,11 @@ class BarcodeView extends StatefulWidget {
   /// Error correction; `null` uses the format's default, or
   /// [ErrorCorrection.high] for a QR code with a [BarcodeStyle.logo].
   final ErrorCorrection? errorCorrection;
+
+  /// Encode [data] as GS1: Application Identifiers in parentheses,
+  /// `(01)09501101530003(17)250101`. For formats with a GS1 mode: Code 128,
+  /// QR, Data Matrix, Aztec, DataBar Expanded and others.
+  final bool gs1;
 
   /// Show the human readable text under linear barcodes.
   final bool showText;
@@ -366,6 +374,7 @@ final class _Request {
       // A copy: the caller may reuse its buffer, and the cache keeps this.
       bytes = view.bytes == null ? null : Uint8List.fromList(view.bytes!),
       format = view.format,
+      gs1 = view.gs1,
       showText = view.showText,
       quietZone = view.style.quietZone,
       // A logo covers modules: QR codes then get the most error correction.
@@ -378,6 +387,7 @@ final class _Request {
   final String? data;
   final Uint8List? bytes;
   final BarcodeFormat format;
+  final bool gs1;
   final bool showText;
   final bool quietZone;
   final ErrorCorrection? errorCorrection;
@@ -386,6 +396,7 @@ final class _Request {
     final BarcodeWriter writer = BarcodeWriter(
       format,
       errorCorrection: errorCorrection,
+      gs1: gs1,
       quietZone: quietZone,
       showText: showText,
     );
@@ -399,6 +410,7 @@ final class _Request {
       other.data == data &&
       listEquals(other.bytes, bytes) &&
       other.format == format &&
+      other.gs1 == gs1 &&
       other.showText == showText &&
       other.quietZone == quietZone &&
       other.errorCorrection == errorCorrection;
@@ -408,6 +420,7 @@ final class _Request {
     data,
     bytes == null ? null : Object.hashAll(bytes!),
     format,
+    gs1,
     showText,
     quietZone,
     errorCorrection,

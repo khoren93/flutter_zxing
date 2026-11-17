@@ -140,4 +140,85 @@ void main() {
       expect(barcode!.content, BinaryContent(data));
     });
   });
+
+  group('built, written and read back', () {
+    Future<BarcodeContent> readBack(
+      BarcodeContent content, [
+      BarcodeFormat format = BarcodeFormat.qrCode,
+    ]) async {
+      final BarcodeSymbol symbol = await BarcodeWriter(
+        format,
+      ).encodeContent(content);
+      final BarcodeImage image = await symbol.toImage(moduleSize: 4);
+      final Barcode? barcode = await reader.readPixels(
+        PixelBuffer(image.pixels, width: image.width, height: image.height),
+      );
+      return barcode!.content;
+    }
+
+    final List<BarcodeContent> contents = <BarcodeContent>[
+      const TextContent('Ünïcødé text 😀'),
+      UrlContent(Uri.parse('https://example.com/a?b=c'), title: 'Shop: 50%'),
+      const WifiContent(ssid: r'"My;Net,1:\"', password: r'p"a;s:w\o'),
+      const EmailContent(address: 'a@x.org', subject: 'Hi & bye', body: 'é'),
+      const PhoneContent('*100#'),
+      const SmsContent(number: '+12125551234', message: 'Hi: 5pm'),
+      const GeoContent(latitude: 40.689247, longitude: -74.044502, query: 'Q'),
+      ContactContent(
+        name: 'Mary Ann Smith',
+        organization: 'Acme; Inc',
+        phones: const <String>['+1 555 0100'],
+        emails: const <String>['mary@acme.example'],
+        urls: <Uri>[Uri.parse('https://acme.example')],
+        addresses: const <String>['1 Main St, Springfield'],
+        note: 'line 1\nline 2',
+        birthday: DateTime(1990, 5, 17),
+      ),
+      EventContent(
+        summary: 'Launch, v4',
+        start: DateTime.utc(2026, 11, 17, 9, 30),
+        end: DateTime.utc(2026, 11, 17, 11),
+        location: 'Room 1',
+      ),
+      EventContent(
+        summary: 'Holiday',
+        start: DateTime(2026, 12, 25),
+        allDay: true,
+      ),
+    ];
+    for (final BarcodeContent content in contents) {
+      test('$content', () async {
+        expect(await readBack(content), content);
+      });
+    }
+
+    test('contact as MeCard', () async {
+      const ContactContent contact = ContactContent(
+        name: 'Sean Owen',
+        phones: <String>['+12125658770'],
+      );
+      final Barcode? barcode = await _roundTrip(
+        const BarcodeWriter(BarcodeFormat.qrCode),
+        contact.toPayload(format: ContactFormat.meCard),
+      );
+      expect(barcode!.content, contact);
+    });
+
+    test('GS1 Data Matrix and Code 128', () async {
+      const Gs1Content gs1 = Gs1Content(<String, String>{
+        '01': '09501101530003',
+        '10': 'ABC123',
+        '17': '270101',
+      });
+      expect(await readBack(gs1, BarcodeFormat.dataMatrix), gs1);
+      expect(await readBack(gs1, BarcodeFormat.code128), gs1);
+    });
+
+    test('binary', () async {
+      final BinaryContent binary = BinaryContent(
+        Uint8List.fromList(<int>[0, 1, 2, 0xFE, 0xFF]),
+      );
+      expect(await readBack(binary), binary);
+    });
+  });
 }

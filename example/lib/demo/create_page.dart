@@ -146,14 +146,20 @@ class _CreatePageState extends State<CreatePage> {
     _scheduleCheck();
   }
 
+  /// What the kind's form describes; the library builds its text.
+  BarcodeContent get _content => _kind.content(<String, String>{
+    for (final MapEntry<String, TextEditingController> e in _fields.entries)
+      e.key: e.value.text,
+  }, security: _security);
+
+  /// Why the form cannot be encoded yet (`BarcodeContent.validate`).
+  String? get _issue => !_anyText || _raw != null
+      ? null
+      : _content.validate().firstOrNull?.message;
+
   String get _data => !_anyText
       ? _value.text
-      : _raw ??
-            _kind.encode(<String, String>{
-              for (final MapEntry<String, TextEditingController> e
-                  in _fields.entries)
-                e.key: e.value.text,
-            }, security: _security);
+      : _raw ?? (_issue == null ? _content.toPayload() : '');
 
   /// Changes state from the page's parts, which are separate widgets.
   void _update(VoidCallback change) => setState(change);
@@ -782,19 +788,28 @@ class _Preview extends StatelessWidget {
         color: style.backgroundColor,
         borderRadius: BorderRadius.circular(18),
       ),
-      child: BarcodeView(
-        page._data,
-        format: page._format,
-        errorCorrection: page._ecc,
-        style: style.copyWith(quietZone: false),
-        errorBuilder: (BuildContext context, BarcodeWriteException e) => Center(
-          child: Text(
-            e.message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF4B5563)),
-          ),
-        ),
-      ),
+      child: page._issue != null
+          ? Center(
+              child: Text(
+                page._issue!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFF4B5563)),
+              ),
+            )
+          : BarcodeView(
+              page._data,
+              format: page._format,
+              errorCorrection: page._ecc,
+              style: style.copyWith(quietZone: false),
+              errorBuilder: (BuildContext context, BarcodeWriteException e) =>
+                  Center(
+                    child: Text(
+                      e.message,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Color(0xFF4B5563)),
+                    ),
+                  ),
+            ),
     );
   }
 }

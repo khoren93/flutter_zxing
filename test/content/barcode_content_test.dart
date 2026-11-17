@@ -209,6 +209,7 @@ void main() {
             'Flat 2, 43 Howitt Road, Belsize Park, London, NW34LU, UK',
           ],
           note: 'Testing 1 2 3',
+          birthday: DateTime(1961, 11, 5),
         ),
       );
     });

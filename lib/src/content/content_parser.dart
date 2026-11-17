@@ -203,6 +203,7 @@ ContactContent? _meCard(String body) {
   String? organization;
   String? title;
   String? note;
+  DateTime? birthday;
   final List<String> phones = <String>[];
   final List<String> emails = <String>[];
   final List<Uri> urls = <Uri>[];
@@ -235,6 +236,8 @@ ContactContent? _meCard(String body) {
         title = _orNull(_unescape(raw).trim());
       case 'NOTE':
         note = _orNull(_unescape(raw).trim());
+      case 'BDAY':
+        birthday = _birthday(_unescape(raw));
     }
   }
   return _contact(
@@ -246,6 +249,7 @@ ContactContent? _meCard(String body) {
     urls: urls,
     addresses: addresses,
     note: note,
+    birthday: birthday,
   );
 }
 
@@ -256,6 +260,7 @@ ContactContent? _vCard(String text) {
   String? organization;
   String? title;
   String? note;
+  DateTime? birthday;
   final List<String> phones = <String>[];
   final List<String> emails = <String>[];
   final List<Uri> urls = <Uri>[];
@@ -294,6 +299,8 @@ ContactContent? _vCard(String text) {
         _addNotEmpty(addresses, _joinParts(line.parts));
       case 'NOTE':
         note = _orNull(line.text.trim());
+      case 'BDAY':
+        birthday = _birthday(line.text);
     }
   }
   return _contact(
@@ -305,6 +312,7 @@ ContactContent? _vCard(String text) {
     urls: urls,
     addresses: addresses,
     note: note,
+    birthday: birthday,
   );
 }
 
@@ -317,11 +325,13 @@ ContactContent? _contact({
   required List<Uri> urls,
   required List<String> addresses,
   required String? note,
+  required DateTime? birthday,
 }) {
   if (name == null &&
       organization == null &&
       title == null &&
       note == null &&
+      birthday == null &&
       phones.isEmpty &&
       emails.isEmpty &&
       urls.isEmpty &&
@@ -337,6 +347,7 @@ ContactContent? _contact({
     urls: List<Uri>.unmodifiable(urls),
     addresses: List<String>.unmodifiable(addresses),
     note: note,
+    birthday: birthday,
   );
 }
 
@@ -352,6 +363,24 @@ String _joinParts(List<String> parts) => parts
     .map((String p) => p.trim())
     .where((String p) => p.isNotEmpty)
     .join(', ');
+
+final RegExp _birthdayPattern = RegExp(r'^(\d{4})-?(\d{2})-?(\d{2})(?:T|$)');
+
+/// `1990-05-17`, `19900517`, also with a time after it; local midnight.
+/// Dates without a year (`--0517`) and impossible dates give `null`.
+DateTime? _birthday(String value) {
+  final RegExpMatch? m = _birthdayPattern.firstMatch(value.trim());
+  if (m == null) {
+    return null;
+  }
+  final int year = int.parse(m.group(1)!);
+  final int month = int.parse(m.group(2)!);
+  final int day = int.parse(m.group(3)!);
+  final DateTime date = DateTime(year, month, day);
+  return date.year == year && date.month == month && date.day == day
+      ? date
+      : null;
+}
 
 void _addNotEmpty(List<String> list, String value) {
   final String v = value.trim();
@@ -370,6 +399,7 @@ EventContent? _vEvent(String text) {
   DateTime? start;
   DateTime? end;
   Duration? duration;
+  bool allDay = false;
   // Depth inside the first VEVENT: 1 for its own properties, more inside a
   // nested component such as VALARM, whose properties are not the event's.
   int depth = 0;
@@ -405,6 +435,7 @@ EventContent? _vEvent(String text) {
         description = _orNull(value.trim());
       case 'DTSTART':
         start = _calendarTime(value);
+        allDay = start != null && _calendarDate.hasMatch(value.trim());
       case 'DTEND':
         end = _calendarTime(value);
       case 'DURATION':
@@ -425,10 +456,14 @@ EventContent? _vEvent(String text) {
     summary: summary,
     start: start,
     end: end,
+    allDay: allDay,
     location: location,
     description: description,
   );
 }
+
+/// A date without a time (`VALUE=DATE`): the event takes whole days.
+final RegExp _calendarDate = RegExp(r'^\d{4}-?\d{2}-?\d{2}$');
 
 final RegExp _calendarTimePattern = RegExp(
   r'^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?$',

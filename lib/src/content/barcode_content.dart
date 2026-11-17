@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../barcode/barcode.dart';
+import 'content_builder.dart';
 import 'content_parser.dart';
 
 /// The payload of a [Barcode], parsed into a typed value.
@@ -34,9 +35,36 @@ import 'content_parser.dart';
 ///
 /// Parsing never throws: anything not recognised, or recognised but
 /// malformed, is [TextContent].
+///
+/// The other way round, [toPayload] builds the text to put in a barcode,
+/// with the escaping each format needs:
+///
+/// ```dart
+/// const WifiContent wifi = WifiContent(ssid: 'Home', password: 'secret12');
+/// BarcodeView(wifi.toPayload()); // WIFI:T:WPA;S:Home;P:secret12;;
+/// ```
 @immutable
 sealed class BarcodeContent {
   const BarcodeContent();
+
+  /// The text to put in a barcode: `WIFI:…`, a vCard, `mailto:…` and so on.
+  ///
+  /// [BarcodeContent.parseText] reads it back as an equal value. Values
+  /// that are not in the form parsing returns are normalised first, so that
+  /// building again gives the same text: spaces leave phone numbers,
+  /// surrounding whitespace leaves fields, empty strings become `null`.
+  ///
+  /// Throws an [ArgumentError] if [validate] finds a problem, and an
+  /// [UnsupportedError] for [BinaryContent], which has no text: encode its
+  /// bytes with `BarcodeWriter.encodeBytes` or `BarcodeView.bytes`, or use
+  /// `writer.encodeContent(content)`, which handles every kind.
+  String toPayload();
+
+  /// The problems that keep [toPayload] from building this value, such as
+  /// an empty network name or a latitude out of range. Empty when the value
+  /// can be built. For forms: show each [ContentIssue.message] next to its
+  /// [ContentIssue.field].
+  List<ContentIssue> validate();
 
   /// Parses the payload of [barcode]. `barcode.content` calls this once per
   /// barcode and keeps the result.
@@ -69,6 +97,31 @@ final Expando<BarcodeContent> _contents = Expando<BarcodeContent>(
   'BarcodeContent',
 );
 
+/// A problem that keeps [BarcodeContent.toPayload] from building a value,
+/// from [BarcodeContent.validate].
+@immutable
+final class ContentIssue {
+  /// Creates an issue with [field].
+  const ContentIssue(this.field, this.message);
+
+  /// The name of the field with the problem, as in the constructor:
+  /// `ssid`, `latitude`, `emails`.
+  final String field;
+
+  /// What is wrong, in English: `Network name is empty`.
+  final String message;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ContentIssue && other.field == field && other.message == message;
+
+  @override
+  int get hashCode => Object.hash(field, message);
+
+  @override
+  String toString() => '$field: $message';
+}
+
 /// Plain text, or anything not recognised as a more specific type.
 final class TextContent extends BarcodeContent {
   /// Creates text content.
@@ -76,6 +129,14 @@ final class TextContent extends BarcodeContent {
 
   /// The text.
   final String text;
+
+  /// [text] as it is. Text that looks like another kind, such as a web
+  /// address, is parsed back as that kind.
+  @override
+  String toPayload() => buildText(this);
+
+  @override
+  List<ContentIssue> validate() => validateText(this);
 
   @override
   bool operator ==(Object other) => other is TextContent && other.text == text;
@@ -94,6 +155,18 @@ final class BinaryContent extends BarcodeContent {
 
   /// The bytes.
   final Uint8List bytes;
+
+  /// Always throws [UnsupportedError]: binary data has no text. Encode
+  /// [bytes] with `BarcodeWriter.encodeBytes`, `BarcodeView.bytes` or
+  /// `writer.encodeContent(content)`.
+  @override
+  String toPayload() => throw UnsupportedError(
+    'BinaryContent has no text payload; encode its bytes with '
+    'BarcodeWriter.encodeBytes, BarcodeView.bytes or encodeContent',
+  );
+
+  @override
+  List<ContentIssue> validate() => validateBinary(this);
 
   @override
   bool operator ==(Object other) =>
@@ -121,6 +194,15 @@ final class UrlContent extends BarcodeContent {
 
   /// A title, if the format carries one (`MEBKM:`, `URLTO:`).
   final String? title;
+
+  /// The address; with a [title], a `MEBKM:` bookmark. An address without
+  /// a scheme (`example.com`) gets `https://`. Only `http` and `https`
+  /// addresses can be built; put other links in [TextContent].
+  @override
+  String toPayload() => buildUrl(this);
+
+  @override
+  List<ContentIssue> validate() => validateUrl(this);
 
   @override
   bool operator ==(Object other) =>
@@ -176,6 +258,15 @@ final class WifiContent extends BarcodeContent {
   /// Whether the network does not broadcast its name.
   final bool hidden;
 
+  /// `WIFI:T:WPA;S:name;P:password;;`, with `\ ; , : "` escaped. WPA3
+  /// networks are written as `T:WPA`, which phones join as WPA2/WPA3.
+  /// [WifiSecurity.enterprise] and [WifiSecurity.unknown] cannot be built.
+  @override
+  String toPayload() => buildWifi(this);
+
+  @override
+  List<ContentIssue> validate() => validateWifi(this);
+
   @override
   bool operator ==(Object other) =>
       other is WifiContent &&
@@ -207,6 +298,13 @@ final class EmailContent extends BarcodeContent {
   /// Body, if given.
   final String? body;
 
+  /// `mailto:address?subject=…&body=…`, percent-encoded (RFC 6068).
+  @override
+  String toPayload() => buildEmail(this);
+
+  @override
+  List<ContentIssue> validate() => validateEmail(this);
+
   @override
   bool operator ==(Object other) =>
       other is EmailContent &&
@@ -228,6 +326,14 @@ final class PhoneContent extends BarcodeContent {
 
   /// The number as written in the barcode.
   final String number;
+
+  /// `tel:+12125551234`. Visual separators (spaces, `-`, `.`, brackets)
+  /// are removed; `+`, digits, `*` and `#` are kept.
+  @override
+  String toPayload() => buildPhone(this);
+
+  @override
+  List<ContentIssue> validate() => validatePhone(this);
 
   @override
   bool operator ==(Object other) =>
@@ -251,6 +357,14 @@ final class SmsContent extends BarcodeContent {
 
   /// Message text, if given.
   final String? message;
+
+  /// `SMSTO:number:message`, the form both iOS and Android camera apps
+  /// open. Numbers lose their visual separators, as in [PhoneContent].
+  @override
+  String toPayload() => buildSms(this);
+
+  @override
+  List<ContentIssue> validate() => validateSms(this);
 
   @override
   bool operator ==(Object other) =>
@@ -285,6 +399,13 @@ final class GeoContent extends BarcodeContent {
   /// Search query (`?q=`), if given.
   final String? query;
 
+  /// `geo:latitude,longitude[,altitude][?q=query]` (RFC 5870).
+  @override
+  String toPayload() => buildGeo(this);
+
+  @override
+  List<ContentIssue> validate() => validateGeo(this);
+
   @override
   bool operator ==(Object other) =>
       other is GeoContent &&
@@ -300,6 +421,15 @@ final class GeoContent extends BarcodeContent {
   String toString() => 'GeoContent($latitude, $longitude)';
 }
 
+/// How [ContactContent.toPayload] writes a contact.
+enum ContactFormat {
+  /// vCard 3.0: every field, understood everywhere.
+  vCard,
+
+  /// `MECARD:`: shorter, so the QR code is smaller.
+  meCard,
+}
+
 /// A contact card (vCard or MeCard).
 final class ContactContent extends BarcodeContent {
   /// Creates contact content.
@@ -312,6 +442,7 @@ final class ContactContent extends BarcodeContent {
     this.urls = const <Uri>[],
     this.addresses = const <String>[],
     this.note,
+    this.birthday,
   });
 
   /// Formatted name, e.g. `Sean Owen` (from vCard `FN`, else `N`; the
@@ -339,6 +470,20 @@ final class ContactContent extends BarcodeContent {
   /// Free-form note.
   final String? note;
 
+  /// Date of birth (vCard `BDAY`, MeCard `BDAY`), at local midnight. A
+  /// birthday without a year (vCard 4.0 `--0517`) is not kept.
+  final DateTime? birthday;
+
+  /// A vCard 3.0, or with [ContactFormat.meCard] a shorter `MECARD:` that
+  /// makes a smaller QR code. [name] is written as the formatted name and,
+  /// split at its last space, as the family and given names.
+  @override
+  String toPayload({ContactFormat format = ContactFormat.vCard}) =>
+      buildContact(this, format);
+
+  @override
+  List<ContentIssue> validate() => validateContact(this);
+
   @override
   bool operator ==(Object other) =>
       other is ContactContent &&
@@ -349,7 +494,8 @@ final class ContactContent extends BarcodeContent {
       listEquals(other.emails, emails) &&
       listEquals(other.urls, urls) &&
       listEquals(other.addresses, addresses) &&
-      other.note == note;
+      other.note == note &&
+      other.birthday == birthday;
 
   @override
   int get hashCode => Object.hash(
@@ -361,6 +507,7 @@ final class ContactContent extends BarcodeContent {
     Object.hashAll(urls),
     Object.hashAll(addresses),
     note,
+    birthday,
   );
 
   @override
@@ -371,13 +518,15 @@ final class ContactContent extends BarcodeContent {
 ///
 /// Times marked UTC (`…Z`) are UTC [DateTime]s; all others, including times
 /// with a named time zone (`TZID=`), are read as local time. An event with a
-/// `DURATION` instead of an end gets [end] = [start] + duration.
+/// `DURATION` instead of an end gets [end] = [start] + duration. An
+/// all-day event (`DTSTART;VALUE=DATE:20261117`) starts at local midnight.
 final class EventContent extends BarcodeContent {
   /// Creates event content.
   const EventContent({
     required this.summary,
     required this.start,
     this.end,
+    this.allDay = false,
     this.location,
     this.description,
   });
@@ -394,8 +543,22 @@ final class EventContent extends BarcodeContent {
   /// Location, if given.
   final String? location;
 
+  /// Whether the event takes whole days: only the dates of [start] and
+  /// [end] count, and [end] is the day after the last one, as in
+  /// iCalendar.
+  final bool allDay;
+
   /// Description, if given.
   final String? description;
+
+  /// A `VCALENDAR` with one `VEVENT`. UTC times are written as UTC
+  /// (`…Z`), local times as floating local times; seconds are kept,
+  /// milliseconds are not.
+  @override
+  String toPayload() => buildEvent(this);
+
+  @override
+  List<ContentIssue> validate() => validateEvent(this);
 
   @override
   bool operator ==(Object other) =>
@@ -403,11 +566,13 @@ final class EventContent extends BarcodeContent {
       other.summary == summary &&
       other.start == start &&
       other.end == end &&
+      other.allDay == allDay &&
       other.location == location &&
       other.description == description;
 
   @override
-  int get hashCode => Object.hash(summary, start, end, location, description);
+  int get hashCode =>
+      Object.hash(summary, start, end, allDay, location, description);
 
   @override
   String toString() => 'EventContent("$summary", $start)';
@@ -428,6 +593,16 @@ final class Gs1Content extends BarcodeContent {
 
   /// GTIN (AI 01), if present.
   String? get gtin => elements['01'];
+
+  /// The elements with their identifiers in parentheses,
+  /// `(01)09501101530003(17)250101`, the form GS1 encoding takes
+  /// (`BarcodeView(…, gs1: true)`, `BarcodeWriter(…, gs1: true)`, or
+  /// `writer.encodeContent(content)`, which sets it).
+  @override
+  String toPayload() => buildGs1(this);
+
+  @override
+  List<ContentIssue> validate() => validateGs1(this);
 
   @override
   bool operator ==(Object other) =>

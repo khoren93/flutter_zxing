@@ -222,39 +222,25 @@ enum CreateKind {
     phone => <(String, String, String)>[('number', 'Number', '+374 10 123456')],
   };
 
-  /// The text to encode from the form's [values] (keys of [fields]).
-  String encode(Map<String, String> values, {WifiSecurity? security}) {
+  /// The content the form's [values] (keys of [fields]) describe.
+  BarcodeContent content(Map<String, String> values, {WifiSecurity? security}) {
     String v(String key) => (values[key] ?? '').trim();
-    String esc(String s) =>
-        s.replaceAllMapped(RegExp(r'[\\;,:"]'), (Match m) => '\\${m[0]}');
+    String? optional(String key) => v(key).isEmpty ? null : v(key);
     return switch (this) {
-      text => v('text'),
-      link => v('url'),
-      wifi => () {
-        final WifiSecurity s = security ?? WifiSecurity.wpa;
-        final String t = switch (s) {
-          WifiSecurity.none => 'nopass',
-          WifiSecurity.wep => 'WEP',
-          _ => 'WPA',
-        };
-        final String pass = s == WifiSecurity.none
-            ? ''
-            : 'P:${esc(v('password'))};';
-        return 'WIFI:T:$t;S:${esc(v('ssid'))};$pass;';
-      }(),
-      contact => <String>[
-        'BEGIN:VCARD',
-        'VERSION:3.0',
-        'FN:${v('name')}',
-        if (v('phone').isNotEmpty) 'TEL:${v('phone')}',
-        if (v('email').isNotEmpty) 'EMAIL:${v('email')}',
-        'END:VCARD',
-      ].join('\n'),
-      email =>
-        v('subject').isEmpty
-            ? 'mailto:${v('to')}'
-            : 'mailto:${v('to')}?subject=${Uri.encodeComponent(v('subject'))}',
-      phone => 'tel:${v('number').replaceAll(' ', '')}',
+      text => TextContent(v('text')),
+      link => UrlContent(Uri.tryParse(v('url')) ?? Uri()),
+      wifi => WifiContent(
+        ssid: v('ssid'),
+        password: optional('password'),
+        security: security ?? WifiSecurity.wpa,
+      ),
+      contact => ContactContent(
+        name: optional('name'),
+        phones: <String>[if (optional('phone') case final String p) p],
+        emails: <String>[if (optional('email') case final String e) e],
+      ),
+      email => EmailContent(address: v('to'), subject: optional('subject')),
+      phone => PhoneContent(v('number')),
     };
   }
 }

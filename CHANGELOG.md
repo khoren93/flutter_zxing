@@ -14,6 +14,20 @@
   `rendering.dart` (`BarcodeView`, `BarcodeStyle`) and `scanner.dart`.
   `flutter_zxing.dart` still exports everything. `barcode.content` is now an
   extension from the content layer; code that uses it does not change.
+* **Building payloads:** every `BarcodeContent` has `toPayload()`, the text
+  to put in a barcode with the escaping its format needs: `WIFI:` (special
+  characters escaped), vCard 3.0 or `MECARD:`
+  (`toPayload(format: ContactFormat.meCard)`), `mailto:`, `tel:`, `SMSTO:`,
+  `geo:`, an iCalendar event, a `MEBKM:` bookmark, GS1 elements in
+  parentheses. `BarcodeContent.parseText` reads each back as an equal
+  value. `validate()` lists what is missing or wrong (`ContentIssue`: field
+  and message) without throwing, for forms; `toPayload()` throws an
+  `ArgumentError` with the same messages.
+  `writer.encodeContent(content)` encodes any content, GS1 and binary
+  included.
+* **New fields:** `ContactContent.birthday` (vCard and MeCard `BDAY`),
+  `EventContent.allDay` (events with dates and no times).
+* **`BarcodeView(…, gs1: true)`** encodes GS1 data, as `BarcodeWriter` could.
 * **The result sheet** shows the format as "QR Code", or "QR Code · GS1",
   instead of the ISO/IEC 15424 identifier (`]Q1`), which is meant for
   systems; `Barcode.symbologyIdentifier` still has it.

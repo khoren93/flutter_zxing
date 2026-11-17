@@ -6,3 +6,4 @@ library;
 
 export 'core.dart';
 export 'src/content/barcode_content.dart';
+export 'src/content/content_writer.dart';

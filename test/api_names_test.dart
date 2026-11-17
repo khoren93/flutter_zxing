@@ -23,7 +23,7 @@ const List<Type> _types = <Type>[
   // Content
   BarcodeContent, TextContent, BinaryContent, UrlContent, WifiContent,
   WifiSecurity, EmailContent, PhoneContent, SmsContent, GeoContent,
-  ContactContent, EventContent, Gs1Content,
+  ContactContent, ContactFormat, EventContent, Gs1Content, ContentIssue,
   // Reading
   BarcodeReader, ReaderOptions, Binarizer, EanAddOn, PixelBuffer, PixelLayout,
   // Writing
