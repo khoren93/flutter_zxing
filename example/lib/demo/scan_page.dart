@@ -340,15 +340,26 @@ class _ScanPageState extends State<ScanPage> {
             Positioned(
               left: 16,
               top: top.top + 8,
-              child: Row(
-                children: <Widget>[
-                  _Picker(
-                    picked: _picked,
-                    open: _menu,
-                    onTap: () => setState(() => _menu = !_menu),
-                  ),
-                  const SizedBox(width: 8),
-                  ScannerButton(
+              child: _Picker(
+                picked: _picked,
+                open: _menu,
+                onTap: () => setState(() => _menu = !_menu),
+              ),
+            ),
+            // In the template's top bar: left of its torch or of the button
+            // that leaves a paused scan, in their place without them.
+            ValueListenableBuilder<ScannerState>(
+              valueListenable: _controller,
+              builder: (BuildContext context, ScannerState state, Widget? _) {
+                final bool taken =
+                    state.status == ScannerStatus.paused ||
+                    state.status == ScannerStatus.error ||
+                    (_template.torchButton &&
+                        state.torch != TorchState.unavailable);
+                return Positioned(
+                  right: top.right + 20 + (taken ? 48 + 8 : 0),
+                  top: top.top + 12,
+                  child: ScannerButton(
                     icon: ScannerIcons.binary,
                     label: _numbers
                         ? 'Hide the developer numbers'
@@ -357,8 +368,8 @@ class _ScanPageState extends State<ScanPage> {
                     selected: _numbers,
                     onPressed: () => setState(() => _numbers = !_numbers),
                   ),
-                ],
-              ),
+                );
+              },
             ),
             if (_menu) ...<Widget>[
               Positioned.fill(

@@ -614,9 +614,9 @@ class _CreatePageState extends State<CreatePage> {
     ],
   );
 
-  /// The phone layout split in two: the code card on the left, filling the
-  /// height, and the rest on the right, scrolling. With room, a rail of
-  /// every kind, in groups, comes first.
+  /// The phone layout split in two: the settings on the left, scrolling,
+  /// and the code card on the right, filling the height. With room, a rail
+  /// of every kind, in groups, comes first.
   Widget _buildWide(BuildContext context) => LayoutBuilder(
     builder: (BuildContext context, BoxConstraints c) {
       final bool rail = c.maxWidth >= 960 && _anyText;
@@ -633,25 +633,25 @@ class _CreatePageState extends State<CreatePage> {
               ),
             ),
           Expanded(
-            // The same 12 points above and below the card: the bottom inset
-            // is left out, as it is at the top, where landscape has none.
             child: SafeArea(
               left: !rail,
               right: false,
               bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                child: _codeCard(fill: true),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(0, 12, 0, 120),
+                children: _sections(context, title: true, rail: rail),
               ),
             ),
           ),
           Expanded(
+            // The same 12 points above and below the card: the bottom inset
+            // is left out, as it is at the top, where landscape has none.
             child: SafeArea(
               left: false,
               bottom: false,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(0, 12, 0, 120),
-                children: _sections(context, title: true, rail: rail),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: _codeCard(fill: true),
               ),
             ),
           ),
