@@ -78,10 +78,7 @@ void main() {
     });
 
     test('returns an empty list when there is no barcode', () async {
-      expect(
-        await reader.readAll(_sample('none-1/#245.png')),
-        isEmpty,
-      );
+      expect(await reader.readAll(_sample('none-1/#245.png')), isEmpty);
     });
   });
 
