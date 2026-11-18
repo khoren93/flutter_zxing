@@ -7,7 +7,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show setEquals;
+import 'package:flutter/foundation.dart' show compute, setEquals;
 import 'package:flutter/widgets.dart';
 
 import '../barcode/barcode.dart';
@@ -19,6 +19,7 @@ import '../reading/pixel_buffer.dart';
 import '../reading/reader_options.dart';
 import 'auto_lens.dart';
 import 'camera/camera_source.dart';
+import 'camera/frame_colors.dart';
 import 'frame_geometry.dart';
 import 'scan_window.dart';
 import 'snapshot.dart';
@@ -1527,6 +1528,37 @@ final class BarcodeCapture {
     }
     final GrayImage? image = straighten(cut, corners);
     return image?.toImage();
+  }
+}
+
+/// For the scanner's templates. Not exported.
+extension ScannerControllerFreeze on ScannerController {
+  /// The last decoded camera frame in color, the way the preview shows it.
+  /// The caller disposes the image. `null` before the first frame, and
+  /// where frames are not in memory (the web).
+  Future<ui.Image?> freezeFrame() async {
+    final CameraFrame? frame = _lastFrame?.$1;
+    final FrameColors? colors = frame?.colors;
+    if (frame == null || colors == null) {
+      return null;
+    }
+    try {
+      final (Uint8List rgba, int width, int height) = await compute(
+        frameToRgba,
+        (colors, frame.transform),
+      );
+      final Completer<ui.Image> image = Completer<ui.Image>();
+      ui.decodeImageFromPixels(
+        rgba,
+        width,
+        height,
+        ui.PixelFormat.rgba8888,
+        image.complete,
+      );
+      return await image.future;
+    } on Object {
+      return null;
+    }
   }
 }
 

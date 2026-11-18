@@ -18,6 +18,7 @@ import '../../reading/pixel_buffer.dart';
 import '../frame_geometry.dart';
 import '../scanner_controller.dart';
 import 'camera_source.dart';
+import 'frame_colors.dart';
 import 'ios_lens.dart';
 
 /// The camera of this platform.
@@ -428,6 +429,30 @@ final class _NativeFrame extends CameraFrame {
       height: _image.height,
       layout: _layout,
       rowStride: plane.bytesPerRow,
+    );
+  }
+
+  @override
+  FrameColors? get colors {
+    final List<Plane> planes = _image.planes;
+    if (_image.format.group != ImageFormatGroup.yuv420 || planes.length < 2) {
+      return super.colors;
+    }
+    // Android sends three planes; iOS two, the colors alternating in video
+    // range.
+    final bool alternating = planes.length == 2;
+    final Plane u = planes[1];
+    return FrameColors(
+      planes.first.bytes,
+      width: _image.width,
+      height: _image.height,
+      stride: planes.first.bytesPerRow,
+      u: u.bytes,
+      v: alternating ? u.bytes : planes[2].bytes,
+      vOffset: alternating ? 1 : 0,
+      chromaStride: u.bytesPerRow,
+      chromaPixelStride: u.bytesPerPixel ?? (alternating ? 2 : 1),
+      limitedRange: alternating,
     );
   }
 

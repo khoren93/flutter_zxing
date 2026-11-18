@@ -349,6 +349,7 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
       }
     }
     return ScannerLayout(
+      previewRect: fit.target,
       size: size,
       scanWindow: controller.scanWindow.resolve(size),
       barcodes: barcodes,
@@ -369,10 +370,15 @@ final class ScannerLayout {
     required this.barcodes,
     required this.state,
     required this.controller,
+    this.previewRect,
   });
 
   /// Size of the scanner widget.
   final Size size;
+
+  /// Where the whole camera preview lies in the widget; it may reach past
+  /// the widget's edges. `null` until the preview shows.
+  final Rect? previewRect;
 
   /// The scan window.
   final Rect scanWindow;

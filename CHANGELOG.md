@@ -8,8 +8,11 @@
 * **`ScannerTemplate.pick` tells which code was picked and lets the user
   pick another.** `onPick` gets the picked code and its capture. The result
   sheet has a close button (`BarcodeResultSheet.onClose`) that goes back to
-  the codes, on the photo or in view of the camera; "Scan again" goes to the
-  camera. New texts: `ScannerStrings.backToCamera` and `backToCodes`.
+  the codes; "Scan again" goes to the camera. Picking a code freezes the
+  camera on that frame, so the same codes stay to pick from wherever the
+  camera turns (on the web, where frames are not in memory, the codes then
+  in view). New: `ScannerLayout.previewRect`, `ScannerStrings.backToCamera`
+  and `backToCodes`.
 * **`BarcodeCapture.snapshot` follows a photo's EXIF orientation.** The
   code of a photo taken with the phone turned is cut out where it is.
 * **The outline of a linear code is as tall as its bars.** zxing-cpp

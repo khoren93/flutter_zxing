@@ -19,6 +19,7 @@ import 'camera_source_stub.dart'
     if (dart.library.js_interop) 'camera_source_web.dart'
     if (dart.library.ffi) 'camera_source_native.dart'
     as platform;
+import 'frame_colors.dart';
 
 /// The clock of frame arrival times, shared by the cameras and the
 /// controller (microseconds since the first use).
@@ -165,6 +166,12 @@ abstract class CameraFrame {
   /// Whether [pixels] are a mirror image of the scene (the front camera on
   /// iOS).
   bool get mirrored;
+
+  /// The frame in color, to freeze it on screen; `null` without [pixels].
+  FrameColors? get colors {
+    final PixelBuffer? pixels = this.pixels;
+    return pixels == null ? null : FrameColors.of(pixels);
+  }
 
   /// The grayscale part of the frame around [positions] (frame pixels), for
   /// cut-outs of the codes found: from [pixels] where they are in memory.

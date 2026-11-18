@@ -499,10 +499,11 @@ final class ScannerTemplate {
 
   /// Several codes in view, such as on a box or a poster: no window, a
   /// label on every code, and a tap on one picks it: [onPick] is told, and
-  /// its result sheet opens. Closing the sheet with its close button or a
-  /// tap around it goes back to the codes, "Scan again" to the camera. A
-  /// photo with several codes opens with the same labels and stays until
-  /// the user leaves it.
+  /// its result sheet opens. The camera stops on that frame, so that closing
+  /// the sheet with its close button or a tap around it goes back to the same
+  /// codes (on the web, to the codes then in view); "Scan again" goes to the
+  /// camera. A photo with several codes opens with the same labels and stays
+  /// until the user leaves it.
   const ScannerTemplate.pick({
     this.theme = const ScannerTheme(brightness: Brightness.dark),
     this.formats,

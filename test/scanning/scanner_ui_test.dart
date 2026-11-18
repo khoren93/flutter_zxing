@@ -1225,6 +1225,78 @@ void main() {
       semantics.dispose();
     });
 
+    testWidgets('pick: the camera freezes on the codes of a picked one', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      final SemanticsHandle semantics = tester.ensureSemantics();
+      final List<String> picked = <String>[];
+      await tester.pumpWidget(
+        _host(
+          BarcodeScanner(
+            template: ScannerTemplate.pick(
+              onPick: (Barcode barcode, BarcodeCapture _) =>
+                  picked.add(barcode.text),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      Future<void> settle() async {
+        for (int i = 0; i < 12; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 20)),
+          );
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+      }
+
+      camera.push(
+        <Barcode>[
+          _barcode('https://www.flutter.dev/x'),
+          _barcode(
+            'WIFI:T:WPA;S:Office;P:secret;;',
+            rect: const Rect.fromLTWH(200, 500, 100, 100),
+          ),
+        ],
+        null,
+        false,
+        PixelBuffer(Uint8List(390 * 844), width: 390, height: 844),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      await tester.tap(find.text('Office'));
+      await settle();
+      expect(find.byType(BarcodeResultSheet), findsOneWidget);
+      final ScannerController controller = _findController(tester);
+
+      // The codes stay with no camera frame showing them any more.
+      await tester.tap(find.bySemanticsLabel('Back to the codes'));
+      await settle();
+      expect(find.byType(BarcodeResultSheet), findsNothing);
+      expect(controller.value.status, ScannerStatus.paused);
+      expect(find.text('2 codes'), findsOneWidget);
+      expect(find.text('Office'), findsOneWidget);
+      expect(find.byType(RawImage), findsWidgets);
+
+      await tester.tap(find.text('flutter.dev'));
+      await settle();
+      expect(picked, <String>[
+        'WIFI:T:WPA;S:Office;P:secret;;',
+        'https://www.flutter.dev/x',
+      ]);
+      await tester.tap(find.bySemanticsLabel('Back to the codes'));
+      await settle();
+
+      // The button at the top goes back to the live camera.
+      await tester.tap(find.bySemanticsLabel('Back to the camera'));
+      await settle();
+      expect(controller.value.status, ScannerStatus.running);
+      expect(find.bySemanticsLabel('Back to the camera'), findsNothing);
+      semantics.dispose();
+    });
+
     testWidgets('pick: two codes alike get a label each, numbers stay', (
       WidgetTester tester,
     ) async {

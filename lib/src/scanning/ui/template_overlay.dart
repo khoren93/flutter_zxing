@@ -114,8 +114,12 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   /// [ScannerMode.pick]: the codes whose label is below them.
   final Set<int> _labelsBelow = <int>{};
 
-  /// [ScannerMode.pick]: the photo whose codes are shown to pick from.
+  /// [ScannerMode.pick]: the photo or the frozen camera frame whose codes
+  /// are shown to pick from.
   _PickPhoto? _photo;
+
+  /// [ScannerMode.pick]: the camera frame is being frozen.
+  bool _freezing = false;
 
   /// Counts photos, so that one still decoding after "Scan again" is
   /// dropped.
@@ -555,20 +559,36 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   void _pickOnPhoto(VisibleBarcode code) {
     final _PickPhoto? photo = _photo;
     if (photo != null) {
-      unawaited(_single(photo.capture, code.barcode, from: code.corners));
+      final _PhotoCode picked = photo.codes[code.id];
+      unawaited(_single(picked.capture, picked.barcode, from: code.corners));
     }
   }
 
-  /// [ScannerMode.pick]: the user tapped [code].
-  void _pick(VisibleBarcode code) {
-    final BarcodeCapture capture =
-        _pickable[_keyOf(code.barcode)] ??
-        BarcodeCapture(
-          barcodes: <Barcode>[code.barcode],
-          imageSize: widget.layout.size,
-          time: DateTime.now(),
-        );
-    unawaited(_single(capture, code.barcode, from: code.corners));
+  /// The capture [code] of the camera was reported in.
+  BarcodeCapture _captureOf(VisibleBarcode code) =>
+      _pickable[_keyOf(code.barcode)] ??
+      BarcodeCapture(
+        barcodes: <Barcode>[code.barcode],
+        imageSize: widget.layout.size,
+        time: DateTime.now(),
+      );
+
+  /// [ScannerMode.pick]: the user tapped [code] in view of the camera.
+  Future<void> _pick(VisibleBarcode code) async {
+    if (_freezing ||
+        _result != null ||
+        _showResult != null ||
+        _settled ||
+        _checking) {
+      return;
+    }
+    final BarcodeCapture capture = _captureOf(code);
+    _freezing = true;
+    await _freeze(widget.layout.barcodes);
+    _freezing = false;
+    if (mounted) {
+      await _single(capture, code.barcode, from: code.corners);
+    }
   }
 
   /// [ScannerMode.pick]: a photo was read. One code is the result; among
@@ -595,7 +615,53 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     }
     setState(() {
       _dropPhoto();
-      _photo = _PickPhoto(capture, photo.$1, photo.$2);
+      _photo = _PickPhoto(photo.$1, <_PhotoCode>[
+        for (final (int i, Barcode barcode) in capture.barcodes.indexed)
+          _PhotoCode(barcode, capture, photo.$2[i]),
+      ]);
+    });
+  }
+
+  /// [ScannerMode.pick]: stops the camera on the frame with [codes], so that
+  /// they stay to pick from whatever the camera sees next. Where a frame
+  /// cannot be kept, the camera goes on.
+  Future<void> _freeze(List<VisibleBarcode> codes) async {
+    final ScannerController controller = widget.layout.controller;
+    final Rect? preview = widget.layout.previewRect;
+    final Size size = widget.layout.size;
+    unawaited(controller.pause());
+    final ui.Image? image = preview == null
+        ? null
+        : await controller.freezeFrame();
+    if (!mounted) {
+      image?.dispose();
+      return;
+    }
+    if (image == null || preview == null) {
+      await controller.resume();
+      return;
+    }
+    final Map<int, int> numbers = <int, int>{
+      for (final (int i, VisibleBarcode code) in codes.indexed)
+        if (_numbers[code.id] case final int number) i: number,
+    };
+    final double sx = image.width / preview.width;
+    final double sy = image.height / preview.height;
+    setState(() {
+      _dropPhoto();
+      _numbers.addAll(numbers);
+      _photo = _PickPhoto(
+        image,
+        <_PhotoCode>[
+          for (final VisibleBarcode code in codes)
+            _PhotoCode(code.barcode, _captureOf(code), <Offset>[
+              for (final Offset c in code.corners)
+                Offset((c.dx - preview.left) * sx, (c.dy - preview.top) * sy),
+            ]),
+        ],
+        frozenIn: preview,
+        frozenAt: size,
+      );
     });
   }
 
@@ -680,15 +746,18 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     );
   }
 
-  /// Where [image] shows whole in the middle of [area].
-  static Rect _fit(ui.Image image, Rect area) => Alignment.center.inscribe(
-    applyBoxFit(
-      BoxFit.contain,
-      Size(image.width.toDouble(), image.height.toDouble()),
-      area.size,
-    ).destination,
-    area,
-  );
+  /// Where [image] shows with [fit] in the middle of [area].
+  static Rect _fit(ui.Image image, Rect area, BoxFit fit) {
+    final Size source = Size(image.width.toDouble(), image.height.toDouble());
+    final Size shown = switch (fit) {
+      // Past the area's edges, unlike the destination of applyBoxFit.
+      BoxFit.cover =>
+        source *
+            math.max(area.width / source.width, area.height / source.height),
+      _ => applyBoxFit(fit, source, area.size).destination,
+    };
+    return Alignment.center.inscribe(shown, area);
+  }
 
   Color? _flashColor(ScannerTheme theme) => switch (_flash) {
     ScanStatus.accepted => theme.lockColor,
@@ -727,6 +796,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
             barcodes: full.barcodes,
             state: full.state,
             controller: controller,
+            previewRect: full.previewRect,
           );
     final Widget? sheet = _sheet(context, camera);
     final bool searching =
@@ -736,7 +806,8 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         layout.barcodes.isEmpty;
     final _PickPhoto? photo = _photo;
     // The codes of a photo are up to pick from.
-    final bool choosing = photo != null && !_settled && _result == null;
+    final bool choosing =
+        photo != null && !_settled && _result == null && _showResult == null;
     final bool pick =
         template.mode == ScannerMode.pick &&
         camera &&
@@ -760,7 +831,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         : pick && layout.barcodes.isNotEmpty
         ? strings.codesInView(layout.barcodes.length)
         : choosing
-        ? strings.codesInView(photo.capture.barcodes.length)
+        ? strings.codesInView(photo.codes.length)
         : template.title;
 
     final ScannerException? error = layout.state.error;
@@ -774,25 +845,38 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         : math.min(layout.scanWindow.bottom + 16, size.height - 64);
     // The photo, with room above it for the label of a code at its top.
     final double photoTop = safe.top + 72 + _PickLabel.height + _PickLabel.gap;
-    final Rect? photoRect = photo == null
-        ? null
-        : _fit(
-            photo.image,
-            Rect.fromLTRB(
-              safe.left + 8,
-              photoTop,
-              size.width - safe.right - 8,
-              math.max(photoTop + 1, hintTop - 8),
-            ),
-          );
+    final Rect? photoRect = switch (photo) {
+      null => null,
+      // A frozen frame lies exactly where the preview was.
+      _PickPhoto(:final Rect frozenIn, :final Size frozenAt)
+          when frozenAt == size =>
+        frozenIn,
+      _PickPhoto(frozen: true, :final ui.Image image) => _fit(
+        image,
+        Offset.zero & size,
+        BoxFit.cover,
+      ),
+      _PickPhoto(:final ui.Image image) => _fit(
+        image,
+        Rect.fromLTRB(
+          safe.left + 8,
+          photoTop,
+          size.width - safe.right - 8,
+          math.max(photoTop + 1, hintTop - 8),
+        ),
+        BoxFit.contain,
+      ),
+    };
     final List<VisibleBarcode> photoCodes = choosing
         ? _labeled(<VisibleBarcode>[
-            for (final (int i, Barcode barcode)
-                in photo.capture.barcodes.indexed)
-              VisibleBarcode(barcode, <Offset>[
-                for (final Offset c in photo.corners[i])
+            for (final (int i, _PhotoCode code) in photo.codes.indexed)
+              VisibleBarcode(code.barcode, <Offset>[
+                for (final Offset c in code.corners)
                   photoRect!.topLeft +
-                      c * (photoRect.width / photo.image.width),
+                      Offset(
+                        c.dx * photoRect.width / photo.image.width,
+                        c.dy * photoRect.height / photo.image.height,
+                      ),
               ], id: i),
           ], size)
         : const <VisibleBarcode>[];
@@ -857,13 +941,15 @@ class _TemplateOverlayState extends State<TemplateOverlay>
               ),
             ),
           ),
-        // A photo with several codes, over the paused camera.
+        // A photo with several codes or the frozen frame, over the paused
+        // camera.
         if (photo != null)
           _PhotoView(
             image: photo.image,
             rect: photoRect!,
             codes: photoCodes,
             color: theme.lockColor,
+            radius: photo.frozen ? 0 : 12,
           ),
         if (camera && _cutOut != null)
           IgnorePointer(
@@ -898,7 +984,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
               number: _numbers[code.id]!,
               code: code,
               below: _labelsBelow.contains(code.id),
-              onPressed: () => _pick(code),
+              onPressed: () => unawaited(_pick(code)),
             ),
         // On a photo a code is picked by its label or by the code itself,
         // as labels of codes side by side may overlap.
@@ -1371,15 +1457,30 @@ class _HintPanel extends StatelessWidget {
   }
 }
 
-/// [ScannerMode.pick]: a photo with several codes.
+/// [ScannerMode.pick]: a photo with several codes, or the camera frame
+/// frozen when a code was picked.
 final class _PickPhoto {
-  const _PickPhoto(this.capture, this.image, this.corners);
+  const _PickPhoto(this.image, this.codes, {this.frozenIn, this.frozenAt});
 
-  final BarcodeCapture capture;
   final ui.Image image;
+  final List<_PhotoCode> codes;
 
-  /// The corners of each barcode of [capture], in pixels of [image].
-  final List<List<Offset>> corners;
+  /// A frozen frame: where the preview lay in a scanner of [frozenAt].
+  final Rect? frozenIn;
+  final Size? frozenAt;
+
+  bool get frozen => frozenIn != null;
+}
+
+/// A code to pick on a [_PickPhoto].
+final class _PhotoCode {
+  const _PhotoCode(this.barcode, this.capture, this.corners);
+
+  final Barcode barcode;
+  final BarcodeCapture capture;
+
+  /// In pixels of the image.
+  final List<Offset> corners;
 }
 
 /// [ScannerMode.pick]: the photo on a dark plate, an outline on each of
@@ -1390,6 +1491,7 @@ class _PhotoView extends StatelessWidget {
     required this.rect,
     required this.codes,
     required this.color,
+    required this.radius,
   });
 
   final ui.Image image;
@@ -1398,6 +1500,7 @@ class _PhotoView extends StatelessWidget {
   final Rect rect;
   final List<VisibleBarcode> codes;
   final Color color;
+  final double radius;
 
   @override
   Widget build(BuildContext context) => AbsorbPointer(
@@ -1409,7 +1512,7 @@ class _PhotoView extends StatelessWidget {
           Positioned.fromRect(
             rect: rect,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(radius),
               child: RawImage(image: image, fit: BoxFit.fill),
             ),
           ),
