@@ -62,7 +62,7 @@ const BarcodeView('https://pub.dev/packages/flutter_zxing', width: 200)
 ## Installation
 
 ```bash
-flutter pub add flutter_zxing:^4.0.0-rc.1
+flutter pub add flutter_zxing:^4.0.0-rc.2
 ```
 
 The package compiles zxing-cpp with a build hook: no CMake, CocoaPods or
