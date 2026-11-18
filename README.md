@@ -138,9 +138,35 @@ final Barcode? barcode = await scanBarcode(
 );
 ```
 
-A `check` accepts, flags or refuses each code before anything else
-happens, such as a ticket at the door or a sign-in code of your own service.
-It may be asynchronous:
+A template's `mode` decides what happens with the codes it finds:
+
+| `ScannerMode` | What happens |
+|---|---|
+| `single` | Scanning pauses and a sheet shows the code |
+| `collect` | Codes go into a list with counts, and scanning goes on |
+| `continuous` | Each code gets a short verdict, and scanning goes on |
+| `pick` | Every code in view gets a label, and a tap picks one |
+
+Each preset has the mode it needs, and `copyWith` changes it:
+
+```dart
+BarcodeScanner(
+  template: const ScannerTemplate.minimal().copyWith(
+    mode: ScannerMode.collect,
+    onDone: (items) => print(items.length),
+  ),
+)
+
+BarcodeScanner(
+  template: ScannerTemplate.pick(
+    onPick: (barcode, capture) => print(barcode.text),
+  ),
+)
+```
+
+A `check` (a `ScannerCheck`) accepts, flags or refuses each code before
+anything else happens, such as a ticket at the door or a sign-in code of your
+own service. It may be asynchronous:
 
 ```dart
 BarcodeScanner(
@@ -212,7 +238,7 @@ yours to `dispose()`; without one, `BarcodeScanner` makes its own.
 - `maxBarcodes`: 1 by default, which is several times faster on a frame with
   a code; `null` finds every code in the frame.
 - `await capture.snapshot()` gives the barcode cut out of the frame and
-  straightened, as an image (Android and iOS).
+  straightened, as an image.
 
 ### Small or dense codes
 
