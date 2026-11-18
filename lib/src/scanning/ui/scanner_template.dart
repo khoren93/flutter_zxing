@@ -26,6 +26,12 @@ typedef ScannerActionsBuilder =
       VoidCallback scanAgain,
     );
 
+/// Called with the [barcode] the user picked in [ScannerMode.pick] and the
+/// [capture] it came from, which also holds the other codes found with it
+/// and gives its picture with `capture.snapshot(barcode)`.
+typedef ScannerPickCallback =
+    void Function(Barcode barcode, BarcodeCapture capture);
+
 /// What a [ScannerTemplate] does with the codes it finds.
 enum ScannerMode {
   /// One code at a time: the brackets lock onto it, scanning pauses and a
@@ -86,6 +92,7 @@ final class ScannerTemplate {
     this.switchCameraButton = false,
     this.mode = ScannerMode.single,
     this.onDone,
+    this.onPick,
     this.check,
     this.counter = false,
     this.showResult = true,
@@ -126,6 +133,7 @@ final class ScannerTemplate {
   }) : mode = ScannerMode.single,
        largeHint = false,
        onDone = null,
+       onPick = null,
        counter = false,
        showResultIcon = false,
        resultAsCard = false,
@@ -160,6 +168,7 @@ final class ScannerTemplate {
        zoomButtons = false,
        switchCameraButton = false,
        onDone = null,
+       onPick = null,
        counter = false,
        showResult = true,
        showResultIcon = false,
@@ -191,6 +200,7 @@ final class ScannerTemplate {
     this.haptics = true,
     this.sound = false,
   }) : mode = ScannerMode.collect,
+       onPick = null,
        hint = null,
        hintIcon = null,
        largeHint = false,
@@ -242,6 +252,7 @@ final class ScannerTemplate {
        zoomButtons = false,
        switchCameraButton = false,
        onDone = null,
+       onPick = null,
        counter = false,
        showResult = true,
        showResultIcon = false,
@@ -278,6 +289,7 @@ final class ScannerTemplate {
        zoomButtons = false,
        switchCameraButton = false,
        onDone = null,
+       onPick = null,
        counter = false,
        showResult = true,
        showResultIcon = true,
@@ -314,6 +326,7 @@ final class ScannerTemplate {
        zoomButtons = false,
        switchCameraButton = false,
        onDone = null,
+       onPick = null,
        counter = false,
        showResult = true,
        showResultIcon = true,
@@ -356,6 +369,7 @@ final class ScannerTemplate {
        photoButton = false,
        switchCameraButton = false,
        onDone = null,
+       onPick = null,
        counter = false,
        showResult = true,
        showResultIcon = true,
@@ -390,6 +404,7 @@ final class ScannerTemplate {
        zoomButtons = false,
        switchCameraButton = false,
        onDone = null,
+       onPick = null,
        counter = false,
        showResult = false,
        showResultIcon = false,
@@ -433,6 +448,7 @@ final class ScannerTemplate {
        zoomButtons = false,
        switchCameraButton = false,
        onDone = null,
+       onPick = null,
        showResult = true,
        showResultIcon = false,
        resultAsCard = false,
@@ -471,6 +487,7 @@ final class ScannerTemplate {
        zoomButtons = false,
        switchCameraButton = false,
        onDone = null,
+       onPick = null,
        counter = false,
        showResult = true,
        showResultIcon = true,
@@ -481,7 +498,11 @@ final class ScannerTemplate {
        facing = null;
 
   /// Several codes in view, such as on a box or a poster: no window, a
-  /// label on every code, and a tap on one picks it.
+  /// label on every code, and a tap on one picks it: [onPick] is told, and
+  /// its result sheet opens. Closing the sheet with its close button or a
+  /// tap around it goes back to the codes, "Scan again" to the camera. A
+  /// photo with several codes opens with the same labels and stays until
+  /// the user leaves it.
   const ScannerTemplate.pick({
     this.theme = const ScannerTheme(brightness: Brightness.dark),
     this.formats,
@@ -491,6 +512,8 @@ final class ScannerTemplate {
     this.closeButton = true,
     this.onClose,
     this.torchButton = true,
+    this.photoButton = true,
+    this.onPick,
     this.check,
     this.showResult = true,
     this.resultBuilder,
@@ -501,7 +524,6 @@ final class ScannerTemplate {
   }) : mode = ScannerMode.pick,
        scanWindow = const ScanWindow.full(),
        largeHint = false,
-       photoButton = false,
        zoomButtons = false,
        switchCameraButton = false,
        onDone = null,
@@ -535,6 +557,7 @@ final class ScannerTemplate {
     this.haptics = true,
     this.sound = false,
   }) : mode = ScannerMode.collect,
+       onPick = null,
        hint = null,
        hintIcon = null,
        largeHint = false,
@@ -584,6 +607,7 @@ final class ScannerTemplate {
        zoomButtons = false,
        switchCameraButton = false,
        onDone = null,
+       onPick = null,
        showResult = true,
        showResultIcon = false,
        resultAsCard = false,
@@ -616,6 +640,7 @@ final class ScannerTemplate {
        hintIcon = null,
        largeHint = false,
        onDone = null,
+       onPick = null,
        counter = false,
        showResultIcon = true,
        resultAsCard = false,
@@ -657,6 +682,7 @@ final class ScannerTemplate {
        zoomButtons = false,
        switchCameraButton = false,
        onDone = null,
+       onPick = null,
        counter = false,
        showResult = true,
        showResultIcon = true,
@@ -701,6 +727,7 @@ final class ScannerTemplate {
        zoomButtons = false,
        switchCameraButton = false,
        onDone = null,
+       onPick = null,
        counter = false,
        showResult = true,
        showResultIcon = false,
@@ -760,6 +787,11 @@ final class ScannerTemplate {
   /// With [ScannerMode.collect]: called by the list's "Done" button with
   /// the collected codes.
   final ValueChanged<List<CollectedBarcode>>? onDone;
+
+  /// With [ScannerMode.pick]: called each time the user picks a code that
+  /// [check] did not refuse. `BarcodeScanner.onDetect` reports every code
+  /// found instead, picked or not.
+  final ScannerPickCallback? onPick;
 
   /// Accepts, flags or refuses each code before anything else happens.
   /// With [ScannerMode.single] and [ScannerMode.pick], a refused code
@@ -850,6 +882,7 @@ final class ScannerTemplate {
     bool? switchCameraButton,
     ScannerMode? mode,
     ValueChanged<List<CollectedBarcode>>? onDone,
+    ScannerPickCallback? onPick,
     ScannerCheck? check,
     bool? counter,
     bool? showResult,
@@ -879,6 +912,7 @@ final class ScannerTemplate {
     switchCameraButton: switchCameraButton ?? this.switchCameraButton,
     mode: mode ?? this.mode,
     onDone: onDone ?? this.onDone,
+    onPick: onPick ?? this.onPick,
     check: check ?? this.check,
     counter: counter ?? this.counter,
     showResult: showResult ?? this.showResult,

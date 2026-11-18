@@ -1492,17 +1492,23 @@ final class BarcodeCapture {
     BarcodePosition position = positions[index];
     final Uint8List? encoded = _encoded;
     if (cut == null && encoded != null) {
+      // The reader sees the file's pixels, the decoder here turns them.
+      final int orientation = exifOrientation(encoded);
+      final List<BarcodePosition> shown = <BarcodePosition>[
+        for (final BarcodePosition p in positions)
+          orientedPosition(p, imageSize, orientation),
+      ];
       final (FrameCut, double)? decoded = await cutEncoded(
         encoded,
-        imageSize,
-        positions,
+        orientedSize(imageSize, orientation),
+        shown,
         linear: <bool>[for (final Barcode b in barcodes) b.format.isLinear],
       );
       if (decoded == null) {
         return null;
       }
       cut = decoded.$1;
-      position = scalePosition(position, decoded.$2);
+      position = scalePosition(shown[index], decoded.$2);
     }
     if (cut == null) {
       return null;
@@ -1521,6 +1527,63 @@ final class BarcodeCapture {
     }
     final GrayImage? image = straighten(cut, corners);
     return image?.toImage();
+  }
+}
+
+/// The longest side of a photo decoded to show on screen.
+const int _photoSide = 2048;
+
+/// For the scanner's templates. Not exported.
+extension BarcodeCapturePhoto on BarcodeCapture {
+  /// The photo given to [ScannerController.readImage], turned the way it
+  /// shows, and the corners of each of [BarcodeCapture.barcodes] in its
+  /// pixels. The caller disposes the image. `null` for a capture of the
+  /// camera, or when the photo cannot be shown the way the reader saw it.
+  Future<(ui.Image, List<List<Offset>>)?> decodePhoto() async {
+    final Uint8List? encoded = _encoded;
+    final List<BarcodePosition>? positions = _positions;
+    if (encoded == null || positions == null) {
+      return null;
+    }
+    final ui.Image image;
+    try {
+      final ui.Codec codec = await ui.instantiateImageCodecWithSize(
+        await ui.ImmutableBuffer.fromUint8List(encoded),
+        getTargetSize: (int width, int height) {
+          final double scale = math.min(
+            1,
+            _photoSide / math.max(width, height),
+          );
+          return ui.TargetImageSize(
+            width: (width * scale).round(),
+            height: (height * scale).round(),
+          );
+        },
+      );
+      final ui.FrameInfo frame = await codec.getNextFrame();
+      codec.dispose();
+      image = frame.image;
+    } on Object {
+      return null;
+    }
+    final int orientation = exifOrientation(encoded);
+    final Size shown = orientedSize(imageSize, orientation);
+    if ((image.width / image.height - shown.width / shown.height).abs() >
+        0.02) {
+      image.dispose();
+      return null;
+    }
+    final double scale = image.width / shown.width;
+    return (
+      image,
+      <List<Offset>>[
+        for (final BarcodePosition p in positions)
+          <Offset>[
+            for (final Offset c in p.corners)
+              orientedPoint(c, imageSize, orientation) * scale,
+          ],
+      ],
+    );
   }
 }
 

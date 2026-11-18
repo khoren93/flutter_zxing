@@ -625,3 +625,98 @@ Future<(FrameCut, double)?> cutEncoded(
     return null;
   }
 }
+
+/// The EXIF orientation of the JPEG file [encoded], 1 to 8; 1 (as stored)
+/// for any other file or without one. The reader sees a file's pixels as
+/// stored, while Flutter shows them turned by this.
+int exifOrientation(Uint8List encoded) {
+  final ByteData data = ByteData.sublistView(encoded);
+  final int end = data.lengthInBytes;
+  if (end < 4 || data.getUint16(0) != 0xFFD8) {
+    return 1;
+  }
+  int at = 2;
+  while (at + 4 <= end) {
+    final int marker = data.getUint16(at);
+    // Not a segment, or the start of the pixels.
+    if (marker < 0xFF00 || marker == 0xFFDA) {
+      return 1;
+    }
+    final int length = data.getUint16(at + 2);
+    if (marker == 0xFFE1 &&
+        at + 10 <= end &&
+        data.getUint32(at + 4) == 0x45786966 && // "Exif"
+        data.getUint16(at + 8) == 0) {
+      return _tiffOrientation(
+        ByteData.sublistView(encoded, at + 10, math.min(at + 2 + length, end)),
+      );
+    }
+    at += 2 + length;
+  }
+  return 1;
+}
+
+/// The orientation tag of the first directory of a TIFF header.
+int _tiffOrientation(ByteData tiff) {
+  final int end = tiff.lengthInBytes;
+  if (end < 8) {
+    return 1;
+  }
+  final Endian? endian = switch (tiff.getUint16(0)) {
+    0x4949 => Endian.little,
+    0x4D4D => Endian.big,
+    _ => null,
+  };
+  if (endian == null) {
+    return 1;
+  }
+  final int directory = tiff.getUint32(4, endian);
+  if (directory + 2 > end) {
+    return 1;
+  }
+  final int entries = tiff.getUint16(directory, endian);
+  for (int i = 0; i < entries; i++) {
+    final int entry = directory + 2 + i * 12;
+    if (entry + 12 > end) {
+      return 1;
+    }
+    if (tiff.getUint16(entry, endian) == 0x0112) {
+      final int value = tiff.getUint16(entry + 8, endian);
+      return value >= 1 && value <= 8 ? value : 1;
+    }
+  }
+  return 1;
+}
+
+/// The size an image of [size] shows in with EXIF [orientation].
+Size orientedSize(Size size, int orientation) =>
+    orientation >= 5 ? size.flipped : size;
+
+/// Where the point [p] of an image of [size], as stored, shows with EXIF
+/// [orientation].
+Offset orientedPoint(Offset p, Size size, int orientation) {
+  final double w = size.width;
+  final double h = size.height;
+  return switch (orientation) {
+    2 => Offset(w - p.dx, p.dy),
+    3 => Offset(w - p.dx, h - p.dy),
+    4 => Offset(p.dx, h - p.dy),
+    5 => Offset(p.dy, p.dx),
+    6 => Offset(h - p.dy, p.dx),
+    7 => Offset(h - p.dy, w - p.dx),
+    8 => Offset(p.dy, w - p.dx),
+    _ => p,
+  };
+}
+
+/// [position] of an image of [size] where it shows with EXIF [orientation].
+BarcodePosition orientedPosition(
+  BarcodePosition position,
+  Size size,
+  int orientation,
+) => BarcodePosition(
+  topLeft: orientedPoint(position.topLeft, size, orientation),
+  topRight: orientedPoint(position.topRight, size, orientation),
+  bottomRight: orientedPoint(position.bottomRight, size, orientation),
+  bottomLeft: orientedPoint(position.bottomLeft, size, orientation),
+);

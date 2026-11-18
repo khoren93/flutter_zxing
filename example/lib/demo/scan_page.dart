@@ -186,6 +186,8 @@ class _ScanPageState extends State<ScanPage> {
     DemoTemplate.pick => ScannerTemplate.pick(
       closeButton: false,
       actionsBuilder: _actions,
+      onPick: (Barcode barcode, BarcodeCapture capture) =>
+          unawaited(_save(barcode, capture)),
     ),
     DemoTemplate.fullscreen => ScannerTemplate.fullscreen(
       closeButton: false,
@@ -281,15 +283,21 @@ class _ScanPageState extends State<ScanPage> {
   }
 
   Future<void> _onDetect(BarcodeCapture capture) async {
-    if (_template.mode == ScannerMode.collect) {
-      return; // Retail keeps its own list; onDone saves it.
+    // Retail keeps its own list, onDone saves it; onPick saves a picked code.
+    if (_template.mode == ScannerMode.collect ||
+        _template.mode == ScannerMode.pick) {
+      return;
     }
+    await _save(capture.barcode, capture);
+  }
+
+  Future<void> _save(Barcode barcode, BarcodeCapture capture) async {
     ui.Image? cut;
-    if (BarcodeThumbnail.needsCutOut(capture.barcode)) {
-      cut = await capture.snapshot();
+    if (BarcodeThumbnail.needsCutOut(barcode)) {
+      cut = await capture.snapshot(barcode);
     }
     await HistoryStore.instance.addScan(
-      capture.barcode,
+      barcode,
       source: capture.source == CaptureSource.image ? 'photo' : 'camera',
       cutOut: cut,
     );

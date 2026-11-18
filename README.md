@@ -106,7 +106,7 @@ onto the code, and a sheet with what the code holds and what to do with it.
 | `ScannerTemplate.signIn()` | Signing in or pairing with a QR code on another screen: closes with the code accepted |
 | `ScannerTemplate.checkIn(check:)` | Tickets at the door: scanning never stops, a green, amber or red verdict for each code, a counter |
 | `ScannerTemplate.pharma()` | Medicine packs: GS1 Data Matrix with the GTIN, batch, serial and expiry date, marked when expired |
-| `ScannerTemplate.pick()` | Several codes in view: no window, a label on every code, a tap picks one |
+| `ScannerTemplate.pick()` | Several codes in view or on a photo: no window, a label on every code, a tap picks one |
 | `ScannerTemplate.logistics()` | Shipping labels: GS1-128 with SSCC, GTIN, quantity and batch in a list |
 | `ScannerTemplate.kiosk()` | Self-service: the front camera, no buttons, large text, verdicts that hide by themselves |
 | `ScannerTemplate.fullscreen()` | The whole camera without a window: the brackets appear on the code |

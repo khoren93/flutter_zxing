@@ -114,6 +114,13 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   /// [ScannerMode.pick]: the codes whose label is below them.
   final Set<int> _labelsBelow = <int>{};
 
+  /// [ScannerMode.pick]: the photo whose codes are shown to pick from.
+  _PickPhoto? _photo;
+
+  /// Counts photos, so that one still decoding after "Scan again" is
+  /// dropped.
+  int _photoLoad = 0;
+
   /// Scans again after [ScannerTemplate.resumeAfter], or closes the screen.
   Timer? _after;
 
@@ -134,6 +141,9 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     super.didUpdateWidget(oldWidget);
     _listen();
     _setInitialZoom();
+    if (_template.mode != ScannerMode.pick) {
+      _dropPhoto();
+    }
   }
 
   @override
@@ -147,6 +157,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     _flight.dispose();
     _cutOut?.dispose();
     _resultCutOut?.dispose();
+    _photo?.image.dispose();
     for (final CollectedBarcode item in _items) {
       item.cutOut?.dispose();
     }
@@ -187,7 +198,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         _collect(capture);
       case ScannerMode.pick:
         if (capture.source == CaptureSource.image) {
-          unawaited(_single(capture, capture.barcode));
+          unawaited(_openPhoto(capture));
           return;
         }
         for (final Barcode barcode in capture.barcodes) {
@@ -286,8 +297,9 @@ class _TemplateOverlayState extends State<TemplateOverlay>
             ?verdict.message,
           ].join(' · '),
         );
-        if (capture.source == CaptureSource.image ||
-            _template.detection == DetectionMode.once) {
+        if (_photo == null &&
+            (capture.source == CaptureSource.image ||
+                _template.detection == DetectionMode.once)) {
           // A photo or a paused camera: scan on.
           unawaited(widget.layout.controller.resume());
         }
@@ -296,6 +308,9 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       if (_settled || _result != null) {
         return;
       }
+    }
+    if (_template.mode == ScannerMode.pick) {
+      _template.onPick?.call(barcode, capture);
     }
     _feedback(ScanStatus.accepted);
     final ScannerController controller = widget.layout.controller;
@@ -471,7 +486,8 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     }
   }
 
-  void _scanAgain() {
+  /// Hides the result of the code found.
+  void _hideResult() {
     _showResult?.cancel();
     _showResult = null;
     _after?.cancel();
@@ -481,7 +497,21 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       _result = null;
       _settled = false;
     });
+  }
+
+  void _scanAgain() {
+    _hideResult();
+    setState(_dropPhoto);
     unawaited(widget.layout.controller.resume());
+  }
+
+  /// [ScannerMode.pick]: from a result back to the codes to pick from: the
+  /// ones on the photo, or the ones in view of the camera.
+  void _backToCodes() {
+    _hideResult();
+    if (_photo == null) {
+      unawaited(widget.layout.controller.resume());
+    }
   }
 
   /// [ScannerMode.pick]: [codes] by the number on their label. A code
@@ -521,6 +551,14 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     );
   }
 
+  /// [ScannerMode.pick]: the user tapped [code] on the photo.
+  void _pickOnPhoto(VisibleBarcode code) {
+    final _PickPhoto? photo = _photo;
+    if (photo != null) {
+      unawaited(_single(photo.capture, code.barcode, from: code.corners));
+    }
+  }
+
   /// [ScannerMode.pick]: the user tapped [code].
   void _pick(VisibleBarcode code) {
     final BarcodeCapture capture =
@@ -531,6 +569,43 @@ class _TemplateOverlayState extends State<TemplateOverlay>
           time: DateTime.now(),
         );
     unawaited(_single(capture, code.barcode, from: code.corners));
+  }
+
+  /// [ScannerMode.pick]: a photo was read. One code is the result; among
+  /// several the user picks on the photo.
+  Future<void> _openPhoto(BarcodeCapture capture) async {
+    if (capture.barcodes.length < 2) {
+      await _single(capture, capture.barcode);
+      return;
+    }
+    if (_result != null || _showResult != null || _settled || _checking) {
+      return;
+    }
+    final int load = ++_photoLoad;
+    unawaited(widget.layout.controller.pause());
+    final (ui.Image, List<List<Offset>>)? photo = await capture.decodePhoto();
+    if (!mounted || load != _photoLoad) {
+      photo?.$1.dispose();
+      return;
+    }
+    if (photo == null) {
+      // It cannot be shown: the code the reader found first.
+      await _single(capture, capture.barcode);
+      return;
+    }
+    setState(() {
+      _dropPhoto();
+      _photo = _PickPhoto(capture, photo.$1, photo.$2);
+    });
+  }
+
+  /// Leaves the photo; the numbers of its codes go with it.
+  void _dropPhoto() {
+    _photoLoad++;
+    _photo?.image.dispose();
+    _photo = null;
+    _numbers.clear();
+    _labelsBelow.clear();
   }
 
   Future<void> _pickPhoto() async {
@@ -605,6 +680,16 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     );
   }
 
+  /// Where [image] shows whole in the middle of [area].
+  static Rect _fit(ui.Image image, Rect area) => Alignment.center.inscribe(
+    applyBoxFit(
+      BoxFit.contain,
+      Size(image.width.toDouble(), image.height.toDouble()),
+      area.size,
+    ).destination,
+    area,
+  );
+
   Color? _flashColor(ScannerTheme theme) => switch (_flash) {
     ScanStatus.accepted => theme.lockColor,
     ScanStatus.warning => theme.warningColor,
@@ -649,9 +734,17 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         _result == null &&
         _verdict == null &&
         layout.barcodes.isEmpty;
-    final bool pick = template.mode == ScannerMode.pick && camera && !_settled;
+    final _PickPhoto? photo = _photo;
+    // The codes of a photo are up to pick from.
+    final bool choosing = photo != null && !_settled && _result == null;
+    final bool pick =
+        template.mode == ScannerMode.pick &&
+        camera &&
+        !_settled &&
+        photo == null;
     final bool showClose =
         template.closeButton &&
+        photo == null &&
         (template.onClose != null || (ModalRoute.of(context)?.canPop ?? false));
     const Duration fade = Duration(milliseconds: 200);
     final String? hint = _notice ?? (template.largeHint ? null : template.hint);
@@ -666,6 +759,8 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         ? strings.checkedIn(_accepted)
         : pick && layout.barcodes.isNotEmpty
         ? strings.codesInView(layout.barcodes.length)
+        : choosing
+        ? strings.codesInView(photo.capture.barcodes.length)
         : template.title;
 
     final ScannerException? error = layout.state.error;
@@ -677,6 +772,30 @@ class _TemplateOverlayState extends State<TemplateOverlay>
               40 -
               (bottomBar && !landscape ? 72 : 0)
         : math.min(layout.scanWindow.bottom + 16, size.height - 64);
+    // The photo, with room above it for the label of a code at its top.
+    final double photoTop = safe.top + 72 + _PickLabel.height + _PickLabel.gap;
+    final Rect? photoRect = photo == null
+        ? null
+        : _fit(
+            photo.image,
+            Rect.fromLTRB(
+              safe.left + 8,
+              photoTop,
+              size.width - safe.right - 8,
+              math.max(photoTop + 1, hintTop - 8),
+            ),
+          );
+    final List<VisibleBarcode> photoCodes = choosing
+        ? _labeled(<VisibleBarcode>[
+            for (final (int i, Barcode barcode)
+                in photo.capture.barcodes.indexed)
+              VisibleBarcode(barcode, <Offset>[
+                for (final Offset c in photo.corners[i])
+                  photoRect!.topLeft +
+                      c * (photoRect.width / photo.image.width),
+              ], id: i),
+          ], size)
+        : const <VisibleBarcode>[];
     Widget overlay = ScannerOverlay(
       layout,
       lockOn: template.mode != ScannerMode.collect && !pick,
@@ -738,6 +857,14 @@ class _TemplateOverlayState extends State<TemplateOverlay>
               ),
             ),
           ),
+        // A photo with several codes, over the paused camera.
+        if (photo != null)
+          _PhotoView(
+            image: photo.image,
+            rect: photoRect!,
+            codes: photoCodes,
+            color: theme.lockColor,
+          ),
         if (camera && _cutOut != null)
           IgnorePointer(
             child: AnimatedOpacity(
@@ -773,15 +900,39 @@ class _TemplateOverlayState extends State<TemplateOverlay>
               below: _labelsBelow.contains(code.id),
               onPressed: () => _pick(code),
             ),
+        // On a photo a code is picked by its label or by the code itself,
+        // as labels of codes side by side may overlap.
+        for (final VisibleBarcode code in photoCodes)
+          Positioned.fromRect(
+            rect: code.bounds,
+            child: ExcludeSemantics(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _pickOnPhoto(code),
+              ),
+            ),
+          ),
+        for (final VisibleBarcode code in photoCodes)
+          _PickLabel(
+            key: ValueKey<int>(code.id),
+            number: _numbers[code.id]!,
+            code: code,
+            below: _labelsBelow.contains(code.id),
+            onPressed: () => _pickOnPhoto(code),
+          ),
         // The hint under the window.
-        if (camera && hint != null && template.mode != ScannerMode.collect)
+        if ((camera || choosing) &&
+            hint != null &&
+            template.mode != ScannerMode.collect)
           Positioned(
             left: 16,
             right: 16,
             top: hintTop,
             child: IgnorePointer(
               child: AnimatedOpacity(
-                opacity: searching || _notice != null || pick ? 1 : 0,
+                opacity: searching || _notice != null || pick || choosing
+                    ? 1
+                    : 0,
                 duration: fade,
                 child: Center(
                   child: ScannerHint(
@@ -794,20 +945,22 @@ class _TemplateOverlayState extends State<TemplateOverlay>
             ),
           ),
         // A notice without the camera, such as a photo without a code.
-        if (!camera && _notice != null)
+        if (!camera && !choosing && _notice != null)
           Positioned(
             left: 16,
             right: 16,
             bottom: math.max(safe.bottom, 12) + 24,
             child: Center(child: ScannerHint(_notice!, liveRegion: true)),
           ),
-        // A tap on the camera around a result scans again.
+        // A tap around a result scans again, or goes back to the codes.
         if (_result != null && template.resultBuilder == null)
           Positioned.fill(
             child: ExcludeSemantics(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: _scanAgain,
+                onTap: template.mode == ScannerMode.pick
+                    ? _backToCodes
+                    : _scanAgain,
               ),
             ),
           ),
@@ -836,10 +989,19 @@ class _TemplateOverlayState extends State<TemplateOverlay>
                       ),
                     ),
                   ),
-                if (camera && template.torchButton)
+                if (camera && template.torchButton && photo == null)
                   Align(
                     alignment: AlignmentDirectional.centerEnd,
                     child: TorchButton(controller),
+                  ),
+                if (photo != null && _result == null)
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: ScannerButton(
+                      icon: ScannerIcons.close,
+                      label: strings.backToCamera,
+                      onPressed: _scanAgain,
+                    ),
                   ),
               ],
             ),
@@ -847,7 +1009,10 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         ),
         // The bottom bar, hidden under a sheet; a column at the right in
         // landscape, where a row would run into the window and the hint.
-        if (camera && bottomBar && template.mode != ScannerMode.collect)
+        if (camera &&
+            bottomBar &&
+            photo == null &&
+            template.mode != ScannerMode.collect)
           Positioned(
             left: landscape ? null : safe.left + 40,
             right: landscape ? safe.right + 20 : safe.right + 40,
@@ -977,11 +1142,17 @@ class _TemplateOverlayState extends State<TemplateOverlay>
           ? _HintPanel(title: template.title, hint: _notice ?? template.hint)
           : null;
     }
-    return template.resultBuilder?.call(context, result, _scanAgain) ??
+    final bool pick = template.mode == ScannerMode.pick;
+    return template.resultBuilder?.call(
+          context,
+          result,
+          pick ? _backToCodes : _scanAgain,
+        ) ??
         BarcodeResultSheet(
           result,
           actions: template.actionsBuilder?.call(context, result, _scanAgain),
           onScanAgain: _scanAgain,
+          onClose: pick ? _backToCodes : null,
           showIcon: template.showResultIcon,
           asCard: template.resultAsCard,
           cutOut: _resultCutOut,
@@ -1198,6 +1369,78 @@ class _HintPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+/// [ScannerMode.pick]: a photo with several codes.
+final class _PickPhoto {
+  const _PickPhoto(this.capture, this.image, this.corners);
+
+  final BarcodeCapture capture;
+  final ui.Image image;
+
+  /// The corners of each barcode of [capture], in pixels of [image].
+  final List<List<Offset>> corners;
+}
+
+/// [ScannerMode.pick]: the photo on a dark plate, an outline on each of
+/// [codes].
+class _PhotoView extends StatelessWidget {
+  const _PhotoView({
+    required this.image,
+    required this.rect,
+    required this.codes,
+    required this.color,
+  });
+
+  final ui.Image image;
+
+  /// Where the photo shows.
+  final Rect rect;
+  final List<VisibleBarcode> codes;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => AbsorbPointer(
+    child: ColoredBox(
+      color: const Color(0xFF06090D),
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          Positioned.fromRect(
+            rect: rect,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: RawImage(image: image, fit: BoxFit.fill),
+            ),
+          ),
+          CustomPaint(painter: _OutlinesPainter(codes, color)),
+        ],
+      ),
+    ),
+  );
+}
+
+class _OutlinesPainter extends CustomPainter {
+  const _OutlinesPainter(this.codes, this.color);
+
+  final List<VisibleBarcode> codes;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeJoin = StrokeJoin.round;
+    for (final VisibleBarcode code in codes) {
+      canvas.drawPath(Path()..addPolygon(code.corners, true), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_OutlinesPainter old) =>
+      old.codes != codes || old.color != color;
 }
 
 /// [ScannerMode.pick]: a label above a code in view; a tap picks the code.

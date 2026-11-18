@@ -1179,6 +1179,52 @@ void main() {
       semantics.dispose();
     });
 
+    testWidgets('pick: closing a result goes back to the codes in view', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      final SemanticsHandle semantics = tester.ensureSemantics();
+      final List<String> picked = <String>[];
+      await tester.pumpWidget(
+        _host(
+          BarcodeScanner(
+            template: ScannerTemplate.pick(
+              onPick: (Barcode barcode, BarcodeCapture _) =>
+                  picked.add(barcode.text),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final List<Barcode> codes = <Barcode>[
+        _barcode('https://www.flutter.dev/x'),
+        _barcode(
+          'WIFI:T:WPA;S:Office;P:secret;;',
+          rect: const Rect.fromLTWH(200, 500, 100, 100),
+        ),
+      ];
+      await push(tester, codes);
+      expect(picked, isEmpty);
+      await tester.tap(find.text('Office'));
+      await wait(tester, 800);
+      expect(find.byType(BarcodeResultSheet), findsOneWidget);
+      final ScannerController controller = _findController(tester);
+      expect(controller.value.status, ScannerStatus.paused);
+
+      await tester.tap(find.bySemanticsLabel('Back to the codes'));
+      await wait(tester, 500);
+      expect(find.byType(BarcodeResultSheet), findsNothing);
+      expect(controller.value.status, ScannerStatus.running);
+      await push(tester, codes);
+      await tester.tap(find.text('flutter.dev'));
+      await wait(tester, 800);
+      expect(picked, <String>[
+        'WIFI:T:WPA;S:Office;P:secret;;',
+        'https://www.flutter.dev/x',
+      ]);
+      semantics.dispose();
+    });
+
     testWidgets('pick: two codes alike get a label each, numbers stay', (
       WidgetTester tester,
     ) async {

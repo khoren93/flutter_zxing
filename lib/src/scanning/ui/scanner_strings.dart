@@ -42,6 +42,8 @@ final class ScannerStrings {
     this.tryAgain = 'Try again',
     this.choosePhoto = 'Choose a photo',
     this.noCodeInPhoto = 'No code found in this photo',
+    this.backToCamera = 'Back to the camera',
+    this.backToCodes = 'Back to the codes',
     this.copy = 'Copy',
     this.copied = 'Copied',
     this.scanAgain = 'Scan again',
@@ -216,6 +218,12 @@ final class ScannerStrings {
 
   /// Shown when a photo has no code.
   final String noCodeInPhoto;
+
+  /// Leaves a photo whose codes `ScannerTemplate.pick` shows.
+  final String backToCamera;
+
+  /// Closes the result of a code picked in `ScannerTemplate.pick`.
+  final String backToCodes;
 
   /// The button that copies a code's text.
   final String copy;
@@ -601,6 +609,8 @@ final class ScannerStrings {
       other.tryAgain == tryAgain &&
       other.choosePhoto == choosePhoto &&
       other.noCodeInPhoto == noCodeInPhoto &&
+      other.backToCamera == backToCamera &&
+      other.backToCodes == backToCodes &&
       other.copy == copy &&
       other.copied == copied &&
       other.scanAgain == scanAgain &&
@@ -734,6 +744,8 @@ final class ScannerStrings {
     tryAgain,
     choosePhoto,
     noCodeInPhoto,
+    backToCamera,
+    backToCodes,
     copy,
     copied,
     scanAgain,

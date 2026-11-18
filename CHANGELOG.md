@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+* **`ScannerTemplate.pick` reads photos.** It has a photo button
+  (`photoButton`), and a photo with several codes opens with the same
+  numbered labels: a tap on a label or on a code picks it.
+* **`ScannerTemplate.pick` tells which code was picked and lets the user
+  pick another.** `onPick` gets the picked code and its capture. The result
+  sheet has a close button (`BarcodeResultSheet.onClose`) that goes back to
+  the codes, on the photo or in view of the camera; "Scan again" goes to the
+  camera. New texts: `ScannerStrings.backToCamera` and `backToCodes`.
+* **`BarcodeCapture.snapshot` follows a photo's EXIF orientation.** The
+  code of a photo taken with the phone turned is cut out where it is.
 * **The outline of a linear code is as tall as its bars.** zxing-cpp
   outlines a linear code (EAN, UPC, Code 128, DataBar…) over the scan lines
   that decoded, so on a camera frame its height changed from frame to

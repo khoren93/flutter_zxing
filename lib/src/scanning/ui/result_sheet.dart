@@ -72,6 +72,7 @@ class BarcodeResultSheet extends StatelessWidget {
     super.key,
     this.actions,
     this.onScanAgain,
+    this.onClose,
     this.showIcon = false,
     this.showPicture = true,
     this.cutOut,
@@ -98,6 +99,11 @@ class BarcodeResultSheet extends StatelessWidget {
 
   /// Hides the sheet and scans again, for the default buttons.
   final VoidCallback? onScanAgain;
+
+  /// Puts a close button in the corner that hides the sheet without
+  /// scanning again, such as back to the other codes of
+  /// `ScannerTemplate.pick`.
+  final VoidCallback? onClose;
 
   /// Shows an icon of the content's kind next to the title.
   final bool showIcon;
@@ -130,9 +136,12 @@ class BarcodeResultSheet extends StatelessWidget {
         ];
     final String symbology = _symbology(barcode);
     final VoidCallback? scanAgain = onScanAgain;
-    final bool close =
-        scanAgain != null &&
-        !actions.any((ScannerAction a) => a.onPressed == scanAgain);
+    final VoidCallback? close =
+        onClose ??
+        (scanAgain != null &&
+                !actions.any((ScannerAction a) => a.onPressed == scanAgain)
+            ? scanAgain
+            : null);
 
     final Widget heading = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -169,9 +178,14 @@ class BarcodeResultSheet extends StatelessWidget {
                 const SizedBox(width: 16),
               ],
               Expanded(child: heading),
-              if (close) ...<Widget>[
+              if (close != null) ...<Widget>[
                 const SizedBox(width: 12),
-                _SheetClose(label: strings.scanAgain, onPressed: scanAgain),
+                _SheetClose(
+                  label: onClose != null
+                      ? strings.backToCodes
+                      : strings.scanAgain,
+                  onPressed: close,
+                ),
               ],
             ],
           ),
