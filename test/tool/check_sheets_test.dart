@@ -234,7 +234,7 @@ List<_Section> _sections(Uint8List logo) {
         _sample(
           'QR Code Model 1',
           BarcodeFormat.qrCode,
-          'qrcode-2/qr-model-1.png',
+          'qrcode-1/qr-model-1.png',
         ),
         const _Tile(
           'MaxiCode',
@@ -286,7 +286,7 @@ List<_Section> _sections(Uint8List logo) {
         _sample(
           'EAN-13 + EAN-5 add-on',
           BarcodeFormat.ean13,
-          'ean13-extension-1/1.png',
+          'ean13-ext-1/1.png',
           exact: false,
         ),
         _format(

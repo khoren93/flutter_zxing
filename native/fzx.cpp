@@ -227,7 +227,7 @@ void encodeBarcodes(fzx_ctx* ctx, const Barcodes& barcodes, int imageWidth, int 
 						| (bc.hasECI() ? 8 : 0) | (bc.readerInit() ? 16 : 0);
 		w.u8(flags);
 		w.u8(0);
-		w.i32(bc.orientation());
+		w.i32(bc.rotation());
 		const Position position =
 			image && (bc.format() & BarcodeFormat::AllLinear) ? barsOf(*image, bc.position()) : bc.position();
 		for (const auto& p : position) {

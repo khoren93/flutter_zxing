@@ -445,7 +445,7 @@ BarcodeView(LinkService.whatsApp.link('+374 91 234567').toPayload());
 | | DX Film Edge | |
 
 ᴿ read only. `BarcodeFormat.writable` lists the formats to create, for a
-format picker. Engine: zxing-cpp 3.1.1 (`zxingCppVersion`).
+format picker. Engine: zxing-cpp 3.2.0-rc1 (`zxingCppVersion`).
 
 MaxiCode is read from clean images only (a code without background, not
 skewed), not from the camera: a limit of zxing-cpp.

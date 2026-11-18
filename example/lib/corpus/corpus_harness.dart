@@ -12,9 +12,9 @@
 // outside the app's package; the host test imports it by relative path.
 //
 // Every image is compared
-//   1. with zxing-cpp's own expectations (.txt, .bin, .result.txt), the way
-//      its blackbox tests do: text in TextMode::Plain, .result.txt keys one by
-//      one;
+//   1. with zxing-cpp's own expectations, the way its blackbox tests do: text
+//      in TextMode::Plain, properties one by one. tool/make_fixtures.dart
+//      writes them next to each image (.txt, .bin, .result.txt);
 //   2. with example/assets/fixtures/corpus_expected.json, the results recorded
 //      on one platform: every platform has to find exactly the same barcodes.
 // On top of the files: a synthetic 12 MP photo with a small dense QR code
@@ -38,18 +38,6 @@ const List<String> corpusImageExtensions = <String>['.png', '.jpg', '.gif'];
 /// Pixels a corner may differ between platforms (floating point in the
 /// detectors). Text, format and the other fields must match exactly.
 const int corpusPositionTolerance = 2;
-
-/// Fixtures whose zxing-cpp expectation does not apply: by name prefix, or
-/// by exact name when the key ends with a dot.
-const Map<String, String> corpusExpectationExceptions = <String, String>{
-  // With all formats enabled, zxing-cpp 3.1.1 reads a wrong EAN-13 (valid
-  // checksum, a leading digit no UPC-A can have) from these UPC-A photos.
-  // zxing-cpp's own tests read these directories as UPC-A only, which rules
-  // that out. corpus_expected.json still pins what is read.
-  'upca-2__48.': 'zxing-cpp misread with all formats',
-  'upca-4__1.': 'zxing-cpp misread with all formats',
-  'upca-4__2.': 'zxing-cpp misread with all formats',
-};
 
 /// One image and what zxing-cpp expects from it.
 class CorpusFixture {
@@ -79,12 +67,7 @@ class CorpusFixture {
 
   /// Whether zxing-cpp states an expectation for this image that applies.
   bool get hasExpectation =>
-      (text != null || bytes != null || properties.isNotEmpty) &&
-      !corpusExpectationExceptions.keys.any(
-        (String k) => k.endsWith('.')
-            ? name == k.substring(0, k.length - 1)
-            : name.startsWith(k),
-      );
+      text != null || bytes != null || properties.isNotEmpty;
 }
 
 /// Loads fixtures. [files] lists the available file names (with
@@ -409,7 +392,7 @@ Future<CorpusReport> runCorpus(
     flags: defaults.flags | FzxFlags.textPlain,
     minLineCount: defaults.minLineCount,
   );
-  // Like zxing-cpp's tests: the *-extension-* samples with their add-on.
+  // Like zxing-cpp's tests: the *-ext-* samples with their add-on.
   final EngineReadOptions withAddOn = EngineReadOptions(
     flags: options.flags | (EanAddOn.read.index << FzxFlags.eanAddOnShift),
     minLineCount: options.minLineCount,
@@ -423,7 +406,7 @@ Future<CorpusReport> runCorpus(
     try {
       barcodes = (await e.readImage(
         f.image,
-        f.name.contains('-extension-') ? withAddOn : options,
+        f.name.contains('-ext-') ? withAddOn : options,
       )).barcodes;
     } on Object catch (error) {
       results[f.name] = <String, String>{'error': '$error'};
@@ -450,7 +433,7 @@ Future<CorpusReport> runCorpus(
     // than a misread (EanAddOn.read then reports just the main symbol).
     final String? expectedText = f.text;
     if (mismatch != null &&
-        f.name.contains('-extension-') &&
+        f.name.contains('-ext-') &&
         expectedText != null &&
         barcodes.any(
           (Barcode b) =>

@@ -22,16 +22,16 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const root = path.resolve(process.argv[2] ?? 'example/build/web');
 const label = process.argv[3] ?? 'web';
 
-// The camera picture: qrcode-2/14.png (429 x 429) scaled to 220 px, so that
+// The camera picture: qrcode-1/14.png (429 x 429) scaled to 220 px, so that
 // the code fits the default scan window in every case below, and moved 15 px
 // right of the centre, so that mirroring moves it.
-const sample = path.join(repo, 'third_party/zxing-cpp/test/samples/qrcode-2/14.png');
+const sample = path.join(repo, 'third_party/zxing-cpp/test/samples/qrcode-1/14.png');
 const sampleSize = 429;
 const scaled = 220;
 const shift = 15;
 const frame = [1280, 720];
 const corpus = JSON.parse(fs.readFileSync(path.join(repo, 'example/assets/fixtures/corpus_expected.json'), 'utf8'));
-const recorded = corpus.results['qrcode-2__14'][0];
+const recorded = corpus.results['qrcode-1__14'][0];
 const text = recorded.text;
 const cases = [
   { name: 'portrait', viewport: [400, 800] },

@@ -9,6 +9,10 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
+/// A QR code sequence in one image. WebP in the samples, which the engine
+/// does not read: `make fixtures` converts it.
+const String _qrSequence = 'build/fixtures/corpus/qrcode-2__StructApp.png';
+
 /// zxing-cpp's samples, from the submodule the engine is built from.
 Uint8List _sample(String name) => Uint8List.fromList(
   File('third_party/zxing-cpp/test/samples/$name').readAsBytesSync(),
@@ -27,7 +31,7 @@ void main() {
 
   group('samples', () {
     test('vCard QR code', () async {
-      final Barcode? barcode = await reader.read(_sample('qrcode-2/11.png'));
+      final Barcode? barcode = await reader.read(_sample('qrcode-1/11.png'));
       final ContactContent contact = barcode!.content as ContactContent;
       expect(contact.name, 'Steve Kennedy');
       expect(contact.organization, 'NetTek Ltd');
@@ -59,8 +63,8 @@ void main() {
 
     test('GS1 DataBar Expanded and Expanded Stacked', () async {
       for (final String name in <String>[
-        'rssexpanded-1/10.png',
-        'rssexpandedstacked-2/1.png',
+        'databarExp-1/10.png',
+        'databarExpStk-1/71.png',
       ]) {
         final Barcode? barcode = await reader.read(_sample(name));
         final Gs1Content gs1 = barcode!.content as Gs1Content;
@@ -80,21 +84,41 @@ void main() {
       expect(barcode.content, TextContent(barcode.text));
     });
 
-    test('QR structured append: four symbols, one message', () async {
-      final List<Barcode> parts = <Barcode>[
-        for (final int i in <int>[3, 1, 4, 2])
-          (await reader.read(_sample('qrcode-7/01-0$i.png')))!,
-      ];
-      expect(parts.map((Barcode b) => b.sequence?.size), everyElement(4));
-      expect(Barcode.merge(parts.take(3)), isNull);
-      final Barcode? message = Barcode.merge(parts);
-      expect(
-        message?.text,
-        File(
-          'third_party/zxing-cpp/test/samples/qrcode-7/01.txt',
-        ).readAsStringSync(),
+    test('structured append: three symbols, one message', () async {
+      final List<Barcode> parts = await reader.readAll(
+        _sample('pdf417-2/StructApp1.png'),
       );
+      expect(parts, hasLength(3));
+      expect(parts.map((Barcode b) => b.sequence?.size), everyElement(3));
+      expect(Barcode.merge(parts.take(2)), isNull);
+      expect(Barcode.merge(parts.reversed)?.bytes, <int>[
+        for (final Barcode part in parts) ...part.bytes,
+      ]);
     });
+
+    test(
+      'QR structured append: four symbols, one message',
+      () async {
+        final List<Barcode> parts = await reader.readAll(
+          Uint8List.fromList(File(_qrSequence).readAsBytesSync()),
+        );
+        expect(parts, hasLength(4));
+        expect(parts.map((Barcode b) => b.sequence?.size), everyElement(4));
+        expect(Barcode.merge(parts.take(3)), isNull);
+        final List<Barcode> ordered = parts.toList()
+          ..sort(
+            (Barcode a, Barcode b) =>
+                a.sequence!.index.compareTo(b.sequence!.index),
+          );
+        expect(
+          Barcode.merge(parts.reversed)?.text,
+          ordered.map((Barcode b) => b.text).join(),
+        );
+      },
+      skip: File(_qrSequence).existsSync()
+          ? false
+          : 'run `make fixtures` first',
+    );
   });
 
   group('written and read back', () {

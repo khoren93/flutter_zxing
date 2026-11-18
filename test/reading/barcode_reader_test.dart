@@ -20,23 +20,23 @@ void main() {
 
   group('read', () {
     test('finds the barcode in a file', () async {
-      final Barcode? barcode = await reader.read(_sample('qrcode-2/1.png'));
+      final Barcode? barcode = await reader.read(_sample('qrcode-1/1.png'));
       expect(barcode, isNotNull);
       expect(barcode!.format, BarcodeFormat.qrCode);
       expect(
         barcode.text,
         File(
-          'third_party/zxing-cpp/test/samples/qrcode-2/1.txt',
+          'third_party/zxing-cpp/test/samples/qrcode-1/1.txt',
         ).readAsStringSync(),
       );
     });
 
     test('returns null when there is no barcode', () async {
-      expect(await reader.read(_sample('falsepositives-1/#245.png')), isNull);
+      expect(await reader.read(_sample('none-1/#245.png')), isNull);
     });
 
     test('stops at the first barcode', () async {
-      expect(await reader.read(_sample('multi-1/multi-qr.png')), isNotNull);
+      expect(await reader.read(_sample('multi-1/qr-x4.png')), isNotNull);
     });
 
     test('throws ImageDecodeException for something else', () async {
@@ -50,14 +50,14 @@ void main() {
       const BarcodeReader ean = BarcodeReader(
         formats: <BarcodeFormat>{BarcodeFormat.ean13},
       );
-      expect(await ean.read(_sample('qrcode-2/1.png')), isNull);
+      expect(await ean.read(_sample('qrcode-1/1.png')), isNull);
     });
   });
 
   group('readAll', () {
     test('finds every barcode', () async {
       final List<Barcode> all = await reader.readAll(
-        _sample('multi-1/multi-qr.png'),
+        _sample('multi-1/qr-x4.png'),
       );
       expect(all.length, greaterThan(1));
       expect(all.every((Barcode b) => b.format == BarcodeFormat.qrCode), true);
@@ -65,28 +65,28 @@ void main() {
 
     test('stops at the limit', () async {
       expect(
-        await reader.readAll(_sample('multi-1/multi-qr.png'), limit: 2),
+        await reader.readAll(_sample('multi-1/qr-x4.png'), limit: 2),
         hasLength(2),
       );
     });
 
     test('rejects a limit below 1', () async {
       await expectLater(
-        reader.readAll(_sample('multi-1/multi-qr.png'), limit: 0),
+        reader.readAll(_sample('multi-1/qr-x4.png'), limit: 0),
         throwsRangeError,
       );
     });
 
     test('returns an empty list when there is no barcode', () async {
       expect(
-        await reader.readAll(_sample('falsepositives-1/#245.png')),
+        await reader.readAll(_sample('none-1/#245.png')),
         isEmpty,
       );
     });
   });
 
   group('EAN-2/5 add-on', () {
-    final Uint8List book = _sample('ean13-extension-1/1.png');
+    final Uint8List book = _sample('ean13-ext-1/1.png');
 
     test('is ignored by default', () async {
       expect((await reader.read(book))!.text, '9780735200449');

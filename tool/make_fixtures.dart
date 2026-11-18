@@ -8,8 +8,10 @@
 //                                     the example app for the device and web
 //                                     runs (they cannot read the repository)
 //
-// Each image is copied with its expectations (.txt, .bin, .result.txt) as
-// `<sample directory>__<name>.<ext>`, with only [A-Za-z0-9._-] in names:
+// Each image is copied as `<sample directory>__<name>.<ext>`, with what
+// zxing-cpp expects from it next to it (.txt, .bin, .result.txt, resolved from
+// the samples' .txt and .toml files by [_expectedOf]), with only [A-Za-z0-9._-]
+// in names:
 // Flutter asset directories are not recursive, and a `#` would end the asset
 // URL on the web. WebP samples become grayscale PNG: stb_image, which decodes
 // files on every platform, has no WebP decoder, and the engine reads
@@ -28,6 +30,7 @@
 //
 // usage (from the repository root): make fixtures
 //   or: cd tool && dart run make_fixtures.dart
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -89,8 +92,15 @@ void main() {
     final Map<File, Uint8List> converted = <File, Uint8List>{
       for (final File image in images) image: _fixtureBytes(image),
     };
+    final File defaultsFile = File('${dir.path}/!defaults.toml');
+    final Map<String, String> defaults = defaultsFile.existsSync()
+        ? _readToml(defaultsFile, const <String, String>{}).first
+        : const <String, String>{};
+    final Map<File, _Expected?> expected = <File, _Expected?>{
+      for (final File image in images) image: _expectedOf(image, defaults),
+    };
     for (final File image in images) {
-      full.add(name, image, converted[image]!);
+      full.add(name, image, converted[image]!, expected[image]);
     }
 
     // The subset: the required ones, then picks spread over the directory
@@ -117,7 +127,7 @@ void main() {
         continue;
       }
       taken.add(image);
-      subset.add(name, image, converted[image]!);
+      subset.add(name, image, converted[image]!, expected[image]);
     }
   }
   stdout
@@ -143,7 +153,12 @@ class _Output {
   int _images = 0;
   int _bytes = 0;
 
-  void add(String sampleDirectory, File image, Uint8List data) {
+  void add(
+    String sampleDirectory,
+    File image,
+    Uint8List data,
+    _Expected? expected,
+  ) {
     final String stem = _stem(image.path);
     final String target =
         '${_dir.path}/${sampleDirectory}__'
@@ -152,11 +167,22 @@ class _Output {
         ? '.png'
         : _extension(image.path);
     File('$target$ext').writeAsBytesSync(data);
-    for (final String expected in <String>['.txt', '.bin', '.result.txt']) {
-      final File f = File('$stem$expected');
-      if (f.existsSync()) {
-        f.copySync('$target$expected');
-      }
+    final Uint8List? text = expected?.text;
+    if (text != null) {
+      File('$target.txt').writeAsBytesSync(text);
+    }
+    final Uint8List? bytes = expected?.bytes;
+    if (bytes != null) {
+      File('$target.bin').writeAsBytesSync(bytes);
+    }
+    final Map<String, String> properties =
+        expected?.properties ?? const <String, String>{};
+    if (properties.isNotEmpty) {
+      File('$target.result.txt').writeAsStringSync(
+        properties.entries
+            .map((MapEntry<String, String> p) => '${p.key}=${p.value}\n')
+            .join(),
+      );
     }
     _images++;
     _bytes += data.length;
@@ -166,6 +192,141 @@ class _Output {
   String toString() =>
       '$_images images, ${(_bytes / 1024 / 1024).toStringAsFixed(1)} MB '
       'in ${_dir.path}';
+}
+
+/// What zxing-cpp's blackbox tests expect from one image.
+final class _Expected {
+  const _Expected({this.text, this.bytes, required this.properties});
+
+  final Uint8List? text;
+  final Uint8List? bytes;
+
+  /// In the names of the corpus harness, see [_propertyNames].
+  final Map<String, String> properties;
+}
+
+/// The keys of the samples' .toml files that the corpus harness checks, by
+/// the name it knows them.
+const Map<String, String> _propertyNames = <String, String>{
+  'Format': 'format',
+  'Identifier': 'symbologyIdentifier',
+  'ContentType': 'contentType',
+  'IsInverted': 'isInverted',
+  'IsMirrored': 'isMirrored',
+  'SequenceIndex': 'sequenceIndex',
+  'SequenceSize': 'sequenceSize',
+  'SequenceId': 'sequenceId',
+  'IsLastInSequence': 'isLastInSequence',
+  'IsPartOfSequence': 'isPartOfSequence',
+};
+
+/// What zxing-cpp expects from [image], found the way its blackbox tests do
+/// (readTestConfig in test/blackbox/BlackboxTestRunner.cpp): `a-1-2.png` is
+/// described by the first of `a-1-2`, `a-1`, `a` with a .toml or .txt file,
+/// on top of the directory's `!defaults.toml`. `null` when it expects no
+/// single barcode: a name ending in `!` marks an image it cannot read, and
+/// the corpus harness checks one barcode per image, not several.
+_Expected? _expectedOf(File image, Map<String, String> defaults) {
+  final String name = _basename(_stem(image.path));
+  if (name.endsWith('!')) {
+    return null;
+  }
+  final String directory = image.parent.path;
+  String data = name;
+  while (!File('$directory/$data.toml').existsSync() &&
+      !File('$directory/$data.txt').existsSync()) {
+    final int separator = data.lastIndexOf(RegExp(r'[-_!]'));
+    if (separator < 0) {
+      return null;
+    }
+    data = data.substring(0, separator);
+  }
+  final File toml = File('$directory/$data.toml');
+  if (!toml.existsSync()) {
+    return _Expected(
+      text: File('$directory/$data.txt').readAsBytesSync(),
+      properties: _properties(defaults),
+    );
+  }
+  final List<Map<String, String>> symbols = _readToml(toml, defaults);
+  if (symbols.length != 1 || (symbols.single['missing'] ?? '').contains('s')) {
+    return null;
+  }
+  final Map<String, String> symbol = symbols.single;
+  final String? text = symbol['TextPlain'];
+  final String? hex = symbol['TextHex'];
+  return _Expected(
+    text: text == null ? null : utf8.encode(text),
+    bytes: hex == null
+        ? null
+        : Uint8List.fromList(<int>[
+            for (final String b in hex.trim().split(RegExp(r'\s+')))
+              int.parse(b, radix: 16),
+          ]),
+    properties: _properties(symbol),
+  );
+}
+
+Map<String, String> _properties(Map<String, String> values) => <String, String>{
+  for (final MapEntry<String, String> name in _propertyNames.entries)
+    if (values[name.key] != null) name.value: values[name.key]!,
+};
+
+/// The symbols a sample's .toml file describes: its top-level keys, on top
+/// of [defaults], apply to each `[[symbol]]` table.
+List<Map<String, String>> _readToml(File file, Map<String, String> defaults) {
+  final List<Map<String, String>> symbols = <Map<String, String>>[];
+  Map<String, String> shared = defaults;
+  Map<String, String> current = Map<String, String>.of(defaults);
+  bool topLevel = true;
+  for (final String raw in const LineSplitter().convert(
+    utf8.decode(file.readAsBytesSync()),
+  )) {
+    final String line = raw.trim();
+    if (line.isEmpty || line.startsWith('#')) {
+      continue;
+    }
+    if (line == '[[symbol]]') {
+      if (topLevel) {
+        topLevel = false;
+        shared = current;
+      } else {
+        symbols.add(current);
+      }
+      current = Map<String, String>.of(shared);
+      continue;
+    }
+    final int equals = line.indexOf('=');
+    current[line.substring(0, equals).trim()] = _tomlValue(
+      line.substring(equals + 1).trim(),
+    );
+  }
+  return symbols..add(current);
+}
+
+/// A TOML value: a basic string without its quotes and escapes, anything
+/// else as written.
+String _tomlValue(String value) {
+  if (value.length < 2 || !value.startsWith('"') || !value.endsWith('"')) {
+    return value;
+  }
+  const Map<String, String> escapes = <String, String>{
+    '"': '"',
+    r'\': r'\',
+    'b': '\b',
+    't': '\t',
+    'n': '\n',
+    'f': '\f',
+    'r': '\r',
+  };
+  return value
+      .substring(1, value.length - 1)
+      .replaceAllMapped(
+        RegExp(r'\\(?:u([0-9a-fA-F]{4})|U([0-9a-fA-F]{8})|(.))'),
+        (Match m) => m[3] != null
+            ? escapes[m[3]]!
+            : String.fromCharCode(int.parse(m[1] ?? m[2]!, radix: 16)),
+      );
 }
 
 Uint8List _fixtureBytes(File image) {

@@ -72,14 +72,14 @@ void main() {
 
   test('the engine keeps working after errors', () async {
     final EngineReadResult r = await engine.readImage(
-      _sample('qrcode-2/1.png'),
+      _sample('qrcode-1/1.png'),
       const EngineReadOptions(),
     );
     expect(r.barcodes, isNotEmpty);
   });
 
   test('maxSymbols limits the barcodes found', () async {
-    final Uint8List image = _sample('multi-1/multi-qr.png');
+    final Uint8List image = _sample('multi-1/qr-x4.png');
     final EngineReadResult all = await engine.readImage(
       image,
       const EngineReadOptions(),
@@ -94,7 +94,7 @@ void main() {
 
   test('the format filter applies', () async {
     final EngineReadResult r = await engine.readImage(
-      _sample('qrcode-2/1.png'),
+      _sample('qrcode-1/1.png'),
       EngineReadOptions.from(const <BarcodeFormat>{
         BarcodeFormat.ean13,
       }, const ReaderOptions()),

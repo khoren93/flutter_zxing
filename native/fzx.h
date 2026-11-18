@@ -87,7 +87,7 @@ enum {
 
 FZX_API int fzx_abi_version(void);
 
-// The zxing-cpp version, e.g. "3.1.1".
+// The zxing-cpp version, e.g. "3.2.0".
 FZX_API const char* fzx_version(void);
 
 // Whether this build can create barcodes (1) or only read them (0).
