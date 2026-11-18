@@ -2,292 +2,99 @@
 
 ## Unreleased
 
-* **`ScannerTemplate.pick` reads photos.** It has a photo button
-  (`photoButton`), and a photo with several codes opens with the same
-  numbered labels: a tap on a label or on a code picks it.
-* **`ScannerTemplate.pick` tells which code was picked and lets the user
-  pick another.** `onPick` gets the picked code and its capture. The result
-  sheet has a close button (`BarcodeResultSheet.onClose`) that goes back to
-  the codes; "Scan again" goes to the camera. Picking a code freezes the
-  camera on that frame, so the same codes stay to pick from wherever the
-  camera turns (on the web, where frames are not in memory, the codes then
-  in view). New: `ScannerLayout.previewRect`, `ScannerStrings.backToCamera`
-  and `backToCodes`.
-* **`BarcodeCapture.snapshot` follows a photo's EXIF orientation.** The
-  code of a photo taken with the phone turned is cut out where it is.
-* **The outline of a linear code is as tall as its bars.** zxing-cpp
-  outlines a linear code (EAN, UPC, Code 128, DataBar…) over the scan lines
-  that decoded, so on a camera frame its height changed from frame to
-  frame and was often a thin strip. The engine now follows the bars up and
-  down from there, also on a tilted code, and `Barcode.position` covers
-  them; it never gets smaller than before.
-* **Codes in view no longer flicker or swap places.** `ScannerLayout.barcodes`
-  follows each code from frame to frame: a code a frame missed stays a
-  moment (500 ms), the list keeps the order codes came into view, outlines
-  are steadied, and `VisibleBarcode.id` tells codes apart, even two with
-  the same content. `ScannerTemplate.pick` keeps each code's number and
-  the side of its label while it stays in view; two codes alike no longer
-  leave a label stuck on screen.
-* **Behaviour change (since rc.1): UPC-A and UPC-E read as printed.** A
-  UPC-A is reported as `BarcodeFormat.upcA` with its 12 digits, no longer
-  as an EAN-13 starting with 0; a UPC-E has its 8 digits instead of the
-  13 of its EAN-13 form. An add-on stays after them. zxing-cpp transmits
-  both as 13 digits (ISO/IEC 15420) and reports UPC-A as EAN-13 whenever
-  EAN-13 is asked for; a reader asking for EAN-13 but not UPC-A still gets
-  EAN-13. `ProductContent` of a UPC-E no longer takes part of the number
-  for an add-on. The 3.x API is unchanged.
-* **The digits under EAN-13, EAN-8, UPC-A and UPC-E are laid out as GS1
-  prints them** (`showText: true`): each under its symbol character,
-  between the guard bars; the first digit of an EAN-13 and the outer digits
-  of a UPC-A and UPC-E outside the bars, the UPC ones smaller. A UPC-A
-  prints 12 digits, a UPC-E 8.
-* **Text and a card around a code:** `BarcodeStyle.title` (above),
-  `BarcodeStyle.caption` (under), both a `BarcodeCaption` (text, size,
-  style, alignment, gap, lines), and `BarcodeStyle.card`, a `BarcodeCard`
-  (color, corner radius, padding, shadow). Sizes are fractions of the
-  code's width. Drawn by `BarcodeView` and in the PNG and SVG exports;
-  `BarcodeView`'s semantic label reads the text too.
-* **Behaviour change (since rc.1): QR codes get error correction M by
-  default** instead of zxing-cpp's L: often the same size, and it survives
-  print, glare and scratches far better. Set `errorCorrection` for another
-  level.
-* **Behaviour change (since rc.1): the error correction under a logo
-  follows its size.** `BarcodeLogo.errorCorrection` is now `null` by
-  default, and `BarcodeLogo.neededErrorCorrection` picks M up to 12% of the
-  width, Q up to 20% and H above, from reading tests with a blot added. The
-  default logo (22%) keeps H; smaller logos give sparser codes.
-* **Eleven new scanner templates:** `product()` (EAN and UPC, the GTIN or
-  ISBN), `small()` (a small window, 2× zoom from the start), `signIn()`
-  (closes with the code accepted), `checkIn(check:)` (scanning never stops,
-  a verdict and a counter), `pharma()` (GS1 Data Matrix, expiry date marked
-  when passed), `pick()` (a label on every code in view, a tap picks one),
-  `logistics()` (GS1-128 labels in a list), `kiosk()` (front camera, no
-  buttons, large text), `fullscreen()` (no window), `vin()` and `loyalty()`
-  (the card number large).
-* **Breaking (since rc.1): `ScannerTemplate.collect` is now
-  `ScannerTemplate.mode`**, a `ScannerMode`: `single`, `collect`,
-  `continuous` (a short verdict per code while scanning goes on) or `pick`.
-* **Checking codes:** `ScannerTemplate.check`, a `ScannerCheck` that
-  returns `ScanVerdict.accept`, `.warn` or `.reject` with a title and a
-  message, synchronous or not. A refused code flashes the window in the
-  danger color and scanning goes on; each status has its own haptic and
-  sound. `scanBarcode(check:)` too.
-* **New template fields:** `closeOnResult` (pop the route with the code),
-  `resumeAfter`, `counter`, `initialZoom`, `facing`, `largeHint` and
-  `resultAsCard`. `ScannerTheme(warning:, danger:)` set the colors of the
-  verdicts and of problems; `ScannerChip(danger:)`.
-* **`ScanFieldButton`** fills a `TextEditingController` from a barcode,
-  with a scanner in a sheet over the form:
-  `scanBarcode(presentation: ScannerPresentation.sheet)`.
-* **GS1 fields:** `Gs1Content.sscc`, `batch`, `serial`, `count`,
-  `expiry`, `bestBefore` and `isExpired()`. The result sheet names them and
-  marks an expiry date that has passed; collected lists show them under the
-  SSCC or GTIN.
-* **Breaking: styled export moved to `BarcodeStyle`.** The core no longer
-  knows about styles: `BarcodeSymbol.toSvg()` and `toPng()` and
-  `BarcodeWriter.toSvg(data)` and `toPng(data)` export black on white
-  (`BarcodeSymbol.toSvg()` is synchronous again). With colors, shapes or a
-  logo: `style.toSvg(symbol)`, `style.toPng(symbol, size: …)`,
-  `style.encodeSvg(writer, data)` and `style.encodePng(writer, data, size: …)`;
-  the last two still raise a QR code's error correction under a logo.
-* **Layers you can import on their own:** `package:flutter_zxing/core.dart`
-  (zxing-cpp: reading and writing), `content.dart` (`barcode.content`),
-  `rendering.dart` (`BarcodeView`, `BarcodeStyle`) and `scanner.dart`.
-  `flutter_zxing.dart` still exports everything. `barcode.content` is now an
-  extension from the content layer; code that uses it does not change.
-* **Building payloads:** every `BarcodeContent` has `toPayload()`, the text
-  to put in a barcode with the escaping its format needs: `WIFI:` (special
-  characters escaped), vCard 3.0 or `MECARD:`
-  (`toPayload(format: ContactFormat.meCard)`), `mailto:`, `tel:`, `SMSTO:`,
-  `geo:`, an iCalendar event, a `MEBKM:` bookmark, GS1 elements in
-  parentheses. `BarcodeContent.parseText` reads each back as an equal
-  value. `validate()` lists what is missing or wrong (`ContentIssue`: field
-  and message) without throwing, for forms; `toPayload()` throws an
-  `ArgumentError` with the same messages.
-  `writer.encodeContent(content)` encodes any content, GS1 and binary
-  included.
-* **Payment codes:** `PaymentContent` with `payee`, `account`, `amount`,
-  `currency` and `reference` for any of them, and a class per standard,
-  built and parsed: `EpcPaymentContent` (SEPA, "GiroCode"),
-  `SwissQrBillContent` (with `SwissAddress`), `GostPaymentContent` (ГОСТ Р
-  56042-2014, read in Windows-1251, UTF-8 and KOI8-R), `UpiPaymentContent`,
-  `EmvPaymentContent` (PIX, PayNow, PromptPay, QRIS, VietQR, DuitNow and
-  any EMVCo code; built with `EmvPaymentContent.pix`) and
-  `SpaydPaymentContent`. IBANs, creditor and QR references and EMVCo
-  checksums are checked; a code that fails is text.
-* **The payment sheet:** the payee, the amount large
-  (`ScannerStrings.money` formats it, "12.50 EUR" by default), what the
-  payment is for and each standard's fields: IBANs and RF references in
-  groups of four, a Swiss QR reference as on the bill, "The payer enters
-  the amount" and "Reusable" for codes without one. The default copy
-  button copies the account ("Copy IBAN", "Copy account", "Copy UPI ID",
-  "Copy key"), not the whole code; `ScannerAction.copy` takes a `label`.
-  New `ScannerIcons.payment`.
-* **`BarcodeStyle.swissQrBill`:** the Swiss cross of a QR-bill, 7 mm on
-  46 mm, error correction M. `BarcodeLogo.errorCorrection` sets what a QR
-  code gets under a logo (`high` by default, as before).
-* **New content kinds:** `OtpContent` (`otpauth://`, for authenticator
-  apps; the secret stays out of `toString()` and the result sheet),
-  `EsimContent` (`LPA:1$…`), `CryptoContent` (BIP 21 `bitcoin:` and
-  `litecoin:`, EIP-681 `ethereum:`, Lightning), built and parsed; parsed
-  only: `WifiDppContent` (Wi‑Fi Easy Connect), `SmartHomeContent` (Matter
-  `MT:`, HomeKit `X-HM://`), `BoardingPassContent` (IATA BCBP, every leg),
-  `DriverLicenseContent` (AAMVA), `VinContent` (region, model year, check
-  digit) and `ProductContent` (EAN/UPC with ISBN-13, ISBN-10 and ISSN).
-  FaceTime links are `PhoneContent` with `type: CallType.faceTime`. See
-  [doc/content-types.md](doc/content-types.md).
-* **Result sheets of the new kinds:** `BarcodeResultSheet` shows each
-  kind's fields (a boarding pass's seat and booking, a license's dates, a
-  setup code in large type, an amount), an "Expired" chip on a license past
-  its date (`ScannerChip(warning: true)`), and an OTP secret only behind
-  "Show"; a code with a secret gets no copy button by default. New
-  `ScannerIcons` for every kind and neutral signs for services (messenger,
-  profile, video, music, apps, review; never a brand's logo), and
-  `BarcodeResultSheet.serviceIconOf`. `ScannerStrings` has the new labels,
-  dates and region names to translate.
-* **Breaking:** EAN/UPC barcodes are now `ProductContent` instead of
-  `TextContent`; `BarcodeContent` has more subclasses, so an exhaustive
-  `switch` needs their cases or a `default`.
-* **Links to services:** `LinkService.whatsApp.link('+374 91 234567')`
-  builds links to 24 messengers, social networks, music services, app
-  stores and maps, and `UrlContent.service` recognises them; the result
-  sheet names the service ("Instagram") instead of "Link".
-* **New fields:** `ContactContent.birthday` (vCard and MeCard `BDAY`),
-  `EventContent.allDay` (events with dates and no times).
-* **`BarcodeView(…, gs1: true)`** encodes GS1 data, as `BarcodeWriter` could.
-* **The result sheet** shows the format as "QR Code", or "QR Code · GS1",
-  instead of the ISO/IEC 15424 identifier (`]Q1`), which is meant for
-  systems; `Barcode.symbologyIdentifier` still has it.
-* **Automatic zoom on iPhones** (`ScannerController(autoZoom: true)`, the
-  default; `setAutoZoom`, `toggleAutoZoom`, `ScannerState.autoZoom`). The
-  scanner reads where the camera's lens is focused and moves between the
-  phone's cameras by itself, so it does not stay on blurry frames: to the
-  ultra-wide camera when a code is too close for the main one to focus (on
-  iPhones whose ultra-wide camera focuses closer), to 2× and then the
-  telephoto camera when it is far, never while codes are being read.
-  Zooming by hand turns it off; `ZoomButtons` gets an "Auto" button to turn
-  it back on. Android, the desktop and the web have no automatic zoom: their
-  cameras do not report their focus to the plugin.
-* **The telephoto camera:** zooms from `ScannerState.telephotoZoom` (3×, 4× or
-  5× depending on the model) open the iPhone's telephoto camera instead of
-  zooming the main one digitally. On an iPhone with several cameras on the
-  back, `ZoomButtons` offers its cameras: "0.5×", "1×" and the telephoto
-  camera; `levels` is now optional.
-* **Fixed:** glass (`ScannerGlass`, `ScannerButton`) outside a scanner was
-  always light; without a `ScannerScope` it now follows the platform's
-  brightness, as documented.
+### Breaking changes since rc.1
+
+* `ScannerTemplate.collect` is now `ScannerTemplate.mode`: `ScannerMode.single`,
+  `collect`, `continuous` or `pick`.
+* Styled export moved to `BarcodeStyle`: `style.toSvg`, `toPng`, `encodeSvg` and
+  `encodePng`. `BarcodeSymbol` and `BarcodeWriter` now export black on white.
+* EAN and UPC codes are `ProductContent` instead of `TextContent`.
+  `BarcodeContent` has new kinds, so an exhaustive `switch` needs their cases
+  or a `default`.
+* UPC-A and UPC-E read as printed: UPC-A is `BarcodeFormat.upcA` with 12 digits,
+  UPC-E has 8.
+* QR codes use error correction M by default instead of L. Under a logo, the
+  level now follows the size of the logo.
+
+### New
+
+* **11 scanner templates:** `product`, `small`, `signIn`, `checkIn`, `pharma`,
+  `pick`, `logistics`, `kiosk`, `fullscreen`, `vin` and `loyalty`.
+* **Check codes while scanning:** `ScannerCheck` accepts, warns about or rejects
+  each code.
+* **Scan into a form:** `ScanFieldButton` fills a text field from a barcode.
+* **Create codes from content:** `toPayload()` and `writer.encodeContent()` build
+  the right text for each kind, and `validate()` reports problems for forms.
+* **Payment codes**, read and created: SEPA, Swiss QR-bill, ГОСТ, UPI, SPAYD and
+  EMVCo (PIX, PayNow, PromptPay and others).
+* **New content kinds:** one-time passwords, eSIM, crypto, Wi‑Fi Easy Connect,
+  smart home setup, boarding passes, driver licenses, VIN and products with
+  ISBN and ISSN. See [doc/content-types.md](doc/content-types.md).
+* **Links to 24 services** with `LinkService`, recognised when scanned.
+* **Text and a card around a code:** `BarcodeStyle.title`, `caption` and `card`,
+  on screen and in PNG and SVG exports.
+* **Automatic zoom on iPhones**, across the ultra-wide, main and telephoto
+  cameras.
+* **Separate imports:** `core.dart`, `content.dart`, `rendering.dart` and
+  `scanner.dart`. `flutter_zxing.dart` still exports everything.
+
+### Improved
+
+* The `pick` template also works on photos, and you can go back to pick another
+  code.
+* Outlines stay steady, no longer flicker or swap places, and cover the full
+  height of linear codes.
+* Result sheets show the details of every new kind, including payments and GS1
+  data such as expiry dates.
+* The digits under EAN and UPC codes are laid out as printed on real products.
+
+### Fixed
+
+* The cut-out of a code follows the EXIF orientation of a photo.
+* Scanner glass outside a scanner follows the platform's brightness.
 
 ## 4.0.0-rc.1
 
-A new engine and a new API, with the 3.x API kept working on top of it.
-The API is frozen for 4.0: until 4.0.0, release candidates only fix bugs.
+A new engine and a new API. The 3.x API keeps working on top of the new engine.
+After upgrading, run `flutter clean` once.
 
-* **One engine on every platform, the web included.** zxing-cpp 3.1.1 is
-  compiled by the package's build hook on Android, iOS, macOS, Linux and
-  Windows, and runs as WebAssembly in a Web Worker on the web. The CMake,
-  CocoaPods/Swift Package Manager and Gradle builds of 3.x are gone. After
-  upgrading, run `flutter clean` once.
-* **New API:** `BarcodeReader` (`read`, `readAll`, `readPixels`,
-  `readAllPixels`), `BarcodeWriter` (`encode`, `encodeBytes`, `toPng`,
-  `toSvg`, `toImage`), `Barcode`, `BarcodeFormat`, `ReaderOptions`, `PixelBuffer`,
-  `BarcodeSymbol`, `BarcodeImage`. Everything runs off the UI thread.
-* **30 formats to create:** everything zxing-cpp creates, Micro QR,
-  rMQR, Aztec Rune, MicroPDF417, GS1 DataBar, ISBN, Telepen, PZN, Code 32
-  and DX Film Edge included. `BarcodeFormat.writable` lists them for a
-  format picker; `format.input` describes what each holds, with an example
-  (`12 digits, or 13 with the check digit`); `format.hasErrorCorrection`
-  says where `ErrorCorrection` applies. Invalid data throws a
-  `BarcodeWriteException` that says what is wrong (`Invalid check digit
-  '4', expecting '3'`).
-* **Camera scanning:** `ScannerController` and `BarcodeScanner`, on Android,
-  iOS and the web, and on macOS and Linux with `camera_desktop`. Only the scan window of each frame is copied and read;
-  front cameras, rotation and `BoxFit` previews are handled, and barcode
-  positions arrive in screen coordinates.
-* **Scanner screens:** `BarcodeScanner(template: ...)` puts a whole screen
-  around the camera: glass buttons (close, torch, photo, zoom, camera switch),
-  hints, brackets that lock onto the code found and a result sheet with the
-  parsed content (a tap on the camera around it scans again). Five templates
-  (`ScannerTemplate.minimal`, `.payment`, `.retail` with a list of scanned
-  codes and counts, `.ticket`, `.content`) and a `ScannerTheme` for your accent, shapes and light or dark glass; the
-  pieces (`ScannerButton`, `ScannerSheet`, `BarcodeResultSheet`, ...) build
-  your own. No Material or icon font needed; every text can be translated with
-  `ScannerStrings`, animations follow the reduce motion setting.
-  `ScannerController.readImage` reads a photo with the scanner's settings and
-  reports it like a camera frame.
-  `ScannerTemplate(sound: true)` plays the system click when a code is
-  found. The dimmed camera around the scan window is blurred
-  (`ScannerTheme(scrimBlur: false)` turns it off on slow phones). On iPhones with an ultra-wide camera the zoom goes
-  down to 0.5× (`ScannerState.minZoom`, a "0.5×" preset in `ZoomButtons`):
-  it focuses much closer than the main camera.
-* **The code, cut out:** `await capture.snapshot()` gives the barcode cut out
-  of the camera frame (or photo) and straightened from its four corners, as
-  a flat grayscale image. The templates fly it from where the code was into
-  the scan window, on every platform with a camera, the web included.
-* **Pictures of scans:** `Barcode.symbol` is the grid of modules the reader
-  sampled from a QR, Micro QR, rMQR, Data Matrix, Aztec or MaxiCode code;
-  `BarcodeView.symbol` draws it, sharp at any size. `BarcodeThumbnail` shows
-  each scan with the sharpest picture that is exactly the code scanned: that
-  grid, EAN/UPC/ITF drawn again from their digits, or the cut-out. The result
-  sheet and the retail list show it. A QR code printed with rounded or round
-  finders gets its finder, timing and alignment patterns back as the
-  specification places them, so its picture has no holes.
-* **What is in the barcode:** `barcode.content` parses the payload into a
-  `sealed` `BarcodeContent` for pattern matching: `UrlContent`, `WifiContent`,
-  `ContactContent` (vCard, MeCard), `EventContent`, `EmailContent`,
-  `PhoneContent`, `SmsContent`, `GeoContent`, `Gs1Content` (Application
-  Identifiers, split exactly like zxing-cpp's human readable text),
-  `BinaryContent` and `TextContent`. Parsing never throws.
-* `Barcode.merge` joins the parts of a structured append sequence (one message
-  split across several QR, Data Matrix, Aztec, PDF417 or MaxiCode symbols).
-* **`BarcodeView`** draws a barcode as vectors, sharp at any size, with
-  `BarcodeStyle`: colors or a gradient, rounded or dot modules, rounded or
-  round QR finder patterns, and a logo in the middle of a QR code (error
-  correction goes up to H by itself). Every style reads back with the
-  package's own reader. Symbols are encoded off the UI thread and kept, so a
-  barcode shown again paints in its first frame. `toPng` and `toSvg` export
-  a code with the same style (the SVG embeds the logo). Ready-made styles:
-  `BarcodeStyle.soft`, `dots`, `lagoon`, `ink`, `night` (and `presets` by name).
-* **The 3.x API is deprecated** (`zx`, `Code`, `DecodeParams`, `ReaderWidget`,
-  `WriterWidget`, ...): each declaration names its replacement. It keeps
-  working until 5.0, on the new engine, and stays unavailable on the web.
-  [Migrating to 4.0](doc/migrating-to-4.0.md) shows the replacements side by
-  side; [Coming from mobile_scanner](doc/migrating-from-mobile_scanner.md)
-  maps that package's scanner API.
+### New
+
+* **One engine on every platform:** zxing-cpp 3.1.1 on Android, iOS, macOS, Linux
+  and Windows, and WebAssembly on the web.
+* **New API:** `BarcodeReader` and `BarcodeWriter`, always off the UI thread.
+* **30 formats to create**, with clear errors for invalid data.
+* **Camera scanning:** `ScannerController` and `BarcodeScanner` on Android, iOS
+  and the web, and on macOS and Linux with `camera_desktop`.
+* **Ready-made scanner screens:** five templates, a `ScannerTheme` and
+  translatable texts.
+* **Parsed content:** `barcode.content` turns a payload into URLs, Wi‑Fi, contacts,
+  events, GS1 data and more.
+* **`BarcodeView`:** sharp barcodes with colors, gradients, module shapes and a
+  logo, also exported as PNG and SVG.
+* **Pictures of scans:** `capture.snapshot()` and `BarcodeThumbnail` show the code
+  that was scanned.
+* **Structured append:** `Barcode.merge` joins a message split across several
+  codes.
+
+### Deprecated
+
+* The 3.x API (`zx`, `Code`, `DecodeParams`, `ReaderWidget`, `WriterWidget` and
+  others) keeps working until 5.0. See
+  [Migrating to 4.0](doc/migrating-to-4.0.md) and
+  [Coming from mobile_scanner](doc/migrating-from-mobile_scanner.md).
 
 ### Behaviour changes of the 3.x API
 
-* Reading image files and URLs (`zx.readBarcodeImagePath`,
-  `readBarcodesImageUrl`, ..., and the gallery button of `ReaderWidget`) no
-  longer blocks the UI: the image is decoded and read on a background isolate.
-  3.x decoded it on the calling isolate, which froze the UI for about a second
-  on a large photo (#74).
-* Image files are read at full resolution. `DecodeParams.maxSize` no longer
-  shrinks the image first; any positive value turns on zxing-cpp's own
-  downscaling instead. Small codes in large photos are found more often, and
-  `Code.position` is now in pixels of the original image (it was in pixels of
-  the shrunk one).
-* JPEG, PNG, GIF and BMP files are decoded by the engine. Other formats that
-  package:image reads (WebP, TIFF, ...) still work, decoded with package:image
-  on a background isolate.
-* Barcodes are created with zxing-cpp's creator instead of its deprecated
-  writer. The codes are valid and read back the same, but the bitmap can
-  differ: symbol sizes are chosen differently, PDF417 is now scaled and
-  centred in the requested `width` x `height` like the other 2D formats (3.x
-  returned a smaller bitmap), and the error correction of Aztec and PDF417
-  follows the four `EccLevel`s (Aztec 10/23/36/50 %, PDF417 levels 2–5).
-  Data Matrix stays square, as in 3.x.
-* `Code.imageBytes` (with `zx.setLogEnabled(true)`) is filled for raw pixels
-  and camera frames only, not for image files. `setLogEnabled` no longer
-  prints native logs.
-* `zx.readBarcodes` and `zx.processCameraImageMulti` report a failure (an
-  invalid buffer, for example) in `Codes.error` instead of returning no codes
-  without a reason.
-* `zx.stopCameraProcessing` keeps the engine's isolate running for the next
-  scanner; frames still being read fail as before.
-* The internal libraries `package:flutter_zxing/zxing_mobile.dart`,
-  `zxing_web.dart`, `zxing_cross.dart` and `generated_bindings.dart` are
-  removed: they were the FFI glue of the removed native library. Everything
-  exported from `package:flutter_zxing/flutter_zxing.dart` is unchanged.
+* Reading image files no longer blocks the UI (#74).
+* Image files are read at full resolution, so `Code.position` is in pixels of the
+  original image.
+* Created barcodes read the same, but their bitmaps can differ in size.
+* `Code.imageBytes` is filled for raw pixels and camera frames only.
+* `zx.readBarcodes` and `zx.processCameraImageMulti` report failures in
+  `Codes.error`.
+* The internal libraries `zxing_mobile.dart`, `zxing_web.dart`, `zxing_cross.dart`
+  and `generated_bindings.dart` are removed.
 * Linux: C++ exceptions no longer crash apps built with Flutter 3.50 or newer.
 
 ## 3.1.1
