@@ -897,11 +897,16 @@ class _KindSheetState extends State<_KindSheet> {
                 ],
               ),
               const SizedBox(height: 10),
-              GridView.count(
-                crossAxisCount: 4,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 0.98,
+              GridView(
+                // As many columns as fit, at a height that holds two lines
+                // of the label at any text size.
+                gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 92,
+                  mainAxisExtent:
+                      40 + MediaQuery.textScalerOf(context).scale(32),
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                ),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 children: tiles,
@@ -972,22 +977,22 @@ class _KindTile extends StatelessWidget {
       child: Material(
         color: selected ? fz.lockSoft : fz.raised,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           side: BorderSide(
             color: selected ? Fz.lock : fz.line,
             width: selected ? 2 : 1,
           ),
         ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                _glyph(icon, 22, selected ? fz.lockInk : fz.inkMuted),
-                const SizedBox(height: 6),
+                _glyph(icon, 20, selected ? fz.lockInk : fz.inkMuted),
+                const SizedBox(height: 4),
                 Text(
                   label,
                   textAlign: TextAlign.center,
