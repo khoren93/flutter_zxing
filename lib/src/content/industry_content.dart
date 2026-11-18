@@ -121,9 +121,11 @@ bool isAamva(String text) {
 /// The AAMVA DL/ID data elements of [text].
 DriverLicenseContent? parseDriverLicense(String text) {
   final Map<String, String> elements = <String, String>{};
+  bool header = true;
   for (String line in text.split(_aamvaLine)) {
-    if (line.contains('ANSI ') || line.contains('AAMVA')) {
+    if (header && (line.contains('ANSI ') || line.contains('AAMVA'))) {
       // The header; the first element may follow its subfile directory.
+      header = false;
       final RegExpMatch? first = _firstElement.firstMatch(line);
       if (first == null) {
         continue;

@@ -62,6 +62,12 @@ final class TextRun {
 
   /// Shrink to the symbol's width if wider (one line under a whole code).
   final bool fit;
+
+  /// [fontSize], with [fit] shrunk to [width] modules where the text cannot
+  /// be measured: a monospace digit is about 0.6 of the size wide.
+  double fittedSize(num width) => fit && text.isNotEmpty
+      ? math.min(fontSize, width / (text.length * 0.6))
+      : fontSize;
 }
 
 /// Where everything of a symbol goes, in modules.
@@ -240,6 +246,8 @@ int pixelsPerModule(SymbolLayout layout, int? size, int? moduleSize) {
 
 /// Escapes text for XML content and attributes.
 String xmlEscape(String s) => s
+    // Characters XML 1.0 cannot hold, not even escaped.
+    .replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\uFFFE\uFFFF]'), '')
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -278,7 +286,7 @@ List<_Digit>? _eanUpcDigits(BarcodeSymbol s, String text) {
     return null;
   }
   switch (s.format) {
-    case BarcodeFormat.ean13 || BarcodeFormat.isbn
+    case BarcodeFormat.ean13 || BarcodeFormat.isbn || BarcodeFormat.eanUpc
         when text.length == 13 && s.width == 95:
       return <_Digit>[
         at(0, -4.5),
@@ -292,7 +300,8 @@ List<_Digit>? _eanUpcDigits(BarcodeSymbol s, String text) {
         for (int i = 6; i < 11; i++) at(i, char(50, i - 6)),
         at(11, 99, small: true),
       ];
-    case BarcodeFormat.ean8 when text.length == 8 && s.width == 67:
+    case BarcodeFormat.ean8 || BarcodeFormat.eanUpc
+        when text.length == 8 && s.width == 67:
       return <_Digit>[
         for (int i = 0; i < 4; i++) at(i, char(3, i)),
         for (int i = 4; i < 8; i++) at(i, char(36, i - 4)),

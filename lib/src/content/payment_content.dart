@@ -17,6 +17,13 @@ List<String> _lines(String text) =>
 String _at(List<String> lines, int i) =>
     i < lines.length ? lines[i].trim() : '';
 
+/// Fields of line-based formats: a line break would shift the fields after
+/// it.
+ContentIssue? _lineBreak(String field, String? value, String what) =>
+    _t(value).contains(RegExp(r'[\r\n]'))
+    ? ContentIssue(field, '$what cannot contain line breaks')
+    : null;
+
 ContentIssue? _tooLong(String field, String? value, int max, String what) =>
     value != null && value.length > max
     ? ContentIssue(field, '$what is longer than $max characters')
@@ -87,7 +94,7 @@ String _epcText(EpcPaymentContent c) {
     compactIban(c.iban),
     if (orNull(_t(c.amount)) case final String a) 'EUR$a' else '',
     _t(c.purposeCode),
-    _t(c.creditorReference),
+    _t(c.creditorReference).toUpperCase(),
     _t(c.text),
     _t(c.information),
   ];
@@ -110,6 +117,10 @@ List<ContentIssue> validateEpc(EpcPaymentContent c) {
   return <ContentIssue>[
     if (_t(c.name).isEmpty) const ContentIssue('name', 'Name is empty'),
     ?_tooLong('name', _t(c.name), 70, 'Name'),
+    ?_lineBreak('name', c.name, 'Name'),
+    ?_lineBreak('creditorReference', c.creditorReference, 'Reference'),
+    ?_lineBreak('text', c.text, 'Text'),
+    ?_lineBreak('information', c.information, 'Information'),
     ?_ibanIssue('iban', c.iban),
     if (orNull(_t(c.bic)) case final String bic
         when !_bic.hasMatch(bic.toUpperCase()))
@@ -244,7 +255,7 @@ String _swissText(SwissQrBillContent c) {
       SwissReferenceType.scor => 'SCOR',
       SwissReferenceType.none => 'NON',
     },
-    _t(c.qrReference).replaceAll(' ', ''),
+    _t(c.qrReference).replaceAll(' ', '').toUpperCase(),
     _t(c.message),
     'EPD',
     ...tail,
@@ -257,8 +268,28 @@ String buildSwissQrBill(SwissQrBillContent c) {
   return _swissText(c);
 }
 
+/// The characters a QR-bill may hold: Latin, with Ș, ș, Ț, ț and €.
+final RegExp _swissCharacters = RegExp(
+  r'^[\u0020-\u007E\u00A0-\u017F\u0218-\u021B\u20AC]*$',
+);
+
+ContentIssue? _swissField(String field, String? value, String what) {
+  final String v = _t(value);
+  if (v.contains(RegExp(r'[\r\n]'))) {
+    return _lineBreak(field, v, what);
+  }
+  return _swissCharacters.hasMatch(v)
+      ? null
+      : ContentIssue(field, '$what has characters a QR-bill cannot hold');
+}
+
 List<ContentIssue> _validateAddress(String field, SwissAddress a) =>
     <ContentIssue>[
+      ?_swissField(field, a.name, 'Name'),
+      ?_swissField(field, a.street, 'Street'),
+      ?_swissField(field, a.buildingNumber, 'Building number'),
+      ?_swissField(field, a.postalCode, 'Postal code'),
+      ?_swissField(field, a.town, 'Town'),
       if (_t(a.name).isEmpty) ContentIssue(field, 'Name is empty'),
       ?_tooLong(field, _t(a.name), 70, 'Name'),
       ?_tooLong(field, _t(a.street), 70, 'Street'),
@@ -279,6 +310,10 @@ List<ContentIssue> validateSwissQrBill(SwissQrBillContent c) {
   final int message = _t(c.message).length + _t(c.billInformation).length;
   return <ContentIssue>[
     ?_ibanIssue('iban', c.iban),
+    ?_swissField('message', c.message, 'Message'),
+    ?_swissField('billInformation', c.billInformation, 'Bill information'),
+    for (final String scheme in c.alternativeSchemes)
+      ?_lineBreak('alternativeSchemes', scheme, 'An alternative scheme'),
     if (isValidIban(iban) && !iban.startsWith('CH') && !iban.startsWith('LI'))
       const ContentIssue(
         'iban',
@@ -491,7 +526,6 @@ List<ContentIssue> validateGost(GostPaymentContent c) {
     'purpose': c.purpose ?? '',
     'payeeInn': c.payeeInn ?? '',
     'kpp': c.kpp ?? '',
-    for (final MapEntry<String, String> e in c.extra.entries) 'extra': e.value,
   };
   return <ContentIssue>[
     if (_t(c.name).isEmpty) const ContentIssue('name', 'Name is empty'),
@@ -525,6 +559,9 @@ List<ContentIssue> validateGost(GostPaymentContent c) {
         ContentIssue('extra', 'Not an extra field name: $key'),
     for (final MapEntry<String, String> e in values.entries)
       if (e.value.contains('|')) ContentIssue(e.key, 'Values cannot contain |'),
+    for (final String value in c.extra.values)
+      if (value.contains('|'))
+        const ContentIssue('extra', 'Values cannot contain |'),
   ];
 }
 
@@ -633,10 +670,13 @@ Map<String, String>? _tlv(String text) {
       return null;
     }
     final String id = text.substring(at, at + 2);
-    final int? length = int.tryParse(text.substring(at + 2, at + 4));
+    final String size = text.substring(at + 2, at + 4);
     if (!RegExp(r'^\d{2}$').hasMatch(id) ||
-        length == null ||
-        at + 4 + length > text.length) {
+        !RegExp(r'^\d{2}$').hasMatch(size)) {
+      return null;
+    }
+    final int length = int.parse(size);
+    if (at + 4 + length > text.length) {
       return null;
     }
     objects.putIfAbsent(id, () => text.substring(at + 4, at + 4 + length));
@@ -698,6 +738,11 @@ List<ContentIssue> validateEmv(EmvPaymentContent c) {
         ContentIssue('fields', '(${e.key}) must have 1 to 99 characters'),
     for (final String id in <String>['52', '53', '58', '59', '60'])
       if (!f.containsKey(id)) ContentIssue('fields', '($id) is missing'),
+    if (!f.keys.any((String id) {
+      final int? n = int.tryParse(id);
+      return n != null && n >= 2 && n <= 51;
+    }))
+      const ContentIssue('fields', 'A merchant account (02 to 51) is missing'),
     ?_tooLong('fields', f['59'], 25, 'Merchant name (59)'),
     ?_tooLong('fields', f['60'], 15, 'Merchant city (60)'),
     if (f['54'] case final String amount
@@ -805,11 +850,14 @@ SpaydPaymentContent? parseSpayd(String text) {
   }
   DateTime? due;
   if (fields['DT'] case final String dt when RegExp(r'^\d{8}$').hasMatch(dt)) {
-    due = DateTime(
-      int.parse(dt.substring(0, 4)),
-      int.parse(dt.substring(4, 6)),
-      int.parse(dt.substring(6, 8)),
-    );
+    final int year = int.parse(dt.substring(0, 4));
+    final int month = int.parse(dt.substring(4, 6));
+    final int day = int.parse(dt.substring(6, 8));
+    final DateTime date = DateTime(year, month, day);
+    // DateTime carries an impossible date over to another one.
+    if (date.month == month && date.day == day) {
+      due = date;
+    }
   }
   return SpaydPaymentContent(
     iban: iban,

@@ -58,7 +58,8 @@ Future<Uint8List> styledPng(
       ? await loadLogo(style.logo)
       : null;
   try {
-    final double outset = frame.outset * m;
+    // Whole pixels: modules between two pixels would blur.
+    final double outset = (frame.outset * m).ceilToDouble();
     final int width = (frame.width * m + 2 * outset).ceil();
     final int height = (frame.height * m + 2 * outset).ceil();
     final ui.PictureRecorder recorder = ui.PictureRecorder();
@@ -221,7 +222,7 @@ Future<String> styledSvg(BarcodeSymbol symbol, BarcodeStyle style) async {
       ..write('<text x="${_n(t.x)}" ')
       ..write('y="${_n(t.top + t.fontSize)}" ')
       ..write('font-family="monospace" ')
-      ..write('font-size="${_n(t.fontSize)}" ')
+      ..write('font-size="${_n(t.fittedSize(layout.width))}" ')
       ..write('text-anchor="middle" fill="${_color(style.color)}"')
       ..write('${_opacity('fill', style.color)}>')
       ..write(xmlEscape(t.text))
@@ -335,7 +336,7 @@ String _n(double v) {
   while (s.endsWith('0')) {
     s = s.substring(0, s.length - 1);
   }
-  return s;
+  return s.endsWith('.') ? s.substring(0, s.length - 1) : s;
 }
 
 /// `#rgb` where it can, else `#rrggbb`; alpha goes in [_opacity].

@@ -148,6 +148,9 @@ enum LinkService {
         if (id.isEmpty || id.contains(RegExp(r'[\s?#]'))) {
           throw ArgumentError.value(v, 'value', 'Not a ${input.name}');
         }
+        if (this == appStore && !RegExp(r'^(id)?\d+$').hasMatch(id)) {
+          throw ArgumentError.value(v, 'value', 'Not an App Store id');
+        }
         return id;
       case LinkServiceInput.query:
         if (v.isEmpty) {
@@ -210,8 +213,13 @@ LinkService? linkServiceOf(Uri url) {
   );
   final String path = url.path.toLowerCase();
   bool on(String domain) => host == domain || host.endsWith('.$domain');
-  final bool google = RegExp(r'^google\.[a-z.]+$').hasMatch(host);
-  final bool yandex = RegExp(r'^(maps\.)?yandex\.[a-z.]+$').hasMatch(host);
+  // google.com, google.de, google.co.uk, but not google.evil.com.
+  final bool google = RegExp(
+    r'^google\.(?:com|[a-z]{2}|com?\.[a-z]{2})$',
+  ).hasMatch(host);
+  final bool yandex = RegExp(
+    r'^(maps\.)?yandex\.(?:com|[a-z]{2}|com\.[a-z]{2})$',
+  ).hasMatch(host);
   if ((host == 'search.google.com' && path.startsWith('/local/writereview')) ||
       (host == 'g.page' && path.contains('/review'))) {
     return LinkService.googleReview;

@@ -349,7 +349,10 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
       }
     }
     return ScannerLayout(
-      previewRect: fit.target,
+      previewRect: Rect.fromPoints(
+        fit.toView(Offset.zero),
+        fit.toView(preview.displaySize.bottomRight(Offset.zero)),
+      ),
       size: size,
       scanWindow: controller.scanWindow.resolve(size),
       barcodes: barcodes,

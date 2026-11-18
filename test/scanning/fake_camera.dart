@@ -64,6 +64,9 @@ final class FakeFrame extends CameraFrame {
   bool get mirrored => false;
   bool wasRead = false;
 
+  /// While set, [read] waits for it.
+  Completer<void>? gate;
+
   @override
   Future<EngineReadResult> read(
     BarcodeEngine engine,
@@ -73,6 +76,9 @@ final class FakeFrame extends CameraFrame {
     this.crop = crop;
     this.options = options;
     wasRead = true;
+    if (gate != null) {
+      await gate!.future;
+    }
     if (hang) {
       return Completer<EngineReadResult>().future;
     }
@@ -101,6 +107,9 @@ final class FakeCamera implements CameraSource {
   /// How frames and the preview are shown.
   FrameTransform transform;
   CameraCapabilities capabilities;
+
+  /// While set, [open] waits for it.
+  Completer<void>? openGate;
 
   /// Thrown by the next [open].
   ScannerException? openError;
@@ -154,6 +163,9 @@ final class FakeCamera implements CameraSource {
   }) async {
     opened.add(facing);
     lenses.add(lens);
+    if (openGate != null) {
+      await openGate!.future;
+    }
     final ScannerException? error = openError;
     if (error != null) {
       openError = null;

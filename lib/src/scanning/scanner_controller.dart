@@ -527,6 +527,10 @@ class ScannerController extends ValueNotifier<ScannerState> {
   /// Resumes decoding after [pause] (or after a [DetectionMode.once] result).
   Future<void> resume() async {
     _pauseWhenStarted = false;
+    if (_statusBeforeHide == ScannerStatus.paused) {
+      // In the background: the camera comes back scanning.
+      _statusBeforeHide = ScannerStatus.running;
+    }
     if (value.status == ScannerStatus.paused) {
       _seen.clear();
       _set(value.copyWith(status: ScannerStatus.running));
@@ -724,14 +728,18 @@ class ScannerController extends ValueNotifier<ScannerState> {
       try {
         frame = await source.nextFrame().timeout(_cameraStall);
       } on TimeoutException {
-        if (session == _session && value.status == ScannerStatus.running) {
-          debugPrint(
-            'flutter_zxing: the camera sent no frame for '
-            '${_cameraStall.inSeconds} s; opening it again',
-          );
-          _cameraRestarts++;
-          unawaited(_reopen());
+        if (session != _session) {
+          return;
         }
+        if (value.status != ScannerStatus.running) {
+          continue; // paused meanwhile: wait for the resume
+        }
+        debugPrint(
+          'flutter_zxing: the camera sent no frame for '
+          '${_cameraStall.inSeconds} s; opening it again',
+        );
+        _cameraRestarts++;
+        unawaited(_reopen());
         return;
       }
       if (frame == null || session != _session || _disposed) {
@@ -778,6 +786,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
       _engineFailures = 0;
       if (session != _session || _disposed) {
         return;
+      }
+      if (value.status != ScannerStatus.running) {
+        continue; // paused while it was decoded: nothing more is reported
       }
       _lastFrame = (frame, crop);
       _onFrame(frame, result, crop, clock.elapsedMicroseconds);
@@ -913,6 +924,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
       // Another camera or a turned device: positions start anew.
       _tracks.clear();
       _trackedIn = frame;
+      _visible.value = null;
     }
     if (barcodes.isEmpty && _tracks.isEmpty) {
       return;
@@ -1044,13 +1056,8 @@ class ScannerController extends ValueNotifier<ScannerState> {
     final ScannerStatus? before = _statusBeforeHide;
     _statusBeforeHide = null;
     if (before != null && value.status == ScannerStatus.idle) {
-      unawaited(
-        start().then((_) {
-          if (before == ScannerStatus.paused) {
-            return pause();
-          }
-        }),
-      );
+      _pauseWhenStarted = before == ScannerStatus.paused;
+      unawaited(start());
     }
   }
 

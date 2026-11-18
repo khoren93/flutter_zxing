@@ -137,16 +137,24 @@ final class BarcodeWriter {
   }
 
   /// [text] as printed under the bars: zxing-cpp gives a UPC-A and a UPC-E
-  /// as 13 digits, as they are transmitted; their labels show 12 and 8.
+  /// as 13 digits, as they are transmitted, and an EAN-8 too when an add-on
+  /// follows; their labels show 12, 8 and 8.
   String _printed(String text) {
-    if (!RegExp(r'^0\d{12}$').hasMatch(text)) {
+    final RegExpMatch? withAddOn = RegExp(
+      r'^(\d{13})(\d{2}|\d{5})$',
+    ).firstMatch(text);
+    final String digits = withAddOn?.group(1) ?? text;
+    final String addOn = withAddOn?.group(2) ?? '';
+    if (!RegExp(r'^0\d{12}$').hasMatch(digits)) {
       return text;
     }
-    return switch (format) {
-      BarcodeFormat.upcA => text.substring(1),
-      BarcodeFormat.upcE => upcEFromUpcA(text.substring(1)) ?? text,
-      _ => text,
+    final String printed = switch (format) {
+      BarcodeFormat.upcA => digits.substring(1),
+      BarcodeFormat.upcE => upcEFromUpcA(digits.substring(1)) ?? digits,
+      BarcodeFormat.ean8 when digits.startsWith('00000') => digits.substring(5),
+      _ => digits,
     };
+    return '$printed$addOn';
   }
 
   /// The zxing-cpp creator options for this writer: the typed fields, then
@@ -390,7 +398,7 @@ final class BarcodeSymbol {
         ..write('<text x="${n(t.x)}" ')
         ..write('y="${n(t.top + t.fontSize)}" ')
         ..write('font-family="monospace" ')
-        ..write('font-size="${n(t.fontSize)}" ')
+        ..write('font-size="${n(t.fittedSize(layout.width))}" ')
         ..write('text-anchor="middle" fill="#000">')
         ..write(xmlEscape(t.text))
         ..write('</text>');
@@ -472,7 +480,7 @@ final class BarcodeSymbol {
               (ui.ParagraphBuilder(
                       ui.ParagraphStyle(
                         textAlign: ui.TextAlign.center,
-                        fontSize: t.fontSize * m,
+                        fontSize: t.fittedSize(width / m) * m,
                         height: 1,
                         maxLines: 1,
                       ),

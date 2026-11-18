@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 import '../../barcode/barcode.dart';
 import '../../content/barcode_content.dart';
 import '../../content/link_service.dart';
+import 'barcode_label.dart';
 import 'glass.dart';
 import 'pressable.dart';
 import 'scanner_icons.dart';
@@ -113,7 +114,9 @@ class BarcodeResultSheet extends StatelessWidget {
     final ScannerTheme theme = ScannerTheme.of(context);
     final ScannerStrings strings = ScannerStrings.of(context);
     final BarcodeContent content = barcode.content;
-    final _Summary summary = asCard
+    // A code with a secret is never shown as a number.
+    final bool card = asCard && content is! OtpContent;
+    final _Summary summary = card
         ? _Summary.card(barcode.text, strings)
         : _Summary.of(barcode, content, strings);
     final String kind = summary.kind ?? strings.kindOf(content);
@@ -168,10 +171,8 @@ class BarcodeResultSheet extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              if (showIcon || asCard) ...<Widget>[
-                ScannerBadge(
-                  icon: asCard ? ScannerIcons.card : iconOf(content),
-                ),
+              if (showIcon || card) ...<Widget>[
+                ScannerBadge(icon: card ? ScannerIcons.card : iconOf(content)),
                 const SizedBox(width: 16),
               ] else if (showPicture) ...<Widget>[
                 BarcodeThumbnail(barcode, cutOut: cutOut, size: 72),
@@ -1366,7 +1367,7 @@ class _Row extends StatelessWidget {
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
     final Barcode barcode = item.barcode;
-    String title = barcode.text;
+    String title = barcodeLabel(barcode);
     String detail = _symbology(barcode);
     // GS1 labels of logistics: the container or trade item number, with
     // what the label says about it.

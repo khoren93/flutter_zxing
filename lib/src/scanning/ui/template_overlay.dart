@@ -9,6 +9,7 @@ import '../../barcode/barcode.dart';
 import '../../content/barcode_content.dart';
 import '../../errors.dart';
 import '../scanner_controller.dart';
+import 'barcode_label.dart';
 import 'controls.dart';
 import 'glass.dart';
 import 'pressable.dart';
@@ -66,10 +67,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   StreamSubscription<BarcodeCapture>? _captures;
 
   /// The code found, cut out of the frame, flying into the window.
-  late final AnimationController _flight = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 360),
-  );
+  late final AnimationController _flight;
   ui.Image? _cutOut;
   List<Offset>? _cutFrom;
   bool _cutLinear = false;
@@ -128,6 +126,18 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   /// Scans again after [ScannerTemplate.resumeAfter], or closes the screen.
   Timer? _after;
 
+  /// Counts the results left, so that a check still running for one is
+  /// dropped.
+  int _run = 0;
+
+  /// A code is being judged or shown: the next one waits.
+  bool get _busy =>
+      _result != null ||
+      _showResult != null ||
+      _after != null ||
+      _settled ||
+      _checking;
+
   /// Whether [ScannerTemplate.initialZoom] was set since the camera
   /// started.
   bool _zoomSet = false;
@@ -137,6 +147,11 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   @override
   void initState() {
     super.initState();
+    // Here, not on first use: a ticker cannot be made in dispose.
+    _flight = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 360),
+    );
     _listen();
   }
 
@@ -146,7 +161,23 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     _listen();
     _setInitialZoom();
     if (_template.mode != ScannerMode.pick) {
+      if (_photo != null) {
+        // The camera waits under a photo: the new template scans on.
+        _clearResult();
+        final ScannerController controller = widget.layout.controller;
+        unawaited(Future<void>.microtask(controller.resume));
+      }
       _dropPhoto();
+    }
+    // Without a sheet the app resumes the scanner: the next code starts anew.
+    if (oldWidget.layout.state.status == ScannerStatus.paused &&
+        widget.layout.state.status == ScannerStatus.running &&
+        _settled &&
+        _result == null &&
+        _showResult == null &&
+        !_template.showResult &&
+        !_template.closeOnResult) {
+      _clearResult();
     }
   }
 
@@ -284,12 +315,17 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     Barcode barcode, {
     List<Offset>? from,
   }) async {
-    if (_result != null || _showResult != null || _settled || _checking) {
+    if (_busy) {
       return;
     }
     if (_template.check != null) {
+      final int run = _run;
       final ScanVerdict? verdict = await _judge(barcode);
-      if (!mounted || verdict == null) {
+      if (!mounted || run != _run) {
+        return;
+      }
+      if (verdict == null) {
+        _scanOn(capture);
         return;
       }
       if (verdict.status == ScanStatus.rejected) {
@@ -301,12 +337,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
             ?verdict.message,
           ].join(' · '),
         );
-        if (_photo == null &&
-            (capture.source == CaptureSource.image ||
-                _template.detection == DetectionMode.once)) {
-          // A photo or a paused camera: scan on.
-          unawaited(widget.layout.controller.resume());
-        }
+        _scanOn(capture);
         return;
       }
       if (_settled || _result != null) {
@@ -322,11 +353,10 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     if (_template.closeOnResult) {
       unawaited(controller.pause());
       // Let the code fly into the window before the screen closes.
-      _after = Timer(const Duration(milliseconds: 450), () {
-        if (mounted && (ModalRoute.of(context)?.isCurrent ?? true)) {
-          unawaited(Navigator.maybeOf(context)?.maybePop(barcode));
-        }
-      });
+      _after = Timer(
+        const Duration(milliseconds: 450),
+        () => _closeWith(barcode),
+      );
       return;
     }
     if (!_template.showResult) {
@@ -349,6 +379,31 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         }
       }
     });
+  }
+
+  /// A code was not taken: a photo or a paused camera scans on.
+  void _scanOn(BarcodeCapture capture) {
+    if (_photo == null &&
+        (capture.source == CaptureSource.image ||
+            widget.layout.controller.detection == DetectionMode.once)) {
+      unawaited(widget.layout.controller.resume());
+    }
+  }
+
+  /// Closes the screen with [barcode], once no other route lies over it.
+  void _closeWith(Barcode barcode) {
+    if (!mounted) {
+      return;
+    }
+    final ModalRoute<Object?>? route = ModalRoute.of(context);
+    if (route == null || route.isCurrent) {
+      unawaited(Navigator.maybeOf(context)?.maybePop(barcode));
+    } else if (route.isActive) {
+      _after = Timer(
+        const Duration(milliseconds: 200),
+        () => _closeWith(barcode),
+      );
+    }
   }
 
   /// Scanning goes on: a verdict for each code.
@@ -490,18 +545,20 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     }
   }
 
-  /// Hides the result of the code found.
-  void _hideResult() {
+  /// Forgets the code found.
+  void _clearResult() {
     _showResult?.cancel();
     _showResult = null;
     _after?.cancel();
     _after = null;
     _lock++;
-    setState(() {
-      _result = null;
-      _settled = false;
-    });
+    _run++;
+    _result = null;
+    _settled = false;
   }
+
+  /// Hides the result of the code found.
+  void _hideResult() => setState(_clearResult);
 
   void _scanAgain() {
     _hideResult();
@@ -573,21 +630,27 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         time: DateTime.now(),
       );
 
+  /// [code] as its capture reported it: it has moved since, and the capture
+  /// finds its picture by the code it reported.
+  Barcode _reportedOf(VisibleBarcode code) =>
+      _captureOf(code).barcodes.firstWhere(
+        (Barcode b) =>
+            b.format == code.barcode.format && b.text == code.barcode.text,
+        orElse: () => code.barcode,
+      );
+
   /// [ScannerMode.pick]: the user tapped [code] in view of the camera.
   Future<void> _pick(VisibleBarcode code) async {
-    if (_freezing ||
-        _result != null ||
-        _showResult != null ||
-        _settled ||
-        _checking) {
+    if (_freezing || _busy) {
       return;
     }
     final BarcodeCapture capture = _captureOf(code);
+    final Barcode barcode = _reportedOf(code);
     _freezing = true;
     await _freeze(widget.layout.barcodes);
     _freezing = false;
     if (mounted) {
-      await _single(capture, code.barcode, from: code.corners);
+      await _single(capture, barcode, from: code.corners);
     }
   }
 
@@ -598,7 +661,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       await _single(capture, capture.barcode);
       return;
     }
-    if (_result != null || _showResult != null || _settled || _checking) {
+    if (_busy) {
       return;
     }
     final int load = ++_photoLoad;
@@ -654,7 +717,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         image,
         <_PhotoCode>[
           for (final VisibleBarcode code in codes)
-            _PhotoCode(code.barcode, _captureOf(code), <Offset>[
+            _PhotoCode(_reportedOf(code), _captureOf(code), <Offset>[
               for (final Offset c in code.corners)
                 Offset((c.dx - preview.left) * sx, (c.dy - preview.top) * sy),
             ]),
@@ -1322,7 +1385,7 @@ class _VerdictSheet extends StatelessWidget {
         strings.rejected,
       ),
     };
-    final String title = verdict.title ?? barcode.text;
+    final String title = verdict.title ?? barcodeLabel(barcode);
     final bool still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     return Semantics(
       liveRegion: true,
@@ -1575,7 +1638,7 @@ class _PickLabel extends StatelessWidget {
         url.host.replaceFirst(RegExp(r'^www\.'), ''),
       WifiContent(:final String ssid) => ssid,
       ContactContent(:final String? name) when name != null => name,
-      _ => barcode.text.trim().split('\n').first,
+      _ => barcodeLabel(barcode).trim().split('\n').first,
     };
     return text.length > 28 ? '${text.substring(0, 27)}…' : text;
   }

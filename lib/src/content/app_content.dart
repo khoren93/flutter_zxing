@@ -218,6 +218,10 @@ CryptoContent? _bip21(CryptoCurrency currency, String body) {
   final Map<String, String> params = queryParameters(
     q < 0 ? '' : body.substring(q + 1),
   );
+  // BIP 21: a required parameter this reader does not know voids the URI.
+  if (params.keys.any((String k) => k.toLowerCase().startsWith('req-'))) {
+    return null;
+  }
   final String? amount = orNull(params['amount']?.trim());
   if (amount != null && !_coins.hasMatch(amount)) {
     return null;
@@ -240,7 +244,9 @@ CryptoContent? _eip681(String body) {
   }
   final int q = b.indexOf('?');
   final String target = q < 0 ? b : b.substring(0, q);
-  if (target.contains('/')) {
+  // Another request type than `pay-`; ENS names may hold hyphens too.
+  if (target.contains('/') ||
+      RegExp(r'^[a-z]+-0x[0-9a-f]', caseSensitive: false).hasMatch(target)) {
     return null;
   }
   final int at = target.indexOf('@');

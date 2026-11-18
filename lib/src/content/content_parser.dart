@@ -188,6 +188,14 @@ Uri? _fieldUrl(String value) {
   return url != null && url.host.contains('.') ? url : null;
 }
 
+/// [_fieldUrl] of a bookmark, which is a web address and nothing else.
+Uri? _bookmarkUrl(String value) {
+  final Uri? url = _fieldUrl(value);
+  return url != null && (url.isScheme('http') || url.isScheme('https'))
+      ? url
+      : null;
+}
+
 /// `example.com:8080/…` looks like a scheme to [_anyScheme].
 final RegExp _hostWithPort = RegExp(r'^[^/:]+\.[^/:]+:\d+(?:[/?#]|$)');
 
@@ -199,7 +207,7 @@ UrlContent? _meBookmark(String body) {
       case 'TITLE':
         title = _orNull(_unescape(raw));
       case 'URL':
-        url = _fieldUrl(_unescape(raw));
+        url = _bookmarkUrl(_unescape(raw));
     }
   }
   return url == null ? null : UrlContent(url, title: title);
@@ -211,7 +219,7 @@ UrlContent? _urlTo(String body) {
   if (colon < 0) {
     return null;
   }
-  final Uri? url = _fieldUrl(body.substring(colon + 1));
+  final Uri? url = _bookmarkUrl(body.substring(colon + 1));
   return url == null
       ? null
       : UrlContent(url, title: _orNull(body.substring(0, colon).trim()));
@@ -565,7 +573,7 @@ DateTime? _calendarTime(String value) {
   if (month < 1 ||
       month > 12 ||
       day < 1 ||
-      day > 31 ||
+      day > DateTime.utc(year, month + 1, 0).day ||
       hour > 23 ||
       minute > 59 ||
       second > 60) {
@@ -613,7 +621,7 @@ Duration? _calendarDuration(String value) {
 // --- E-mail, phone, SMS, geo ---------------------------------------------------
 
 /// `mailto:to?subject=…&body=…` (RFC 6068).
-EmailContent _mailto(String body) {
+EmailContent? _mailto(String body) {
   final int q = body.indexOf('?');
   final List<String> to = <String>[
     if (_decode(q < 0 ? body : body.substring(0, q)).trim() case final String a
@@ -637,7 +645,11 @@ EmailContent _mailto(String body) {
       }
     }
   }
-  return EmailContent(address: to.join(','), subject: subject, body: text);
+  final String address = to.join(',');
+  if (address.isNotEmpty && !_emailAddress.hasMatch(address)) {
+    return null;
+  }
+  return EmailContent(address: address, subject: subject, body: text);
 }
 
 /// `MATMSG:TO:address;SUB:subject;BODY:text;;` (NTT DoCoMo).
@@ -664,7 +676,7 @@ EmailContent? _matmsg(String body) {
 EmailContent? _smtp(String body) {
   final List<String> parts = body.split(':');
   final String to = parts.first.trim();
-  if (to.isEmpty) {
+  if (!_emailAddress.hasMatch(to)) {
     return null;
   }
   return EmailContent(
@@ -680,8 +692,22 @@ PhoneContent? _tel(String body, [CallType type = CallType.voice]) {
       ? body.substring(2)
       : body;
   final String number = _decode(b).trim();
-  return number.isEmpty ? null : PhoneContent(number, type: type);
+  final bool address = type != CallType.voice && _emailAddress.hasMatch(number);
+  return _phoneNumber.hasMatch(number) || address
+      ? PhoneContent(number, type: type)
+      : null;
 }
+
+/// A number to call, not a sentence that starts with `Tel:`: digits with
+/// the usual separators, letters only inside a word such as 1-800-FLOWERS.
+final RegExp _phoneNumber = RegExp(
+  r'^[+(*#]*\d[\dA-Za-z()*#.,;=+/\-]*(?:\s[\d().\-]+)*$',
+);
+
+/// One address, or several separated by commas.
+final RegExp _emailAddress = RegExp(
+  r'^[^\s@,]+@[^\s@,]+(?:\s*,\s*[^\s@,]+@[^\s@,]+)*$',
+);
 
 /// `SMSTO:number:text`.
 SmsContent? _smsTo(String body) {
@@ -721,7 +747,9 @@ SmsContent? _sms(String body) {
   final String number = _decode(
     semicolon < 0 ? target : target.substring(0, semicolon),
   ).trim();
-  return number.isEmpty ? null : SmsContent(number: number, message: message);
+  return _phoneNumber.hasMatch(number)
+      ? SmsContent(number: number, message: message)
+      : null;
 }
 
 /// `geo:latitude,longitude[,altitude][;params][?q=query]` (RFC 5870).

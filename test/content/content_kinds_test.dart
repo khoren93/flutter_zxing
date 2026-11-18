@@ -349,7 +349,7 @@ void main() {
     String sample(LinkService s) => switch (s.input) {
       LinkServiceInput.phone => '+374 91 234567',
       LinkServiceInput.username => '@flutter.dev',
-      LinkServiceInput.id => 'ABC123',
+      LinkServiceInput.id => s == LinkService.appStore ? '123456789' : 'ABC123',
       LinkServiceInput.query => 'Republic Square, Yerevan',
     };
 

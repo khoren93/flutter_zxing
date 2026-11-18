@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
 import '../writing/barcode_writer.dart';
+import 'logo_symbol.dart';
 import 'styled_export.dart';
 import 'swiss_cross.dart';
 import 'symbol_shapes.dart';
@@ -186,7 +187,7 @@ final class BarcodeStyle {
   ///
   /// Throws `BarcodeWriteException` if [data] cannot be encoded.
   Future<String> encodeSvg(BarcodeWriter writer, String data) async =>
-      toSvg(await _writer(writer).encode(data));
+      toSvg(await _encode(writer, data));
 
   /// Encodes [data] with [writer] and renders it as a PNG drawn with this
   /// style; see [toPng]. A QR code with a [logo] gets the logo's
@@ -199,11 +200,16 @@ final class BarcodeStyle {
     String data, {
     int? size,
     int? moduleSize,
-  }) async => toPng(
-    await _writer(writer).encode(data),
-    size: size,
-    moduleSize: moduleSize,
-  );
+  }) async =>
+      toPng(await _encode(writer, data), size: size, moduleSize: moduleSize);
+
+  /// [data] as `BarcodeView` encodes it for this style.
+  Future<BarcodeSymbol> _encode(BarcodeWriter writer, String data) =>
+      encodeUnderLogo(
+        _writer(writer),
+        logo?.size,
+        (BarcodeWriter w) => w.encode(data),
+      );
 
   /// [writer] as `BarcodeView` uses it for this style: the error correction
   /// the logo needs ([BarcodeLogo.neededErrorCorrection]).

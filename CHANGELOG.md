@@ -43,7 +43,7 @@
 * The `pick` template also works on photos, and you can go back to pick another
   code.
 * Outlines stay steady, no longer flicker or swap places, and cover the full
-  height of linear codes.
+  height of linear codes, also in `Code.position` of the 3.x API.
 * Result sheets show the details of every new kind, including payments and GS1
   data such as expiry dates.
 * The digits under EAN and UPC codes are laid out as printed on real products.
@@ -52,6 +52,10 @@
 
 * The cut-out of a code follows the EXIF orientation of a photo.
 * Scanner glass outside a scanner follows the platform's brightness.
+* QR codes with a logo stay readable when the content is very short.
+* Text that only starts like a phone number, SMS or e-mail stays text, and
+  bookmarks accept web addresses only.
+* The scanner no longer stays paused after returning from the background.
 
 ## 4.0.0-rc.1
 

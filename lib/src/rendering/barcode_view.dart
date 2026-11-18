@@ -10,6 +10,7 @@ import '../writing/symbol_layout.dart';
 import 'barcode_painter.dart';
 import 'barcode_style.dart';
 import 'frame_layout.dart';
+import 'logo_symbol.dart';
 import 'symbol_shapes.dart';
 
 /// Shows a barcode. Drawn as vectors from the module matrix, so it is sharp
@@ -416,7 +417,8 @@ final class _Request {
           view.errorCorrection ??
           (hasFinderPatterns(view.format)
               ? view.style.logo?.neededErrorCorrection
-              : null);
+              : null),
+      logoSize = view.style.logo?.size;
 
   final String? data;
   final Uint8List? bytes;
@@ -425,6 +427,7 @@ final class _Request {
   final bool showText;
   final bool quietZone;
   final ErrorCorrection? errorCorrection;
+  final double? logoSize;
 
   Future<BarcodeSymbol> encode() {
     final BarcodeWriter writer = BarcodeWriter(
@@ -435,7 +438,11 @@ final class _Request {
       showText: showText,
     );
     final Uint8List? b = bytes;
-    return b != null ? writer.encodeBytes(b) : writer.encode(data!);
+    return encodeUnderLogo(
+      writer,
+      logoSize,
+      (BarcodeWriter w) => b != null ? w.encodeBytes(b) : w.encode(data!),
+    );
   }
 
   @override
@@ -447,7 +454,8 @@ final class _Request {
       other.gs1 == gs1 &&
       other.showText == showText &&
       other.quietZone == quietZone &&
-      other.errorCorrection == errorCorrection;
+      other.errorCorrection == errorCorrection &&
+      other.logoSize == logoSize;
 
   @override
   int get hashCode => Object.hash(
@@ -458,6 +466,7 @@ final class _Request {
     showText,
     quietZone,
     errorCorrection,
+    logoSize,
   );
 }
 

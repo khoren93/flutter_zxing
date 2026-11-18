@@ -85,20 +85,25 @@ final class FrameText {
     int start = 0;
     final String text = caption.text;
     for (final ui.LineMetrics m in metrics) {
-      final TextRange range = tp.getLineBoundary(
-        TextPosition(offset: math.min(start, text.length)),
-      );
+      // After a last line break, an empty line.
+      final TextRange range = start >= text.length
+          ? TextRange.collapsed(text.length)
+          : tp.getLineBoundary(TextPosition(offset: start));
       String line = text.substring(range.start, range.end).trimRight();
-      // The last line shown, with more text after it: as painted, with an
-      // ellipsis.
+      // The last line shown, cut with more text after it: as painted, with
+      // an ellipsis. A line break of its own is not a cut.
       if (m.lineNumber == caption.maxLines - 1 &&
-          range.end < text.trimRight().length) {
+          range.end < text.trimRight().length &&
+          !text.substring(range.end).startsWith(RegExp(r' *\n'))) {
         line = '$line…';
       }
       lines.add((line, m.baseline / scale));
       start = range.end;
-      while (start < text.length &&
-          (text[start] == '\n' || text[start] == ' ')) {
+      while (start < text.length && text[start] == ' ') {
+        start++;
+      }
+      // This line's break only: the next one is a blank line.
+      if (start < text.length && text[start] == '\n') {
         start++;
       }
     }
