@@ -25,7 +25,7 @@ first_device = $(or $(DEVICE),$(shell cd example && flutter devices --machine 2>
 
 .PHONY: help publish publish-dry test analyze sheets fixtures wasm sources \
 	devices run run-android run-ios run-web run-macos run-windows run-linux \
-	run-desktop web-engine diag diag-pull replay
+	run-desktop web-engine diag diag-pull replay accuracy accuracy-causes
 
 help:
 	@echo "Publishing:"
@@ -45,6 +45,11 @@ help:
 	@echo "                       screen and read them back (build/check_sheets/);"
 	@echo "                       read/ there: pages read like camera frames, with"
 	@echo "                       the outlines the engine found"
+	@echo "  make accuracy        How far every code can be degraded before it stops"
+	@echo "                       reading, next to zxing-cpp's own reader"
+	@echo "                       (build/accuracy/report.md); ONLY=qrCode,ean13"
+	@echo "  make accuracy-causes Try every failed condition again, changed one way at"
+	@echo "                       a time, to prove why it fails (causes.json there)"
 	@echo ""
 	@echo "Running the example app (example/):"
 	@echo "  make devices         List the connected devices"
@@ -96,6 +101,14 @@ sheets:
 	FLUTTER_ROOT="$(abspath $(dir $(realpath $(shell which flutter)))..)" \
 		SHEETS=build/check_sheets flutter test test/tool/check_sheets_test.dart
 	-open build/check_sheets/index.html
+
+ONLY ?=
+accuracy:
+	@[ -x build/zxing_reader/ZXingReader ] || ./tool/build_zxing_reader.sh
+	ACCURACY=build/accuracy ACCURACY_ONLY="$(ONLY)" flutter test test/tool/accuracy_test.dart --reporter=expanded
+
+accuracy-causes:
+	ACCURACY_CAUSES=build/accuracy ACCURACY_ONLY="$(ONLY)" flutter test test/tool/accuracy_test.dart --plain-name "why conditions fail" --reporter=expanded
 
 fixtures:
 	cd tool && dart pub get && dart run make_fixtures.dart
