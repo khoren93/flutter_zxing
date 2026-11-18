@@ -25,7 +25,7 @@ first_device = $(or $(DEVICE),$(shell cd example && flutter devices --machine 2>
 
 .PHONY: help publish publish-dry test analyze sheets fixtures wasm sources \
 	devices run run-android run-ios run-web run-macos run-windows run-linux \
-	run-desktop web-engine diag
+	run-desktop web-engine diag diag-pull replay
 
 help:
 	@echo "Publishing:"
@@ -56,6 +56,9 @@ help:
 	@echo "  make run-desktop     Run on this computer (macOS, Windows or Linux)"
 	@echo "  make diag            The diagnostics page in a profile build: engine"
 	@echo "                       settings on the live camera and their numbers"
+	@echo "  make diag-pull       Copy the recorded frames from DEVICE to build/recordings"
+	@echo "  make replay          Read the recordings in build/recordings again here"
+	@echo "                       FILE=<recording>  OPTIONS=tryInvert=true,minLineCount=1"
 	@echo "  make run-macos | run-windows | run-linux"
 	@echo ""
 	@echo "  DEVICE=<id or name>  The device for 'make run', e.g. DEVICE=emulator-5554"
@@ -129,6 +132,14 @@ run-web: web-engine
 # The numbers mean something in profile or release builds only.
 diag:
 	$(MAKE) run APP=diagnostics MODE=$(if $(filter command line,$(origin MODE)),$(MODE),profile)
+
+diag-pull:
+	./tool/pull_recordings.sh "$(DEVICE)"
+
+FILE ?= build/recordings
+OPTIONS ?=
+replay:
+	REPLAY="$(FILE)" REPLAY_OPTIONS="$(OPTIONS)" flutter test test/tool/replay_test.dart --reporter=expanded
 
 run-macos:
 	cd example && flutter run -d macos $(RUN_FLAGS)

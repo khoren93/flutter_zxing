@@ -7,7 +7,7 @@ import 'package:flutter_zxing/flutter_zxing.dart';
 // Engine settings outside the public API.
 // ignore: implementation_imports
 import 'package:flutter_zxing/src/engine/engine_protocol.dart'
-    show fzxDownscaleFlags;
+    show EngineReadOptions, fzxDownscaleFlags;
 // ignore: implementation_imports
 import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
     show ScannerControllerDebug;
@@ -117,6 +117,13 @@ final class DiagSettings {
     threshold: downscaleThreshold == 0 ? null : downscaleThreshold,
   );
 
+  /// The options the scanner reads a frame with.
+  EngineReadOptions get engineOptions => EngineReadOptions.from(
+    formats.formats,
+    readerOptions,
+    maxSymbols: maxBarcodes,
+  ).withFlags(engineFlags);
+
   /// Applies everything but [resolution], which needs a new camera.
   void applyTo(ScannerController controller) {
     controller
@@ -176,6 +183,37 @@ final class DiagSettings {
     detection: detection ?? this.detection,
     blur: blur ?? this.blur,
   );
+
+  /// Settings saved by [toJson]; what is missing keeps its default.
+  factory DiagSettings.fromJson(Map<String, Object?> json) {
+    const DiagSettings d = DiagSettings();
+    bool flag(String key, bool or) => json[key] as bool? ?? or;
+    int number(String key, int or) => json[key] as int? ?? or;
+    T choice<T extends Enum>(String key, List<T> values, T or) =>
+        values.where((T v) => v.name == json[key]).firstOrNull ?? or;
+    return DiagSettings(
+      tryHarder: flag('tryHarder', d.tryHarder),
+      tryRotate: flag('tryRotate', d.tryRotate),
+      tryInvert: flag('tryInvert', d.tryInvert),
+      tryDownscale: flag('tryDownscale', d.tryDownscale),
+      isPure: flag('isPure', d.isPure),
+      returnErrors: flag('returnErrors', d.returnErrors),
+      validateChecksum: flag('validateChecksum', d.validateChecksum),
+      binarizer: choice('binarizer', Binarizer.values, d.binarizer),
+      minLineCount: number('minLineCount', d.minLineCount),
+      eanAddOn: choice('eanAddOn', EanAddOn.values, d.eanAddOn),
+      downscaleFactor: number('downscaleFactor', d.downscaleFactor),
+      downscaleThreshold: number('downscaleThreshold', d.downscaleThreshold),
+      formats: choice('formats', DiagFormats.values, d.formats),
+      resolution: choice('resolution', CameraResolution.values, d.resolution),
+      autoZoom: flag('autoZoom', d.autoZoom),
+      window: choice('window', DiagWindow.values, d.window),
+      maxBarcodes: number('maxBarcodes', d.maxBarcodes),
+      readIntervalMs: number('readIntervalMs', d.readIntervalMs),
+      detection: choice('detection', DetectionMode.values, d.detection),
+      blur: flag('blur', d.blur),
+    );
+  }
 
   /// The settings of a saved run.
   Map<String, Object> toJson() => <String, Object>{

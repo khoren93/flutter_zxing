@@ -12,7 +12,9 @@ import 'package:flutter_zxing/flutter_zxing.dart';
 import 'diag_metrics.dart';
 import 'diag_runs.dart';
 import 'diag_settings.dart';
+import 'frame_recorder.dart';
 import 'frame_saver.dart';
+import 'frames_tab.dart';
 import 'lens_numbers.dart';
 import 'scan_benchmark.dart';
 import 'settings_tab.dart';
@@ -40,6 +42,8 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
   late ScannerController _controller = _newController();
   final DiagMetrics _metrics = DiagMetrics();
   final DiagRunStore _runs = DiagRunStore();
+  final FrameRecorder _recorder = FrameRecorder();
+  final RecordingStore _recordings = RecordingStore();
   bool _reopening = false;
   ScanBenchmark? _benchmark;
 
@@ -59,7 +63,9 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
   void initState() {
     super.initState();
     _metrics.attach(_controller);
+    _recorder.attach(_controller);
     unawaited(_runs.load());
+    unawaited(_recordings.load());
   }
 
   @override
@@ -67,6 +73,8 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     _abTimer?.cancel();
     _metrics.dispose();
     _runs.dispose();
+    _recorder.dispose();
+    _recordings.dispose();
     _lastRead.dispose();
     _controller.dispose();
     super.dispose();
@@ -109,6 +117,7 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
       _reopening = false;
     });
     _metrics.attach(_controller);
+    _recorder.attach(_controller);
   }
 
   void _toggleAb() {
@@ -248,12 +257,13 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
                 '${c.barcode.format.displayName}: ${c.barcode.text}',
           );
     final Widget tabs = DefaultTabController(
-      length: 2,
+      length: 3,
       child: Column(
         children: <Widget>[
           const TabBar(
             tabs: <Widget>[
               Tab(height: 36, text: 'Settings'),
+              Tab(height: 36, text: 'Frames'),
               Tab(height: 36, text: 'Runs'),
             ],
           ),
@@ -266,6 +276,12 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
                   controller: _controller,
                   side: _b == null ? null : _editing,
                   onSide: (String s) => setState(() => _editing = s),
+                ),
+                DiagFramesTab(
+                  recorder: _recorder,
+                  store: _recordings,
+                  settings: _active,
+                  controller: _controller,
                 ),
                 DiagRunsTab(store: _runs),
               ],
@@ -300,33 +316,37 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
       onBenchmark: _runBenchmark,
       onStall: _measureStall,
     );
-    return Scaffold(
-      body: SafeArea(
-        child: OrientationBuilder(
-          builder: (BuildContext context, Orientation orientation) =>
-              orientation == Orientation.portrait
-              ? Column(
-                  children: <Widget>[
-                    Expanded(flex: 4, child: camera),
-                    actions,
-                    numbers,
-                    Expanded(flex: 5, child: tabs),
-                  ],
-                )
-              : Row(
-                  children: <Widget>[
-                    Expanded(child: camera),
-                    Expanded(
-                      child: Column(
-                        children: <Widget>[
-                          actions,
-                          numbers,
-                          Expanded(child: tabs),
-                        ],
+    // Dark also when the demo opens it from its own theme.
+    return Theme(
+      data: ThemeData.dark(useMaterial3: true),
+      child: Scaffold(
+        body: SafeArea(
+          child: OrientationBuilder(
+            builder: (BuildContext context, Orientation orientation) =>
+                orientation == Orientation.portrait
+                ? Column(
+                    children: <Widget>[
+                      Expanded(flex: 4, child: camera),
+                      actions,
+                      numbers,
+                      Expanded(flex: 5, child: tabs),
+                    ],
+                  )
+                : Row(
+                    children: <Widget>[
+                      Expanded(child: camera),
+                      Expanded(
+                        child: Column(
+                          children: <Widget>[
+                            actions,
+                            numbers,
+                            Expanded(child: tabs),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+          ),
         ),
       ),
     );
@@ -361,6 +381,12 @@ class _Actions extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: <Widget>[
+          if (Navigator.of(context).canPop())
+            IconButton(
+              tooltip: 'Back to the scanner',
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
           ValueListenableBuilder<ScannerState>(
             valueListenable: controller,
             builder: (BuildContext context, ScannerState state, _) {

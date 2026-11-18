@@ -4,12 +4,16 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 // material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
 // which needs Flutter 3.47; the example still supports Flutter 3.41.
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
+import '../diagnostics/diagnostics_stub.dart'
+    if (dart.library.ffi) '../diagnostics/diagnostics_page.dart';
 import 'content.dart';
 import 'field_demo_page.dart';
 import 'history.dart';
@@ -271,6 +275,21 @@ class _ScanPageState extends State<ScanPage> {
     ];
   }
 
+  /// Opens the diagnostics page. It has a camera of its own, so this one is
+  /// released until the page closes.
+  Future<void> _openDiagnostics() async {
+    final NavigatorState navigator = Navigator.of(context, rootNavigator: true);
+    await _controller.stop();
+    await navigator.push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => const DiagnosticsPage(),
+      ),
+    );
+    if (mounted) {
+      await _controller.start();
+    }
+  }
+
   Future<void> _onDetect(BarcodeCapture capture) async {
     // Retail keeps its own list, onDone saves it; onPick saves a picked code.
     if (_template.mode == ScannerMode.collect ||
@@ -333,6 +352,28 @@ class _ScanPageState extends State<ScanPage> {
                 onTap: () => setState(() => _menu = !_menu),
               ),
             ),
+            // In the template's top bar: left of its torch or of the button
+            // that leaves a paused scan, in their place without them.
+            if (!kIsWeb)
+              ValueListenableBuilder<ScannerState>(
+                valueListenable: _controller,
+                builder: (BuildContext context, ScannerState state, Widget? _) {
+                  final bool taken =
+                      state.status == ScannerStatus.paused ||
+                      state.status == ScannerStatus.error ||
+                      (_template.torchButton &&
+                          state.torch != TorchState.unavailable);
+                  return Positioned(
+                    right: top.right + 20 + (taken ? 48 + 8 : 0),
+                    top: top.top + 12,
+                    child: ScannerButton(
+                      icon: ScannerIcons.binary,
+                      label: 'Open diagnostics',
+                      onPressed: () => unawaited(_openDiagnostics()),
+                    ),
+                  );
+                },
+              ),
             if (_menu) ...<Widget>[
               Positioned.fill(
                 child: GestureDetector(

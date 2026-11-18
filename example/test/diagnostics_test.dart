@@ -1,9 +1,12 @@
 // The diagnostics page: its numbers, its settings and the page itself on a
 // fake camera.
+import 'dart:io';
+
 // material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
 // which needs Flutter 3.47; the example still supports Flutter 3.41.
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 // ignore: implementation_imports
@@ -15,6 +18,8 @@ import 'package:flutter_zxing_example/diagnostics/diag_metrics.dart';
 import 'package:flutter_zxing_example/diagnostics/diag_runs.dart';
 import 'package:flutter_zxing_example/diagnostics/diag_settings.dart';
 import 'package:flutter_zxing_example/diagnostics/diagnostics_page.dart';
+import 'package:flutter_zxing_example/diagnostics/frame_recorder.dart';
+import 'package:flutter_zxing_example/diagnostics/recording.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // The package's own fake camera.
@@ -125,11 +130,73 @@ void main() {
     });
   });
 
+  group('recorder', () {
+    late FakeCamera camera;
+    late ScannerController controller;
+    late FrameRecorder recorder;
+
+    setUp(() async {
+      camera = FakeCamera();
+      ScannerControllerDebug.cameraFactory = () => camera;
+      controller = ScannerController();
+      recorder = FrameRecorder()..attach(controller);
+      await controller.start();
+    });
+
+    tearDown(() {
+      recorder.dispose();
+      controller.dispose();
+      ScannerControllerDebug.cameraFactory = null;
+    });
+
+    PixelBuffer pixels() =>
+        PixelBuffer(Uint8List(640 * 480), width: 640, height: 480);
+
+    test('keeps nothing until it is armed', () async {
+      camera.push(const <Barcode>[], null, false, pixels());
+      await pumpEventQueue();
+      expect(recorder.frameCount, 0);
+      expect(recorder.take(const DiagSettings()), isNull);
+    });
+
+    test('keeps the decoded window with what was read', () async {
+      recorder.armed = true;
+      camera.push(
+        <Barcode>[fakeBarcode('code', const Rect.fromLTWH(200, 200, 80, 80))],
+        null,
+        false,
+        pixels(),
+      );
+      await pumpEventQueue();
+      expect(recorder.frameCount, 1);
+      final RecordedFrame frame = recorder
+          .take(const DiagSettings(tryInvert: true))!
+          .frames
+          .single;
+      expect(frame.pixels, hasLength(frame.width * frame.height));
+      expect(frame.reads.single.text, 'code');
+    });
+
+    test('disarming lets go of the frames', () async {
+      recorder.armed = true;
+      camera.push(const <Barcode>[], null, false, pixels());
+      await pumpEventQueue();
+      recorder.armed = false;
+      expect(recorder.frameCount, 0);
+      expect(recorder.bytes, 0);
+    });
+  });
+
   group('page', () {
     late FakeCamera camera;
 
     setUp(() {
       SharedPreferences.setMockInitialValues(<String, Object>{});
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            (_) async => Directory.systemTemp.createTempSync('diag').path,
+          );
       camera = FakeCamera();
       ScannerControllerDebug.cameraFactory = () => camera;
     });
@@ -205,6 +272,35 @@ void main() {
         await close(tester);
       });
     }
+
+    testWidgets('opened from another page, it leads back', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (BuildContext context) => TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const DiagnosticsPage(),
+                ),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      for (int i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await tester.tap(find.byIcon(Icons.arrow_back));
+      for (int i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.byType(DiagnosticsPage), findsNothing);
+      await close(tester);
+    });
 
     testWidgets('an A/B run shows both sides', (WidgetTester tester) async {
       await open(tester);

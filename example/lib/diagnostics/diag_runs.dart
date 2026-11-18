@@ -15,6 +15,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'diag_metrics.dart';
 import 'diag_settings.dart';
 
+/// The system this runs on.
+String get diagDevice =>
+    '${Platform.operatingSystem} ${Platform.operatingSystemVersion}';
+
+/// The kind of build this is.
+String get diagBuild =>
+    kReleaseMode ? 'release' : (kProfileMode ? 'profile' : 'debug');
+
 /// One saved run.
 @immutable
 final class DiagRun {
@@ -34,9 +42,8 @@ final class DiagRun {
       DiagRun(
         time: DateTime.now(),
         label: label,
-        device:
-            '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
-        build: kReleaseMode ? 'release' : (kProfileMode ? 'profile' : 'debug'),
+        device: diagDevice,
+        build: diagBuild,
         engine: zxingCppVersion,
         settings: settings.toJson(),
         numbers: s.toJson(),

@@ -885,6 +885,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
           crop: crop,
           failed: result.barcodes.length - found.length,
           details: result.details,
+          reads: found,
         ),
       );
     }
@@ -1182,6 +1183,7 @@ final class ScannerFrameSample {
     this.crop,
     this.failed = 0,
     this.details = const <EngineBarcodeDetails>[],
+    this.reads = const <Barcode>[],
   });
 
   /// Whether the frame had a barcode.
@@ -1211,6 +1213,9 @@ final class ScannerFrameSample {
 
   /// The engine's details of the barcodes of this frame.
   final List<EngineBarcodeDetails> details;
+
+  /// The barcodes decoded from this frame, in frame pixels.
+  final List<Barcode> reads;
 }
 
 /// Hooks for tests and the example's benchmark. Not exported.
@@ -1235,6 +1240,9 @@ extension ScannerControllerDebug on ScannerController {
   /// The shortest time from the start of one read to the next; `null` reads
   /// every frame the camera delivers.
   set readInterval(Duration? interval) => _debugReadInterval = interval;
+
+  /// Whether the last decoded frame was read mirrored (a front camera).
+  bool get lastFrameMirrored => _lastFrame?.$1.mirrored ?? false;
 
   /// The pixels of the last decoded frame and the part of them that was
   /// decoded (`null` for all), to save a frame while debugging. `null` before
