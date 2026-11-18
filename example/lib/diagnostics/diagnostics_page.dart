@@ -8,10 +8,16 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+// The frames are not public API.
+// ignore: implementation_imports
+import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
+    show ScannerControllerDebug, ScannerFrameSample;
 
 import 'diag_metrics.dart';
 import 'diag_runs.dart';
 import 'diag_settings.dart';
+import 'field_session.dart';
+import 'field_tab.dart';
 import 'frame_recorder.dart';
 import 'frame_saver.dart';
 import 'frames_tab.dart';
@@ -44,6 +50,11 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
   final DiagRunStore _runs = DiagRunStore();
   final FrameRecorder _recorder = FrameRecorder();
   final RecordingStore _recordings = RecordingStore();
+  final FieldSession _field = FieldSession(
+    device: diagDevice,
+    build: diagBuild,
+  );
+  StreamSubscription<ScannerFrameSample>? _fieldReads;
   bool _reopening = false;
   ScanBenchmark? _benchmark;
 
@@ -64,13 +75,27 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     super.initState();
     _metrics.attach(_controller);
     _recorder.attach(_controller);
+    _followField();
     unawaited(_runs.load());
     unawaited(_recordings.load());
+    unawaited(loadFieldResults(_field));
+  }
+
+  /// Every frame's reads go to the field test: it finds its code among them.
+  void _followField() {
+    unawaited(_fieldReads?.cancel());
+    _fieldReads = _controller.frameSamples.listen(
+      (ScannerFrameSample s) => _field.onReads(<(String, String)>[
+        for (final Barcode b in s.reads) (b.format.name, b.text),
+      ]),
+    );
   }
 
   @override
   void dispose() {
     _abTimer?.cancel();
+    unawaited(_fieldReads?.cancel());
+    _field.dispose();
     _metrics.dispose();
     _runs.dispose();
     _recorder.dispose();
@@ -118,6 +143,7 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     });
     _metrics.attach(_controller);
     _recorder.attach(_controller);
+    _followField();
   }
 
   void _toggleAb() {
@@ -257,13 +283,14 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
                 '${c.barcode.format.displayName}: ${c.barcode.text}',
           );
     final Widget tabs = DefaultTabController(
-      length: 3,
+      length: 4,
       child: Column(
         children: <Widget>[
           const TabBar(
             tabs: <Widget>[
               Tab(height: 36, text: 'Settings'),
               Tab(height: 36, text: 'Frames'),
+              Tab(height: 36, text: 'Field'),
               Tab(height: 36, text: 'Runs'),
             ],
           ),
@@ -282,6 +309,12 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
                   store: _recordings,
                   settings: _active,
                   controller: _controller,
+                ),
+                DiagFieldTab(
+                  session: _field,
+                  recorder: _recorder,
+                  store: _recordings,
+                  settings: _active,
                 ),
                 DiagRunsTab(store: _runs),
               ],

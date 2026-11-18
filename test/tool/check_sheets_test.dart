@@ -11,6 +11,8 @@
 //   SHEETS=build/check_sheets flutter test test/tool/check_sheets_test.dart
 //
 // Open index.html there to scroll through all pages, or the PNGs one by one.
+// The first page, 00-all-formats.png, has every format on one sheet: on top
+// what the writer makes, below what the scanner only reads.
 // Text uses Roboto from the Flutter SDK when FLUTTER_ROOT is set.
 @Tags(<String>['native'])
 library;
@@ -25,6 +27,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+
+// The codes the field test of the diagnostics page knows.
+// ignore: avoid_relative_lib_imports
+import '../../example/lib/diagnostics/field_codes.dart';
 
 final String? _out = Platform.environment['SHEETS'];
 const String _samples = 'third_party/zxing-cpp/test/samples';
@@ -1020,6 +1026,442 @@ List<(int, List<_Tile>, List<Rect>)> _paginate(List<_Tile> tiles) {
   return pages;
 }
 
+// The overview page: every format on one sheet.
+const double _overviewWidth = 2400;
+const int _overviewColumns = 7;
+const double _overviewRow = 190;
+const double _overviewHeader = 92;
+const double _overviewHeading = 58;
+
+/// The formats the scanner reads and the writer has no format for, each with
+/// the best picture of it there is. An add-on only exists next to an EAN-13.
+List<(BarcodeFormat, _Tile)> _readOnlyTiles() => <(BarcodeFormat, _Tile)>[
+  (
+    BarcodeFormat.maxiCode,
+    const _Tile(
+      'MaxiCode',
+      '',
+      format: BarcodeFormat.maxiCode,
+      sample: '$_samples/maxicode-1/MODE2.png',
+      exact: false,
+      warning: true,
+      note: 'Sample. Fill the frame with it: never found on a whole page',
+    ),
+  ),
+  (
+    BarcodeFormat.qrCodeModel1,
+    _sample('QR Code Model 1', BarcodeFormat.qrCode, 'qrcode-1/qr-model-1.png'),
+  ),
+  (
+    BarcodeFormat.ean5,
+    _sample(
+      'EAN-5 add-on',
+      BarcodeFormat.ean13,
+      'ean13-ext-1/1.png',
+      span: 2,
+      exact: false,
+    ),
+  ),
+  (
+    BarcodeFormat.ean2,
+    const _Tile(
+      'EAN-2 add-on',
+      '4006381333931+12',
+      format: BarcodeFormat.ean13,
+      expect: '400638133393112',
+      span: 2,
+      note: 'Drawn next to an EAN-13',
+    ),
+  ),
+  (
+    BarcodeFormat.itf14,
+    _Tile(
+      'ITF-14',
+      _withCheck('0001234560001'),
+      format: BarcodeFormat.itf,
+      span: 2,
+      note: 'Drawn as ITF with 14 digits',
+    ),
+  ),
+];
+
+/// One tile of each format the writer makes, as on the sheets that follow.
+List<_Tile> _writtenTiles(List<_Section> sections) => <_Tile>[
+  for (final BarcodeFormat format in BarcodeFormat.writable)
+    _forOverview(
+      sections
+          .expand((_Section s) => s.$4)
+          .firstWhere(
+            (_Tile t) =>
+                t.format == format &&
+                t.sample == null &&
+                t.bytes == null &&
+                t.codes == null &&
+                t.look == _Look.plain &&
+                t.style == BarcodeStyle.classic,
+          ),
+    ),
+];
+
+/// [tile] as it has to be on a page with all the others. DataBars holding the
+/// same GTIN are taken for one code when read together, so each gets its own;
+/// both PDF417 kinds report one format, so their texts differ for the field
+/// test to tell them apart; the longest code gets the width it needs.
+_Tile _forOverview(_Tile tile) {
+  _Tile dataBar(String digits) {
+    final String gtin = _withCheck(digits);
+    return _format(
+      tile.format,
+      data: gtin,
+      expect: '(01)$gtin',
+      note: tile.note,
+    );
+  }
+
+  return switch (tile.format) {
+    BarcodeFormat.dataBarStacked => dataBar('0950110153001'),
+    BarcodeFormat.dataBarStackedOmni => dataBar('0950110153002'),
+    BarcodeFormat.compactPdf417 => _format(
+      tile.format,
+      data: 'Compact PDF417',
+      span: tile.span,
+    ),
+    BarcodeFormat.code39Extended => _format(
+      tile.format,
+      span: 4,
+      note: tile.note,
+    ),
+    _ => tile,
+  };
+}
+
+/// Places [tiles] in rows from [top]; gives their places and the bottom.
+(List<Rect>, double) _overviewRects(List<_Tile> tiles, double top) {
+  const double cell =
+      (_overviewWidth - 2 * _margin - (_overviewColumns - 1) * _gap) /
+      _overviewColumns;
+  final List<Rect> rects = <Rect>[];
+  int column = 0;
+  int row = 0;
+  for (final _Tile tile in tiles) {
+    if (column + tile.span > _overviewColumns) {
+      column = 0;
+      row++;
+    }
+    rects.add(
+      Rect.fromLTWH(
+        _margin + column * (cell + _gap),
+        top + row * (_overviewRow + _gap),
+        tile.span * cell + (tile.span - 1) * _gap,
+        _overviewRow,
+      ),
+    );
+    column += tile.span;
+  }
+  return (rects, top + (row + 1) * (_overviewRow + _gap));
+}
+
+/// A tile of the overview: the id, the name and as much code as fits.
+Widget _overviewTile(
+  String id,
+  _Tile tile,
+  Map<String, ui.Image> images,
+  GlobalKey key,
+) => DecoratedBox(
+  decoration: BoxDecoration(
+    color: const Color(0xFFFFFFFF),
+    borderRadius: BorderRadius.circular(12),
+  ),
+  child: Padding(
+    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text.rich(
+          TextSpan(
+            children: <InlineSpan>[
+              TextSpan(
+                text: '$id  ',
+                style: const TextStyle(
+                  color: _accent,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              TextSpan(text: tile.title),
+              if (tile.note != null)
+                TextSpan(
+                  text: '  ${tile.note}',
+                  style: const TextStyle(color: _muted, fontSize: 12),
+                ),
+            ],
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: _text.copyWith(fontSize: 15, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 6),
+        Expanded(
+          child: KeyedSubtree(
+            key: key,
+            child: tile.sample == null
+                ? Center(child: _code(tile, images))
+                : SizedBox.expand(child: _code(tile, images)),
+          ),
+        ),
+      ],
+    ),
+  ),
+);
+
+/// Gives every BarcodeView real time to encode and paint.
+Future<void> _settle(WidgetTester tester) async {
+  for (int i = 0; i < 200; i++) {
+    final bool waiting = find
+        .byType(BarcodeView)
+        .evaluate()
+        .any(
+          (Element e) => find
+              .descendant(
+                of: find.byWidget(e.widget),
+                matching: find.byType(CustomPaint),
+              )
+              .evaluate()
+              .isEmpty,
+        );
+    if (!waiting && i > 10) {
+      break;
+    }
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+  }
+  await tester.pump();
+}
+
+/// What the overview page gave.
+final class _Overview {
+  const _Overview(this.file, this.checks, this.missing);
+
+  final String file;
+
+  /// Every tile read on its own.
+  final List<_Check> checks;
+
+  /// The tiles not found when the whole page is read at once.
+  final List<String> missing;
+}
+
+/// Draws 00-all-formats.png and reads it, tile by tile and as a whole.
+Future<_Overview> _drawOverview(
+  WidgetTester tester,
+  Directory dir,
+  List<_Section> sections,
+) async {
+  final List<_Tile> written = _writtenTiles(sections);
+  final List<(BarcodeFormat, _Tile)> readOnly = _readOnlyTiles();
+  expect(
+    <BarcodeFormat>{
+      for (final BarcodeFormat f in BarcodeFormat.values)
+        if (f.canRead && !f.canWrite) f,
+    }.difference(<BarcodeFormat>{
+      for (final (BarcodeFormat f, _Tile _) in readOnly) f,
+    }),
+    isEmpty,
+    reason: 'a format the scanner only reads has no tile on the overview',
+  );
+  final List<_Tile> others = <_Tile>[
+    for (final (BarcodeFormat _, _Tile t) in readOnly) t,
+  ];
+
+  const double writtenTop = _overviewHeader + _overviewHeading;
+  final (List<Rect> writtenRects, double writtenEnd) = _overviewRects(
+    written,
+    writtenTop,
+  );
+  final double othersTop = writtenEnd + _overviewHeading;
+  final (List<Rect> otherRects, double end) = _overviewRects(others, othersTop);
+  final Size page = Size(_overviewWidth, end + _margin);
+
+  final Map<String, ui.Image> images = <String, ui.Image>{};
+  await tester.runAsync(() async {
+    for (final _Tile t in others) {
+      if (t.sample case final String path) {
+        images[path] = await decodeImageFromList(File(path).readAsBytesSync());
+      }
+    }
+  });
+
+  final List<(String, _Tile, Rect, GlobalKey)> tiles =
+      <(String, _Tile, Rect, GlobalKey)>[
+        for (int i = 0; i < written.length; i++)
+          ('W${i + 1}', written[i], writtenRects[i], GlobalKey()),
+        for (int i = 0; i < others.length; i++)
+          ('R${i + 1}', others[i], otherRects[i], GlobalKey()),
+      ];
+  Widget heading(double top, String title, String about) => Positioned(
+    left: _margin,
+    right: _margin,
+    top: top - _overviewHeading + 12,
+    child: Text.rich(
+      TextSpan(
+        children: <InlineSpan>[
+          TextSpan(
+            text: title,
+            style: _text.copyWith(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          TextSpan(
+            text: '   $about',
+            style: _text.copyWith(fontSize: 15, color: _muted),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  tester.view.physicalSize = page;
+  final GlobalKey boundary = GlobalKey();
+  await tester.pumpWidget(
+    Directionality(
+      textDirection: TextDirection.ltr,
+      child: DefaultTextStyle(
+        style: _text,
+        child: RepaintBoundary(
+          key: boundary,
+          child: ColoredBox(
+            color: _paper,
+            child: Stack(
+              children: <Widget>[
+                Positioned(
+                  left: _margin,
+                  right: _margin,
+                  top: 20,
+                  child: Text(
+                    'flutter_zxing 4.0 · all formats on one sheet',
+                    style: _text.copyWith(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                heading(
+                  writtenTop,
+                  'Made by flutter_zxing',
+                  '${written.length} formats drawn by BarcodeWriter',
+                ),
+                heading(
+                  othersTop,
+                  'Read only',
+                  'the scanner reads these, the writer has no such format',
+                ),
+                for (final (String id, _Tile t, Rect r, GlobalKey k) in tiles)
+                  Positioned.fromRect(
+                    rect: r,
+                    child: _overviewTile(id, t, images, k),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await _settle(tester);
+
+  const String file = '00-all-formats.png';
+  final RenderRepaintBoundary render =
+      boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+  final ByteData? rgba = await tester.runAsync<ByteData?>(() async {
+    final ui.Image image = await render.toImage(pixelRatio: _pixelRatio);
+    final ByteData png = (await image.toByteData(
+      format: ui.ImageByteFormat.png,
+    ))!;
+    File('${dir.path}/$file').writeAsBytesSync(png.buffer.asUint8List());
+    final ByteData? pixels = await image.toByteData();
+    image.dispose();
+    return pixels;
+  });
+  final int width = (page.width * _pixelRatio).round();
+  final int height = (page.height * _pixelRatio).round();
+  const BarcodeReader reader = BarcodeReader(
+    options: ReaderOptions(eanAddOn: EanAddOn.read),
+  );
+
+  final List<_Check> checks = <_Check>[];
+  for (final (String id, _Tile t, Rect _, GlobalKey k) in tiles) {
+    final Rect area = tester.getRect(find.byKey(k));
+    final List<Barcode> found = (await tester.runAsync<List<Barcode>>(
+      () => reader.readAllPixels(
+        PixelBuffer(
+          rgba!.buffer.asUint8List(),
+          width: width,
+          height: height,
+          layout: PixelLayout.rgba,
+          crop: Rect.fromLTRB(
+            area.left * _pixelRatio,
+            area.top * _pixelRatio,
+            area.right * _pixelRatio,
+            area.bottom * _pixelRatio,
+          ),
+        ),
+      ),
+    ))!;
+    checks.add(_Check(id, t, found));
+  }
+
+  // The whole sheet in one read: which tiles does it find?
+  final List<Barcode> whole = (await tester.runAsync<List<Barcode>>(
+    () => reader.readAllPixels(
+      PixelBuffer(
+        rgba!.buffer.asUint8List(),
+        width: width,
+        height: height,
+        layout: PixelLayout.rgba,
+      ),
+    ),
+  ))!;
+  final List<String> missing = <String>[
+    for (final (String id, _Tile t, Rect r, GlobalKey _) in tiles)
+      if (!whole.any((Barcode b) {
+        final List<Offset> c = b.position.corners;
+        final Offset middle = (c[0] + c[1] + c[2] + c[3]) / 4 / _pixelRatio;
+        return r.contains(middle) && b.format.symbology == t.format.symbology;
+      }))
+        '$id ${t.title}',
+  ];
+
+  for (final ui.Image image in images.values) {
+    image.dispose();
+  }
+  tester.view.physicalSize = _page;
+  // The field test recognises these codes by what they read as.
+  expect(
+    <String>[for (final FieldCode c in fieldCodes) c.id],
+    <String>[for (final _Check c in checks) c.id],
+    reason: 'example/lib/diagnostics/field_codes.dart is out of date',
+  );
+  for (final (int i, _Check c) in checks.indexed) {
+    expect(
+      c.found.any((Barcode b) => fieldCodes[i].matches(b.format.name, b.text)),
+      isTrue,
+      reason: '${c.id} is not what field_codes.dart expects',
+    );
+  }
+  File('${dir.path}/overview.json').writeAsStringSync(
+    const JsonEncoder.withIndent('  ').convert(<Map<String, Object?>>[
+      for (final _Check c in checks)
+        <String, Object?>{
+          'id': c.id,
+          'title': c.tile.title,
+          'reads': <String>[
+            for (final Barcode b in c.found) '${b.format.name}|${b.text}',
+          ],
+        },
+    ]),
+  );
+  return _Overview(file, checks, missing);
+}
+
 /// [text] with control characters made visible.
 String _visible(String text) => text
     .replaceAll('\r', '‹CR›')
@@ -1278,8 +1720,10 @@ final class _Check {
   bool get kindOk =>
       tile.kind == null || first?.content.runtimeType == tile.kind;
 
+  /// An EAN with an add-on also reads without it: any of the reads counts.
   bool get textOk =>
-      !tile.exact || first?.text.trim() == tile.expectedText.trim();
+      !tile.exact ||
+      found.any((Barcode b) => b.text.trim() == tile.expectedText.trim());
 
   bool get countOk => tile.codes == null || found.length == tile.codes!.length;
 
@@ -1343,6 +1787,8 @@ void main() {
         reason: 'a writable format has no tile',
       );
 
+      final _Overview overview = await _drawOverview(tester, dir, sections);
+
       final Map<String, ui.Image> images = <String, ui.Image>{};
       await tester.runAsync(() async {
         for (final _Section s in sections) {
@@ -1357,7 +1803,13 @@ void main() {
       });
 
       final List<_Check> checks = <_Check>[];
-      final List<(String, String, String)> pages = <(String, String, String)>[];
+      final List<(String, String, String)> pages = <(String, String, String)>[
+        (
+          overview.file,
+          'All formats',
+          'Every format on one sheet: made by the writer, then read only',
+        ),
+      ];
       // sheets.json: per page, every tile and where it is, so the camera
       // read knows how many codes each page has.
       final Map<String, Object> sheets = <String, Object>{};
@@ -1460,28 +1912,7 @@ void main() {
 
           // BarcodeView encodes on the engine isolate and logos decode
           // asynchronously: give both real time until every view paints.
-          for (int i = 0; i < 200; i++) {
-            final bool waiting = find
-                .byType(BarcodeView)
-                .evaluate()
-                .any(
-                  (Element e) => find
-                      .descendant(
-                        of: find.byWidget(e.widget),
-                        matching: find.byType(CustomPaint),
-                      )
-                      .evaluate()
-                      .isEmpty,
-                );
-            if (!waiting && i > 10) {
-              break;
-            }
-            await tester.runAsync(
-              () => Future<void>.delayed(const Duration(milliseconds: 20)),
-            );
-            await tester.pump();
-          }
-          await tester.pump();
+          await _settle(tester);
 
           final String file =
               '${pageNumber.toString().padLeft(2, '0')}-$letter-${title.toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '-')}'
@@ -1560,7 +1991,26 @@ void main() {
         )
         ..writeln()
         ..writeln('Scan each tile with the demo and tick the last column.')
-        ..writeln();
+        ..writeln()
+        ..writeln('## All formats on one sheet (${overview.file})')
+        ..writeln()
+        ..writeln(
+          'Read tile by tile: ${overview.checks.where((_Check c) => !c.failed).length} '
+          'of ${overview.checks.length}. Read as one whole page: '
+          '${overview.checks.length - overview.missing.length} of '
+          '${overview.checks.length}'
+          '${overview.missing.isEmpty ? '' : ', not found: ${overview.missing.join(', ')}'}.',
+        )
+        ..writeln()
+        ..writeln('| | Tile | Read back |')
+        ..writeln('|---|---|---|');
+      for (final _Check c in overview.checks) {
+        report.writeln(
+          '| **${c.id}** | ${cell(c.tile.title)} | ${c.status} '
+          '${c.first == null ? 'not read' : cell(_visible(c.first!.text))} |',
+        );
+      }
+      report.writeln();
       String? section;
       for (final _Check c in checks) {
         final String letter = c.id.substring(0, 1);
@@ -1616,7 +2066,16 @@ ${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}">
 </body></html>
 ''');
 
-      final List<_Check> failed = checks.where((_Check c) => c.failed).toList();
+      final List<_Check> failed = <_Check>[
+        ...overview.checks,
+        ...checks,
+      ].where((_Check c) => c.failed).toList();
+      // ignore: avoid_print
+      print(
+        '${overview.file}: ${overview.checks.length} codes, whole page finds '
+        '${overview.checks.length - overview.missing.length}'
+        '${overview.missing.isEmpty ? '' : '; not found: ${overview.missing.join(', ')}'}',
+      );
       final int differs = checks
           .where((_Check c) => !c.failed && !c.textOk)
           .length;
@@ -1654,7 +2113,10 @@ ${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}">
               .whereType<File>()
               .where(
                 (File f) =>
-                    RegExp(r'^\d\d-.*\.png$').hasMatch(f.uri.pathSegments.last),
+                    RegExp(
+                      r'^\d\d-.*\.png$',
+                    ).hasMatch(f.uri.pathSegments.last) &&
+                    !f.uri.pathSegments.last.startsWith('00-'),
               )
               .toList()
             ..sort((File a, File b) => a.path.compareTo(b.path));
