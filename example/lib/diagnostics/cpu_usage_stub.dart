@@ -5,6 +5,9 @@ final class CpuMeter {
   /// Unknown.
   static int get cores => 0;
 
+  /// Unknown.
+  static int? get residentBytes => null;
+
   /// Always `null`.
   double? sample() => null;
 

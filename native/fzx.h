@@ -57,6 +57,13 @@ enum {
 	// (0 ignore, 1 read, 2 require).
 	FZX_EAN_ADD_ON_SHIFT = 12,
 	FZX_EAN_ADD_ON_MASK = 0x3 << 12,
+	// Bits 14-15: zxing-cpp downscaleFactor - 1 (1: 2, 2: 3, 3: 4); 0 is the
+	// default. Bits 16-27: downscaleThreshold in pixels; 0 is the default.
+	// For the example's diagnostics page, not part of the public API.
+	FZX_DOWNSCALE_FACTOR_SHIFT = 14,
+	FZX_DOWNSCALE_FACTOR_MASK = 0x3 << 14,
+	FZX_DOWNSCALE_THRESHOLD_SHIFT = 16,
+	FZX_DOWNSCALE_THRESHOLD_MASK = 0xFFF << 16,
 };
 
 // Binarizers, in zxing-cpp's order.

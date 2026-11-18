@@ -5,10 +5,11 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing/src/engine/engine_protocol.dart';
 import 'package:flutter_zxing/src/scanning/camera/camera_source.dart';
 import 'package:flutter_zxing/src/scanning/frame_geometry.dart';
 import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
-    show ScannerControllerDebug;
+    show ScannerControllerDebug, ScannerFrameSample;
 
 import 'fake_camera.dart';
 
@@ -328,6 +329,51 @@ void main() {
       await c.start();
       await c.setFocusPoint(const Offset(1.5, 0.25));
       expect(camera.focus, const Offset(1, 0.25));
+    });
+  });
+
+  group('hooks of the diagnostics page', () {
+    test('engine flags reach every read', () async {
+      final ScannerController c = create();
+      await c.start();
+      final int flags = fzxDownscaleFlags(factor: 2, threshold: 240);
+      c.engineFlags = flags;
+      final FakeFrame frame = camera.push();
+      await pumpEventQueue();
+      expect(frame.options!.flags & flags, flags);
+    });
+
+    test('a read interval spaces the reads', () async {
+      final ScannerController c = create();
+      await c.start();
+      c.readInterval = const Duration(milliseconds: 40);
+      camera.push();
+      await pumpEventQueue();
+      final FakeFrame next = camera.push();
+      await pumpEventQueue();
+      expect(next.wasRead, isFalse);
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(next.wasRead, isTrue);
+    });
+
+    test('frame samples count the codes that were not decoded', () async {
+      final ScannerController c = create();
+      final List<ScannerFrameSample> samples = <ScannerFrameSample>[];
+      c.frameSamples.listen(samples.add);
+      await c.start();
+      camera.push(<Barcode>[
+        qr,
+        Barcode(
+          format: BarcodeFormat.qrCode,
+          text: '',
+          bytes: qr.bytes,
+          position: qr.position,
+          error: const BarcodeError(BarcodeErrorKind.checksum, 'damaged'),
+        ),
+      ]);
+      await pumpEventQueue();
+      expect(samples.single.failed, 1);
+      expect(samples.single.found, isTrue);
     });
   });
 }

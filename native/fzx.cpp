@@ -309,6 +309,10 @@ ReaderOptions readerOptions(fzx_ctx* ctx, const char* formats, uint32_t flags, i
 		.minLineCount(minLineCount > 0 ? (minLineCount < 0xFF ? minLineCount : 0xFF) : 2)
 		.textMode(textMode ? static_cast<TextMode>(textMode - 1) : TextMode::HRI)
 		.eanAddOnSymbol(static_cast<EanAddOnSymbol>(eanAddOn));
+	if (const int factor = static_cast<int>((flags & FZX_DOWNSCALE_FACTOR_MASK) >> FZX_DOWNSCALE_FACTOR_SHIFT))
+		o.downscaleFactor(static_cast<uint8_t>(factor + 1));
+	if (const int threshold = static_cast<int>((flags & FZX_DOWNSCALE_THRESHOLD_MASK) >> FZX_DOWNSCALE_THRESHOLD_SHIFT))
+		o.downscaleThreshold(static_cast<uint16_t>(threshold));
 	return o;
 }
 

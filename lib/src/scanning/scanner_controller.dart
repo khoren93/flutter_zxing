@@ -230,8 +230,15 @@ class ScannerController extends ValueNotifier<ScannerState> {
   AppLifecycleListener? _lifecycle;
   ScannerStatus? _statusBeforeHide;
 
-  EngineReadOptions _engineOptions() =>
-      EngineReadOptions.from(_formats, _options, maxSymbols: _maxBarcodes ?? 0);
+  // Set by ScannerControllerDebug, for the example's diagnostics page.
+  int _debugEngineFlags = 0;
+  Duration? _debugReadInterval;
+
+  EngineReadOptions _engineOptions() => EngineReadOptions.from(
+    _formats,
+    _options,
+    maxSymbols: _maxBarcodes ?? 0,
+  ).withFlags(_debugEngineFlags);
 
   // Applies changed settings to a running scanner.
   void _onConfigChanged() {
@@ -793,6 +800,10 @@ class ScannerController extends ValueNotifier<ScannerState> {
       _lastFrame = (frame, crop);
       _onFrame(frame, result, crop, clock.elapsedMicroseconds);
       _autoZoomStep(source);
+      final Duration? interval = _debugReadInterval;
+      if (interval != null && clock.elapsed < interval) {
+        await Future<void>.delayed(interval - clock.elapsed);
+      }
     }
   }
 
@@ -872,6 +883,8 @@ class ScannerController extends ValueNotifier<ScannerState> {
           dropped: camera.dropped,
           frameSize: frame.frameSize,
           crop: crop,
+          failed: result.barcodes.length - found.length,
+          details: result.details,
         ),
       );
     }
@@ -1167,6 +1180,8 @@ final class ScannerFrameSample {
     this.latencyMicros = 0,
     this.dropped = 0,
     this.crop,
+    this.failed = 0,
+    this.details = const <EngineBarcodeDetails>[],
   });
 
   /// Whether the frame had a barcode.
@@ -1190,6 +1205,12 @@ final class ScannerFrameSample {
 
   /// The decoded part of the frame, `null` for all of it.
   final Rect? crop;
+
+  /// Barcodes found but not decoded ([ReaderOptions.returnErrors]).
+  final int failed;
+
+  /// The engine's details of the barcodes of this frame.
+  final List<EngineBarcodeDetails> details;
 }
 
 /// Hooks for tests and the example's benchmark. Not exported.
@@ -1204,6 +1225,16 @@ extension ScannerControllerDebug on ScannerController {
 
   /// Timing of every decoded frame.
   Stream<ScannerFrameSample> get frameSamples => _samples.stream;
+
+  /// Engine flags added to every read, see [fzxDownscaleFlags].
+  set engineFlags(int flags) {
+    _debugEngineFlags = flags;
+    _onConfigChanged();
+  }
+
+  /// The shortest time from the start of one read to the next; `null` reads
+  /// every frame the camera delivers.
+  set readInterval(Duration? interval) => _debugReadInterval = interval;
 
   /// The pixels of the last decoded frame and the part of them that was
   /// decoded (`null` for all), to save a frame while debugging. `null` before

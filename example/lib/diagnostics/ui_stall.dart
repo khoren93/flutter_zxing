@@ -3,9 +3,8 @@
 // the UI isolate while BarcodeReader reads the photo. The integration test
 // example/integration_test/reader_ui_test.dart measures the same in debug.
 //
-//   flutter run --release -t lib/scanner_dev.dart --dart-define=MEASURE=ui_stall
-//
-// prints `[uistall] {json}` and shows the numbers.
+// The UI stall button of the diagnostics page runs it (`make diag MODE=release`);
+// it prints `[uistall] {json}` and shows the numbers.
 import 'dart:async';
 import 'dart:convert';
 
@@ -13,7 +12,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
-import 'corpus/corpus_harness.dart';
+import '../corpus/corpus_harness.dart';
 
 /// Reads a 12 MP photo three ways and returns what the UI saw meanwhile.
 /// Keep something animating on screen, so that Flutter draws frames.

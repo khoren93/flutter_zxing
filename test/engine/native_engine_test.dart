@@ -236,4 +236,66 @@ void main() {
     expect(await e.version(), zxingCppVersion);
     await e.shutdown();
   });
+
+  group('the downscale flags reach the reader', () {
+    const int base = FzxFlags.tryHarder | FzxFlags.tryDownscale;
+
+    /// A QR code with [noise] percent of its pixels flipped: it reads only
+    /// from a smaller copy of the image.
+    Future<PixelBuffer> noisyQr(int scale, int noise) async {
+      final EngineSymbol qr = await engine.write(
+        utf8.encode('downscale'),
+        binary: false,
+        format: 'QRCode',
+        options: 'ecLevel=H',
+      );
+      final int size = (qr.width + 8) * scale;
+      final Uint8List pixels = Uint8List(size * size);
+      int seed = 0x2545f491;
+      for (int y = 0; y < size; y++) {
+        for (int x = 0; x < size; x++) {
+          final int mx = x ~/ scale - 4, my = y ~/ scale - 4;
+          final bool dark =
+              mx >= 0 &&
+              my >= 0 &&
+              mx < qr.width &&
+              my < qr.height &&
+              qr.modules[my * qr.width + mx] != 0;
+          seed ^= (seed << 13) & 0xffffffff;
+          seed ^= seed >> 17;
+          seed ^= (seed << 5) & 0xffffffff;
+          pixels[y * size + x] = dark != (seed % 100 < noise) ? 0 : 255;
+        }
+      }
+      return PixelBuffer(pixels, width: size, height: size);
+    }
+
+    Future<int> found(PixelBuffer image, int flags) async =>
+        (await engine.readPixels(
+          image,
+          EngineReadOptions(flags: base | flags),
+        )).barcodes.length;
+
+    test('the threshold', () async {
+      // 264 pixels: too small for the default threshold of 500.
+      final PixelBuffer image = await noisyQr(8, 20);
+      expect(await found(image, 0), 0);
+      expect(
+        await found(image, fzxDownscaleFlags(factor: 2, threshold: 100)),
+        1,
+      );
+    });
+
+    test('the factor', () async {
+      final PixelBuffer image = await noisyQr(16, 38);
+      expect(
+        await found(image, fzxDownscaleFlags(factor: 2, threshold: 100)),
+        0,
+      );
+      expect(
+        await found(image, fzxDownscaleFlags(factor: 4, threshold: 100)),
+        1,
+      );
+    });
+  });
 }

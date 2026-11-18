@@ -87,7 +87,7 @@ make run-android        # first connected Android device
 make run-web            # Chrome; builds the WebAssembly engine if missing
 make run-desktop        # this computer
 make run-ios APP=showcase           # the scanner templates
-make run-android APP=scanner_dev    # FPS, engine times, the benchmark
+make diag                           # engine settings, numbers, the benchmark
 ```
 
 The camera is much smoother in release builds, the default of `make run-*`

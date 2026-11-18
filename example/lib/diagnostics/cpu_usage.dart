@@ -70,6 +70,9 @@ final class CpuMeter {
   /// The logical cores of the device.
   static int get cores => Platform.numberOfProcessors;
 
+  /// The memory the process occupies, in bytes.
+  static int? get residentBytes => ProcessInfo.currentRss;
+
   /// CPU time since the previous call, as a share of one core (100 = one
   /// core busy the whole time; up to [cores] × 100). `null` on the first
   /// call and where it cannot be measured.

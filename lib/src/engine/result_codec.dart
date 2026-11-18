@@ -38,6 +38,7 @@ EngineReadResult decodeBarcodes(
   final int imageWidth = imageSize?.width.round() ?? decodedWidth;
   final int imageHeight = imageSize?.height.round() ?? decodedHeight;
   final int count = r.i32();
+  final List<EngineBarcodeDetails> details = <EngineBarcodeDetails>[];
   final List<Barcode> barcodes = List<Barcode>.generate(count, (_) {
     final BarcodeFormat format = BarcodeFormatInternal.fromId(r.u32());
     final int contentType = r.u8();
@@ -51,7 +52,7 @@ EngineReadResult decodeBarcodes(
       bottomRight: r.point(),
       bottomLeft: r.point(),
     );
-    r.i32(); // line count: not part of the public API
+    final int lineCount = r.i32();
     final int sequenceIndex = r.i32();
     final int sequenceSize = r.i32();
     final String text = r.str();
@@ -61,7 +62,7 @@ EngineReadResult decodeBarcodes(
     final String version = r.str();
     final String sequenceId = r.str();
     final String errorMessage = r.str();
-    r.skipBlob(); // extra (JSON): not part of the public API yet
+    details.add(EngineBarcodeDetails(lineCount: lineCount, extra: r.str()));
     final int symbolWidth = r.i32();
     final int symbolHeight = r.i32();
     final Uint8List modules = r.bytes();
@@ -114,6 +115,7 @@ EngineReadResult decodeBarcodes(
     barcodes: barcodes,
     imageWidth: imageWidth,
     imageHeight: imageHeight,
+    details: details,
   );
 }
 
@@ -212,12 +214,6 @@ class _Reader {
   Uint8List bytes() => Uint8List.fromList(_view());
 
   String str() => utf8.decode(_view(), allowMalformed: true);
-
-  void skipBlob() {
-    // Not `_offset += u32()`: that reads _offset before u32() advances it.
-    final int n = u32();
-    _offset += n;
-  }
 }
 
 /// The quiet zone a read symbol of [format] needs around it, in modules:

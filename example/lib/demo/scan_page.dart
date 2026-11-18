@@ -1,5 +1,5 @@
 // The Scan tab: a scanner template picked from a menu, every read code kept
-// in the history, and the decoder's numbers for developers.
+// in the history.
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -9,16 +9,10 @@ import 'dart:ui' as ui;
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
-// The decoder numbers are not public API.
-// ignore: implementation_imports
-import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
-    show ScannerControllerDebug, ScannerFrameSample;
 
 import 'content.dart';
-import 'cpu_usage_stub.dart' if (dart.library.ffi) 'cpu_usage.dart';
 import 'field_demo_page.dart';
 import 'history.dart';
-import 'lens_numbers.dart';
 import 'tokens.dart';
 
 /// The groups of the template picker.
@@ -140,11 +134,6 @@ class _ScanPageState extends State<ScanPage> {
   late ScannerTemplate _template = _build(_picked);
   late final ScannerController _controller = _configure(ScannerController());
   bool _menu = false;
-  bool _numbers = false;
-
-  /// Glass blur, switched off from the numbers panel to measure what it
-  /// costs.
-  bool _blur = true;
 
   @override
   void dispose() {
@@ -313,10 +302,8 @@ class _ScanPageState extends State<ScanPage> {
             ? mq.viewPadding.bottom
             : mq.padding.bottom) +
         widget.bottomInset;
-    // Without blur: the template's glass and scrim, and this page's own
-    // glass (the picker, the panel).
     return ScannerScope(
-      theme: ScannerTheme(blur: _blur, scrimBlur: _blur),
+      theme: const ScannerTheme(blur: true, scrimBlur: true),
       child: ColoredBox(
         color: Colors.black,
         child: Stack(
@@ -333,7 +320,7 @@ class _ScanPageState extends State<ScanPage> {
               child: BarcodeScanner(
                 controller: _controller,
                 template: _template,
-                theme: ScannerTheme(blur: _blur, scrimBlur: _blur),
+                theme: const ScannerTheme(blur: true, scrimBlur: true),
                 onDetect: (BarcodeCapture c) => unawaited(_onDetect(c)),
               ),
             ),
@@ -345,31 +332,6 @@ class _ScanPageState extends State<ScanPage> {
                 open: _menu,
                 onTap: () => setState(() => _menu = !_menu),
               ),
-            ),
-            // In the template's top bar: left of its torch or of the button
-            // that leaves a paused scan, in their place without them.
-            ValueListenableBuilder<ScannerState>(
-              valueListenable: _controller,
-              builder: (BuildContext context, ScannerState state, Widget? _) {
-                final bool taken =
-                    state.status == ScannerStatus.paused ||
-                    state.status == ScannerStatus.error ||
-                    (_template.torchButton &&
-                        state.torch != TorchState.unavailable);
-                return Positioned(
-                  right: top.right + 20 + (taken ? 48 + 8 : 0),
-                  top: top.top + 12,
-                  child: ScannerButton(
-                    icon: ScannerIcons.binary,
-                    label: _numbers
-                        ? 'Hide the developer numbers'
-                        : 'Show the developer numbers',
-                    isToggle: true,
-                    selected: _numbers,
-                    onPressed: () => setState(() => _numbers = !_numbers),
-                  ),
-                );
-              },
             ),
             if (_menu) ...<Widget>[
               Positioned.fill(
@@ -400,26 +362,6 @@ class _ScanPageState extends State<ScanPage> {
                 ),
               ),
             ],
-            if (_numbers)
-              Positioned(
-                left: 12,
-                right: 12,
-                top: top.top + 64,
-                child: Center(
-                  child: ConstrainedBox(
-                    // A quarter of the screen; the numbers scroll inside.
-                    constraints: BoxConstraints(
-                      maxWidth: 420,
-                      maxHeight: MediaQuery.sizeOf(context).height / 4,
-                    ),
-                    child: _Numbers(
-                      controller: _controller,
-                      blur: _blur,
-                      onBlur: (bool on) => setState(() => _blur = on),
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
@@ -678,293 +620,4 @@ class _Menu extends StatelessWidget {
       ),
     );
   }
-}
-
-/// The decoder's numbers over the camera: decode time, frame rate, drops,
-/// and a bar for each of the last 30 frames.
-class _Numbers extends StatefulWidget {
-  const _Numbers({
-    required this.controller,
-    required this.blur,
-    required this.onBlur,
-  });
-
-  final ScannerController controller;
-
-  /// Whether the glass blurs the camera.
-  final bool blur;
-  final ValueChanged<bool> onBlur;
-
-  @override
-  State<_Numbers> createState() => _NumbersState();
-}
-
-class _NumbersState extends State<_Numbers> {
-  StreamSubscription<ScannerFrameSample>? _sub;
-  final List<ScannerFrameSample> _recent = <ScannerFrameSample>[];
-  final List<DateTime> _times = <DateTime>[];
-  int _dropped = 0;
-  int _reads = 0;
-  Size _frame = Size.zero;
-
-  // The app's CPU use, once a second.
-  final CpuMeter _cpu = CpuMeter();
-  Timer? _cpuTimer;
-  double? _cpuPercent;
-  List<(String, double)>? _threads;
-
-  /// The threads of the last second the app used more than 120% of a core.
-  (double, List<(String, double)>)? _spike;
-
-  @override
-  void initState() {
-    super.initState();
-    _sub = widget.controller.frameSamples.listen(_onSample);
-    _cpu.sample();
-    _cpuTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      setState(() {
-        _cpuPercent = _cpu.sample();
-        _threads = _cpu.sampleThreads();
-        final double? cpu = _cpuPercent;
-        final List<(String, double)>? threads = _threads;
-        if (cpu != null && cpu > 120 && threads != null) {
-          _spike = (cpu, threads);
-        }
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _cpuTimer?.cancel();
-    _redraw?.cancel();
-    unawaited(_sub?.cancel());
-    super.dispose();
-  }
-
-  /// Redraws the panel 4 times a second, not on every camera frame: the
-  /// panel would otherwise cost more than what it measures.
-  Timer? _redraw;
-
-  void _onSample(ScannerFrameSample s) {
-    final DateTime now = DateTime.now();
-    _redraw ??= Timer(const Duration(milliseconds: 250), () {
-      _redraw = null;
-      if (mounted) {
-        setState(() {});
-      }
-    });
-    _recent.add(s);
-    if (_recent.length > 120) {
-      _recent.removeAt(0);
-    }
-    _times.add(now);
-    _times.removeWhere(
-      (DateTime t) => now.difference(t) > const Duration(seconds: 1),
-    );
-    _dropped += s.dropped;
-    if (s.found) {
-      _reads++;
-    }
-    _frame = s.frameSize;
-  }
-
-  static const TextStyle _mono = TextStyle(
-    fontFamily: 'monospace',
-    fontSize: 12,
-    height: 1.4,
-    color: Color(0xFFEEF1F5),
-  );
-
-  /// The five busiest threads, one a line.
-  static String _threadLines(List<(String, double)> threads) => <String>[
-    for (final (String name, double cpu) in threads.take(5))
-      '${cpu.round().toString().padLeft(4)}%  $name',
-  ].join('\n');
-
-  double _percentile(double p) {
-    if (_recent.isEmpty) {
-      return 0;
-    }
-    final List<int> ms =
-        _recent.map((ScannerFrameSample s) => s.engineMicros).toList()..sort();
-    return ms[((ms.length - 1) * p).round()] / 1000;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const TextStyle k = TextStyle(
-      fontSize: 11,
-      letterSpacing: 0.6,
-      fontWeight: FontWeight.w600,
-      color: Color(0xFFA7B0BD),
-    );
-    const TextStyle v = TextStyle(
-      fontSize: 20,
-      fontWeight: FontWeight.w600,
-      color: Color(0xFFEEF1F5),
-      fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-    );
-    Widget stat(String key, String value) => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(key.toUpperCase(), style: k),
-        const SizedBox(height: 2),
-        Text(value, style: v),
-      ],
-    );
-    final List<ScannerFrameSample> last = _recent.length > 30
-        ? _recent.sublist(_recent.length - 30)
-        : _recent;
-    final ScannerController c = widget.controller;
-    return ScannerScope(
-      theme: ScannerTheme(brightness: Brightness.dark, blur: widget.blur),
-      child: ScannerGlass(
-        strong: true,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const Text('DECODER · LIVE', style: k),
-              const SizedBox(height: 12),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: stat(
-                      'Decode p50',
-                      '${_percentile(0.5).toStringAsFixed(1)} ms',
-                    ),
-                  ),
-                  Expanded(
-                    child: stat(
-                      'p95',
-                      '${_percentile(0.95).toStringAsFixed(1)} ms',
-                    ),
-                  ),
-                  Expanded(child: stat('Frames', '${_times.length}/s')),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: <Widget>[
-                  Expanded(child: stat('Dropped', '$_dropped')),
-                  Expanded(child: stat('With a code', '$_reads')),
-                  Expanded(
-                    child: stat(
-                      'Restarts',
-                      '${c.cameraRestarts + c.engineRestarts}',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: stat(
-                      'CPU, app',
-                      _cpuPercent == null ? '—' : '${_cpuPercent!.round()}%',
-                    ),
-                  ),
-                  Expanded(
-                    child: stat(
-                      'Of ${CpuMeter.cores} cores',
-                      _cpuPercent == null || CpuMeter.cores == 0
-                          ? '—'
-                          : '${(_cpuPercent! / CpuMeter.cores).round()}%',
-                    ),
-                  ),
-                  const Expanded(child: SizedBox()),
-                ],
-              ),
-              const SizedBox(height: 10),
-              // Blur on and off, to see what it costs (the raster thread).
-              GestureDetector(
-                onTap: () => widget.onBlur(!widget.blur),
-                behavior: HitTestBehavior.opaque,
-                child: Row(
-                  children: <Widget>[
-                    Text('GLASS BLUR', style: k),
-                    const Spacer(),
-                    IgnorePointer(
-                      child: Switch(value: widget.blur, onChanged: (_) {}),
-                    ),
-                  ],
-                ),
-              ),
-              if (_threads != null) ...<Widget>[
-                const SizedBox(height: 10),
-                const Text('THREADS, % OF A CORE', style: k),
-                const SizedBox(height: 4),
-                Text(_threadLines(_threads!), style: _mono),
-              ],
-              if (_spike != null) ...<Widget>[
-                const SizedBox(height: 10),
-                Text(
-                  'LAST SPIKE · ${_spike!.$1.round()}%',
-                  style: k.copyWith(color: const Color(0xFFFBBF24)),
-                ),
-                const SizedBox(height: 4),
-                Text(_threadLines(_spike!.$2), style: _mono),
-              ],
-              const SizedBox(height: 14),
-              SizedBox(height: 44, child: CustomPaint(painter: _Bars(last))),
-              const SizedBox(height: 10),
-              Text(
-                '${_frame.width.round()}×${_frame.height.round()} · '
-                '${c.formats == null ? 'all formats' : '${c.formats!.length} formats'} · '
-                'zxing-cpp $zxingCppVersion',
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                  color: Color(0xFFA7B0BD),
-                ),
-              ),
-              LensNumbers(controller: c),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Bars extends CustomPainter {
-  _Bars(this.samples);
-
-  final List<ScannerFrameSample> samples;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (samples.isEmpty) {
-      return;
-    }
-    const int slots = 30;
-    final double w = size.width / slots;
-    final int maxMicros = samples
-        .map((ScannerFrameSample s) => s.engineMicros)
-        .fold(8000, (int a, int b) => a > b ? a : b);
-    for (final (int i, ScannerFrameSample s) in samples.indexed) {
-      final double h = (s.engineMicros / maxMicros * size.height).clamp(
-        2,
-        size.height,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(i * w + 1, size.height - h, w - 2, h),
-          const Radius.circular(2),
-        ),
-        Paint()
-          ..color = s.found
-              ? Fz.lock
-              : const Color(0xFFEEF1F5).withValues(alpha: 0.5),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_Bars old) => true;
 }

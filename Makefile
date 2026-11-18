@@ -25,7 +25,7 @@ first_device = $(or $(DEVICE),$(shell cd example && flutter devices --machine 2>
 
 .PHONY: help publish publish-dry test analyze sheets fixtures wasm sources \
 	devices run run-android run-ios run-web run-macos run-windows run-linux \
-	run-desktop web-engine
+	run-desktop web-engine diag
 
 help:
 	@echo "Publishing:"
@@ -54,11 +54,13 @@ help:
 	@echo "  make run-web         Run in Chrome (builds the WebAssembly engine first"
 	@echo "                       if it is missing)"
 	@echo "  make run-desktop     Run on this computer (macOS, Windows or Linux)"
+	@echo "  make diag            The diagnostics page in a profile build: engine"
+	@echo "                       settings on the live camera and their numbers"
 	@echo "  make run-macos | run-windows | run-linux"
 	@echo ""
 	@echo "  DEVICE=<id or name>  The device for 'make run', e.g. DEVICE=emulator-5554"
 	@echo "  APP=main             The entry point in example/lib: main (the demo),"
-	@echo "                       showcase, scanner_dev, api_tour, legacy_3x"
+	@echo "                       showcase, diagnostics, api_tour, legacy_3x"
 	@echo "  MODE=debug           debug, profile or release (the camera is smoother"
 	@echo "                       in release)"
 	@echo "  TAB=create           Open the demo on a tab: scan, create, history"
@@ -123,6 +125,10 @@ web-engine:
 
 run-web: web-engine
 	cd example && flutter run -d chrome $(RUN_FLAGS)
+
+# The numbers mean something in profile or release builds only.
+diag:
+	$(MAKE) run APP=diagnostics MODE=$(if $(filter command line,$(origin MODE)),$(MODE),profile)
 
 run-macos:
 	cd example && flutter run -d macos $(RUN_FLAGS)

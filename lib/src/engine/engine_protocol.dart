@@ -13,6 +13,13 @@ import '../reading/reader_options.dart';
 /// to start with a library or WebAssembly module of another version.
 const int fzxExpectedAbiVersion = 2;
 
+/// Flags for zxing-cpp's downscaleFactor and downscaleThreshold, for the
+/// example's diagnostics page. [factor] is 2, 3 or 4, [threshold] in pixels
+/// below 4096; `null` keeps zxing-cpp's default.
+int fzxDownscaleFlags({int? factor, int? threshold}) =>
+    (factor == null ? 0 : (factor - 1) << 14) |
+    (threshold == null ? 0 : threshold << 16);
+
 /// Reader flags (`FZX_TRY_*`, ...).
 abstract final class FzxFlags {
   static const int tryHarder = 1 << 0;
@@ -122,6 +129,16 @@ final class EngineReadOptions {
   /// EAN-13): the 4.0 API. The 3.x API keeps zxing-cpp's 13 digits.
   final bool upcAsPrinted;
 
+  /// The same options with [extra] flags added.
+  EngineReadOptions withFlags(int extra) => EngineReadOptions(
+    formats: formats,
+    flags: flags | extra,
+    binarizer: binarizer,
+    maxSymbols: maxSymbols,
+    minLineCount: minLineCount,
+    upcAsPrinted: upcAsPrinted,
+  );
+
   /// The same options with another [maxSymbols].
   EngineReadOptions withMaxSymbols(int maxSymbols) => EngineReadOptions(
     formats: formats,
@@ -164,6 +181,20 @@ final class EngineReadOptions {
       Object.hash(formats, flags, binarizer, maxSymbols, minLineCount);
 }
 
+/// What the engine knows about a barcode beyond the public [Barcode], for
+/// the example's diagnostics page.
+@immutable
+final class EngineBarcodeDetails {
+  /// Creates the details.
+  const EngineBarcodeDetails({required this.lineCount, required this.extra});
+
+  /// Scan lines that agreed on a linear barcode.
+  final int lineCount;
+
+  /// zxing-cpp's extra metadata as a JSON object, may be empty.
+  final String extra;
+}
+
 /// Barcodes found by one engine call.
 @immutable
 final class EngineReadResult {
@@ -173,10 +204,14 @@ final class EngineReadResult {
     required this.imageWidth,
     required this.imageHeight,
     this.engineMicros = 0,
+    this.details = const <EngineBarcodeDetails>[],
   });
 
   /// The barcodes, positions in pixels of the whole image.
   final List<Barcode> barcodes;
+
+  /// The details of [barcodes], in the same order.
+  final List<EngineBarcodeDetails> details;
 
   /// Width of the decoded image in pixels.
   final int imageWidth;
@@ -202,6 +237,7 @@ final class EngineReadResult {
           imageWidth: imageWidth,
           imageHeight: imageHeight,
           engineMicros: engineMicros,
+          details: details,
         );
 
   /// The same result with [engineMicros] set.
@@ -210,6 +246,7 @@ final class EngineReadResult {
     imageWidth: imageWidth,
     imageHeight: imageHeight,
     engineMicros: micros,
+    details: details,
   );
 }
 

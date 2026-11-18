@@ -4,7 +4,7 @@ Camera scan timing, one row per run, to compare camera pipelines: the
 prototype of 4.0 (`camera plugin 0.12 ...`), flutter_zxing 4.0, and later a
 custom zero-copy camera.
 
-How a run works: `cd example && flutter run --release -t lib/scanner_dev.dart
+How a run works: `cd example && flutter run --release -t lib/diagnostics.dart
 --dart-define=DEVICE="<device name>"`, tap the speed button and hold the
 phone on a QR code until 1000 frames *with a found code* are decoded (the
 first 20 frames are warm-up and ignored). The result is printed in the log

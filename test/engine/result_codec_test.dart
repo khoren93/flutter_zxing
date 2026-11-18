@@ -191,6 +191,22 @@ void main() {
       );
     });
 
+    test('keeps the engine details of every barcode', () {
+      final _Buffer b = _header(1)
+        ..i32(100)
+        ..i32(100)
+        ..i32(2);
+      _barcode(b, text: 'first');
+      _barcode(b, text: 'second', extra: '{"UEC":"0.5"}');
+      final EngineReadResult result = decodeBarcodes(b.bytes);
+      expect(result.details.map((EngineBarcodeDetails d) => d.lineCount), <int>[
+        7,
+        7,
+      ]);
+      expect(result.details.last.extra, '{"UEC":"0.5"}');
+      expect(result.withEngineMicros(5).details, hasLength(2));
+    });
+
     test('maps errors and unknown values', () {
       final _Buffer b = _header(1)
         ..i32(1)

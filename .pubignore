@@ -58,9 +58,8 @@ example/assets/fixtures/
 example/lib/corpus/
 example/lib/corpus_web.dart
 example/lib/scanner_web.dart
-example/lib/scanner_dev.dart
-example/lib/scan_benchmark.dart
-example/lib/ui_stall.dart
+example/lib/diagnostics.dart
+example/lib/diagnostics/
 example/integration_test/corpus_test.dart
 
 # Local 4.0 roadmap and progress notes. .gitignore is not read once a
