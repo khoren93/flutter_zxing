@@ -107,6 +107,13 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   /// picked code flies from its own frame.
   final Map<String, BarcodeCapture> _pickable = <String, BarcodeCapture>{};
 
+  /// [ScannerMode.pick]: the number on the label of each code in view, by
+  /// [VisibleBarcode.id], kept while the code stays in view.
+  final Map<int, int> _numbers = <int, int>{};
+
+  /// [ScannerMode.pick]: the codes whose label is below them.
+  final Set<int> _labelsBelow = <int>{};
+
   /// Scans again after [ScannerTemplate.resumeAfter], or closes the screen.
   Timer? _after;
 
@@ -477,6 +484,43 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     unawaited(widget.layout.controller.resume());
   }
 
+  /// [ScannerMode.pick]: [codes] by the number on their label. A code
+  /// keeps its number and the side of its label while it stays in view, so
+  /// that labels neither swap numbers nor jump as the camera moves.
+  List<VisibleBarcode> _labeled(List<VisibleBarcode> codes, Size size) {
+    final Set<int> ids = <int>{for (final VisibleBarcode c in codes) c.id};
+    _numbers.removeWhere((int id, int _) => !ids.contains(id));
+    _labelsBelow.removeWhere((int id) => !ids.contains(id));
+    for (final VisibleBarcode code in codes) {
+      if (!_numbers.containsKey(code.id)) {
+        // The smallest number free.
+        final Set<int> used = _numbers.values.toSet();
+        int number = 1;
+        while (used.contains(number)) {
+          number++;
+        }
+        _numbers[code.id] = number;
+      }
+      final Rect bounds = code.bounds;
+      const double room = _PickLabel.height + _PickLabel.gap;
+      final bool fitsAbove = bounds.top - room >= _PickLabel.minTop;
+      final bool fitsBelow = bounds.bottom + room <= size.height - 8;
+      if (!_labelsBelow.contains(code.id)) {
+        if (!fitsAbove && fitsBelow) {
+          _labelsBelow.add(code.id);
+        }
+      } else if (!fitsBelow ||
+          // Back above only well clear of the top, not to and fro.
+          bounds.top - room >= _PickLabel.minTop + 32) {
+        _labelsBelow.remove(code.id);
+      }
+    }
+    return codes.toList()..sort(
+      (VisibleBarcode a, VisibleBarcode b) =>
+          _numbers[a.id]!.compareTo(_numbers[b.id]!),
+    );
+  }
+
   /// [ScannerMode.pick]: the user tapped [code].
   void _pick(VisibleBarcode code) {
     final BarcodeCapture capture =
@@ -721,12 +765,12 @@ class _TemplateOverlayState extends State<TemplateOverlay>
           ),
         // A label on every code in view, to pick one.
         if (pick)
-          for (final (int i, VisibleBarcode code) in layout.barcodes.indexed)
+          for (final VisibleBarcode code in _labeled(layout.barcodes, size))
             _PickLabel(
-              key: ValueKey<String>(_keyOf(code.barcode)),
-              number: i + 1,
+              key: ValueKey<int>(code.id),
+              number: _numbers[code.id]!,
               code: code,
-              size: size,
+              below: _labelsBelow.contains(code.id),
               onPressed: () => _pick(code),
             ),
         // The hint under the window.
@@ -1162,13 +1206,21 @@ class _PickLabel extends StatelessWidget {
     super.key,
     required this.number,
     required this.code,
-    required this.size,
+    required this.below,
     required this.onPressed,
   });
 
+  /// The label's height, its gap to the code, and the highest it goes:
+  /// clear of the top bar.
+  static const double height = 36;
+  static const double gap = 8;
+  static const double minTop = 64;
+
   final int number;
   final VisibleBarcode code;
-  final Size size;
+
+  /// Below the code instead of above it.
+  final bool below;
   final VoidCallback onPressed;
 
   static String _labelOf(Barcode barcode) {
@@ -1189,11 +1241,9 @@ class _PickLabel extends StatelessWidget {
     final Barcode barcode = code.barcode;
     final Rect bounds = code.bounds;
     final String label = _labelOf(barcode);
-    const double height = 36;
-    // Above the code, or below it at the top of the screen.
-    final double top = bounds.top - height - 8 >= 64
-        ? bounds.top - height - 8
-        : math.min(bounds.bottom + 8, size.height - height - 8);
+    final double top = below
+        ? bounds.bottom + gap
+        : math.max(bounds.top - height - gap, minTop);
     return Positioned(
       left: 8,
       right: 8,

@@ -339,12 +339,12 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
       // Frames may come in another size than the preview: scale first.
       final double sx = preview.displaySize.width / visible.frameSize.width;
       final double sy = preview.displaySize.height / visible.frameSize.height;
-      for (final Barcode barcode in visible.barcodes) {
+      for (final _Seen seen in visible.barcodes) {
         barcodes.add(
-          VisibleBarcode(barcode, <Offset>[
-            for (final Offset c in barcode.position.corners)
+          VisibleBarcode(seen.barcode, <Offset>[
+            for (final Offset c in seen.corners)
               fit.toView(Offset(c.dx * sx, c.dy * sy)),
-          ]),
+          ], id: seen.id),
         );
       }
     }
@@ -377,7 +377,9 @@ final class ScannerLayout {
   /// The scan window.
   final Rect scanWindow;
 
-  /// Barcodes of the latest capture that are still in view.
+  /// The barcodes in view, in the order they came into view. A barcode
+  /// stays a moment after the camera last read it, so that frames that
+  /// miss it do not make it flicker.
   final List<VisibleBarcode> barcodes;
 
   /// Camera state (torch, zoom, status).
@@ -387,14 +389,19 @@ final class ScannerLayout {
   final ScannerController controller;
 }
 
-/// A barcode of the latest capture, positioned in the scanner widget.
+/// A barcode in view, positioned in the scanner widget.
 @immutable
 final class VisibleBarcode {
   /// Creates a visible barcode.
-  const VisibleBarcode(this.barcode, this.corners);
+  const VisibleBarcode(this.barcode, this.corners, {this.id = 0});
 
   /// The barcode.
   final Barcode barcode;
+
+  /// Stays the same while the barcode stays in view, and differs between
+  /// barcodes in view, even two with the same content: a key for a widget
+  /// that follows it.
+  final int id;
 
   /// Its corners in widget coordinates (top-left, top-right, bottom-right,
   /// bottom-left of the symbol).

@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+* **The outline of a linear code is as tall as its bars.** zxing-cpp
+  outlines a linear code (EAN, UPC, Code 128, DataBar…) over the scan lines
+  that decoded, so on a camera frame its height changed from frame to
+  frame and was often a thin strip. The engine now follows the bars up and
+  down from there, also on a tilted code, and `Barcode.position` covers
+  them; it never gets smaller than before.
+* **Codes in view no longer flicker or swap places.** `ScannerLayout.barcodes`
+  follows each code from frame to frame: a code a frame missed stays a
+  moment (500 ms), the list keeps the order codes came into view, outlines
+  are steadied, and `VisibleBarcode.id` tells codes apart, even two with
+  the same content. `ScannerTemplate.pick` keeps each code's number and
+  the side of its label while it stays in view; two codes alike no longer
+  leave a label stuck on screen.
 * **Behaviour change (since rc.1): UPC-A and UPC-E read as printed.** A
   UPC-A is reported as `BarcodeFormat.upcA` with its 12 digits, no longer
   as an EAN-13 starting with 0; a UPC-E has its 8 digits instead of the

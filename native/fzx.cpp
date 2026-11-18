@@ -47,6 +47,8 @@
 #define STBI_ONLY_BMP
 #include "stb_image.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <exception>
 #include <memory>
@@ -94,7 +96,120 @@ struct Writer
 	void str(const std::string& s) { blob(s.data(), s.size()); }
 };
 
-void encodeBarcodes(fzx_ctx* ctx, const Barcodes& barcodes, int imageWidth, int imageHeight, int dx, int dy)
+// The luminance of a pixel of any ImageFormat.
+inline int luminance(const ImageView& iv, int x, int y)
+{
+	const uint8_t* p = iv.data(x, y);
+	const ImageFormat f = iv.format();
+	if (PixStride(f) < 3)
+		return p[0];
+	return (p[RedIndex(f)] + 2 * p[GreenIndex(f)] + p[BlueIndex(f)]) / 4;
+}
+
+// The outline of a linear barcode as tall as its bars.
+//
+// zxing-cpp reads a linear code along scan lines, and its outline spans the
+// lines that decoded: on a camera frame, tilted or a little out of focus,
+// the lines near the ends of the bars decode in some frames and not in
+// others, so the outline's height changes from frame to frame. Here the
+// bars are followed across the code from the middle of the outline, up and
+// down, as long as a line across shows the same bars as the middle one. The
+// scan lines run level while the code may be tilted, or narrow away in
+// perspective: each step may slide the line a little along the code to stay
+// on the bars. The outline only grows: the lines that decoded are certainly
+// on the bars.
+Position barsOf(const ImageView& iv, const Position& pos)
+{
+	using P = PointF;
+	const P tl(pos[0]), tr(pos[1]), br(pos[2]), bl(pos[3]);
+	const P a = (tl + bl) / 2, b = (tr + br) / 2; // ends of the middle line
+	const double len = length(b - a);
+	if (len < 16)
+		return pos;
+	const P u = (b - a) / len;
+	P n(-u.y, u.x); // across the line
+	if (dot(bl - tl, n) < 0 && dot(br - tr, n) < 0)
+		n = -n;
+
+	const int samples = static_cast<int>(len);
+	std::vector<int> lum(samples);
+	// The line [offset] across from the middle one, slid by [slide] along it.
+	auto row = [&](double offset, double slide) {
+		for (int i = 0; i < samples; i++) {
+			// Between pixel centres, weighed.
+			const P p = a + (i + 0.5 + slide) * u + offset * n - P(0.5, 0.5);
+			const int x = static_cast<int>(std::floor(p.x)), y = static_cast<int>(std::floor(p.y));
+			if (x < 0 || y < 0 || x + 1 >= iv.width() || y + 1 >= iv.height())
+				return false;
+			const double fx = p.x - x, fy = p.y - y;
+			lum[i] = static_cast<int>((luminance(iv, x, y) * (1 - fx) + luminance(iv, x + 1, y) * fx) * (1 - fy)
+									  + (luminance(iv, x, y + 1) * (1 - fx) + luminance(iv, x + 1, y + 1) * fx) * fy);
+		}
+		return true;
+	};
+	// The bars of the middle line, light (false) or dark (true).
+	if (!row(0, 0))
+		return pos;
+	auto [lo, hi] = std::minmax_element(lum.begin(), lum.end());
+	if (*hi - *lo < 48)
+		return pos;
+	std::vector<bool> bars(samples);
+	for (int i = 0; i < samples; i++)
+		bars[i] = lum[i] < (*lo + *hi) / 2;
+
+	// The share of the line [offset] across, slid by [slide], that shows the
+	// same bars, against a threshold of its own (the light may change). An
+	// edge a sample off still counts: a code a pixel or two per module wide
+	// moves its edges by that much between two lines.
+	std::vector<bool> dark(samples);
+	auto alike = [&](double offset, double slide) {
+		if (!row(offset, slide))
+			return 0.0;
+		const auto [l, h] = std::minmax_element(lum.begin(), lum.end());
+		if (*h - *l < 48)
+			return 0.0;
+		const int t = (*l + *h) / 2;
+		for (int i = 0; i < samples; i++)
+			dark[i] = lum[i] < t;
+		int same = 0;
+		for (int i = 0; i < samples; i++)
+			same += dark[i] == bars[i] || (i > 0 && dark[i - 1] == bars[i])
+					|| (i + 1 < samples && dark[i + 1] == bars[i]);
+		return static_cast<double>(same) / samples;
+	};
+	// Steps of a pixel; one odd line (a speck, a crease) is stepped over.
+	// Bars are rarely much taller than the code is long. Returns how far the
+	// bars reach and how far the line slid there.
+	auto reach = [&](double sign) {
+		double last = 0, slide = 0, lastSlide = 0;
+		for (double d = 1; d <= len * 1.5; d += 1) {
+			double best = 0, bestSlide = slide;
+			for (double s : {slide, slide - 0.5, slide + 0.5}) {
+				const double v = alike(sign * d, s);
+				if (v > best)
+					best = v, bestSlide = s;
+			}
+			if (best >= 0.92) {
+				last = d, slide = lastSlide = bestSlide;
+			} else if (d - last > 2) {
+				break;
+			}
+		}
+		return std::pair{last, lastSlide};
+	};
+	const auto [up, upSlide] = reach(-1);
+	const auto [down, downSlide] = reach(1);
+
+	auto at = [](const P& p) { return PointI(static_cast<int>(std::lround(p.x)), static_cast<int>(std::lround(p.y))); };
+	const Position bars4 = {at(a + upSlide * u - up * n), at(b + upSlide * u - up * n),
+							 at(b + downSlide * u + down * n), at(a + downSlide * u + down * n)};
+	// Keep the outline that decoded where it reaches further.
+	auto height = [](const Position& q) { return length(PointF((q[3] + q[2]) - (q[0] + q[1]))) / 2; };
+	return height(bars4) >= height(pos) ? bars4 : pos;
+}
+
+void encodeBarcodes(fzx_ctx* ctx, const Barcodes& barcodes, int imageWidth, int imageHeight, int dx, int dy,
+					const ImageView* image = nullptr)
 {
 	ctx->out.clear();
 	ctx->out.reserve(256 * (barcodes.size() + 1));
@@ -113,7 +228,9 @@ void encodeBarcodes(fzx_ctx* ctx, const Barcodes& barcodes, int imageWidth, int 
 		w.u8(flags);
 		w.u8(0);
 		w.i32(bc.orientation());
-		for (const auto& p : bc.position()) {
+		const Position position =
+			image && (bc.format() & BarcodeFormat::AllLinear) ? barsOf(*image, bc.position()) : bc.position();
+		for (const auto& p : position) {
 			w.i32(p.x + dx);
 			w.i32(p.y + dy);
 		}
@@ -286,7 +403,7 @@ int fzx_read(fzx_ctx* ctx, const uint8_t* data, int width, int height, int row_s
 			iv = iv.cropped(crop_l, crop_t, crop_w, crop_h);
 		}
 		auto barcodes = ReadBarcodes(iv, opts);
-		encodeBarcodes(ctx, barcodes, width, height, dx, dy);
+		encodeBarcodes(ctx, barcodes, width, height, dx, dy, &iv);
 		return static_cast<int>(barcodes.size());
 	});
 }
@@ -302,8 +419,9 @@ int fzx_read_file(fzx_ctx* ctx, const uint8_t* data, int size, const char* forma
 		if (!pixels)
 			return fail(ctx, FZX_ERR_IMAGE,
 						std::string("Cannot decode image: ") + (data && size > 0 ? stbi_failure_reason() : "no data"));
-		auto barcodes = ReadBarcodes(ImageView(pixels.get(), w, h, ImageFormat::Lum), opts);
-		encodeBarcodes(ctx, barcodes, w, h, 0, 0);
+		const ImageView iv(pixels.get(), w, h, ImageFormat::Lum);
+		auto barcodes = ReadBarcodes(iv, opts);
+		encodeBarcodes(ctx, barcodes, w, h, 0, 0, &iv);
 		return static_cast<int>(barcodes.size());
 	});
 }

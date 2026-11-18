@@ -2,8 +2,11 @@
 // understands, to show on a screen and scan with a phone. Every tile has an
 // id (A1, B4…), the format, the content kind the scanner should report and
 // the data. After drawing, each tile is read back by the engine, and the
-// result goes into report.md next to the pages. Skipped unless SHEETS names
-// an output folder (build/ is ignored by git):
+// result goes into report.md next to the pages. Then each page is read
+// whole like a camera frame, a few times shifted, turned and blurred: read/
+// has the pages with every code outlined where the engine found it, and
+// read/report.md how much each outline's height varies between reads.
+// Skipped unless SHEETS names an output folder (build/ is ignored by git):
 //
 //   SHEETS=build/check_sheets flutter test test/tool/check_sheets_test.dart
 //
@@ -14,6 +17,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
@@ -1285,6 +1289,30 @@ final class _Check {
   String get status => failed ? '✗' : (textOk ? '✓' : '≈');
 }
 
+/// The "frames" of a page, like those of a hand-held phone: shifted by a
+/// pixel or two (in frame pixels), turned by a degree or two, and a little
+/// out of focus (the blur's sigma). The first is the page as drawn.
+const List<(Offset, double, double)> _frames = <(Offset, double, double)>[
+  (Offset.zero, 0, 0),
+  (Offset(1, 0), 0, 0),
+  (Offset(0, 1), 0, 0.8),
+  (Offset(2, 1), 1, 0),
+  (Offset(1, 3), -1, 1),
+  (Offset(3, 2), 2, 1.2),
+  (Offset(2, 2), -2, 0.6),
+  (Offset(0, 2), 3, 1.5),
+];
+
+/// The page scaled down to about the width of a camera frame.
+const double _frameWidth = 1280;
+
+/// The quad's height: the distance between the middles of its top and
+/// bottom edges.
+double _heightOf(BarcodePosition p) =>
+    (((p.bottomLeft + p.bottomRight) - (p.topLeft + p.topRight)) / 2).distance;
+
+String _keyOf(Barcode b) => '${b.format.name} ${b.text}';
+
 void main() {
   setUpAll(() async {
     await _loadFonts();
@@ -1330,6 +1358,9 @@ void main() {
 
       final List<_Check> checks = <_Check>[];
       final List<(String, String, String)> pages = <(String, String, String)>[];
+      // sheets.json: per page, every tile and where it is, so the camera
+      // read knows how many codes each page has.
+      final Map<String, Object> sheets = <String, Object>{};
       int pageNumber = 0;
       final int pageCount = sections.fold(
         0,
@@ -1473,6 +1504,22 @@ void main() {
             return pixels;
           });
           pages.add((file, '$letter · $heading', about));
+          sheets[file] = <Map<String, Object>>[
+            for (int i = 0; i < pageTiles.length; i++)
+              <String, Object>{
+                'id': '$letter${first + i + 1}',
+                'title': pageTiles[i].title,
+                'format': pageTiles[i].format.name,
+                'linear': pageTiles[i].format.isLinear,
+                'count': pageTiles[i].codes?.length ?? 1,
+                'rect': <double>[
+                  rects[i].left * _pixelRatio,
+                  rects[i].top * _pixelRatio,
+                  rects[i].right * _pixelRatio,
+                  rects[i].bottom * _pixelRatio,
+                ],
+              },
+          ];
 
           for (int i = 0; i < pageTiles.length; i++) {
             final Rect area = tester.getRect(find.byKey(keys[i]));
@@ -1545,6 +1592,9 @@ void main() {
         );
       }
       File('${dir.path}/report.md').writeAsStringSync(report.toString());
+      File(
+        '${dir.path}/sheets.json',
+      ).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(sheets));
 
       // index.html: all pages one under another, as one long sheet.
       const HtmlEscape esc = HtmlEscape();
@@ -1590,4 +1640,662 @@ ${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}">
     skip: _out == null,
     timeout: const Timeout(Duration(minutes: 5)),
   );
+
+  // The sheets just drawn, read whole like camera frames.
+  testWidgets(
+    'check sheets read like camera frames',
+    (WidgetTester tester) async {
+      final Directory dir = Directory(_out!);
+      final Directory out = Directory('${dir.path}/read')
+        ..createSync(recursive: true);
+      final List<File> pages =
+          dir
+              .listSync()
+              .whereType<File>()
+              .where(
+                (File f) =>
+                    RegExp(r'^\d\d-.*\.png$').hasMatch(f.uri.pathSegments.last),
+              )
+              .toList()
+            ..sort((File a, File b) => a.path.compareTo(b.path));
+      expect(pages, isNotEmpty, reason: 'run make sheets first');
+      final File sheetsFile = File('${dir.path}/sheets.json');
+      expect(sheetsFile.existsSync(), isTrue, reason: 'run make sheets first');
+      final Map<String, dynamic> sheets =
+          jsonDecode(sheetsFile.readAsStringSync()) as Map<String, dynamic>;
+
+      final StringBuffer report = StringBuffer()
+        ..writeln('# Check sheets read like camera frames')
+        ..writeln()
+        ..writeln(
+          'Each page scaled to ${_frameWidth.round()} px wide, read whole with '
+          '`ReaderOptions.camera()` ${_frames.length} times: as drawn, then '
+          'shifted by a pixel or two, turned by up to 3° and blurred a '
+          'little. Every code drawn on a page is counted, from sheets.json: '
+          'a read belongs to the tile it lies in. On the pages: the outline '
+          'of the read as drawn, thick, and of the other reads, thin; blue '
+          'for 2D, red for linear; a tile with a code not found in any frame '
+          'framed in orange.',
+        )
+        ..writeln()
+        ..writeln(
+          'A read has the right size when its outline is within '
+          '${(_sizeTolerance * 100).round()} % of the code: for a linear '
+          'code, the height and the middle of its bars, measured on the page '
+          'as drawn; for a 2D code, the corners of the read as drawn. '
+          'Heights are in frame pixels.',
+        )
+        ..writeln();
+      final _Tally linear = _Tally();
+      final _Tally matrix = _Tally();
+      final StringBuffer pagesReport = StringBuffer();
+      final List<String> console = <String>[];
+
+      for (final File page in pages) {
+        final String name = page.uri.pathSegments.last;
+        final List<_SheetTile> tiles = <_SheetTile>[
+          for (final Object? m in sheets[name] as List<dynamic>? ?? <Object?>[])
+            _SheetTile.fromJson(m! as Map<String, dynamic>),
+        ];
+        expect(tiles, isNotEmpty, reason: '$name is not in sheets.json');
+        await tester.runAsync(() async {
+          final ui.Image full = await decodeImageFromList(
+            page.readAsBytesSync(),
+          );
+          final ByteData pagePixels = (await full.toByteData())!;
+          final double scale = _frameWidth / full.width;
+          final int w = _frameWidth.round();
+          final int h = (full.height * scale).round();
+          final Offset center = Offset(w / 2, h / 2);
+
+          // Per frame, each code found: its tile, key, the barcode, its
+          // corners back in page pixels and its height in frame pixels.
+          final List<List<_Read>> reads = <List<_Read>>[];
+          for (final (Offset shift, double degrees, double blur) in _frames) {
+            final double angle = degrees * math.pi / 180;
+            final ui.PictureRecorder recorder = ui.PictureRecorder();
+            Canvas(recorder)
+              ..drawColor(const Color(0xFFFFFFFF), BlendMode.src)
+              ..translate(shift.dx + center.dx, shift.dy + center.dy)
+              ..rotate(angle)
+              ..translate(-center.dx, -center.dy)
+              ..scale(scale)
+              ..drawImage(
+                full,
+                Offset.zero,
+                Paint()
+                  ..filterQuality = FilterQuality.medium
+                  ..imageFilter = blur == 0
+                      ? null
+                      : ui.ImageFilter.blur(
+                          sigmaX: blur / scale,
+                          sigmaY: blur / scale,
+                        ),
+              );
+            // Frame pixels back to page pixels.
+            Offset toPage(Offset q) {
+              final Offset d = q - shift - center;
+              final double cos = math.cos(-angle);
+              final double sin = math.sin(-angle);
+              return (Offset(d.dx * cos - d.dy * sin, d.dx * sin + d.dy * cos) +
+                      center) /
+                  scale;
+            }
+
+            final ui.Image frame = await recorder.endRecording().toImage(w, h);
+            final ByteData rgba = (await frame.toByteData())!;
+            frame.dispose();
+            final List<Barcode> barcodes =
+                await const BarcodeReader(
+                  options: ReaderOptions.camera(),
+                ).readAllPixels(
+                  PixelBuffer(
+                    rgba.buffer.asUint8List(),
+                    width: w,
+                    height: h,
+                    layout: PixelLayout.rgba,
+                  ),
+                );
+            // The tile a code lies in tells which code it is; two codes
+            // alike in one tile are told apart by the order found.
+            final Map<String, int> n = <String, int>{};
+            final List<_Read> read = <_Read>[];
+            for (final Barcode b in barcodes) {
+              final List<Offset> corners = <Offset>[
+                for (final Offset q in b.position.corners) toPage(q),
+              ];
+              final Offset middle =
+                  (corners[0] + corners[1] + corners[2] + corners[3]) / 4;
+              final _SheetTile? tile = tiles
+                  .where((_SheetTile t) => t.rect.contains(middle))
+                  .firstOrNull;
+              final String base = '${tile?.id ?? '—'} ${_keyOf(b)}';
+              final int k = n[base] = (n[base] ?? 0) + 1;
+              read.add(
+                _Read(
+                  k == 1 ? base : '$base #$k',
+                  tile,
+                  b,
+                  corners,
+                  _heightOf(b.position),
+                ),
+              );
+            }
+            reads.add(read);
+          }
+
+          // The truth, from the page as drawn.
+          final Map<String, _Truth> truths = <String, _Truth>{
+            for (final _Read r in reads.first)
+              if (_truthOf(r, pagePixels, full.width, full.height)
+                  case final _Truth t)
+                r.key: t,
+          };
+
+          // Every code found in any frame, and how each read went.
+          final Map<String, _Read> any = <String, _Read>{
+            for (final List<_Read> read in reads)
+              for (final _Read r in read) r.key: r,
+          };
+          final Map<String, (int, int)> verdicts = <String, (int, int)>{};
+          for (final String key in any.keys) {
+            int found = 0;
+            int sized = 0;
+            final _Truth? truth = truths[key];
+            for (final List<_Read> read in reads) {
+              final _Read? r = read
+                  .where((_Read r) => r.key == key)
+                  .firstOrNull;
+              if (r == null) {
+                continue;
+              }
+              found++;
+              if (truth != null && truth.fits(r)) {
+                sized++;
+              }
+            }
+            verdicts[key] = (found, sized);
+          }
+
+          // Per tile: the codes it should give, those found in its format
+          // (the most often found first), and anything else read in it.
+          final Map<String, List<String>> right = <String, List<String>>{};
+          final List<String> wrong = <String>[];
+          for (final MapEntry<String, _Read> e in any.entries) {
+            final _SheetTile? t = e.value.tile;
+            if (t != null &&
+                e.value.barcode.format.symbology == t.format.symbology) {
+              (right[t.id] ??= <String>[]).add(e.key);
+            } else {
+              wrong.add(e.key);
+            }
+          }
+          final _Tally pageLinear = _Tally();
+          final _Tally pageMatrix = _Tally();
+          final List<String> missing = <String>[];
+          for (final _SheetTile t in tiles) {
+            final List<String> keys = (right[t.id] ?? <String>[])
+              ..sort(
+                (String a, String b) =>
+                    verdicts[b]!.$1.compareTo(verdicts[a]!.$1),
+              );
+            final List<String> counted = keys.take(t.count).toList();
+            right[t.id] = keys;
+            for (final _Tally tally in <_Tally>[
+              if (t.linear) ...<_Tally>[linear, pageLinear],
+              if (!t.linear) ...<_Tally>[matrix, pageMatrix],
+            ]) {
+              tally
+                ..codes += t.count
+                ..found += counted.length
+                ..possible += t.count * _frames.length;
+              for (final String key in counted) {
+                final (int found, int sized) = verdicts[key]!;
+                tally
+                  ..reads += found
+                  ..withTruth += truths.containsKey(key) ? found : 0
+                  ..sized += sized;
+              }
+            }
+            if (counted.length < t.count) {
+              missing.add(
+                t.count == 1 ? t.id : '${t.id} (${counted.length}/${t.count})',
+              );
+            }
+          }
+
+          // The page with the outlines: thin of every read, thick of the
+          // first; the truth of a linear code dashed in green; a tile with
+          // a code not found in any frame framed in orange.
+          final ui.PictureRecorder recorder = ui.PictureRecorder();
+          final Canvas canvas = Canvas(recorder)
+            ..drawImage(full, Offset.zero, Paint());
+          void label(String text, Color color, Offset at) {
+            final ui.ParagraphBuilder p =
+                ui.ParagraphBuilder(
+                    ui.ParagraphStyle(fontFamily: 'Roboto', fontSize: 22),
+                  )
+                  ..pushStyle(
+                    ui.TextStyle(
+                      color: const Color(0xFFFFFFFF),
+                      background: Paint()..color = color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                  ..addText(' $text ');
+            final ui.Paragraph para = p.build()
+              ..layout(const ui.ParagraphConstraints(width: 900));
+            canvas.drawParagraph(
+              para,
+              Offset(at.dx, math.max(0, at.dy - para.height - 4)),
+            );
+          }
+
+          const Color missingColor = Color(0xFFEA580C);
+          for (final _SheetTile t in tiles) {
+            final int found = math.min(t.count, right[t.id]!.length);
+            if (found < t.count) {
+              canvas.drawRRect(
+                RRect.fromRectAndRadius(t.rect, const Radius.circular(28)),
+                Paint()
+                  ..color = missingColor
+                  ..style = PaintingStyle.stroke
+                  ..strokeWidth = 8,
+              );
+              label(
+                t.count == 1
+                    ? '${t.id} NOT FOUND'
+                    : '${t.id} found $found/${t.count}',
+                missingColor,
+                t.rect.bottomLeft + const Offset(8, -8),
+              );
+            }
+          }
+          Color colorOf(Barcode b) => b.format.isLinear
+              ? const Color(0xFFE11D48)
+              : const Color(0xFF2563EB);
+          for (final List<_Read> read in reads.skip(1)) {
+            for (final _Read r in read) {
+              canvas.drawPath(
+                Path()..addPolygon(r.corners, true),
+                Paint()
+                  ..color = colorOf(r.barcode).withValues(alpha: 0.7)
+                  ..style = PaintingStyle.stroke
+                  ..strokeWidth = 1.5,
+              );
+            }
+          }
+          for (final _Truth t in truths.values) {
+            if (t.bars case final Rect bars) {
+              canvas.drawRect(
+                bars,
+                Paint()
+                  ..color = const Color(0xFF16A34A)
+                  ..style = PaintingStyle.stroke
+                  ..strokeWidth = 3,
+              );
+            }
+          }
+          for (final _Read r in reads.first) {
+            final Color color = colorOf(r.barcode);
+            canvas
+              ..drawPath(
+                Path()..addPolygon(r.corners, true),
+                Paint()..color = color.withValues(alpha: 0.18),
+              )
+              ..drawPath(
+                Path()..addPolygon(r.corners, true),
+                Paint()
+                  ..color = color
+                  ..style = PaintingStyle.stroke
+                  ..strokeWidth = 4,
+              );
+            for (final Offset c in r.corners) {
+              canvas.drawCircle(c, 6, Paint()..color = color);
+            }
+            final (int found, int sized) = verdicts[r.key]!;
+            label(
+              '${r.tile?.id ?? '?'} ${r.barcode.format.name} · '
+              'h ${r.height.toStringAsFixed(0)} · '
+              'found $found/${_frames.length} · size ok $sized',
+              color,
+              Offset(
+                r.corners.map((Offset c) => c.dx).reduce(math.min),
+                r.corners.map((Offset c) => c.dy).reduce(math.min),
+              ),
+            );
+          }
+          final ui.Image drawn = await recorder.endRecording().toImage(
+            full.width,
+            full.height,
+          );
+          final ByteData png = (await drawn.toByteData(
+            format: ui.ImageByteFormat.png,
+          ))!;
+          File('${out.path}/$name').writeAsBytesSync(png.buffer.asUint8List());
+          drawn.dispose();
+          full.dispose();
+
+          final int codes = pageLinear.codes + pageMatrix.codes;
+          final int found = pageLinear.found + pageMatrix.found;
+          final String counts =
+              '$found/$codes codes found · '
+              '2D (blue) ${pageMatrix.found}/${pageMatrix.codes} · '
+              'linear (red) ${pageLinear.found}/${pageLinear.codes}';
+          console.add(
+            '$name: $counts'
+            '${missing.isEmpty ? '' : ' · not found: ${missing.join(' ')}'}'
+            '${wrong.isEmpty ? '' : ' · ${wrong.length} other reads'}',
+          );
+          String cell(String s) {
+            final String one = s.replaceAll('|', r'\|').replaceAll('\n', ' ');
+            return one.length > 60 ? '${one.substring(0, 59)}…' : one;
+          }
+
+          String row(String key) {
+            // Per frame: the height, or · where the code was not found.
+            final String hs = <String>[
+              for (final List<_Read> read in reads)
+                read
+                        .where((_Read r) => r.key == key)
+                        .firstOrNull
+                        ?.height
+                        .toStringAsFixed(0) ??
+                    '·',
+            ].join(' ');
+            final _Truth? truth = truths[key];
+            final (int found, int sized) = verdicts[key]!;
+            return '| ${truth == null ? '—' : '$sized/$found'} '
+                '| $hs '
+                '| ${truth?.height == null ? '—' : (truth!.height! * scale).toStringAsFixed(0)} |';
+          }
+
+          pagesReport
+            ..writeln('## $name')
+            ..writeln()
+            ..writeln('**$counts**')
+            ..writeln()
+            ..writeln(
+              missing.isEmpty
+                  ? 'Every code on the page found.'
+                  : '**Not found in any frame: ${missing.join(', ')}**',
+            )
+            ..writeln()
+            ..writeln(
+              '| tile | kind | code read | found | size ok | height in each frame | truth |',
+            )
+            ..writeln('|---|---|---|---|---|---|---|');
+          for (final _SheetTile t in tiles) {
+            final String kind = t.linear ? 'linear' : '2D';
+            final List<String> keys = right[t.id]!;
+            for (int i = 0; i < math.max(t.count, keys.length); i++) {
+              final String tile = i == 0 ? '**${t.id}** ${cell(t.title)}' : '';
+              if (i >= keys.length) {
+                pagesReport.writeln(
+                  '| $tile | $kind | **not found** (${t.format.name}) '
+                  '| **0/${_frames.length}** | — | — | — |',
+                );
+                continue;
+              }
+              final String key = keys[i];
+              final String extra = i >= t.count ? ' (extra)' : '';
+              pagesReport.writeln(
+                '| $tile | $kind | ${cell(_keyOf(any[key]!.barcode))}$extra '
+                '| ${verdicts[key]!.$1}/${_frames.length} ${row(key)}',
+              );
+            }
+          }
+          for (final String key in wrong..sort()) {
+            final _Read r = any[key]!;
+            pagesReport.writeln(
+              '| ${r.tile == null ? 'outside tiles' : '**${r.tile!.id}** wrong format'} '
+              '| ${r.barcode.format.isLinear ? 'linear' : '2D'} '
+              '| ${cell(_keyOf(r.barcode))} '
+              '| ${verdicts[key]!.$1}/${_frames.length} ${row(key)}',
+            );
+          }
+          pagesReport.writeln();
+        });
+      }
+
+      // The totals, and how they compare with baseline.json, if there is
+      // one: copy a summary.json there to compare later runs with it.
+      final Map<String, Object> summary = <String, Object>{
+        'linear': linear.toJson(),
+        'matrix': matrix.toJson(),
+      };
+      File(
+        '${out.path}/summary.json',
+      ).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(summary));
+      final File baselineFile = File('${out.path}/baseline.json');
+      final Map<String, dynamic>? baseline = baselineFile.existsSync()
+          ? jsonDecode(baselineFile.readAsStringSync()) as Map<String, dynamic>
+          : null;
+      report
+        ..writeln('## Totals')
+        ..writeln()
+        ..writeln(
+          'Codes found: in at least one frame. Reads: frames in which each '
+          'code on the pages was found.',
+        )
+        ..writeln()
+        ..writeln(
+          '| kind | codes found | reads | size ok${baseline == null ? '' : ' | baseline: found | baseline: reads | baseline: size ok'} |',
+        )
+        ..writeln('|---|---|---|---|${baseline == null ? '' : '---|---|---|'}');
+      for (final (String name, _Tally t) in <(String, _Tally)>[
+        ('linear (red)', linear),
+        ('2D (blue)', matrix),
+      ]) {
+        final Map<String, dynamic>? b =
+            baseline?[t == matrix ? 'matrix' : 'linear']
+                as Map<String, dynamic>?;
+        final String baseFound = b == null
+            ? ''
+            : b['found'] == null
+            ? '?'
+            : '${b['found']}/${b['codes']}';
+        report.writeln(
+          '| $name | ${t.found}/${t.codes} | ${t.reads}/${t.possible} '
+          '| ${t.sizedText}'
+          '${b == null ? '' : ' | $baseFound | ${b['reads']}/${b['possible']} | ${b['sized']}/${b['withTruth']}'} |',
+        );
+        // ignore: avoid_print
+        print(
+          '$name: found ${t.found}/${t.codes} codes, '
+          'read ${t.reads}/${t.possible}, right size ${t.sizedText}'
+          '${b == null ? '' : ' (baseline: found $baseFound, read ${b['reads']}/${b['possible']}, right size ${b['sized']}/${b['withTruth']})'}',
+        );
+      }
+      // ignore: avoid_print
+      print(console.join('\n'));
+      report
+        ..writeln()
+        ..write(pagesReport);
+      File('${out.path}/report.md').writeAsStringSync(report.toString());
+    },
+    skip: _out == null,
+    timeout: const Timeout(Duration(minutes: 5)),
+  );
+}
+
+/// How far a read may be off the truth and still have the right size: a
+/// share of the code's height (linear) or size (2D).
+const double _sizeTolerance = 0.1;
+
+/// A code found in a frame.
+final class _Read {
+  const _Read(this.key, this.tile, this.barcode, this.corners, this.height);
+
+  final String key;
+
+  /// The tile the code lies in, or null for one outside every tile.
+  final _SheetTile? tile;
+  final Barcode barcode;
+
+  /// In page pixels.
+  final List<Offset> corners;
+
+  /// The outline's height, in frame pixels.
+  final double height;
+
+  Offset get center => (corners[0] + corners[1] + corners[2] + corners[3]) / 4;
+}
+
+/// Where a code really is, in page pixels.
+final class _Truth {
+  const _Truth.linear(Rect this.bars) : corners = null;
+  const _Truth.matrix(List<Offset> this.corners) : bars = null;
+
+  /// A linear code: its bars, measured on the page.
+  final Rect? bars;
+
+  /// A 2D code: the corners of the read as drawn.
+  final List<Offset>? corners;
+
+  double? get height => bars?.height;
+
+  bool fits(_Read r) {
+    if (bars case final Rect bars) {
+      // The outline's height and middle, across the bars.
+      final double height =
+          (((r.corners[3] + r.corners[2]) - (r.corners[0] + r.corners[1])) / 2)
+              .distance;
+      return (height - bars.height).abs() <= _sizeTolerance * bars.height &&
+          (r.center.dy - bars.center.dy).abs() <= _sizeTolerance * bars.height;
+    }
+    final List<Offset> truth = corners!;
+    final double size = (truth[2] - truth[0]).distance;
+    // The same corners, in any order the engine starts them.
+    for (final Offset c in r.corners) {
+      if (!truth.any((Offset t) => (t - c).distance <= _sizeTolerance * size)) {
+        return false;
+      }
+    }
+    return true;
+  }
+}
+
+/// The truth of [r], read in the page as drawn: for a linear code lying
+/// level on the page, the bars measured in [pixels] (RGBA, [width] ×
+/// [height]); `null` for one that does not.
+_Truth? _truthOf(_Read r, ByteData pixels, int width, int height) {
+  if (!r.barcode.format.isLinear) {
+    return _Truth.matrix(r.corners);
+  }
+  if (r.barcode.format.name.contains('Stacked') ||
+      r.barcode.format == BarcodeFormat.dxFilmEdge) {
+    // Rows of bars, or a clock track beside the data: not one height.
+    return null;
+  }
+  final List<Offset> q = r.corners;
+  final Offset across = q[1] - q[0];
+  if (across.dx <= 0 || (across.dy / across.dx).abs() > 0.02) {
+    // Turned or upside down: no truth.
+    return null;
+  }
+  bool dark(int x, int y) {
+    if (x < 0 || y < 0 || x >= width || y >= height) {
+      return false;
+    }
+    final int i = (y * width + x) * 4;
+    final int lum =
+        (pixels.getUint8(i) +
+            pixels.getUint8(i + 1) +
+            pixels.getUint8(i + 2)) ~/
+        3;
+    return lum < 128;
+  }
+
+  // Every dark column on the line through the middle of the outline: the
+  // bar's top and bottom. The medians are those of the bars, not of the
+  // longer guard bars.
+  final int y = r.center.dy.round();
+  final int left = math.min(q[0].dx, q[3].dx).round();
+  final int right = math.max(q[1].dx, q[2].dx).round();
+  final List<int> tops = <int>[];
+  final List<int> bottoms = <int>[];
+  for (int x = left; x <= right; x++) {
+    if (!dark(x, y)) {
+      continue;
+    }
+    int top = y;
+    while (dark(x, top - 1)) {
+      top--;
+    }
+    int bottom = y;
+    while (dark(x, bottom + 1)) {
+      bottom++;
+    }
+    tops.add(top);
+    bottoms.add(bottom + 1);
+  }
+  if (tops.length < 8) {
+    return null;
+  }
+  int median(List<int> v) => (v..sort())[v.length ~/ 2];
+  return _Truth.linear(
+    Rect.fromLTRB(
+      left.toDouble(),
+      median(tops).toDouble(),
+      right.toDouble(),
+      median(bottoms).toDouble(),
+    ),
+  );
+}
+
+/// A tile of a page, from sheets.json.
+final class _SheetTile {
+  _SheetTile.fromJson(Map<String, dynamic> json)
+    : id = json['id'] as String,
+      title = json['title'] as String,
+      format = BarcodeFormat.values.byName(json['format'] as String),
+      linear = json['linear'] as bool,
+      count = json['count'] as int,
+      rect = _rectOf(json['rect'] as List<dynamic>);
+
+  static Rect _rectOf(List<dynamic> r) => Rect.fromLTRB(
+    (r[0] as num).toDouble(),
+    (r[1] as num).toDouble(),
+    (r[2] as num).toDouble(),
+    (r[3] as num).toDouble(),
+  );
+
+  final String id;
+  final String title;
+  final BarcodeFormat format;
+  final bool linear;
+
+  /// The codes in the tile: more than one in the pick template.
+  final int count;
+
+  /// In page pixels.
+  final Rect rect;
+}
+
+/// The reads of one kind of code over all pages: every code drawn is
+/// counted, found or not.
+final class _Tally {
+  /// Drawn on the pages.
+  int codes = 0;
+
+  /// Found in at least one frame.
+  int found = 0;
+  int reads = 0;
+  int possible = 0;
+  int withTruth = 0;
+  int sized = 0;
+
+  String get sizedText =>
+      '$sized/$withTruth'
+      '${withTruth == 0 ? '' : ' (${(100 * sized / withTruth).round()} %)'}';
+
+  Map<String, int> toJson() => <String, int>{
+    'codes': codes,
+    'found': found,
+    'reads': reads,
+    'possible': possible,
+    'withTruth': withTruth,
+    'sized': sized,
+  };
 }

@@ -112,6 +112,80 @@ void main() {
     expect(layout.state.isScanning, isTrue);
   });
 
+  testWidgets('follows the codes in view from frame to frame', (
+    WidgetTester tester,
+  ) async {
+    await portrait(tester);
+    DateTime now = DateTime(2026);
+    ScannerControllerDebug.clock = () => now;
+    addTearDown(() => ScannerControllerDebug.clock = null);
+    final ScannerController controller = ScannerController(
+      scanWindow: const ScanWindow.full(),
+    );
+    addTearDown(controller.dispose);
+    late ScannerLayout layout;
+    await tester.pumpWidget(
+      host(
+        BarcodeScanner(
+          controller: controller,
+          overlayBuilder: (BuildContext context, ScannerLayout l) {
+            layout = l;
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+    Future<void> frame(List<Barcode> barcodes, {int ms = 100}) async {
+      now = now.add(Duration(milliseconds: ms));
+      camera.push(barcodes);
+      await tester.pump();
+      await tester.pump();
+    }
+
+    List<String> shown() => <String>[
+      for (final VisibleBarcode b in layout.barcodes)
+        '${b.id}:${b.barcode.text}',
+    ];
+
+    // Two codes with the same content, and another.
+    final Barcode a1 = fakeBarcode('same', const Rect.fromLTRB(20, 20, 80, 80));
+    final Barcode a2 = fakeBarcode(
+      'same',
+      const Rect.fromLTRB(300, 20, 360, 80),
+    );
+    final Barcode b = fakeBarcode(
+      'other',
+      const Rect.fromLTRB(20, 300, 80, 360),
+    );
+    await frame(<Barcode>[a1, a2, b]);
+    final List<String> first = shown();
+    expect(first, hasLength(3));
+    expect(
+      layout.barcodes.map((VisibleBarcode v) => v.id).toSet(),
+      hasLength(3),
+    );
+    final Map<int, Offset> where = <int, Offset>{
+      for (final VisibleBarcode v in layout.barcodes) v.id: v.bounds.center,
+    };
+
+    // Found in another order, or one missed for a moment: nothing changes,
+    // and each code keeps its own id, matched by where it is.
+    await frame(<Barcode>[b, a2, a1]);
+    expect(shown(), first);
+    await frame(<Barcode>[a2, b]);
+    expect(shown(), first);
+    for (final VisibleBarcode v in layout.barcodes) {
+      expect((v.bounds.center - where[v.id]!).distance, lessThan(1));
+    }
+
+    // Out of view for long enough: gone, the others stay in order.
+    await frame(<Barcode>[a2, b], ms: 600);
+    expect(shown(), <String>[first[1], first[2]]);
+    await frame(const <Barcode>[], ms: 600);
+    expect(layout.barcodes, isEmpty);
+  });
+
   testWidgets('a tap focuses where the user tapped', (
     WidgetTester tester,
   ) async {

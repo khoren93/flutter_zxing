@@ -43,9 +43,10 @@ DateTime Function() _now = DateTime.now;
 /// reports it again.
 const Duration _distinctGap = Duration(seconds: 1);
 
-/// How long an outline stays after its barcode was last seen, so that a
-/// frame that misses the code does not make it flicker.
-const Duration _outlineHold = Duration(milliseconds: 300);
+/// How long an outline stays after its barcode was last seen, so that the
+/// frames that miss the code do not make it flicker: with many codes in
+/// view the engine misses one now and then for a few frames.
+const Duration _outlineHold = Duration(milliseconds: 500);
 
 /// Engine failures in a row after which the scanner gives up.
 const int _maxEngineFailures = 3;
@@ -212,6 +213,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
   // What the overlay shows: the latest barcodes, in the display frame.
   final ValueNotifier<_Visible?> _visible = ValueNotifier<_Visible?>(null);
   DateTime _lastFound = DateTime.fromMillisecondsSinceEpoch(0);
+  final List<_Track> _tracks = <_Track>[];
+  int _nextTrack = 0;
+  Size? _trackedIn;
 
   // DetectionMode.distinct: when each barcode in view was last seen.
   final Map<String, DateTime> _seen = <String, DateTime>{};
@@ -861,11 +865,8 @@ class ScannerController extends ValueNotifier<ScannerState> {
     }
     if (barcodes.isNotEmpty) {
       _lastFound = now;
-      _visible.value = _Visible(barcodes, display);
-    } else if (_visible.value != null &&
-        now.difference(_lastFound) > _outlineHold) {
-      _visible.value = null;
     }
+    _follow(barcodes, display, now);
 
     _seen.removeWhere(
       (String _, DateTime seen) => now.difference(seen) > _distinctGap,
@@ -901,6 +902,57 @@ class ScannerController extends ValueNotifier<ScannerState> {
 
   static String _keyOf(Barcode b) =>
       '${b.format.index}|${b.text}|${b.bytes.length}';
+
+  /// Matches the codes of a frame to the codes in view: each to the nearest
+  /// one with the same content (two codes may have the same), a new one
+  /// when there is none. A code the frame missed stays for [_outlineHold],
+  /// so that codes neither flicker nor change their order.
+  void _follow(List<Barcode> barcodes, Size frame, DateTime now) {
+    if (_trackedIn != frame) {
+      // Another camera or a turned device: positions start anew.
+      _tracks.clear();
+      _trackedIn = frame;
+    }
+    if (barcodes.isEmpty && _tracks.isEmpty) {
+      return;
+    }
+    final double still = frame.shortestSide * 0.02;
+    final List<_Track> open = List<_Track>.of(_tracks);
+    for (final Barcode found in barcodes) {
+      final Offset center = found.position.bounds.center;
+      _Track? nearest;
+      double distance = double.infinity;
+      for (final _Track track in open) {
+        if (track.barcode.format != found.format ||
+            track.barcode.text != found.text) {
+          continue;
+        }
+        final double d =
+            (track.barcode.position.bounds.center - center).distance;
+        if (d < distance) {
+          nearest = track;
+          distance = d;
+        }
+      }
+      if (nearest == null) {
+        _tracks.add(_Track(_nextTrack++, found, found.position.corners, now));
+      } else {
+        open.remove(nearest);
+        nearest.update(found, now, still);
+      }
+    }
+    final int before = _tracks.length;
+    _tracks.removeWhere(
+      (_Track track) => now.difference(track.seen) > _outlineHold,
+    );
+    if (barcodes.isEmpty && _tracks.length == before) {
+      // Nothing moved.
+      return;
+    }
+    _visible.value = _tracks.isEmpty
+        ? null
+        : _Visible(<_Seen>[for (final _Track t in _tracks) t.seenAs], frame);
+  }
 
   /// Reports [barcodes] ([raw]: the same in frame pixels) with the part of
   /// the frame around them, for [BarcodeCapture.snapshot].
@@ -955,6 +1007,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
 
   void _clearResults() {
     _seen.clear();
+    _tracks.clear();
     if (!_disposed) {
       _visible.value = null;
     }
@@ -1030,14 +1083,59 @@ extension on ScannerStatus {
       this == ScannerStatus.running || this == ScannerStatus.paused;
 }
 
-/// The latest barcodes of a controller, for the overlay.
+/// The barcodes in view of a controller, for the overlay.
 @immutable
 final class _Visible {
   const _Visible(this.barcodes, this.frameSize);
 
-  /// Positions in the display frame of [frameSize].
-  final List<Barcode> barcodes;
+  /// In the order they came into view; positions in the display frame of
+  /// [frameSize].
+  final List<_Seen> barcodes;
   final Size frameSize;
+}
+
+/// A barcode in view as the overlay shows it.
+@immutable
+final class _Seen {
+  const _Seen(this.id, this.barcode, this.corners);
+
+  /// See [VisibleBarcode.id].
+  final int id;
+  final Barcode barcode;
+
+  /// Smoothed corners in the display frame.
+  final List<Offset> corners;
+}
+
+/// A barcode followed from frame to frame: the engine does not find every
+/// code in every frame, and finds it a pixel or two off each time.
+final class _Track {
+  _Track(this.id, this.barcode, this.corners, this.seen);
+
+  final int id;
+  Barcode barcode;
+  List<Offset> corners;
+  DateTime seen;
+
+  /// Takes [found], the same code in a newer frame: a small move is
+  /// smoothed away, a large one followed at once. [still] is how far
+  /// counts as small, in display frame pixels.
+  void update(Barcode found, DateTime now, double still) {
+    final List<Offset> next = found.position.corners;
+    double moved = 0;
+    for (int i = 0; i < 4; i++) {
+      moved = math.max(moved, (next[i] - corners[i]).distance);
+    }
+    corners = moved > still
+        ? next
+        : <Offset>[
+            for (int i = 0; i < 4; i++) Offset.lerp(corners[i], next[i], 0.5)!,
+          ];
+    barcode = found;
+    seen = now;
+  }
+
+  _Seen get seenAs => _Seen(id, barcode, corners);
 }
 
 /// Where a `BarcodeScanner` shows the preview.

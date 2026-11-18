@@ -1179,6 +1179,45 @@ void main() {
       semantics.dispose();
     });
 
+    testWidgets('pick: two codes alike get a label each, numbers stay', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      await tester.pumpWidget(
+        _host(const BarcodeScanner(template: ScannerTemplate.pick())),
+      );
+      await tester.pump();
+      final Barcode a = _barcode('https://www.flutter.dev/x');
+      final Barcode b = _barcode(
+        'https://www.flutter.dev/x',
+        rect: const Rect.fromLTWH(200, 500, 100, 100),
+      );
+      final Barcode c = _barcode(
+        'WIFI:T:WPA;S:Office;P:secret;;',
+        rect: const Rect.fromLTWH(40, 500, 100, 100),
+      );
+      await push(tester, <Barcode>[a, b, c]);
+      expect(find.text('3 codes'), findsOneWidget);
+      expect(find.text('flutter.dev'), findsNWidgets(2));
+      expect(tester.takeException(), isNull);
+      String numberOf(String label) => tester
+          .widget<Text>(
+            find.descendant(
+              of: find.ancestor(
+                of: find.text(label),
+                matching: find.byType(Row),
+              ),
+              matching: find.textContaining(RegExp(r'^\d+$')),
+            ),
+          )
+          .data!;
+      expect(numberOf('Office'), '3');
+      // The engine finds them in another order: the numbers stay.
+      await push(tester, <Barcode>[c, b, a]);
+      expect(numberOf('Office'), '3');
+      expect(find.text('flutter.dev'), findsNWidgets(2));
+    });
+
     testWidgets('fullscreen: no window until a code locks', (
       WidgetTester tester,
     ) async {
