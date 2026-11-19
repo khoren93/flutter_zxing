@@ -796,7 +796,7 @@ final class Gs1Content extends BarcodeContent {
 
   /// The elements with their identifiers in parentheses,
   /// `(01)09501101530003(17)250101`, the form GS1 encoding takes
-  /// (`BarcodeView(…, gs1: true)`, `BarcodeWriter(…, gs1: true)`, or
+  /// (`BarcodeWriter(…, gs1: true)`, also in `BarcodeView`, or
   /// `writer.encodeContent(content)`, which sets it).
   @override
   String toPayload() => buildGs1(this);

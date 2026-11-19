@@ -14,6 +14,7 @@ import 'package:flutter/painting.dart';
 import '../barcode/barcode.dart';
 import '../barcode/barcode_format.dart';
 import '../writing/barcode_writer.dart';
+import '../writing/creator_options.dart' show errorCorrectionOf;
 import 'engine_protocol.dart';
 import 'function_patterns.dart';
 
@@ -110,6 +111,7 @@ EngineReadResult decodeBarcodes(
                 modules,
               ),
               quietZone: readQuietZone(format),
+              errorCorrection: errorCorrectionOf(format, ecLevel),
             )
           : null,
     );

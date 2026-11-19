@@ -162,11 +162,13 @@ const TextStyle _mono = TextStyle(
 Widget _code(_Tile tile, Map<String, ui.Image> images) {
   Widget view(String data, {double? width}) => BarcodeView(
     data,
-    format: tile.format,
-    gs1: tile.gs1,
-    errorCorrection: tile.ecc,
+    writer: BarcodeWriter(
+      tile.format,
+      gs1: tile.gs1,
+      errorCorrection: tile.ecc,
+      showText: tile.format.isLinear,
+    ),
     style: tile.style,
-    showText: tile.format.isLinear,
     width: width,
   );
   final Widget code;
@@ -202,7 +204,7 @@ Widget _code(_Tile tile, Map<String, ui.Image> images) {
       ],
     );
   } else if (tile.bytes case final Uint8List bytes) {
-    code = BarcodeView.bytes(bytes, format: tile.format);
+    code = BarcodeView.bytes(bytes, writer: BarcodeWriter(tile.format));
   } else {
     code = view(tile.data, width: tile.look == _Look.tiny ? 34 : null);
   }

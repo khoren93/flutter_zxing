@@ -181,3 +181,19 @@ String _trim(String s) {
   }
   return s.substring(start, end);
 }
+
+/// The [ErrorCorrection] of a QR code, Micro QR code or rMQR code from the
+/// engine's [ecLevel] (`L`, `M`, `Q`, `H`); `null` for other formats.
+ErrorCorrection? errorCorrectionOf(BarcodeFormat format, String? ecLevel) {
+  // Micro QR and rMQR are of the QR symbology.
+  if (format.symbology != BarcodeFormat.qrCode) {
+    return null;
+  }
+  return switch (ecLevel) {
+    'L' => ErrorCorrection.low,
+    'M' => ErrorCorrection.medium,
+    'Q' => ErrorCorrection.quartile,
+    'H' => ErrorCorrection.high,
+    _ => null,
+  };
+}

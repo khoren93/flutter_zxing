@@ -6,6 +6,7 @@ import '../../barcode/barcode.dart';
 import '../../barcode/barcode_format.dart';
 import '../../rendering/barcode_style.dart';
 import '../../rendering/barcode_view.dart';
+import '../../writing/barcode_writer.dart';
 import 'scanner_icons.dart';
 import 'scanner_theme.dart';
 
@@ -106,8 +107,7 @@ class BarcodeThumbnail extends StatelessWidget {
       ),
       BarcodeThumbnailKind.regenerated => BarcodeView(
         barcode.text,
-        format: _regenerated(barcode)!,
-        showText: size >= 96,
+        writer: BarcodeWriter(_regenerated(barcode)!, showText: size >= 96),
         style: const BarcodeStyle(quietZone: false),
         semanticLabel: '',
       ),

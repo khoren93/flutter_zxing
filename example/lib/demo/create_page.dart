@@ -298,7 +298,7 @@ class _CreatePageState extends State<CreatePage> {
     _format,
     _style,
     presetName: _preset,
-    errorCorrection: _ecc,
+    errorCorrection: _level,
     content: _contentDart,
     gs1: _gs1,
     showText: _showText,
@@ -306,15 +306,30 @@ class _CreatePageState extends State<CreatePage> {
 
   BarcodeWriter get _writer => BarcodeWriter(
     _format,
-    errorCorrection: _ecc,
+    errorCorrection: _level,
     gs1: _gs1,
     showText: _showText,
   );
 
+  /// The error correction chosen, unless it is too little for the logo (a
+  /// level picked before the logo was added): then Auto, the logo's.
+  ErrorCorrection? get _level {
+    final ErrorCorrection? ecc = _ecc;
+    final BarcodeLogo? logo = _style.logo;
+    return ecc != null &&
+            logo != null &&
+            _format == BarcodeFormat.qrCode &&
+            ecc.index < logo.neededErrorCorrection.index
+        ? null
+        : ecc;
+  }
+
   /// Whether linear barcodes show their digits under the bars.
   bool _textUnderBars = true;
 
-  bool get _showText => _format.isLinear && _textUnderBars;
+  /// The switch for linear barcodes, `null` (the format's custom) for the
+  /// others.
+  bool? get _showText => _format.isLinear ? _textUnderBars : null;
 
   /// The level Auto picks, in words: M for a QR code, or what its logo
   /// needs.
@@ -1366,7 +1381,7 @@ class _FormatThumb extends StatelessWidget {
         child: BarcodeView(
           // Free text gets a short value: a long link makes a dense blur.
           input.anyText ? 'zxing' : input.example,
-          format: format,
+          writer: BarcodeWriter(format),
           style: const BarcodeStyle(quietZone: false),
         ),
       ),
@@ -1383,8 +1398,12 @@ class _EccMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final BarcodeFormat format = page._format;
-    final ErrorCorrection? ecc = page._ecc;
+    final ErrorCorrection? ecc = page._level;
     final bool qr = format.symbology == BarcodeFormat.qrCode;
+    // Under a logo, the levels it needs and more.
+    final ErrorCorrection? least = format == BarcodeFormat.qrCode
+        ? page._style.logo?.neededErrorCorrection
+        : null;
     String label(ErrorCorrection e) {
       final String level = eccLabel(format, e);
       return qr ? '$level  ·  ${_qrRecovery['LMQH'.indexOf(level)]}' : level;
@@ -1417,7 +1436,11 @@ class _EccMenu extends StatelessWidget {
           }),
         ),
         for (final ErrorCorrection e in ErrorCorrection.values)
-          PopupMenuItem<int>(value: e.index, child: Text(label(e))),
+          PopupMenuItem<int>(
+            value: e.index,
+            enabled: least == null || e.index >= least.index,
+            child: Text(label(e)),
+          ),
       ],
       child: _Pill(
         ecc != null
@@ -1531,10 +1554,7 @@ class _Preview extends StatelessWidget {
             )
           : BarcodeView(
               page._data,
-              format: page._format,
-              errorCorrection: page._ecc,
-              gs1: page._gs1,
-              showText: page._showText,
+              writer: page._writer,
               // Without text or a card, the quiet zone would look like empty
               // space; with them it sets the spacing, as in the export.
               style:

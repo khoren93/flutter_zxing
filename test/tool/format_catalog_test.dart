@@ -158,8 +158,7 @@ void main() {
       ),
       final _Drawn drawn => BarcodeView(
         drawn.$2,
-        format: drawn.$1,
-        showText: drawn.$1.isLinear,
+        writer: BarcodeWriter(drawn.$1, showText: drawn.$1.isLinear),
       ),
       _ => const SizedBox(),
     };

@@ -37,7 +37,8 @@ const List<Type> _types = <Type>[
   PixelLayout,
   // Writing
   BarcodeWriter, ErrorCorrection, BarcodeImage, BarcodeSymbol, BarcodeView,
-  BarcodeStyle, ModuleShape, FinderShape, BarcodeLogo,
+  BarcodeStyle, ModuleShape, FinderShape, BarcodeLogo, BarcodeCaption,
+  BarcodeCard,
   // Scanning
   BarcodeScanner, ScannerController, ScannerState, ScannerStatus, TorchState,
   CameraFacing, CameraResolution, DetectionMode, BarcodeCapture, ScanWindow,

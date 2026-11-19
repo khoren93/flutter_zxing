@@ -17,23 +17,32 @@ import 'symbol_shapes.dart';
 /// Shows a barcode. Drawn as vectors from the module matrix, so it is sharp
 /// at any size and pixel density.
 ///
+/// The [writer] encodes the data, exactly as `writer.encode` and the
+/// exports do; the [style] draws it.
+///
 /// ```dart
-/// BarcodeView('https://pub.dev', format: BarcodeFormat.qrCode, width: 200)
-/// BarcodeView('4006381333931', format: BarcodeFormat.ean13, showText: true, width: 240)
-/// BarcodeView.bytes(payload, format: BarcodeFormat.dataMatrix, width: 120)
+/// BarcodeView('https://pub.dev', width: 200)
+/// BarcodeView(
+///   '4006381333931',
+///   writer: const BarcodeWriter(BarcodeFormat.ean13),
+///   width: 240,
+/// )
+/// BarcodeView.bytes(
+///   payload,
+///   writer: const BarcodeWriter(BarcodeFormat.dataMatrix),
+///   width: 120,
+/// )
 /// ```
 ///
 /// Without [width] and [height] it fills the incoming constraints, keeping
 /// the symbol's aspect ratio.
 class BarcodeView extends StatefulWidget {
-  /// Creates a barcode view for the text [data].
+  /// Creates a barcode view for the text [data], encoded with [writer] (a
+  /// QR code by default).
   const BarcodeView(
     String this.data, {
     super.key,
-    this.format = BarcodeFormat.qrCode,
-    this.errorCorrection,
-    this.gs1 = false,
-    this.showText = false,
+    BarcodeWriter this.writer = const BarcodeWriter(BarcodeFormat.qrCode),
     this.style = BarcodeStyle.classic,
     this.width,
     this.height,
@@ -43,13 +52,18 @@ class BarcodeView extends StatefulWidget {
        symbol = null;
 
   /// Draws a [BarcodeSymbol] as it is: the modules a reader sampled from a
-  /// code (`Barcode.symbol`), or a symbol from `BarcodeWriter.encode`.
-  /// Nothing is encoded, so the code shown is exactly the one read.
+  /// code (`Barcode.symbol`), or a symbol from `BarcodeWriter.encode` or
+  /// `BarcodeStyle.encode`. Nothing is encoded, so the code shown is
+  /// exactly the one read.
   ///
   /// ```dart
   /// final BarcodeSymbol? symbol = capture.barcode.symbol;
   /// if (symbol != null) BarcodeView.symbol(symbol, width: 56);
   /// ```
+  ///
+  /// In debug mode, asserts that a QR code under a [BarcodeStyle.logo] has
+  /// the error correction the logo needs; encode it with
+  /// `BarcodeStyle.encode` to get it.
   BarcodeView.symbol(
     BarcodeSymbol this.symbol, {
     super.key,
@@ -59,28 +73,22 @@ class BarcodeView extends StatefulWidget {
     this.semanticLabel,
   }) : data = symbol.text,
        bytes = null,
-       format = symbol.format,
-       errorCorrection = null,
-       gs1 = false,
-       showText = symbol.text != null,
+       writer = null,
        errorBuilder = null;
 
-  /// Creates a barcode view for binary [bytes] (formats with a byte mode:
-  /// QR, Data Matrix, Aztec, PDF417).
+  /// Creates a barcode view for binary [bytes], encoded with [writer]
+  /// (formats with a byte mode: QR, Data Matrix, Aztec, PDF417).
   const BarcodeView.bytes(
     Uint8List this.bytes, {
     super.key,
-    this.format = BarcodeFormat.qrCode,
-    this.errorCorrection,
+    BarcodeWriter this.writer = const BarcodeWriter(BarcodeFormat.qrCode),
     this.style = BarcodeStyle.classic,
     this.width,
     this.height,
     this.semanticLabel,
     this.errorBuilder,
   }) : data = null,
-       symbol = null,
-       gs1 = false,
-       showText = false;
+       symbol = null;
 
   /// The text to encode, or `null` for [BarcodeView.bytes].
   final String? data;
@@ -91,23 +99,16 @@ class BarcodeView extends StatefulWidget {
   /// The symbol to draw as it is, from [BarcodeView.symbol].
   final BarcodeSymbol? symbol;
 
-  /// The symbology; must be writable ([BarcodeFormat.canWrite]).
-  final BarcodeFormat format;
+  /// Encodes [data] or [bytes]: the format, error correction, GS1, version
+  /// and the text under linear barcodes ([BarcodeWriter.showText]); `null`
+  /// for [BarcodeView.symbol], which encodes nothing.
+  ///
+  /// Under a [BarcodeStyle.logo], a QR code gets the error correction the
+  /// logo needs ([BarcodeLogo.neededErrorCorrection]) unless the writer
+  /// sets its own.
+  final BarcodeWriter? writer;
 
-  /// Error correction; `null` uses the format's default (M for a QR code),
-  /// or for a QR code with a [BarcodeStyle.logo] what the logo needs
-  /// ([BarcodeLogo.neededErrorCorrection]).
-  final ErrorCorrection? errorCorrection;
-
-  /// Encode [data] as GS1: Application Identifiers in parentheses,
-  /// `(01)09501101530003(17)250101`. For formats with a GS1 mode: Code 128,
-  /// QR, Data Matrix, Aztec, DataBar Expanded and others.
-  final bool gs1;
-
-  /// Show the human readable text under linear barcodes.
-  final bool showText;
-
-  /// Colors and shapes.
+  /// Colors, shapes, logo, title, caption and quiet zone.
   final BarcodeStyle style;
 
   /// Width in logical pixels.
@@ -116,7 +117,10 @@ class BarcodeView extends StatefulWidget {
   /// Height in logical pixels.
   final double? height;
 
-  /// Accessibility label; defaults to "`format` barcode: `data`".
+  /// Accessibility label. By default the format's name, the
+  /// [BarcodeStyle.title] and [BarcodeStyle.caption], and the text under a
+  /// linear barcode when it is shown; never the encoded data, which may be
+  /// a password or bank details.
   final String? semanticLabel;
 
   /// Shown instead of the barcode if [data] cannot be encoded. Without it,
@@ -203,9 +207,10 @@ class _BarcodeViewState extends State<BarcodeView> {
     _request = request;
     final BarcodeSymbol? cached = _symbolCache.get(request);
     if (cached != null) {
+      final BarcodeSymbol shown = styledSymbol(cached, widget.style);
       void apply() {
-        _symbol = cached;
-        _layout = SymbolLayout(cached);
+        _symbol = shown;
+        _layout = SymbolLayout(shown);
         _error = null;
       }
 
@@ -218,9 +223,10 @@ class _BarcodeViewState extends State<BarcodeView> {
         if (!mounted || _request != request) {
           return;
         }
+        final BarcodeSymbol shown = styledSymbol(symbol, widget.style);
         setState(() {
-          _symbol = symbol;
-          _layout = SymbolLayout(symbol);
+          _symbol = shown;
+          _layout = SymbolLayout(shown);
           _error = null;
         });
       },
@@ -293,11 +299,14 @@ class _BarcodeViewState extends State<BarcodeView> {
     return _frame!;
   }
 
+  /// The symbology of the code shown.
+  BarcodeFormat get _format => widget.symbol?.format ?? widget.writer!.format;
+
   String get _semanticLabel {
-    final String? data = widget.data;
-    final String code = data == null
-        ? '${widget.format.displayName} barcode'
-        : '${widget.format.displayName} barcode: $data';
+    // The text printed under the bars is on screen; the data may not be.
+    final String? shown = _symbol?.text;
+    final String name = _format.displayName;
+    final String code = shown == null || shown.isEmpty ? name : '$name: $shown';
     return widget.semanticLabel ??
         <String>[
           ?widget.style.title?.text,
@@ -320,10 +329,14 @@ class _BarcodeViewState extends State<BarcodeView> {
     }
     final BarcodeSymbol? symbol = _symbol;
     final SymbolLayout? layout = _layout;
+    assert(
+      symbol == null || logoFits(symbol, widget.style.logo),
+      logoFitsMessage(symbol, widget.style.logo!),
+    );
     if (symbol == null || layout == null) {
       // First show, still encoding: hold the space the symbol will most
       // likely take, so that it appears without moving anything.
-      final bool square = hasModuleShapes(widget.format);
+      final bool square = hasModuleShapes(_format);
       return SizedBox(
         width: widget.width ?? (square ? widget.height : null),
         height: widget.height ?? (square ? widget.width : null),
@@ -411,36 +424,17 @@ final class _Request {
     : data = view.data,
       // A copy: the caller may reuse its buffer, and the cache keeps this.
       bytes = view.bytes == null ? null : Uint8List.fromList(view.bytes!),
-      format = view.format,
-      gs1 = view.gs1,
-      showText = view.showText,
-      quietZone = view.style.quietZone,
       // A logo covers modules: QR codes then get the error correction it
       // needs.
-      errorCorrection =
-          view.errorCorrection ??
-          (hasFinderPatterns(view.format)
-              ? view.style.logo?.neededErrorCorrection
-              : null),
+      writer = writerUnderLogo(view.writer!, view.style.logo),
       logoSize = view.style.logo?.size;
 
   final String? data;
   final Uint8List? bytes;
-  final BarcodeFormat format;
-  final bool gs1;
-  final bool showText;
-  final bool quietZone;
-  final ErrorCorrection? errorCorrection;
+  final BarcodeWriter writer;
   final double? logoSize;
 
   Future<BarcodeSymbol> encode() {
-    final BarcodeWriter writer = BarcodeWriter(
-      format,
-      errorCorrection: errorCorrection,
-      gs1: gs1,
-      quietZone: quietZone,
-      showText: showText,
-    );
     final Uint8List? b = bytes;
     return encodeUnderLogo(
       writer,
@@ -454,22 +448,14 @@ final class _Request {
       other is _Request &&
       other.data == data &&
       listEquals(other.bytes, bytes) &&
-      other.format == format &&
-      other.gs1 == gs1 &&
-      other.showText == showText &&
-      other.quietZone == quietZone &&
-      other.errorCorrection == errorCorrection &&
+      other.writer == writer &&
       other.logoSize == logoSize;
 
   @override
   int get hashCode => Object.hash(
     data,
     bytes == null ? null : Object.hashAll(bytes!),
-    format,
-    gs1,
-    showText,
-    quietZone,
-    errorCorrection,
+    writer,
     logoSize,
   );
 }

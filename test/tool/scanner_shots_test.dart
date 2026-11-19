@@ -463,10 +463,9 @@ void main() {
     const Rect right = Rect.fromLTWH(199, 143, 166, 129);
     Widget ean(String digits) => BarcodeView(
       digits,
-      format: BarcodeFormat.ean13,
+      writer: const BarcodeWriter(BarcodeFormat.ean13, showText: true),
       width: 150,
       height: 113,
-      showText: true,
     );
     await shot(
       tester,
@@ -509,7 +508,7 @@ void main() {
           -3,
           const BarcodeView(
             pass,
-            format: BarcodeFormat.pdf417,
+            writer: BarcodeWriter(BarcodeFormat.pdf417),
             width: 220,
             height: 62,
           ),
@@ -738,10 +737,9 @@ void main() {
           -2,
           const BarcodeView(
             '9780306406157',
-            format: BarcodeFormat.ean13,
+            writer: BarcodeWriter(BarcodeFormat.ean13, showText: true),
             width: 150,
             height: 99,
-            showText: true,
           ),
         ),
       ]),
@@ -766,7 +764,7 @@ void main() {
           -4,
           const BarcodeView(
             'SN 4F2A-9X17',
-            format: BarcodeFormat.dataMatrix,
+            writer: BarcodeWriter(BarcodeFormat.dataMatrix),
             width: 40,
             height: 40,
           ),
@@ -796,8 +794,7 @@ void main() {
           3,
           const BarcodeView(
             pharma,
-            format: BarcodeFormat.dataMatrix,
-            gs1: true,
+            writer: BarcodeWriter(BarcodeFormat.dataMatrix, gs1: true),
             width: 100,
             height: 100,
           ),
@@ -824,7 +821,7 @@ void main() {
           -1,
           const BarcodeView(
             '1HGCM82633A004352',
-            format: BarcodeFormat.code39,
+            writer: BarcodeWriter(BarcodeFormat.code39),
             width: 320,
             height: 84,
           ),
@@ -844,7 +841,7 @@ void main() {
           -3,
           const BarcodeView(
             '6034992144770815',
-            format: BarcodeFormat.code128,
+            writer: BarcodeWriter(BarcodeFormat.code128),
             width: 220,
             height: 98,
           ),
@@ -916,7 +913,7 @@ void main() {
           -2,
           const BarcodeView(
             'TKT-2026-0117-B21C',
-            format: BarcodeFormat.aztec,
+            writer: BarcodeWriter(BarcodeFormat.aztec),
             width: 104,
             height: 104,
           ),
@@ -955,8 +952,7 @@ void main() {
           0,
           const BarcodeView(
             '(00)106141412345678908',
-            format: BarcodeFormat.code128,
-            gs1: true,
+            writer: BarcodeWriter(BarcodeFormat.code128, gs1: true),
             width: 280,
             height: 88,
           ),

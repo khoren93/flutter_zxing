@@ -14,6 +14,7 @@ export 'src/scanning/scanner_controller.dart'
         ScannerControllerDebug,
         ScannerControllerFreeze,
         ScannerFrameSample;
+export 'src/scanning/style_content.dart';
 export 'src/scanning/ui/controls.dart' hide pickAndReadImage;
 export 'src/scanning/ui/glass.dart';
 export 'src/scanning/ui/result_sheet.dart';

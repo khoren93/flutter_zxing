@@ -277,7 +277,7 @@ class HistoryPicture extends StatelessWidget {
               padding: EdgeInsets.all(size * 0.06),
               child: BarcodeView(
                 item.barcode.text,
-                format: item.barcode.format,
+                writer: BarcodeWriter(item.barcode.format),
                 style: style.copyWith(quietZone: false),
                 semanticLabel: '',
               ),

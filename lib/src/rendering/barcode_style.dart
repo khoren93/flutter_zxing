@@ -5,7 +5,6 @@ import '../writing/barcode_writer.dart';
 import 'logo_symbol.dart';
 import 'styled_export.dart';
 import 'swiss_cross.dart';
-import 'symbol_shapes.dart';
 
 /// How a barcode is drawn: by `BarcodeView`, and by [toPng], [toSvg],
 /// [encodePng] and [encodeSvg] when exported.
@@ -13,8 +12,21 @@ import 'symbol_shapes.dart';
 /// ```dart
 /// const writer = BarcodeWriter(BarcodeFormat.qrCode);
 /// final png = await BarcodeStyle.dots.encodePng(writer, 'https://pub.dev', size: 1024);
-/// final svg = await BarcodeStyle.dots.toSvg(await writer.encode('https://pub.dev'));
+///
+/// // Encode once, draw twice: encode gives a logo the error correction it
+/// // needs.
+/// const style = BarcodeStyle.dots;
+/// final symbol = await style.encode(writer, 'https://pub.dev');
+/// final svg = await style.toSvg(symbol);
+/// final thumbnail = await style.toPng(symbol, size: 256);
 /// ```
+///
+/// **Exports.** The PNG is drawn by the Flutter engine without the app's
+/// theme: the text of [title] and [caption] uses the engine's default font
+/// unless their [BarcodeCaption.style] names a `fontFamily` (a font the app
+/// bundles or the platform has). An SVG only names the font; the program
+/// that shows it picks the closest one it has. The [logo] is loaded first;
+/// if its image fails to load, the export fails with the image's error.
 @immutable
 final class BarcodeStyle {
   /// Creates a style. The defaults are black on white with square modules.
@@ -93,7 +105,7 @@ final class BarcodeStyle {
 
   /// The ready-made styles by name, for a style picker:
   /// [classic], [soft], [dots], [lagoon], [ink] and [night]. Add a [logo]
-  /// with [copyWith].
+  /// with [copyWith]: `BarcodeStyle.soft.copyWith(logo: () => myLogo)`.
   static const Map<String, BarcodeStyle> presets = <String, BarcodeStyle>{
     'classic': classic,
     'soft': soft,
@@ -110,6 +122,9 @@ final class BarcodeStyle {
   final Color backgroundColor;
 
   /// Paints the dark modules with a gradient instead of [color].
+  ///
+  /// SVG has no sweep gradient: a [SweepGradient] is drawn by `BarcodeView`
+  /// and [toPng], while [toSvg] throws an [UnsupportedError] for it.
   final Gradient? gradient;
 
   /// Shape of the data modules (2D formats).
@@ -121,7 +136,8 @@ final class BarcodeStyle {
   /// Keep the quiet zone (blank margin) around the symbol.
   final bool quietZone;
 
-  /// An image in the middle of a QR code.
+  /// An image in the middle of a QR code. `BarcodeView` and [encode] give
+  /// the code the error correction the logo needs.
   final BarcodeLogo? logo;
 
   /// Text above the code, such as a network's name.
@@ -144,32 +160,77 @@ final class BarcodeStyle {
   /// profile code in a messenger.
   final BarcodeCard? card;
 
+  /// Encodes [data] with [writer] for this style: the symbol `BarcodeView`
+  /// shows. Under a [logo] a QR code gets the error correction the logo
+  /// needs ([BarcodeLogo.neededErrorCorrection]) unless the writer sets its
+  /// own, and a symbol large enough for it unless the writer sets a
+  /// version. Encode once, then draw with [toPng] and [toSvg] as often as
+  /// needed.
+  ///
+  /// ```dart
+  /// final style = BarcodeStyle(logo: BarcodeLogo(AssetImage('assets/logo.png')));
+  /// final symbol = await style.encode(const BarcodeWriter(BarcodeFormat.qrCode), wifi);
+  /// final png = await style.toPng(symbol, size: 1024);
+  /// ```
+  ///
+  /// Throws `BarcodeWriteException` if [data] cannot be encoded.
+  Future<BarcodeSymbol> encode(BarcodeWriter writer, String data) =>
+      encodeUnderLogo(
+        writerUnderLogo(writer, logo),
+        logo?.size,
+        (BarcodeWriter w) => w.encode(data),
+      );
+
+  /// Encodes binary [data] with [writer] for this style, byte for byte;
+  /// see [encode] and `BarcodeWriter.encodeBytes`.
+  ///
+  /// Throws `BarcodeWriteException` if [data] cannot be encoded.
+  Future<BarcodeSymbol> encodeBytes(BarcodeWriter writer, Uint8List data) =>
+      encodeUnderLogo(
+        writerUnderLogo(writer, logo),
+        logo?.size,
+        (BarcodeWriter w) => w.encodeBytes(data),
+      );
+
   /// Renders [symbol] as an SVG document drawn with this style: the
   /// colors, gradient, module and finder shapes and logo of `BarcodeView`.
   ///
-  /// One SVG unit is one module, quiet zone included; scale it with the
-  /// `width`/`height` of the element that shows it. The logo is embedded
-  /// as a PNG. Asynchronous because the logo is loaded first.
+  /// The `viewBox` is in modules; `width` and `height` are pixels:
+  /// [moduleSize] pixels per module (4 by default), or [size] pixels across
+  /// the longer side. The logo is embedded as a PNG. Asynchronous because
+  /// the logo is loaded first. See **Exports** in the class description for
+  /// fonts and logos.
   ///
   /// Throws [UnsupportedError] for a [SweepGradient], which SVG cannot
-  /// draw; use [toPng] for it.
+  /// draw: use [toPng] for it, or a [LinearGradient] or [RadialGradient].
+  /// Throws [ArgumentError] if both [size] and [moduleSize] are given, one
+  /// is not positive, or [size] is smaller than the image in modules.
+  ///
+  /// In debug mode, asserts that a QR code under a [logo] has the error
+  /// correction the logo needs (see [encode]).
   ///
   /// ```dart
-  /// final symbol = await const BarcodeWriter(BarcodeFormat.qrCode).encode('https://pub.dev');
-  /// await File('qr.svg').writeAsString(
-  ///   await const BarcodeStyle(moduleShape: ModuleShape.rounded).toSvg(symbol),
-  /// );
+  /// final symbol = await style.encode(const BarcodeWriter(BarcodeFormat.qrCode), 'https://pub.dev');
+  /// await File('qr.svg').writeAsString(await style.toSvg(symbol, size: 512));
   /// ```
-  Future<String> toSvg(BarcodeSymbol symbol) => styledSvg(symbol, this);
+  Future<String> toSvg(BarcodeSymbol symbol, {int? size, int? moduleSize}) =>
+      styledSvg(symbol, this, size: size, moduleSize: moduleSize);
 
   /// Renders [symbol] as a PNG drawn with this style, like `BarcodeView`.
   ///
-  /// Give either [size] (fit into `size` × `size` pixels with whole-pixel
-  /// modules) or [moduleSize] (pixels per module). Defaults to 4 pixels per
-  /// module. The [title], [caption] and [card] are part of the image; around
-  /// a card the image is transparent.
+  /// Give either [size] or [moduleSize] (pixels per module; 4 by default).
+  /// With [size] the longer side is exactly [size] pixels and the shorter
+  /// one in proportion: the modules are the most whole pixels that fit, and
+  /// the rest is filled with the [backgroundColor] (transparent around a
+  /// [card]). The [title], [caption] and [card] are part of the image;
+  /// around a card the image is transparent. See **Exports** in the class
+  /// description for fonts and logos.
   ///
-  /// Throws [ArgumentError] if both are given or one is not positive.
+  /// Throws [ArgumentError] if both are given, one is not positive, or
+  /// [size] is smaller than the image in modules.
+  ///
+  /// In debug mode, asserts that a QR code under a [logo] has the error
+  /// correction the logo needs (see [encode]).
   ///
   /// ```dart
   /// final png = await const BarcodeStyle(
@@ -181,68 +242,59 @@ final class BarcodeStyle {
       styledPng(symbol, this, size: size, moduleSize: moduleSize);
 
   /// Encodes [data] with [writer] and renders it as an SVG document drawn
-  /// with this style; see [toSvg]. A QR code with a [logo] gets the logo's
-  /// [BarcodeLogo.errorCorrection] unless the writer sets its own, as in
-  /// `BarcodeView`.
+  /// with this style: [encode], then [toSvg].
   ///
-  /// Throws `BarcodeWriteException` if [data] cannot be encoded.
-  Future<String> encodeSvg(BarcodeWriter writer, String data) async =>
-      toSvg(await _encode(writer, data));
+  /// Throws `BarcodeWriteException` if [data] cannot be encoded, and the
+  /// errors of [toSvg].
+  Future<String> encodeSvg(
+    BarcodeWriter writer,
+    String data, {
+    int? size,
+    int? moduleSize,
+  }) async =>
+      toSvg(await encode(writer, data), size: size, moduleSize: moduleSize);
 
   /// Encodes [data] with [writer] and renders it as a PNG drawn with this
-  /// style; see [toPng]. A QR code with a [logo] gets the logo's
-  /// [BarcodeLogo.neededErrorCorrection] unless the writer sets its own, as
-  /// in `BarcodeView`.
+  /// style: [encode], then [toPng].
   ///
-  /// Throws `BarcodeWriteException` if [data] cannot be encoded.
+  /// Throws `BarcodeWriteException` if [data] cannot be encoded, and the
+  /// errors of [toPng].
   Future<Uint8List> encodePng(
     BarcodeWriter writer,
     String data, {
     int? size,
     int? moduleSize,
   }) async =>
-      toPng(await _encode(writer, data), size: size, moduleSize: moduleSize);
-
-  /// [data] as `BarcodeView` encodes it for this style.
-  Future<BarcodeSymbol> _encode(BarcodeWriter writer, String data) =>
-      encodeUnderLogo(
-        _writer(writer),
-        logo?.size,
-        (BarcodeWriter w) => w.encode(data),
-      );
-
-  /// [writer] as `BarcodeView` uses it for this style: the error correction
-  /// the logo needs ([BarcodeLogo.neededErrorCorrection]).
-  BarcodeWriter _writer(BarcodeWriter writer) =>
-      logo != null &&
-          writer.errorCorrection == null &&
-          hasFinderPatterns(writer.format)
-      ? writer.copyWith(errorCorrection: logo!.neededErrorCorrection)
-      : writer;
+      toPng(await encode(writer, data), size: size, moduleSize: moduleSize);
 
   /// Creates a copy with the given fields replaced.
+  ///
+  /// The fields that may be `null` take a function, so that they can be
+  /// cleared: `copyWith(logo: () => null)` removes the logo,
+  /// `copyWith(logo: () => BarcodeLogo(image))` sets one, and leaving
+  /// `logo` out keeps it.
   BarcodeStyle copyWith({
     Color? color,
     Color? backgroundColor,
-    Gradient? gradient,
+    ValueGetter<Gradient?>? gradient,
     ModuleShape? moduleShape,
     FinderShape? finderShape,
     bool? quietZone,
-    BarcodeLogo? logo,
-    BarcodeCaption? title,
-    BarcodeCaption? caption,
-    BarcodeCard? card,
+    ValueGetter<BarcodeLogo?>? logo,
+    ValueGetter<BarcodeCaption?>? title,
+    ValueGetter<BarcodeCaption?>? caption,
+    ValueGetter<BarcodeCard?>? card,
   }) => BarcodeStyle(
     color: color ?? this.color,
     backgroundColor: backgroundColor ?? this.backgroundColor,
-    gradient: gradient ?? this.gradient,
+    gradient: gradient == null ? this.gradient : gradient(),
     moduleShape: moduleShape ?? this.moduleShape,
     finderShape: finderShape ?? this.finderShape,
     quietZone: quietZone ?? this.quietZone,
-    logo: logo ?? this.logo,
-    title: title ?? this.title,
-    caption: caption ?? this.caption,
-    card: card ?? this.card,
+    logo: logo == null ? this.logo : logo(),
+    title: title == null ? this.title : title(),
+    caption: caption == null ? this.caption : caption(),
+    card: card == null ? this.card : card(),
   );
 
   @override
@@ -320,8 +372,8 @@ final class BarcodeLogo {
   /// Clear the modules behind the logo instead of drawing over them.
   final bool clearBackground;
 
-  /// The error correction a QR code gets under this logo when the writer or
-  /// `BarcodeView` sets none. `null` (the default) picks it by [size]; see
+  /// The error correction a QR code gets under this logo when the writer
+  /// sets none. `null` (the default) picks it by [size]; see
   /// [neededErrorCorrection]. A standard may fix it, such as the Swiss
   /// QR-bill's [ErrorCorrection.medium].
   final ErrorCorrection? errorCorrection;
@@ -373,6 +425,7 @@ final class BarcodeCaption {
     this.align = TextAlign.center,
     this.gap = 0.05,
     this.maxLines = 2,
+    this.letterSpacing = 0,
   });
 
   /// The text.
@@ -381,13 +434,21 @@ final class BarcodeCaption {
   /// Font size, as a fraction of the code's width.
   final double size;
 
-  /// Color, weight, font family and letter spacing; [TextStyle.fontSize] is
-  /// ignored in favour of [size], and [TextStyle.letterSpacing] is a
-  /// fraction of the font size (like CSS `em`), so that it scales too. Without a color, the code's: its
-  /// [BarcodeStyle.color], or the first color of its gradient. Without a
-  /// weight, bold. In an SVG the font is named; the program that shows the
-  /// file picks the closest one it has.
+  /// Color, weight, font family and the like. [TextStyle.fontSize] and
+  /// [TextStyle.letterSpacing] are ignored: the text scales with the code,
+  /// so they are [size] and [letterSpacing]. Without a color, the code's:
+  /// its [BarcodeStyle.color], or the first color of its gradient. Without
+  /// a weight, bold.
+  ///
+  /// A PNG export does not know the app's font: name a `fontFamily` (one
+  /// the app bundles) to get it there. In an SVG the font is named; the
+  /// program that shows the file picks the closest one it has.
   final TextStyle? style;
+
+  /// Space added between letters, as a fraction of the font size (like CSS
+  /// `em`): 0.1 spreads `@HANDLE` a little. Negative values bring letters
+  /// closer.
+  final double letterSpacing;
 
   /// Alignment within the code's width.
   final TextAlign align;
@@ -407,10 +468,12 @@ final class BarcodeCaption {
       other.style == style &&
       other.align == align &&
       other.gap == gap &&
-      other.maxLines == maxLines;
+      other.maxLines == maxLines &&
+      other.letterSpacing == letterSpacing;
 
   @override
-  int get hashCode => Object.hash(text, size, style, align, gap, maxLines);
+  int get hashCode =>
+      Object.hash(text, size, style, align, gap, maxLines, letterSpacing);
 }
 
 /// A rounded plate under a barcode and its text: [BarcodeStyle.card].

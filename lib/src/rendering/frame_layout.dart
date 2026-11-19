@@ -39,9 +39,7 @@ final class FrameText {
         fontSize: fontSize * scale,
         height: captionLineHeight,
         // A fraction of the font size, like CSS em: it scales with it.
-        letterSpacing: style.letterSpacing == null
-            ? null
-            : style.letterSpacing! * fontSize * scale,
+        letterSpacing: caption.letterSpacing * fontSize * scale,
       ),
     ),
     textAlign: caption.align,
@@ -69,7 +67,9 @@ final class FrameText {
           fontWeight: caption.style?.fontWeight ?? FontWeight.w700,
           // The ink of the canvas, not a widget's decoration.
           decoration: TextDecoration.none,
-        );
+        )
+        // Ignored, like the font size: BarcodeCaption.letterSpacing.
+        .copyWith(letterSpacing: 0);
     // Measured at a comfortable pixel size: wrapping scales with the font.
     final double scale = 40 / math.max(fontSize, 0.01);
     final FrameText laidOut = FrameText._(
@@ -241,22 +241,4 @@ final class FrameLayout {
 
   /// The code's box, in modules.
   Rect get codeRect => codeOrigin & Size(code.width * 1.0, code.height * 1.0);
-
-  /// Pixels per module for [size] (fit `size` × `size`, shadow included) or
-  /// [moduleSize]; 4 without either.
-  ///
-  /// Throws [ArgumentError] if both are given or one is not positive.
-  int pixelsPerModule(int? size, int? moduleSize) {
-    if (size != null && moduleSize != null) {
-      throw ArgumentError('Give either size or moduleSize, not both');
-    }
-    if ((size ?? 1) < 1 || (moduleSize ?? 1) < 1) {
-      throw ArgumentError('size and moduleSize must be positive');
-    }
-    if (size == null) {
-      return moduleSize ?? 4;
-    }
-    final double side = math.max(width, height) + 2 * outset;
-    return math.max(1, (size / side).floor());
-  }
 }

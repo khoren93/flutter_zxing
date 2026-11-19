@@ -197,9 +197,17 @@ void main() {
         final BarcodeSymbol symbol = await qr.encode('size');
         final int side = symbol.width + 2 * symbol.quietZone;
         expect(await _size(await symbol.toPng(size: side * 5 + 3)), (
-          side * 5,
-          side * 5,
+          side * 5 + 3,
+          side * 5 + 3,
         ));
+        expect(
+          await _size(await BarcodeStyle.classic.toPng(symbol, size: 1024)),
+          (1024, 1024),
+        );
+        await expectLater(
+          BarcodeStyle.classic.toPng(symbol, size: side - 1),
+          throwsArgumentError,
+        );
         expect(
           await _size(
             await const BarcodeStyle(

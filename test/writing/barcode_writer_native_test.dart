@@ -115,12 +115,21 @@ void main() {
       expect(aztec.quietZone, greaterThanOrEqualTo(1));
     });
 
-    test('is 0 when turned off', () async {
+    test('is left out of an export when turned off', () async {
       final BarcodeSymbol qr = await const BarcodeWriter(
         BarcodeFormat.qrCode,
-        quietZone: false,
       ).encode('x');
-      expect(qr.quietZone, 0);
+      expect(qr.quietZone, greaterThan(0));
+      final BarcodeImage bare = await qr.toImage(
+        moduleSize: 1,
+        quietZone: false,
+      );
+      expect(bare.width, qr.width);
+      expect(bare.pixels.first, 0, reason: 'a finder at the corner');
+      final String svg = qr.toSvg(quietZone: false);
+      expect(svg, contains('viewBox="0 0 ${qr.width} ${qr.height}"'));
+      final BarcodeImage padded = await qr.toImage(moduleSize: 1);
+      expect(padded.width, qr.width + 2 * qr.quietZone);
     });
   });
 

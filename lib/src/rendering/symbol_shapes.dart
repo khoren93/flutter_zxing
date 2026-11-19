@@ -59,15 +59,7 @@ bool hasFinderPatterns(BarcodeFormat format) =>
 /// [symbol] as [style] shows it: without its quiet zone when the style
 /// leaves it out.
 BarcodeSymbol styledSymbol(BarcodeSymbol symbol, BarcodeStyle style) =>
-    style.quietZone || symbol.quietZone == 0
-    ? symbol
-    : BarcodeSymbol(
-        format: symbol.format,
-        width: symbol.width,
-        height: symbol.height,
-        modules: symbol.modules,
-        text: symbol.text,
-      );
+    style.quietZone ? symbol : withoutQuietZone(symbol);
 
 /// The shapes of [symbol] drawn with [style].
 final class SymbolShapes {

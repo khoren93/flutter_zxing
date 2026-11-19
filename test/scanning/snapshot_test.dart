@@ -51,7 +51,6 @@ void main() {
   Future<void> roundTrip(List<Offset> corners) async {
     final BarcodeSymbol symbol = await const BarcodeWriter(
       BarcodeFormat.qrCode,
-      quietZone: false,
     ).encode('cut out and straightened');
     final PixelBuffer frame = _frame(const Size(640, 480), symbol, corners);
     final BarcodePosition position = BarcodePosition(
@@ -180,7 +179,6 @@ void main() {
     Future<(PixelBuffer, BarcodePosition)> frame(double lineAt) async {
       final BarcodeSymbol ean = await const BarcodeWriter(
         BarcodeFormat.ean13,
-        quietZone: false,
       ).encode('5901234123457');
       final Uint8List gray = Uint8List(640 * 480)..fillRange(0, 640 * 480, 80);
       for (int y = 0; y < 480; y++) {

@@ -79,7 +79,7 @@ void main() {
 
     test('without a quiet zone, the gap is its own', () async {
       final SymbolLayout bare = SymbolLayout(
-        await qr.copyWith(quietZone: false).encode(url),
+        withoutQuietZone(await qr.encode(url)),
       );
       final double unit = bare.width.toDouble();
       final FrameLayout frame = FrameLayout(
@@ -165,9 +165,10 @@ void main() {
     test('a card of another color keeps the code on its own ground', () async {
       final Uint8List png = await BarcodeStyle.night
           .copyWith(
-            caption: const BarcodeCaption('@flutterdev'),
+            caption: () => const BarcodeCaption('@flutterdev'),
             // Wider than the quiet zone, which keeps the code's ground.
-            card: const BarcodeCard(color: Color(0xFF1D4ED8), padding: 0.3),
+            card: () =>
+                const BarcodeCard(color: Color(0xFF1D4ED8), padding: 0.3),
           )
           .encodePng(qr, url, moduleSize: 4);
       final (int width, _) = await _size(png);
@@ -193,7 +194,8 @@ void main() {
       final String svg = await const BarcodeStyle(
         title: BarcodeCaption(
           'Studio 5G',
-          style: TextStyle(fontFamily: 'Instrument Sans', letterSpacing: 0.02),
+          style: TextStyle(fontFamily: 'Instrument Sans'),
+          letterSpacing: 0.02,
         ),
         // Small enough for one line in the test font, where every glyph is
         // as wide as it is tall.
@@ -238,7 +240,7 @@ void main() {
       ),
     );
     expect(
-      a.copyWith(title: const BarcodeCaption('T')).title,
+      a.copyWith(title: () => const BarcodeCaption('T')).title,
       const BarcodeCaption('T'),
     );
     expect(a.copyWith(color: const Color(0xFF00735D)).caption, a.caption);

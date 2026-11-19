@@ -379,7 +379,7 @@ String dartCode(
   ErrorCorrection? errorCorrection,
   String? content,
   bool gs1 = false,
-  bool showText = false,
+  bool? showText,
 }) {
   String hex(Color c) =>
       'Color(0x${c.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()})';
@@ -389,17 +389,15 @@ String dartCode(
       ? quoted(data)
       : '${content.split('\n').join('\n  ')}.toPayload()';
   final StringBuffer b = StringBuffer('BarcodeView(\n  $first,\n');
-  if (format != BarcodeFormat.qrCode) {
-    b.writeln('  format: BarcodeFormat.${format.name},');
-  }
-  if (gs1) {
-    b.writeln('  gs1: true,');
-  }
-  if (showText) {
-    b.writeln('  showText: true,');
-  }
-  if (errorCorrection != null && format.hasErrorCorrection) {
-    b.writeln('  errorCorrection: ErrorCorrection.${errorCorrection.name},');
+  final List<String> writer = <String>[
+    'BarcodeFormat.${format.name}',
+    if (errorCorrection != null && format.hasErrorCorrection)
+      'errorCorrection: ErrorCorrection.${errorCorrection.name}',
+    if (gs1) 'gs1: true',
+    if (showText != null) 'showText: $showText',
+  ];
+  if (writer.length > 1 || format != BarcodeFormat.qrCode) {
+    b.writeln('  writer: BarcodeWriter(${writer.join(', ')}),');
   }
   // The look alone, without the logo, text and card: to name a preset.
   final BarcodeStyle look = BarcodeStyle(
@@ -410,16 +408,20 @@ String dartCode(
     finderShape: style.finderShape,
     quietZone: style.quietZone,
   );
-  final List<String> extras = <String>[
+  // The logo, text and card: `name: value`, as `name: () => value` in
+  // copyWith.
+  final List<(String, String)> extras = <(String, String)>[
     if (style.logo case final BarcodeLogo logo)
-      "logo: BarcodeLogo(AssetImage('assets/logo.png'), "
-          'size: ${logo.size.toStringAsFixed(2)}),',
+      (
+        'logo',
+        "BarcodeLogo(AssetImage('assets/logo.png'), "
+            'size: ${logo.size.toStringAsFixed(2)})',
+      ),
     if (style.title case final BarcodeCaption t)
-      'title: ${_captionDart(t, quoted)},',
+      ('title', _captionDart(t, quoted)),
     if (style.caption case final BarcodeCaption c)
-      'caption: ${_captionDart(c, quoted)},',
-    if (style.card case final BarcodeCard card)
-      'card: ${_cardDart(card, hex)},',
+      ('caption', _captionDart(c, quoted)),
+    if (style.card case final BarcodeCard card) ('card', _cardDart(card, hex)),
   ];
   if (identical(style, BarcodeStyle.swissQrBill)) {
     b.writeln('  style: BarcodeStyle.swissQrBill,');
@@ -428,8 +430,8 @@ String dartCode(
       b.writeln('  style: BarcodeStyle.$presetName,');
     } else {
       b.writeln('  style: BarcodeStyle.$presetName.copyWith(');
-      for (final String e in extras) {
-        b.writeln('    $e');
+      for (final (String name, String value) in extras) {
+        b.writeln('    $name: () => $value,');
       }
       b.writeln('  ),');
     }
@@ -457,8 +459,8 @@ String dartCode(
     if (!style.quietZone) {
       b.writeln('    quietZone: false,');
     }
-    for (final String e in extras) {
-      b.writeln('    $e');
+    for (final (String name, String value) in extras) {
+      b.writeln('    $name: $value,');
     }
     b.writeln('  ),');
   }
@@ -502,6 +504,7 @@ String _captionDart(BarcodeCaption c, String Function(String) quoted) {
   final List<String> args = <String>[
     quoted(c.text),
     if (c.size != 0.09) 'size: ${c.size}',
+    if (c.letterSpacing != 0) 'letterSpacing: ${c.letterSpacing}',
     if (c.style?.color case final Color color)
       'style: TextStyle(color: Color(0x${color.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()}))',
   ];

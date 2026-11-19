@@ -225,23 +225,65 @@ final class SymbolLayout {
     );
     return out;
   }
-
-  /// The pixels per module that fit the layout into [size] x [size].
-  int moduleSizeFor(int size) => math.max(1, size ~/ math.max(width, height));
 }
 
-/// Pixels per module for [size] (fit into `size` × `size`) or [moduleSize];
-/// 4 without either.
+/// The size of an exported image: [moduleSize] pixels per module, and the
+/// image [width] x [height] pixels.
+typedef ExportSize = ({int moduleSize, int width, int height});
+
+/// The size of an image of something [width] x [height] modules large, for
+/// [size] or [moduleSize] as `BarcodeSymbol.toPng` takes them: [moduleSize]
+/// pixels per module (4 without either), or the most whole pixels per
+/// module that fit [size] across the longer side, which is then exactly
+/// [size] pixels, the shorter one in proportion. [content] gives the pixels
+/// the drawing itself takes at a module size; it may be a few pixels more
+/// than the modules (a shadow rounded out to whole pixels).
 ///
-/// Throws [ArgumentError] if both are given or one is not positive.
-int pixelsPerModule(SymbolLayout layout, int? size, int? moduleSize) {
+/// Throws [ArgumentError] if both are given, one is not positive, or [size]
+/// is smaller than the longer side in modules.
+ExportSize exportSize(
+  double width,
+  double height,
+  int? size,
+  int? moduleSize, {
+  (int, int) Function(int moduleSize)? content,
+}) {
   if (size != null && moduleSize != null) {
     throw ArgumentError('Give either size or moduleSize, not both');
   }
   if ((size ?? 1) < 1 || (moduleSize ?? 1) < 1) {
     throw ArgumentError('size and moduleSize must be positive');
   }
-  return size != null ? layout.moduleSizeFor(size) : moduleSize ?? 4;
+  (int, int) pixels(int m) =>
+      content?.call(m) ?? ((width * m).ceil(), (height * m).ceil());
+  if (size == null) {
+    final int m = moduleSize ?? 4;
+    final (int w, int h) = pixels(m);
+    return (moduleSize: m, width: w, height: h);
+  }
+  final double longer = math.max(width, height);
+  int m = (size / longer).floor();
+  while (m >= 1) {
+    final (int w, int h) = pixels(m);
+    if (math.max(w, h) <= size) {
+      final bool wide = width >= height;
+      final int shorter = math.max(
+        wide ? h : w,
+        (size * math.min(width, height) / longer).round(),
+      );
+      return (
+        moduleSize: m,
+        width: wide ? size : shorter,
+        height: wide ? shorter : size,
+      );
+    }
+    m--;
+  }
+  throw ArgumentError.value(
+    size,
+    'size',
+    'is smaller than the code, ${longer.ceil()} modules across',
+  );
 }
 
 /// Escapes text for XML content and attributes.
@@ -316,3 +358,38 @@ List<_Digit>? _eanUpcDigits(BarcodeSymbol s, String text) {
       return null;
   }
 }
+
+/// The `width` and `height` of an SVG document of [width] x [height]
+/// modules: [moduleSize] pixels per module (4 without either), or [size]
+/// across the longer side.
+///
+/// Throws [ArgumentError] as [exportSize] does.
+(String, String) svgSize(
+  double width,
+  double height,
+  int? size,
+  int? moduleSize,
+) {
+  final ExportSize checked = exportSize(width, height, size, moduleSize);
+  final double scale = size == null
+      ? checked.moduleSize.toDouble()
+      : size / math.max(width, height);
+  String n(double v) {
+    final double r = (v * 1000).roundToDouble() / 1000;
+    return r == r.roundToDouble() ? r.round().toString() : r.toString();
+  }
+
+  return (n(width * scale), n(height * scale));
+}
+
+/// [symbol] without its quiet zone.
+BarcodeSymbol withoutQuietZone(BarcodeSymbol symbol) => symbol.quietZone == 0
+    ? symbol
+    : BarcodeSymbol(
+        format: symbol.format,
+        width: symbol.width,
+        height: symbol.height,
+        modules: symbol.modules,
+        text: symbol.text,
+        errorCorrection: symbol.errorCorrection,
+      );

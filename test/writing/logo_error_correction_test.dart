@@ -89,11 +89,12 @@ void main() {
       for (final int length in <int>[16, 24, 32, 44, 60, 80, 100, 130, 160]) {
         final String data =
             'https://example.com/${'x' * math.max(0, length - 20)}';
-        final BarcodeSymbol symbol = await BarcodeWriter(
-          BarcodeFormat.qrCode,
-          errorCorrection: level,
-          quietZone: false,
-        ).encode(data);
+        final BarcodeSymbol symbol = withoutQuietZone(
+          await BarcodeWriter(
+            BarcodeFormat.qrCode,
+            errorCorrection: level,
+          ).encode(data),
+        );
         final int n = symbol.width;
         final LogoBox box = SymbolShapes(
           symbol,

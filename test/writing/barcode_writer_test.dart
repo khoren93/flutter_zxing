@@ -256,12 +256,11 @@ void main() {
           errorCorrection: ErrorCorrection.high,
           version: 12,
           gs1: true,
-          quietZone: false,
           showText: true,
           zxingOptions: 'forceSquare',
         ).toString(),
         'BarcodeWriter(dataMatrix, errorCorrection: high, version: 12, '
-        'gs1: true, quietZone: false, showText: true, '
+        'gs1: true, showText: true, '
         "zxingOptions: 'forceSquare')",
       );
     });
@@ -354,12 +353,37 @@ void main() {
       );
     });
 
-    test('fits a size with whole-pixel modules', () {
-      final SymbolLayout layout = SymbolLayout(
-        _symbol(<String>['#.#', '.#.', '#.#'], quietZone: 1),
-      );
-      expect(layout.moduleSizeFor(100), 20);
-      expect(layout.moduleSizeFor(3), 1);
+    test('a size: whole-pixel modules, the longer side exactly', () {
+      expect(exportSize(5, 5, 100, null), (
+        moduleSize: 20,
+        width: 100,
+        height: 100,
+      ));
+      expect(exportSize(5, 5, 104, null), (
+        moduleSize: 20,
+        width: 104,
+        height: 104,
+      ));
+      expect(exportSize(5, 5, 5, null), (moduleSize: 1, width: 5, height: 5));
+      // A linear code: the shorter side in proportion.
+      expect(exportSize(100, 30, 250, null), (
+        moduleSize: 2,
+        width: 250,
+        height: 75,
+      ));
+      expect(exportSize(5, 5, null, null), (
+        moduleSize: 4,
+        width: 20,
+        height: 20,
+      ));
+      expect(exportSize(5, 3, null, 3), (moduleSize: 3, width: 15, height: 9));
+    });
+
+    test('a size smaller than the code, or both, is an error', () {
+      expect(() => exportSize(5, 5, 4, null), throwsArgumentError);
+      expect(() => exportSize(5, 5, 10, 2), throwsArgumentError);
+      expect(() => exportSize(5, 5, 0, null), throwsArgumentError);
+      expect(() => exportSize(5, 5, null, 0), throwsArgumentError);
     });
   });
 
@@ -368,9 +392,23 @@ void main() {
       final String svg = _symbol(<String>['#.#'], quietZone: 1).toSvg();
       expect(svg, startsWith('<svg xmlns="http://www.w3.org/2000/svg" '));
       expect(svg, contains('viewBox="0 0 5 3"'));
+      expect(svg, contains('width="20" height="12"'));
       expect(svg, contains('<path d="M1 1h1v1h-1zM3 1h1v1h-1z" fill="#000"/>'));
       expect(svg, isNot(contains('<text')));
       expect(svg, endsWith('</svg>'));
+    });
+
+    test('is sized in pixels: per module, or across the longer side', () {
+      final BarcodeSymbol symbol = _symbol(<String>['#.#'], quietZone: 1);
+      expect(symbol.toSvg(moduleSize: 10), contains('width="50" height="30"'));
+      expect(symbol.toSvg(size: 100), contains('width="100" height="60"'));
+      expect(symbol.toSvg(size: 100), contains('viewBox="0 0 5 3"'));
+      expect(
+        symbol.toSvg(quietZone: false),
+        contains('viewBox="0 0 3 1" width="12" height="4"'),
+      );
+      expect(() => symbol.toSvg(size: 4), throwsArgumentError);
+      expect(() => symbol.toSvg(size: 10, moduleSize: 2), throwsArgumentError);
     });
 
     test('adds the text, escaped', () async {
@@ -492,7 +530,10 @@ void main() {
 
     test('defaults to 4 pixels per module and fits a size', () async {
       expect((await symbol.toImage()).width, 16);
-      expect((await symbol.toImage(size: 41)).width, 40);
+      // Exactly the size: whole-pixel modules, the rest white margin.
+      final BarcodeImage sized = await symbol.toImage(size: 41);
+      expect((sized.width, sized.height), (41, 41));
+      expect(sized.pixels.first, 255);
     });
 
     test('rejects both sizes, or a size below 1', () async {

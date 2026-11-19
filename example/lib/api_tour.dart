@@ -167,13 +167,12 @@ Widget barcodeWidgets() => Column(
     const BarcodeView('https://pub.dev', width: 200),
     const BarcodeView(
       '4006381333931',
-      format: BarcodeFormat.ean13,
-      showText: true,
+      writer: BarcodeWriter(BarcodeFormat.ean13),
       width: 240,
     ),
     BarcodeView.bytes(
       Uint8List.fromList([0xCA, 0xFE]),
-      format: BarcodeFormat.dataMatrix,
+      writer: BarcodeWriter(BarcodeFormat.dataMatrix),
       width: 120,
     ),
     BarcodeView(

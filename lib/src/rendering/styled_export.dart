@@ -13,15 +13,35 @@ import '../writing/symbol_layout.dart';
 import 'barcode_painter.dart';
 import 'barcode_style.dart';
 import 'frame_layout.dart';
+import 'logo_symbol.dart';
 import 'symbol_shapes.dart';
 
-/// Loads the image of [logo], or `null` without one. The caller disposes
+/// Loads the image of [logo], or `null` without one, sharp enough to be
+/// drawn [pixels] wide: an asset with resolution variants (`2.0x/`,
+/// `3.0x/`) is loaded in the variant for that size. The caller disposes
 /// the result.
-Future<ImageInfo?> loadLogo(BarcodeLogo? logo) async {
+///
+/// Completes with the image's error if it fails to load.
+Future<ImageInfo?> loadLogo(BarcodeLogo? logo, double pixels) async {
   if (logo == null) {
     return null;
   }
-  final ImageStream stream = logo.image.resolve(ImageConfiguration.empty);
+  final ImageInfo info = await _resolve(logo.image, 1);
+  final int width = info.image.width;
+  if (width >= pixels || width == 0) {
+    return info;
+  }
+  // The image's own size in logical pixels: what a resolution variant is
+  // the multiple of.
+  final double logical = width / info.scale;
+  info.dispose();
+  return _resolve(logo.image, pixels / logical);
+}
+
+Future<ImageInfo> _resolve(ImageProvider image, double devicePixelRatio) {
+  final ImageStream stream = image.resolve(
+    ImageConfiguration(devicePixelRatio: devicePixelRatio),
+  );
   final Completer<ImageInfo> done = Completer<ImageInfo>();
   late final ImageStreamListener listener;
   listener = ImageStreamListener(
@@ -50,20 +70,43 @@ Future<Uint8List> styledPng(
   int? size,
   int? moduleSize,
 }) async {
+  assert(logoFits(symbol, style.logo), logoFitsMessage(symbol, style.logo!));
   final BarcodeSymbol shown = styledSymbol(symbol, style);
   final SymbolLayout layout = SymbolLayout(shown);
   final FrameLayout frame = FrameLayout(layout, style);
-  final int m = frame.pixelsPerModule(size, moduleSize);
-  final ImageInfo? logo = SymbolShapes(shown, layout, style).logo != null
-      ? await loadLogo(style.logo)
+  // Whole pixels: modules between two pixels would blur.
+  double outsetAt(int m) => (frame.outset * m).ceilToDouble();
+  (int, int) content(int m) => (
+    (frame.width * m + 2 * outsetAt(m)).ceil(),
+    (frame.height * m + 2 * outsetAt(m)).ceil(),
+  );
+  final ExportSize pixels = exportSize(
+    frame.width + 2 * frame.outset,
+    frame.height + 2 * frame.outset,
+    size,
+    moduleSize,
+    content: content,
+  );
+  final int m = pixels.moduleSize;
+  final LogoBox? logoBox = SymbolShapes(shown, layout, style).logo;
+  final ImageInfo? logo = logoBox != null
+      ? await loadLogo(style.logo, logoBox.rect.width * m)
       : null;
   try {
-    // Whole pixels: modules between two pixels would blur.
-    final double outset = (frame.outset * m).ceilToDouble();
-    final int width = (frame.width * m + 2 * outset).ceil();
-    final int height = (frame.height * m + 2 * outset).ceil();
+    final (int cw, int ch) = content(m);
+    final double outset = outsetAt(m);
     final ui.PictureRecorder recorder = ui.PictureRecorder();
-    final ui.Canvas canvas = ui.Canvas(recorder)..translate(outset, outset);
+    final ui.Canvas canvas = ui.Canvas(recorder);
+    // The margin [size] leaves: the background, transparent around a card.
+    if (frame.card == null &&
+        style.backgroundColor.a > 0 &&
+        (cw != pixels.width || ch != pixels.height)) {
+      canvas.drawColor(style.backgroundColor, ui.BlendMode.src);
+    }
+    canvas.translate(
+      ((pixels.width - cw) ~/ 2) + outset,
+      ((pixels.height - ch) ~/ 2) + outset,
+    );
     BarcodePainter(
       symbol: shown,
       layout: layout,
@@ -76,7 +119,7 @@ Future<Uint8List> styledPng(
       logo: logo?.image,
     ).paint(canvas, ui.Size(frame.width * m, frame.height * m));
     final ui.Picture picture = recorder.endRecording();
-    final ui.Image image = await picture.toImage(width, height);
+    final ui.Image image = await picture.toImage(pixels.width, pixels.height);
     picture.dispose();
     try {
       final ByteData png = (await image.toByteData(
@@ -92,10 +135,17 @@ Future<Uint8List> styledPng(
 }
 
 /// [symbol] drawn with [style] as an SVG document, its frame included; one
-/// unit is one module.
+/// unit of the `viewBox` is one module, `width` and `height` are [size] or
+/// [moduleSize] as in `BarcodeStyle.toSvg`.
 ///
 /// Throws [UnsupportedError] for a [SweepGradient], which SVG cannot draw.
-Future<String> styledSvg(BarcodeSymbol symbol, BarcodeStyle style) async {
+Future<String> styledSvg(
+  BarcodeSymbol symbol,
+  BarcodeStyle style, {
+  int? size,
+  int? moduleSize,
+}) async {
+  assert(logoFits(symbol, style.logo), logoFitsMessage(symbol, style.logo!));
   final BarcodeSymbol shown = styledSymbol(symbol, style);
   final SymbolLayout layout = SymbolLayout(shown);
   final FrameLayout frame = FrameLayout(layout, style);
@@ -106,10 +156,22 @@ Future<String> styledSvg(BarcodeSymbol symbol, BarcodeStyle style) async {
       'SVG has no sweep gradients: export a SweepGradient with toPng',
     );
   }
+  final double o = frame.outset;
+  final (String pixelWidth, String pixelHeight) = svgSize(
+    frame.width + 2 * o,
+    frame.height + 2 * o,
+    size,
+    moduleSize,
+  );
   final String? logoPng;
   final LogoBox? logoBox = shapes.logo;
   if (logoBox != null) {
-    final ImageInfo? logo = await loadLogo(style.logo);
+    // Sharp on a screen of three pixels per point at the document's size.
+    final double scale = double.parse(pixelWidth) / (frame.width + 2 * o);
+    final ImageInfo? logo = await loadLogo(
+      style.logo,
+      logoBox.rect.width * scale * 3,
+    );
     try {
       final ByteData? png = await logo?.image.toByteData(
         format: ui.ImageByteFormat.png,
@@ -126,7 +188,6 @@ Future<String> styledSvg(BarcodeSymbol symbol, BarcodeStyle style) async {
     logoPng = null;
   }
 
-  final double o = frame.outset;
   final String w = _n(frame.width + 2 * o);
   final String h = _n(frame.height + 2 * o);
   final String fill = gradient == null ? _color(style.color) : 'url(#ink)';
@@ -138,7 +199,7 @@ Future<String> styledSvg(BarcodeSymbol symbol, BarcodeStyle style) async {
   }
   svg
     ..write('viewBox="${_n(-o)} ${_n(-o)} $w $h" ')
-    ..write('width="$w" height="$h">');
+    ..write('width="$pixelWidth" height="$pixelHeight">');
   final bool shadow = frame.shadowBlur > 0;
   if (gradient != null || shadow) {
     svg.write('<defs>');
@@ -260,8 +321,8 @@ void _caption(StringBuffer svg, FrameText t) {
   if (s.fontStyle == FontStyle.italic) {
     svg.write('font-style="italic" ');
   }
-  if (s.letterSpacing case final double spacing) {
-    svg.write('letter-spacing="${_n(spacing * t.fontSize)}" ');
+  if (t.caption.letterSpacing != 0) {
+    svg.write('letter-spacing="${_n(t.caption.letterSpacing * t.fontSize)}" ');
   }
   svg.write(
     'text-anchor="$anchor" fill="${_color(color)}"'

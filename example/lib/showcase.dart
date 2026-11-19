@@ -459,13 +459,7 @@ class _Code extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     children: <Widget>[
       Expanded(
-        child: Center(
-          child: BarcodeView(
-            text,
-            format: format,
-            showText: format == BarcodeFormat.ean13,
-          ),
-        ),
+        child: Center(child: BarcodeView(text, writer: BarcodeWriter(format))),
       ),
       const SizedBox(height: 8),
       Text(label, style: const TextStyle(color: Colors.black)),

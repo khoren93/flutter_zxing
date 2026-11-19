@@ -115,8 +115,7 @@ void main() {
       _host(
         const BarcodeView(
           '4006381333931',
-          format: BarcodeFormat.ean13,
-          showText: true,
+          writer: BarcodeWriter(BarcodeFormat.ean13, showText: true),
           width: 300,
         ),
       ),
@@ -159,7 +158,8 @@ void main() {
                   alignment: Alignment.topLeft,
                   child: BarcodeView(
                     '4006381333931',
-                    format: BarcodeFormat.ean13,
+                    // Bars only: text is antialiased.
+                    writer: BarcodeWriter(BarcodeFormat.ean13, showText: false),
                     width: 233.3,
                   ),
                 ),
@@ -244,7 +244,7 @@ void main() {
       _host(
         BarcodeView(
           'not digits',
-          format: BarcodeFormat.ean13,
+          writer: const BarcodeWriter(BarcodeFormat.ean13),
           width: 200,
           errorBuilder: (BuildContext context, BarcodeWriteException error) =>
               const Text('cannot encode'),
@@ -268,7 +268,11 @@ void main() {
     final Uint8List data = Uint8List.fromList(<int>[0, 1, 2, 0xFE, 0xFF]);
     await tester.pumpWidget(
       _host(
-        BarcodeView.bytes(data, format: BarcodeFormat.dataMatrix, width: 160),
+        BarcodeView.bytes(
+          data,
+          writer: const BarcodeWriter(BarcodeFormat.dataMatrix),
+          width: 160,
+        ),
       ),
     );
     await _settle(tester);
@@ -281,7 +285,23 @@ void main() {
     await _settle(tester);
     expect(
       tester.getSemantics(find.byType(BarcodeView)),
-      matchesSemantics(label: 'QR Code barcode: hello', isImage: true),
+      matchesSemantics(label: 'QR Code', isImage: true),
+    );
+    // The digits under the bars are on screen, so they are read out.
+    await tester.pumpWidget(
+      _host(
+        const BarcodeView(
+          '4006381333931',
+          key: ValueKey<String>('ean'),
+          writer: BarcodeWriter(BarcodeFormat.ean13),
+          width: 240,
+        ),
+      ),
+    );
+    await _settle(tester);
+    expect(
+      tester.getSemantics(find.byType(BarcodeView)),
+      matchesSemantics(label: 'EAN-13: 4006381333931', isImage: true),
     );
     await tester.pumpWidget(
       _host(const BarcodeView('hello', width: 120, semanticLabel: 'Ticket')),
@@ -340,7 +360,11 @@ void main() {
     final Uint8List data = Uint8List.fromList(<int>[1, 2, 3]);
     await tester.pumpWidget(
       _host(
-        BarcodeView.bytes(data, format: BarcodeFormat.dataMatrix, width: 160),
+        BarcodeView.bytes(
+          data,
+          writer: const BarcodeWriter(BarcodeFormat.dataMatrix),
+          width: 160,
+        ),
       ),
     );
     await _settle(tester);
@@ -348,7 +372,11 @@ void main() {
     data[0] = 9;
     await tester.pumpWidget(
       _host(
-        BarcodeView.bytes(data, format: BarcodeFormat.dataMatrix, width: 160),
+        BarcodeView.bytes(
+          data,
+          writer: const BarcodeWriter(BarcodeFormat.dataMatrix),
+          width: 160,
+        ),
       ),
     );
     for (int i = 0; i < 10; i++) {
@@ -451,9 +479,9 @@ void main() {
             _host(
               BarcodeView(
                 data,
+                writer: BarcodeWriter(format),
                 // A new state each time: no previous symbol to fall back on.
                 key: ValueKey<String>('${format.name} $data ${modules.name}'),
-                format: format,
                 width: 300,
                 style: BarcodeStyle(moduleShape: modules),
               ),
@@ -498,7 +526,7 @@ void main() {
       expect(
         tester.getSemantics(find.byType(BarcodeView)),
         matchesSemantics(
-          label: 'Studio 5G. QR Code barcode: hello. @flutterdev',
+          label: 'Studio 5G. QR Code. @flutterdev',
           isImage: true,
         ),
       );

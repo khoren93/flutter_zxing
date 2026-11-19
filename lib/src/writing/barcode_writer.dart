@@ -10,6 +10,7 @@ import '../barcode/upc.dart';
 import '../engine/engine.dart';
 import '../engine/engine_protocol.dart';
 import 'creator_options.dart' as writing;
+import 'creator_options.dart' show errorCorrectionOf;
 import 'symbol_layout.dart';
 
 /// Creates barcodes from text or binary data.
@@ -39,8 +40,7 @@ final class BarcodeWriter {
     this.errorCorrection,
     this.version,
     this.gs1 = false,
-    this.quietZone = true,
-    this.showText = false,
+    this.showText,
     this.zxingOptions,
   });
 
@@ -76,12 +76,11 @@ final class BarcodeWriter {
   /// `(01)09501101530003(17)250101`).
   final bool gs1;
 
-  /// Add the quiet zone (blank margin) the symbology requires.
-  final bool quietZone;
-
   /// Print the human readable text under linear barcodes (not DX Film
-  /// Edge, which has none).
-  final bool showText;
+  /// Edge, which has none). `null` (the default) follows the custom of the
+  /// format: the digits under EAN-13, EAN-8, UPC-A, UPC-E and ISBN, which
+  /// are printed on every product, and no text under the others.
+  final bool? showText;
 
   /// Raw zxing-cpp creator options for anything not covered above, e.g.
   /// `'eci=26, readerInit'`: `key` or `key=value`, separated by commas.
@@ -164,10 +163,11 @@ final class BarcodeWriter {
       // One margin on every side: the largest one the symbology needs (left
       // of an EAN-13: 11 modules), at least one module (zint gives Aztec
       // and DX Film Edge none).
-      quietZone: quietZone ? math.max(quiet, 1) : 0,
+      quietZone: math.max(quiet, 1),
+      errorCorrection: errorCorrectionOf(format, s.ecLevel),
       // DX Film Edge is six modules tall: text under it stops it reading.
       text:
-          showText &&
+          (showText ?? _textByDefault(format)) &&
               format.isLinear &&
               format != BarcodeFormat.dxFilmEdge &&
               s.text.isNotEmpty
@@ -175,6 +175,17 @@ final class BarcodeWriter {
           : null,
     );
   }
+
+  /// Whether [format] prints its text by default: the retail codes.
+  static bool _textByDefault(BarcodeFormat format) => switch (format) {
+    BarcodeFormat.ean13 ||
+    BarcodeFormat.ean8 ||
+    BarcodeFormat.upcA ||
+    BarcodeFormat.upcE ||
+    BarcodeFormat.isbn ||
+    BarcodeFormat.eanUpc => true,
+    _ => false,
+  };
 
   /// [text] as printed under the bars: zxing-cpp gives a UPC-A and a UPC-E
   /// as 13 digits, as they are transmitted, and an EAN-8 too when an add-on
@@ -198,30 +209,52 @@ final class BarcodeWriter {
   }
 
   /// Encodes text and returns it as an SVG document, black on white. Same
-  /// as `(await encode(data)).toSvg()`; for colors, shapes and a logo use
-  /// `BarcodeStyle.encodeSvg`.
+  /// as `(await encode(data)).toSvg(...)` (see [BarcodeSymbol.toSvg]); for
+  /// colors, shapes and a logo use `BarcodeStyle.encodeSvg`.
   ///
-  /// Throws [BarcodeWriteException] if [data] cannot be encoded.
-  Future<String> toSvg(String data) async => (await encode(data)).toSvg();
+  /// Throws [BarcodeWriteException] if [data] cannot be encoded, and
+  /// [ArgumentError] for a [size] or [moduleSize] [BarcodeSymbol.toSvg]
+  /// does not take.
+  Future<String> toSvg(
+    String data, {
+    int? size,
+    int? moduleSize,
+    bool quietZone = true,
+  }) async => (await encode(
+    data,
+  )).toSvg(size: size, moduleSize: moduleSize, quietZone: quietZone);
 
   /// Encodes text and returns it as a PNG, black on white. Same as
   /// `(await encode(data)).toPng(...)` (see [BarcodeSymbol.toPng]); for
   /// colors, shapes and a logo use `BarcodeStyle.encodePng`.
   ///
-  /// Throws [BarcodeWriteException] if [data] cannot be encoded.
-  Future<Uint8List> toPng(String data, {int? size, int? moduleSize}) async =>
-      (await encode(data)).toPng(size: size, moduleSize: moduleSize);
+  /// Throws [BarcodeWriteException] if [data] cannot be encoded, and
+  /// [ArgumentError] for a [size] or [moduleSize] [BarcodeSymbol.toPng]
+  /// does not take.
+  Future<Uint8List> toPng(
+    String data, {
+    int? size,
+    int? moduleSize,
+    bool quietZone = true,
+  }) async => (await encode(
+    data,
+  )).toPng(size: size, moduleSize: moduleSize, quietZone: quietZone);
 
   /// Encodes text and returns it as a grayscale image (black on white, no
   /// style: for printers and image processing). Same as
   /// `(await encode(data)).toImage(...)`; see [BarcodeSymbol.toImage].
   ///
-  /// Throws [BarcodeWriteException] if [data] cannot be encoded.
+  /// Throws [BarcodeWriteException] if [data] cannot be encoded, and
+  /// [ArgumentError] for a [size] or [moduleSize] [BarcodeSymbol.toImage]
+  /// does not take.
   Future<BarcodeImage> toImage(
     String data, {
     int? size,
     int? moduleSize,
-  }) async => (await encode(data)).toImage(size: size, moduleSize: moduleSize);
+    bool quietZone = true,
+  }) async => (await encode(
+    data,
+  )).toImage(size: size, moduleSize: moduleSize, quietZone: quietZone);
 
   /// Creates a copy with the given fields replaced.
   ///
@@ -233,7 +266,6 @@ final class BarcodeWriter {
     ErrorCorrection? errorCorrection,
     int? version,
     bool? gs1,
-    bool? quietZone,
     bool? showText,
     String? zxingOptions,
   }) => BarcodeWriter(
@@ -241,7 +273,6 @@ final class BarcodeWriter {
     errorCorrection: errorCorrection ?? this.errorCorrection,
     version: version ?? this.version,
     gs1: gs1 ?? this.gs1,
-    quietZone: quietZone ?? this.quietZone,
     showText: showText ?? this.showText,
     zxingOptions: zxingOptions ?? this.zxingOptions,
   );
@@ -253,7 +284,6 @@ final class BarcodeWriter {
       other.errorCorrection == errorCorrection &&
       other.version == version &&
       other.gs1 == gs1 &&
-      other.quietZone == quietZone &&
       other.showText == showText &&
       other.zxingOptions == zxingOptions;
 
@@ -263,7 +293,6 @@ final class BarcodeWriter {
     errorCorrection,
     version,
     gs1,
-    quietZone,
     showText,
     zxingOptions,
   );
@@ -272,7 +301,7 @@ final class BarcodeWriter {
   /// `BarcodeWriter(qrCode, errorCorrection: high)`.
   @override
   String toString() =>
-      'BarcodeWriter(${<String>[format.name, if (errorCorrection case final ErrorCorrection e) 'errorCorrection: ${e.name}', if (version != null) 'version: $version', if (gs1) 'gs1: true', if (!quietZone) 'quietZone: false', if (showText) 'showText: true', if (zxingOptions != null) "zxingOptions: '$zxingOptions'"].join(', ')})';
+      'BarcodeWriter(${<String>[format.name, if (errorCorrection case final ErrorCorrection e) 'errorCorrection: ${e.name}', if (version != null) 'version: $version', if (gs1) 'gs1: true', if (showText case final bool t) 'showText: $t', if (zxingOptions != null) "zxingOptions: '$zxingOptions'"].join(', ')})';
 }
 
 /// Error correction level: how much of the symbol can be damaged and still
@@ -371,7 +400,7 @@ final class BarcodeImage {
 /// height (EAN/UPC guard bars extend lower than the data bars).
 ///
 /// Two symbols are equal when they draw the same: the same [format], size,
-/// dark modules, [quietZone] and [text].
+/// dark modules, [quietZone], [text] and [errorCorrection].
 @immutable
 final class BarcodeSymbol {
   /// Wraps a module matrix.
@@ -382,6 +411,7 @@ final class BarcodeSymbol {
     required this.modules,
     this.quietZone = 0,
     this.text,
+    this.errorCorrection,
   });
 
   /// The symbology.
@@ -396,12 +426,19 @@ final class BarcodeSymbol {
   /// One byte per module, row by row: non-zero is dark.
   final Uint8List modules;
 
-  /// Blank margin to keep on each side, in modules (0 if the writer was
-  /// created with `quietZone: false`).
+  /// Blank margin the symbology needs on each side, in modules. Exports
+  /// and `BarcodeView` draw it unless told otherwise (`quietZone: false`,
+  /// `BarcodeStyle.quietZone`).
   final int quietZone;
 
   /// Human readable text to print under a linear barcode, or `null`.
   final String? text;
+
+  /// The error correction level of a QR code, Micro QR code or rMQR code,
+  /// as the engine created or read it; `null` for other formats or when it
+  /// is not known. A logo needs enough of it: see
+  /// `BarcodeLogo.neededErrorCorrection`.
+  final ErrorCorrection? errorCorrection;
 
   /// Whether the module at column [x], row [y] is dark.
   bool isDark(int x, int y) => modules[y * width + x] != 0;
@@ -417,6 +454,7 @@ final class BarcodeSymbol {
         other.height != height ||
         other.quietZone != quietZone ||
         other.text != text ||
+        other.errorCorrection != errorCorrection ||
         other.modules.length != modules.length) {
       return false;
     }
@@ -435,6 +473,7 @@ final class BarcodeSymbol {
     height,
     quietZone,
     text,
+    errorCorrection,
     Object.hashAll(<bool>[for (final int m in modules) m != 0]),
   );
 
@@ -442,21 +481,34 @@ final class BarcodeSymbol {
   String toString() =>
       'BarcodeSymbol(${format.name}, $width x $height'
       '${quietZone == 0 ? '' : ', quietZone: $quietZone'}'
-      '${text == null ? '' : ', text: "$text"'})';
+      '${text == null ? '' : ', text: "$text"'}'
+      '${errorCorrection == null ? '' : ', errorCorrection: ${errorCorrection!.name}'})';
 
   /// Renders the symbol as an SVG document, black on white: one path,
   /// crisp at any size. For colors, shapes and a logo use
   /// `BarcodeStyle.toSvg`.
   ///
-  /// One SVG unit is one module, quiet zone included; scale it with the
-  /// `width`/`height` of the element that shows it.
+  /// The `viewBox` is in modules; `width` and `height` are pixels:
+  /// [moduleSize] pixels per module (4 by default), or [size] pixels across
+  /// the longer side. [quietZone] `false` leaves the blank margin out.
+  ///
+  /// Throws [ArgumentError] if both [size] and [moduleSize] are given, one
+  /// is not positive, or [size] is smaller than the symbol in modules.
   ///
   /// ```dart
   /// final symbol = await const BarcodeWriter(BarcodeFormat.qrCode).encode('https://pub.dev');
-  /// await File('qr.svg').writeAsString(symbol.toSvg());
+  /// await File('qr.svg').writeAsString(symbol.toSvg(size: 512));
   /// ```
-  String toSvg() {
-    final SymbolLayout layout = SymbolLayout(this);
+  String toSvg({int? size, int? moduleSize, bool quietZone = true}) {
+    final SymbolLayout layout = SymbolLayout(
+      quietZone ? this : withoutQuietZone(this),
+    );
+    final (String width, String height) = svgSize(
+      layout.width.toDouble(),
+      layout.height.toDouble(),
+      size,
+      moduleSize,
+    );
     final StringBuffer path = StringBuffer();
     for (final ModuleRect r in layout.rects) {
       path.write('M${r.x} ${r.y}h${r.width}v${r.height}h-${r.width}z');
@@ -464,7 +516,7 @@ final class BarcodeSymbol {
     final StringBuffer svg = StringBuffer()
       ..write('<svg xmlns="http://www.w3.org/2000/svg" ')
       ..write('viewBox="0 0 ${layout.width} ${layout.height}" ')
-      ..write('width="${layout.width}" height="${layout.height}" ')
+      ..write('width="$width" height="$height" ')
       ..write('shape-rendering="crispEdges">')
       ..write('<rect width="100%" height="100%" fill="#fff"/>')
       ..write('<path d="$path" fill="#000"/>');
@@ -487,45 +539,76 @@ final class BarcodeSymbol {
   /// Renders the symbol as a PNG, black on white: [toImage] encoded as
   /// PNG. For colors, shapes and a logo use `BarcodeStyle.toPng`.
   ///
-  /// Give either [size] (fit into `size` × `size` pixels with whole-pixel
-  /// modules) or [moduleSize] (pixels per module). Defaults to 4 pixels per
-  /// module.
+  /// Give either [size] or [moduleSize] (pixels per module; 4 by default).
+  /// With [size] the longer side is exactly [size] pixels and the shorter
+  /// one in proportion: the modules are the most whole pixels that fit, the
+  /// rest is white margin. [quietZone] `false` leaves the blank margin out.
   ///
-  /// Throws [ArgumentError] if both are given or one is not positive.
+  /// Throws [ArgumentError] if both are given, one is not positive, or
+  /// [size] is smaller than the symbol in modules.
   ///
   /// ```dart
   /// await File('qr.png').writeAsBytes(await symbol.toPng(size: 1024));
   /// ```
-  Future<Uint8List> toPng({int? size, int? moduleSize}) async =>
-      (await toImage(size: size, moduleSize: moduleSize)).toPng();
+  Future<Uint8List> toPng({
+    int? size,
+    int? moduleSize,
+    bool quietZone = true,
+  }) async => (await toImage(
+    size: size,
+    moduleSize: moduleSize,
+    quietZone: quietZone,
+  )).toPng();
 
   /// Renders the symbol as an 8-bit grayscale image.
   ///
-  /// Give either [size] (fit into `size` × `size` pixels with whole-pixel
-  /// modules) or [moduleSize] (pixels per module). Defaults to 4 pixels per
-  /// module. Asynchronous because [text] is drawn with the Flutter engine.
+  /// Give either [size] or [moduleSize] (pixels per module; 4 by default).
+  /// With [size] the longer side is exactly [size] pixels and the shorter
+  /// one in proportion: the modules are the most whole pixels that fit, the
+  /// rest is white margin. [quietZone] `false` leaves the blank margin out.
+  /// Asynchronous because [text] is drawn with the Flutter engine.
   ///
-  /// Throws [ArgumentError] if both are given or one is not positive.
+  /// Throws [ArgumentError] if both are given, one is not positive, or
+  /// [size] is smaller than the symbol in modules.
   ///
   /// ```dart
-  /// final image = await symbol.toImage(size: 300); // fits 300 x 300
+  /// final image = await symbol.toImage(size: 300); // 300 x 300
   /// final png = await image.toPng();
   /// ```
-  Future<BarcodeImage> toImage({int? size, int? moduleSize}) async {
-    final SymbolLayout layout = SymbolLayout(this);
-    final int m = pixelsPerModule(layout, size, moduleSize);
-    final int w = layout.width * m;
-    final int h = layout.height * m;
-    final Uint8List pixels = Uint8List(w * h)..fillRange(0, w * h, 255);
+  Future<BarcodeImage> toImage({
+    int? size,
+    int? moduleSize,
+    bool quietZone = true,
+  }) async {
+    final SymbolLayout layout = SymbolLayout(
+      quietZone ? this : withoutQuietZone(this),
+    );
+    final ExportSize pixels = exportSize(
+      layout.width.toDouble(),
+      layout.height.toDouble(),
+      size,
+      moduleSize,
+    );
+    final int m = pixels.moduleSize;
+    final int w = pixels.width;
+    final int h = pixels.height;
+    // Whole pixels: the margin [size] leaves, split around the symbol.
+    final int left = (w - layout.width * m) ~/ 2;
+    final int top = (h - layout.height * m) ~/ 2;
+    final Uint8List raster = Uint8List(w * h)..fillRange(0, w * h, 255);
     for (final ModuleRect r in layout.rects) {
-      for (int y = r.y * m; y < (r.y + r.height) * m; y++) {
-        pixels.fillRange(y * w + r.x * m, y * w + (r.x + r.width) * m, 0);
+      for (int y = top + r.y * m; y < top + (r.y + r.height) * m; y++) {
+        raster.fillRange(
+          y * w + left + r.x * m,
+          y * w + left + (r.x + r.width) * m,
+          0,
+        );
       }
     }
     if (layout.textRuns.isNotEmpty) {
-      await _drawText(pixels, w, h, layout, m);
+      await _drawText(raster, w, h, layout, m, left, top);
     }
-    return BarcodeImage(width: w, height: h, pixels: pixels);
+    return BarcodeImage(width: w, height: h, pixels: raster);
   }
 
   /// Draws the text of [layout] with the Flutter engine.
@@ -535,40 +618,52 @@ final class BarcodeSymbol {
     int height,
     SymbolLayout layout,
     int m,
+    int dx,
+    int dy,
   ) async {
     final List<TextRun> runs = layout.textRuns;
-    final int top = runs
-        .map((TextRun t) => (t.top * m).floor())
-        .reduce(math.min);
+    final int top =
+        dy + runs.map((TextRun t) => (t.top * m).floor()).reduce(math.min);
     final int bottom = math.min(
       height,
-      runs
-          .map((TextRun t) => ((t.top + t.fontSize + 1) * m).ceil())
-          .reduce(math.max),
+      dy +
+          runs
+              .map((TextRun t) => ((t.top + t.fontSize + 1) * m).ceil())
+              .reduce(math.max),
     );
     final int boxHeight = bottom - top;
-    final List<(ui.Paragraph, ui.Offset)>
-    paragraphs = <(ui.Paragraph, ui.Offset)>[
-      for (final TextRun t in runs)
-        () {
-          // A whole line spans the width; a digit gets a box of its own.
-          final double box = t.fit ? width.toDouble() : t.fontSize * m * 2;
-          final ui.Paragraph p =
-              (ui.ParagraphBuilder(
-                      ui.ParagraphStyle(
-                        textAlign: ui.TextAlign.center,
-                        fontSize: t.fittedSize(width / m) * m,
-                        height: 1,
-                        maxLines: 1,
-                      ),
-                    )
-                    ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000)))
-                    ..addText(t.text))
-                  .build()
-                ..layout(ui.ParagraphConstraints(width: box));
-          return (p, ui.Offset(t.fit ? 0 : t.x * m - box / 2, t.top * m - top));
-        }(),
-    ];
+    final List<(ui.Paragraph, ui.Offset)> paragraphs =
+        <(ui.Paragraph, ui.Offset)>[
+          for (final TextRun t in runs)
+            () {
+              // A whole line spans the width; a digit gets a box of its own.
+              final double box = t.fit
+                  ? (layout.width * m).toDouble()
+                  : t.fontSize * m * 2;
+              final ui.Paragraph p =
+                  (ui.ParagraphBuilder(
+                          ui.ParagraphStyle(
+                            textAlign: ui.TextAlign.center,
+                            fontSize: t.fittedSize(layout.width) * m,
+                            height: 1,
+                            maxLines: 1,
+                          ),
+                        )
+                        ..pushStyle(
+                          ui.TextStyle(color: const ui.Color(0xFF000000)),
+                        )
+                        ..addText(t.text))
+                      .build()
+                    ..layout(ui.ParagraphConstraints(width: box));
+              return (
+                p,
+                ui.Offset(
+                  dx + (t.fit ? 0 : t.x * m - box / 2),
+                  dy + t.top * m - top,
+                ),
+              );
+            }(),
+        ];
     final ui.PictureRecorder recorder = ui.PictureRecorder();
     final ui.Canvas canvas = ui.Canvas(recorder)
       ..drawColor(const ui.Color(0xFFFFFFFF), ui.BlendMode.src);
