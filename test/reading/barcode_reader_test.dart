@@ -78,16 +78,29 @@ void main() {
       expect(all.every((Barcode b) => b.format == BarcodeFormat.qrCode), true);
     });
 
-    test('stops at the limit', () async {
+    test('stops at maxBarcodes', () async {
       expect(
-        await reader.readAll(_sample('multi-1/qr-x4.png'), limit: 2),
+        await reader.readAll(_sample('multi-1/qr-x4.png'), maxBarcodes: 2),
         hasLength(2),
       );
     });
 
-    test('rejects a limit below 1', () async {
+    test('rejects maxBarcodes below 1', () async {
       await expectLater(
-        reader.readAll(_sample('multi-1/qr-x4.png'), limit: 0),
+        reader.readAll(_sample('multi-1/qr-x4.png'), maxBarcodes: 0),
+        throwsA(
+          isA<RangeError>().having(
+            (RangeError e) => e.name,
+            'name',
+            'maxBarcodes',
+          ),
+        ),
+      );
+      await expectLater(
+        reader.readAllPixels(
+          PixelBuffer(Uint8List(100), width: 10, height: 10),
+          maxBarcodes: -1,
+        ),
         throwsRangeError,
       );
     });

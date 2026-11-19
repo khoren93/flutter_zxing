@@ -60,7 +60,8 @@ final class BarcodeReader {
   Future<Barcode?> read(Uint8List encodedImage) async =>
       _first(await BarcodeEngine.shared.readImage(encodedImage, _options(1)));
 
-  /// Finds every barcode in an encoded image, up to [limit] if given.
+  /// Finds every barcode in an encoded image, at most [maxBarcodes] if
+  /// given (the same limit as `ScannerController.maxBarcodes`).
   ///
   /// ```dart
   /// const reader = BarcodeReader(formats: {BarcodeFormat.qrCode});
@@ -69,12 +70,15 @@ final class BarcodeReader {
   /// }
   /// ```
   ///
-  /// Throws [ImageDecodeException] if [encodedImage] is not a readable image.
-  Future<List<Barcode>> readAll(Uint8List encodedImage, {int? limit}) async =>
-      (await BarcodeEngine.shared.readImage(
-        encodedImage,
-        _options(_limit(limit)),
-      )).barcodes;
+  /// Throws [ImageDecodeException] if [encodedImage] is not a readable
+  /// image, and [RangeError] if [maxBarcodes] is less than 1.
+  Future<List<Barcode>> readAll(
+    Uint8List encodedImage, {
+    int? maxBarcodes,
+  }) async => (await BarcodeEngine.shared.readImage(
+    encodedImage,
+    _options(_limit(maxBarcodes)),
+  )).barcodes;
 
   /// Finds the first barcode in raw pixels. Returns `null` if there is none.
   ///
@@ -89,7 +93,7 @@ final class BarcodeReader {
   Future<Barcode?> readPixels(PixelBuffer image) async =>
       _first(await BarcodeEngine.shared.readPixels(image, _options(1)));
 
-  /// Finds every barcode in raw pixels, up to [limit] if given.
+  /// Finds every barcode in raw pixels, at most [maxBarcodes] if given.
   ///
   /// ```dart
   /// // The Y plane of a camera frame, only the middle third.
@@ -99,12 +103,15 @@ final class BarcodeReader {
   /// );
   /// ```
   ///
-  /// Throws [ArgumentError] if [image] holds fewer bytes than its size says.
-  Future<List<Barcode>> readAllPixels(PixelBuffer image, {int? limit}) async =>
-      (await BarcodeEngine.shared.readPixels(
-        image,
-        _options(_limit(limit)),
-      )).barcodes;
+  /// Throws [ArgumentError] if [image] holds fewer bytes than its size
+  /// says, and [RangeError] if [maxBarcodes] is less than 1.
+  Future<List<Barcode>> readAllPixels(
+    PixelBuffer image, {
+    int? maxBarcodes,
+  }) async => (await BarcodeEngine.shared.readPixels(
+    image,
+    _options(_limit(maxBarcodes)),
+  )).barcodes;
 
   /// Joins the parts of a structured append sequence (one message split
   /// across several barcodes, see [Barcode.sequence]) into one barcode that
@@ -220,15 +227,15 @@ final class BarcodeReader {
   static Barcode? _first(EngineReadResult result) =>
       result.barcodes.isEmpty ? null : result.barcodes.first;
 
-  /// The engine's maxSymbols for [limit]: 0 means no limit.
-  static int _limit(int? limit) {
-    if (limit == null) {
+  /// The engine's maxSymbols for [maxBarcodes]: 0 means no limit.
+  static int _limit(int? maxBarcodes) {
+    if (maxBarcodes == null) {
       return 0;
     }
-    if (limit < 1) {
-      throw RangeError.value(limit, 'limit', 'Must be at least 1');
+    if (maxBarcodes < 1) {
+      throw RangeError.range(maxBarcodes, 1, null, 'maxBarcodes');
     }
-    return limit;
+    return maxBarcodes;
   }
 
   /// Creates a copy with the given fields replaced.
