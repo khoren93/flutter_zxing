@@ -254,6 +254,11 @@ final class BarcodeSequence {
 
   @override
   int get hashCode => Object.hash(index, size, id);
+
+  @override
+  String toString() =>
+      'BarcodeSequence(index: $index, size: $size'
+      '${id.isEmpty ? '' : ', id: "$id"'})';
 }
 
 /// Why a barcode was found but could not be decoded.

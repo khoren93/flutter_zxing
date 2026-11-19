@@ -263,6 +263,12 @@ final class BarcodeWriter {
     showText,
     zxingOptions,
   );
+
+  /// The format and the fields that differ from the defaults, e.g.
+  /// `BarcodeWriter(qrCode, errorCorrection: high)`.
+  @override
+  String toString() =>
+      'BarcodeWriter(${<String>[format.name, if (errorCorrection case final ErrorCorrection e) 'errorCorrection: ${e.name}', if (version != null) 'version: $version', if (gs1) 'gs1: true', if (!quietZone) 'quietZone: false', if (showText) 'showText: true', if (zxingOptions != null) "zxingOptions: '$zxingOptions'"].join(', ')})';
 }
 
 /// Error correction level: how much of the symbol can be damaged and still
@@ -304,6 +310,9 @@ final class BarcodeImage {
 
   /// One byte per pixel, row by row.
   final Uint8List pixels;
+
+  @override
+  String toString() => 'BarcodeImage($width x $height)';
 
   /// Encodes the image as PNG (with the Flutter engine's encoder).
   ///
@@ -356,6 +365,9 @@ final class BarcodeImage {
 /// For 2D formats a module is one cell. Linear formats are a bar raster in
 /// module units: [width] is the number of modules across, [height] the bar
 /// height (EAN/UPC guard bars extend lower than the data bars).
+///
+/// Two symbols are equal when they draw the same: the same [format], size,
+/// dark modules, [quietZone] and [text].
 @immutable
 final class BarcodeSymbol {
   /// Wraps a module matrix.
@@ -389,6 +401,44 @@ final class BarcodeSymbol {
 
   /// Whether the module at column [x], row [y] is dark.
   bool isDark(int x, int y) => modules[y * width + x] != 0;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) {
+      return true;
+    }
+    if (other is! BarcodeSymbol ||
+        other.format != format ||
+        other.width != width ||
+        other.height != height ||
+        other.quietZone != quietZone ||
+        other.text != text ||
+        other.modules.length != modules.length) {
+      return false;
+    }
+    for (int i = 0; i < modules.length; i++) {
+      if ((modules[i] != 0) != (other.modules[i] != 0)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    format,
+    width,
+    height,
+    quietZone,
+    text,
+    Object.hashAll(<bool>[for (final int m in modules) m != 0]),
+  );
+
+  @override
+  String toString() =>
+      'BarcodeSymbol(${format.name}, $width x $height'
+      '${quietZone == 0 ? '' : ', quietZone: $quietZone'}'
+      '${text == null ? '' : ', text: "$text"'})';
 
   /// Renders the symbol as an SVG document, black on white: one path,
   /// crisp at any size. For colors, shapes and a logo use

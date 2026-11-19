@@ -265,4 +265,10 @@ final class BarcodeReader {
     formats == null ? null : Object.hashAllUnordered(formats!),
     options,
   );
+
+  /// The fields that differ from the defaults, e.g.
+  /// `BarcodeReader(formats: {qrCode}, options: ReaderOptions(isPure: true))`.
+  @override
+  String toString() =>
+      'BarcodeReader(${<String>[if (formats case final Set<BarcodeFormat> f) 'formats: {${f.map((BarcodeFormat f) => f.name).join(', ')}}', if (options != const ReaderOptions()) 'options: $options'].join(', ')})';
 }

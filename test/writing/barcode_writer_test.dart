@@ -244,6 +244,79 @@ void main() {
     });
   });
 
+  group('toString and equality', () {
+    test('BarcodeWriter shows the format and what differs', () {
+      expect(
+        const BarcodeWriter(BarcodeFormat.qrCode).toString(),
+        'BarcodeWriter(qrCode)',
+      );
+      expect(
+        const BarcodeWriter(
+          BarcodeFormat.dataMatrix,
+          errorCorrection: ErrorCorrection.high,
+          version: 12,
+          gs1: true,
+          quietZone: false,
+          showText: true,
+          zxingOptions: 'forceSquare',
+        ).toString(),
+        'BarcodeWriter(dataMatrix, errorCorrection: high, version: 12, '
+        'gs1: true, quietZone: false, showText: true, '
+        "zxingOptions: 'forceSquare')",
+      );
+    });
+
+    test('BarcodeSymbol and BarcodeImage show their size', () {
+      expect(
+        _symbol(<String>['#.', '.#']).toString(),
+        'BarcodeSymbol(qrCode, 2 x 2)',
+      );
+      expect(
+        _symbol(
+          <String>['#.#'],
+          quietZone: 9,
+          text: '123',
+          format: BarcodeFormat.ean8,
+        ).toString(),
+        'BarcodeSymbol(ean8, 3 x 1, quietZone: 9, text: "123")',
+      );
+      expect(
+        BarcodeImage(width: 4, height: 2, pixels: Uint8List(8)).toString(),
+        'BarcodeImage(4 x 2)',
+      );
+    });
+
+    test('BarcodeSymbols are equal when they draw the same', () {
+      final BarcodeSymbol a = _symbol(<String>['#.', '.#'], quietZone: 1);
+      expect(a, _symbol(<String>['#.', '.#'], quietZone: 1));
+      expect(a.hashCode, _symbol(<String>['#.', '.#'], quietZone: 1).hashCode);
+      // Any non-zero byte is dark.
+      final BarcodeSymbol other = BarcodeSymbol(
+        format: BarcodeFormat.qrCode,
+        width: 2,
+        height: 2,
+        modules: Uint8List.fromList(<int>[255, 0, 0, 7]),
+        quietZone: 1,
+      );
+      expect(a, other);
+      expect(a.hashCode, other.hashCode);
+      expect(a, isNot(_symbol(<String>['#.', '##'], quietZone: 1)));
+      expect(a, isNot(_symbol(<String>['#.', '.#'])));
+      expect(a, isNot(_symbol(<String>['#.', '.#'], quietZone: 1, text: 'x')));
+      expect(
+        a,
+        isNot(
+          _symbol(
+            <String>['#.', '.#'],
+            quietZone: 1,
+            format: BarcodeFormat.dataMatrix,
+          ),
+        ),
+      );
+      expect(_symbol(<String>['#.#.']), isNot(_symbol(<String>['#.', '#.'])));
+    });
+  });
+
   group('SymbolLayout', () {
     test('merges identical rows into one rectangle per bar', () {
       final SymbolLayout layout = SymbolLayout(

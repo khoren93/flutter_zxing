@@ -136,6 +136,14 @@ final class ReaderOptions {
     eanAddOn,
     characterSet,
   );
+
+  /// The fields that differ from the defaults: `ReaderOptions()` for the
+  /// defaults, `ReaderOptions(tryInvert: false)` for [ReaderOptions.camera].
+  @override
+  String toString() {
+    const ReaderOptions d = ReaderOptions();
+    return 'ReaderOptions(${<String>[if (tryHarder != d.tryHarder) 'tryHarder: $tryHarder', if (tryRotate != d.tryRotate) 'tryRotate: $tryRotate', if (tryInvert != d.tryInvert) 'tryInvert: $tryInvert', if (tryDownscale != d.tryDownscale) 'tryDownscale: $tryDownscale', if (isPure != d.isPure) 'isPure: $isPure', if (returnErrors != d.returnErrors) 'returnErrors: $returnErrors', if (validateOptionalChecksum != d.validateOptionalChecksum) 'validateOptionalChecksum: $validateOptionalChecksum', if (binarizer != d.binarizer) 'binarizer: ${binarizer.name}', if (minLineCount != d.minLineCount) 'minLineCount: $minLineCount', if (eanAddOn != d.eanAddOn) 'eanAddOn: ${eanAddOn.name}', if (characterSet case final CharacterSet c) 'characterSet: ${c.name}'].join(', ')})';
+  }
 }
 
 /// What to do with EAN-2/EAN-5 add-on symbols (see
