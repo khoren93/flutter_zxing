@@ -44,7 +44,7 @@ BarcodeContent parseBarcodeContent(Barcode barcode) {
       );
       return elements == null
           ? TextContent(barcode.text)
-          : Gs1Content(elements);
+          : Gs1Content(Map<String, String>.unmodifiable(elements));
     case BarcodeContentType.binary:
       // zxing-cpp calls ASCII with control characters binary. AAMVA
       // driver's licenses always have them (`@\n\x1e\r ANSI …`): parse such

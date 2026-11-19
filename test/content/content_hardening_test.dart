@@ -223,4 +223,30 @@ void main() {
     ];
     expect(fields, containsAll(<String>['creditor', 'message']));
   });
+
+  test('parsed lists and maps cannot be changed', () {
+    final ContactContent contact =
+        BarcodeContent.parseText('MECARD:N:Owen,Sean;TEL:+1212;;')
+            as ContactContent;
+    expect(() => contact.phones.add('1'), throwsUnsupportedError);
+    final EmvPaymentContent pix =
+        BarcodeContent.parseText(
+              EmvPaymentContent.pix(
+                key: 'a@example.com',
+                name: 'Shop',
+                city: 'Rio',
+              ).toPayload(),
+            )
+            as EmvPaymentContent;
+    expect(() => pix.fields['54'] = '1', throwsUnsupportedError);
+    expect(() => pix.template('26')['01'] = 'x', throwsUnsupportedError);
+    expect(
+      () => EmvPaymentContent.pix(
+        key: 'a@example.com',
+        name: 'S',
+        city: 'R',
+      ).fields['54'] = '1',
+      throwsUnsupportedError,
+    );
+  });
 }

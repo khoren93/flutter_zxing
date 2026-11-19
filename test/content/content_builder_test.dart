@@ -120,6 +120,21 @@ void main() {
       );
     });
 
+    test('without a security type: open without a password, WPA with', () {
+      const WifiContent open = WifiContent(ssid: 'Cafe');
+      expect(open.security, WifiSecurity.none);
+      expect(open.validate(), isEmpty);
+      expect(open.toPayload(), 'WIFI:T:nopass;S:Cafe;;');
+      expect(
+        const WifiContent(ssid: 'Cafe', password: '').security,
+        WifiSecurity.none,
+      );
+      expect(
+        const WifiContent(ssid: 'Home', password: 'secret12').security,
+        WifiSecurity.wpa,
+      );
+    });
+
     test('a password of an open network is dropped', () {
       _normalises(
         const WifiContent(
@@ -134,7 +149,10 @@ void main() {
     test('issues', () {
       expect(const WifiContent(ssid: '').validate(), _issue('ssid'));
       expect(WifiContent(ssid: 'a' * 33).validate(), _issue('ssid'));
-      expect(const WifiContent(ssid: 'x').validate(), _issue('password'));
+      expect(
+        const WifiContent(ssid: 'x', security: WifiSecurity.wpa).validate(),
+        _issue('password'),
+      );
       expect(
         const WifiContent(
           ssid: 'x',

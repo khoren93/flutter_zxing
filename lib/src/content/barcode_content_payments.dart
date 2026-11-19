@@ -529,21 +529,23 @@ final class EmvPaymentContent extends PaymentContent {
     String? amount,
     String txid = '***',
     String? description,
-  }) => EmvPaymentContent(<String, String>{
-    '00': '01',
-    '26': emvTemplate(<String, String>{
-      '00': 'br.gov.bcb.pix',
-      '01': key,
-      if (description != null && description.isNotEmpty) '02': description,
+  }) => EmvPaymentContent(
+    Map<String, String>.unmodifiable(<String, String>{
+      '00': '01',
+      '26': emvTemplate(<String, String>{
+        '00': 'br.gov.bcb.pix',
+        '01': key,
+        if (description != null && description.isNotEmpty) '02': description,
+      }),
+      '52': '0000',
+      '53': '986',
+      '54': ?amount,
+      '58': 'BR',
+      '59': name,
+      '60': city,
+      '62': emvTemplate(<String, String>{'05': txid}),
     }),
-    '52': '0000',
-    '53': '986',
-    '54': ?amount,
-    '58': 'BR',
-    '59': name,
-    '60': city,
-    '62': emvTemplate(<String, String>{'05': txid}),
-  });
+  );
 
   /// The data objects by id, without the checksum (`63`).
   final Map<String, String> fields;

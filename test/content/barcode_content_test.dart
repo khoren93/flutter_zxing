@@ -524,6 +524,16 @@ void main() {
       expect(gs1.gtin, '09504000059101');
     });
 
+    test('the elements cannot be changed', () {
+      final Gs1Content gs1 =
+          _gs1('0109504000059101|10ABC').content as Gs1Content;
+      expect(() => gs1.elements['10'] = 'XYZ', throwsUnsupportedError);
+      expect(
+        (_gs1('0109504000059101|10ABC').content as Gs1Content).batch,
+        'ABC',
+      );
+    });
+
     test('DataBar Expanded: four digit identifiers (samples)', () {
       expect(
         (_gs1('11100224171102243102000100').content as Gs1Content).elements,

@@ -261,14 +261,22 @@ enum WifiSecurity {
 ///
 /// When the code does not say how the network is secured, it is taken as
 /// [WifiSecurity.wpa] if there is a password and [WifiSecurity.none] if not.
+/// The constructor does the same: `WifiContent(ssid: 'Cafe')` is an open
+/// network, `WifiContent(ssid: 'Home', password: 'secret12')` a WPA one.
 final class WifiContent extends BarcodeContent {
-  /// Creates Wi-Fi content.
+  /// Creates Wi-Fi content. Without [security], the network is
+  /// [WifiSecurity.none] when [password] is `null` or empty, else
+  /// [WifiSecurity.wpa].
   const WifiContent({
     required this.ssid,
     this.password,
-    this.security = WifiSecurity.wpa,
+    WifiSecurity? security,
     this.hidden = false,
-  });
+  }) : security =
+           security ??
+           (password == null || password == ''
+               ? WifiSecurity.none
+               : WifiSecurity.wpa);
 
   /// Network name.
   final String ssid;

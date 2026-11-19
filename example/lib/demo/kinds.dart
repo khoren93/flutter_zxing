@@ -707,7 +707,12 @@ String contentDart(BarcodeContent content) => switch (content) {
     _call('WifiContent', const <Object>[], <String, Object?>{
       'ssid': _q(ssid),
       'password': _qn(password),
-      if (security != WifiSecurity.wpa)
+      // Without `security:`, a network with a password is WPA, one
+      // without is open.
+      if (security !=
+          (password == null || password.isEmpty
+              ? WifiSecurity.none
+              : WifiSecurity.wpa))
         'security': 'WifiSecurity.${security.name}',
       if (hidden) 'hidden': 'true',
     }),

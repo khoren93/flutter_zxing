@@ -686,9 +686,15 @@ Map<String, String>? _tlv(String text) {
 }
 
 /// [EmvPaymentContent.template].
-Map<String, String> parseEmvTemplate(String? value) => value == null
-    ? const <String, String>{}
-    : _tlv(value) ?? const <String, String>{};
+Map<String, String> parseEmvTemplate(String? value) => switch (value) {
+  null => const <String, String>{},
+  final String v => switch (_tlv(v)) {
+    null => const <String, String>{},
+    final Map<String, String> objects => Map<String, String>.unmodifiable(
+      objects,
+    ),
+  },
+};
 
 String _serialize(Map<String, String> objects) => <String>[
   for (final MapEntry<String, String> e in objects.entries)
