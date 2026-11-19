@@ -842,6 +842,28 @@ void main() {
       expect(find.text('Choose a photo'), findsNothing);
     });
 
+    testWidgets('a busy camera and a page without camera access say so', (
+      WidgetTester tester,
+    ) async {
+      camera.openError = const CameraInUseException();
+      await tester.pumpWidget(_host(const BarcodeScanner()));
+      await tester.pump();
+      expect(find.text("The camera isn't available"), findsOneWidget);
+      expect(
+        find.textContaining(const ScannerStrings().inUseMessage),
+        findsOneWidget,
+      );
+
+      camera.openError = const CameraUnsupportedException();
+      await tester.tap(find.text('Try again'));
+      await tester.pump();
+      await tester.pump();
+      expect(
+        find.textContaining(const ScannerStrings().unsupportedMessage),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('strings replace every text', (WidgetTester tester) async {
       camera.openError = const CameraPermissionException();
       await tester.pumpWidget(

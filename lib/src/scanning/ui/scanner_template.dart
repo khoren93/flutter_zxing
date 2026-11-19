@@ -70,9 +70,10 @@ enum ScannerMode {
 /// scanning goes on, or a pick among the codes in view. A [check] accepts,
 /// flags or refuses each code before that.
 ///
-/// [scanWindow], [formats], [facing] and the detection the template needs
-/// apply to the controller `BarcodeScanner` creates. A controller you pass
-/// keeps its own settings.
+/// [scanWindow], [formats], [facing], [initialZoom] and the detection the
+/// template needs apply to the controller `BarcodeScanner` creates. A
+/// controller you pass keeps its own settings: make it with
+/// `ScannerController.fromTemplate` to take the template's.
 @immutable
 final class ScannerTemplate {
   /// Creates a template; prefer a preset and [copyWith].

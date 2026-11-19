@@ -56,7 +56,8 @@ const List<Type> _types = <Type>[
   // Errors
   ZxingException, ImageDecodeException, BarcodeWriteException,
   EngineException, ScannerException, CameraPermissionException,
-  CameraNotFoundException, CameraFailureException,
+  CameraNotFoundException, CameraFailureException, CameraInUseException,
+  CameraUnsupportedException,
 ];
 
 void main() {

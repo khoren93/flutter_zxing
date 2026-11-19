@@ -68,8 +68,37 @@ final class CameraNotFoundException extends ScannerException {
   String get _name => 'CameraNotFoundException';
 }
 
-/// The camera failed: it is used by another app, or the platform reported
-/// an error.
+/// The camera is busy: another app (or another part of this app) is
+/// using it. Trying again may work once it is released.
+///
+/// Reported on Android (the camera is in use, or too many cameras are open)
+/// and on the web (`NotReadableError`). iOS and macOS do not tell a busy
+/// camera apart: there it is a [CameraFailureException].
+final class CameraInUseException extends ScannerException {
+  /// Creates the exception.
+  const CameraInUseException([
+    super.message = 'The camera is used by another app',
+  ]);
+
+  @override
+  String get _name => 'CameraInUseException';
+}
+
+/// Cameras cannot be used here at all: a web page that is not served over
+/// https (or from localhost), a browser without camera access, a platform
+/// without a camera plugin. Trying again does not help.
+final class CameraUnsupportedException extends ScannerException {
+  /// Creates the exception.
+  const CameraUnsupportedException([
+    super.message = 'No camera access on this platform',
+  ]);
+
+  @override
+  String get _name => 'CameraUnsupportedException';
+}
+
+/// The camera failed: the platform reported an error not covered by the
+/// other [ScannerException]s, or the barcode engine kept failing.
 final class CameraFailureException extends ScannerException {
   /// Creates the exception.
   const CameraFailureException(super.message);

@@ -100,13 +100,7 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
   static ScannerController _create(ScannerTemplate? template) =>
       template == null
       ? ScannerController()
-      : ScannerController(
-          formats: template.formats,
-          scanWindow: template.scanWindow,
-          detection: template.detection,
-          maxBarcodes: template.maxBarcodes,
-          facing: template.facing ?? CameraFacing.back,
-        );
+      : ScannerController.fromTemplate(template);
 
   @override
   void initState() {
@@ -132,7 +126,8 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
         ..formats = template?.formats
         ..scanWindow = template?.scanWindow ?? const ScanWindow.centered()
         ..detection = template?.detection ?? DetectionMode.distinct
-        ..maxBarcodes = template == null ? 1 : template.maxBarcodes;
+        ..maxBarcodes = template == null ? 1 : template.maxBarcodes
+        ..initialZoom = template?.initialZoom;
     }
   }
 
@@ -560,11 +555,8 @@ class _ScanPage extends StatefulWidget {
 }
 
 class _ScanPageState extends State<_ScanPage> {
-  late final ScannerController _controller = ScannerController(
-    formats: widget.template.formats,
-    scanWindow: widget.template.scanWindow,
-    facing: widget.template.facing ?? CameraFacing.back,
-    detection: widget.template.detection,
+  late final ScannerController _controller = ScannerController.fromTemplate(
+    widget.template,
   );
 
   @override

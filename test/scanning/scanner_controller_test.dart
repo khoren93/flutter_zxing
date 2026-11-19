@@ -1,6 +1,8 @@
 // ScannerController on a fake camera: lifecycle, detection modes, the scan
 // window, torch, zoom and errors.
 import 'dart:async';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -97,9 +99,65 @@ void main() {
         CameraFacing.front,
       ]);
       expect(c.value.facing, CameraFacing.front);
+      expect(c.facing, CameraFacing.front);
       expect(c.value.status, ScannerStatus.running);
       await c.switchCamera(CameraFacing.front); // already: nothing
       expect(camera.opened, hasLength(2));
+    });
+
+    test('switchCamera without another camera does nothing', () async {
+      camera.capabilities = const CameraCapabilities(hasTorch: true);
+      final ScannerController c = create();
+      expect(c.value.canSwitchCamera, isFalse, reason: 'not known yet');
+      await c.start();
+      expect(c.value.canSwitchCamera, isFalse);
+      await c.switchCamera();
+      expect(camera.opened, <CameraFacing>[CameraFacing.back]);
+      expect(c.facing, CameraFacing.back);
+      expect(c.value.status, ScannerStatus.running);
+      // Kept while the camera is closed.
+      await c.stop();
+      await c.switchCamera(CameraFacing.front);
+      expect(c.facing, CameraFacing.back);
+    });
+
+    test('canSwitchCamera reports the other camera', () async {
+      final ScannerController c = create();
+      await c.start();
+      expect(c.value.canSwitchCamera, isTrue);
+      await c.stop();
+      expect(c.value.canSwitchCamera, isTrue, reason: 'kept while closed');
+    });
+
+    test(
+      'a camera missing only when opened: the old one opens again',
+      () async {
+        // The capabilities claim a front camera that does not open.
+        camera.missing = <CameraFacing>{CameraFacing.front};
+        final ScannerController c = create();
+        await c.start();
+        await c.pause();
+        await c.switchCamera();
+        expect(camera.opened, <CameraFacing>[
+          CameraFacing.back,
+          CameraFacing.front,
+          CameraFacing.back,
+        ]);
+        expect(c.facing, CameraFacing.back);
+        expect(c.value.status, ScannerStatus.paused);
+        expect(c.value.error, isNull);
+        expect(c.value.canSwitchCamera, isFalse);
+      },
+    );
+
+    test('facing follows switchCamera while the camera is closed', () async {
+      final ScannerController c = create();
+      expect(c.facing, CameraFacing.back);
+      await c.switchCamera();
+      expect(c.facing, CameraFacing.front);
+      expect(c.value.facing, CameraFacing.front);
+      await c.start();
+      expect(camera.opened, <CameraFacing>[CameraFacing.front]);
     });
 
     test('an engine that keeps failing stops the scanner', () async {
@@ -112,6 +170,52 @@ void main() {
       expect(c.value.status, ScannerStatus.error);
       expect(c.value.error, isA<CameraFailureException>());
       expect(camera.isOpen, isFalse);
+    });
+  });
+
+  group('camera errors', () {
+    test('a camera taken by another app stops the scanner', () async {
+      final ScannerController c = create();
+      await c.start();
+      camera.fail(const CameraInUseException());
+      await pumpEventQueue();
+      expect(c.value.status, ScannerStatus.error);
+      expect(c.value.error, isA<CameraInUseException>());
+      expect(camera.isOpen, isFalse);
+    });
+
+    test('platform errors map to the exception that fits', () {
+      final Map<(String, String?), Type> cases = <(String, String?), Type>{
+        ('CameraAccessDenied', 'denied'): CameraPermissionException,
+        ('NotAllowedError', null): CameraPermissionException,
+        ('NotFoundError', null): CameraNotFoundException,
+        ('OverconstrainedError', null): CameraNotFoundException,
+        ('NotReadableError', 'Could not start video source'):
+            CameraInUseException,
+        ('CameraAccess', 'CAMERA_IN_USE (4): connect'): CameraInUseException,
+        (
+          'cameraError',
+          'The camera was already in use, possibly by a higher-priority '
+              'camera client.',
+        ): CameraInUseException,
+        (
+          'cameraError',
+          'The limit number of open cameras has been reached, and more '
+              'cameras cannot be opened until other instances are closed.',
+        ): CameraInUseException,
+        ('SecurityError', null): CameraUnsupportedException,
+        ('NotSupportedError', null): CameraUnsupportedException,
+        ('AbortError', null): CameraFailureException,
+        ('cameraError', 'Configuring the camera has failed.'):
+            CameraFailureException,
+      };
+      cases.forEach(((String, String?) input, Type type) {
+        expect(
+          cameraError(input.$1, input.$2).runtimeType,
+          type,
+          reason: '$input',
+        );
+      });
     });
   });
 
@@ -208,25 +312,36 @@ void main() {
       expect(c.formats, <BarcodeFormat>{BarcodeFormat.ean13});
     });
 
-    test('an empty or unreadable format set throws and changes nothing', () {
-      expect(
-        () => ScannerController(formats: const <BarcodeFormat>{}),
-        throwsArgumentError,
-      );
-      expect(
-        () => ScannerController(
-          formats: const <BarcodeFormat>{BarcodeFormat.isbn},
-        ),
-        throwsArgumentError,
-      );
+    test('an empty or unreadable filter throws at once', () {
+      for (final Set<BarcodeFormat> formats in <Set<BarcodeFormat>>[
+        <BarcodeFormat>{},
+        <BarcodeFormat>{BarcodeFormat.isbn},
+        <BarcodeFormat>{BarcodeFormat.qrCode, BarcodeFormat.ean2},
+        <BarcodeFormat>{BarcodeFormat.unknown},
+      ]) {
+        expect(
+          () => ScannerController(formats: formats),
+          throwsArgumentError,
+          reason: '$formats',
+        );
+      }
       final ScannerController c = create();
       c.formats = <BarcodeFormat>{BarcodeFormat.qrCode};
-      expect(() => c.formats = <BarcodeFormat>{}, throwsArgumentError);
       expect(
-        () => c.formats = <BarcodeFormat>{BarcodeFormat.ean2},
-        throwsArgumentError,
+        () => c.formats = <BarcodeFormat>{BarcodeFormat.isbn},
+        throwsA(
+          isA<ArgumentError>().having(
+            (ArgumentError e) => e.message,
+            'message',
+            contains('isbn'),
+          ),
+        ),
       );
+      expect(() => c.formats = <BarcodeFormat>{}, throwsArgumentError);
+      // The filter in use stays.
       expect(c.formats, <BarcodeFormat>{BarcodeFormat.qrCode});
+      c.formats = null;
+      expect(c.formats, isNull);
     });
   });
 
@@ -395,6 +510,142 @@ void main() {
       await pumpEventQueue();
       expect(samples.single.failed, 1);
       expect(samples.single.found, isTrue);
+    });
+  });
+
+  group('initial zoom and torch', () {
+    ScannerController make({double? initialZoom, bool torch = false}) {
+      final ScannerController c = ScannerController(
+        stopInBackground: false,
+        initialZoom: initialZoom,
+        torch: torch,
+      );
+      controllers.add(c);
+      return c;
+    }
+
+    test('every start zooms to the initial zoom', () async {
+      final ScannerController c = make(initialZoom: 2);
+      await c.start();
+      expect(c.value.zoom, 2);
+      expect(camera.zoom, 2);
+      await c.setZoom(3);
+      await c.switchCamera();
+      expect(c.value.zoom, 2, reason: 'after switchCamera');
+      await c.stop();
+      await c.start();
+      expect(c.value.zoom, 2, reason: 'after stop and start');
+      // Clamped to what the camera can do.
+      final ScannerController far = make(initialZoom: 10);
+      await far.start();
+      expect(far.value.zoom, 4);
+    });
+
+    test('changing the initial zoom while open zooms there', () async {
+      final ScannerController c = make();
+      await c.start();
+      expect(c.value.zoom, 1);
+      c.initialZoom = 3;
+      await pumpEventQueue();
+      expect(c.value.zoom, 3);
+      c.initialZoom = null;
+      await pumpEventQueue();
+      expect(c.value.zoom, 1);
+    });
+
+    test('the initial zoom leaves automatic zoom on', () async {
+      camera
+        ..capabilities = const CameraCapabilities(
+          maxZoom: 10,
+          ultraWide: 0.5,
+          ultraWideFocusesCloser: true,
+        )
+        ..lens = 0.3;
+      final ScannerController c = make(initialZoom: 2);
+      await c.start();
+      expect(c.value.autoZoom, AutoZoomState.on);
+      expect(c.value.zoom, 2);
+      await c.setZoom(1.5);
+      expect(c.value.autoZoom, AutoZoomState.off, reason: 'zoomed by hand');
+    });
+
+    test('the torch comes on at every start and keeps the choice', () async {
+      final ScannerController c = make(torch: true);
+      await c.start();
+      expect(c.value.torch, TorchState.on);
+      expect(camera.torch, isTrue);
+      await c.stop();
+      await c.start();
+      expect(c.value.torch, TorchState.on, reason: 'opened again');
+      await c.setTorch(false);
+      await c.stop();
+      await c.start();
+      expect(c.value.torch, TorchState.off, reason: 'turned off by hand');
+      await c.setTorch(true);
+      // The front camera has no torch; back on the back camera it is on.
+      camera.capabilities = const CameraCapabilities(hasOtherFacing: true);
+      await c.switchCamera();
+      expect(c.value.torch, TorchState.unavailable);
+      camera.capabilities = const CameraCapabilities(
+        hasTorch: true,
+        hasOtherFacing: true,
+      );
+      await c.switchCamera();
+      expect(c.value.torch, TorchState.on);
+    });
+  });
+
+  group('templates', () {
+    test('fromTemplate takes the camera settings of the template', () {
+      const ScannerTemplate small = ScannerTemplate.small();
+      final ScannerController c = ScannerController.fromTemplate(small);
+      controllers.add(c);
+      expect(c.formats, small.formats);
+      expect(c.scanWindow, small.scanWindow);
+      expect(c.detection, small.detection);
+      expect(c.maxBarcodes, small.maxBarcodes);
+      expect(c.initialZoom, 2);
+      expect(c.facing, CameraFacing.back);
+
+      final ScannerController kiosk = ScannerController.fromTemplate(
+        const ScannerTemplate.kiosk(),
+        autoStart: false,
+      );
+      controllers.add(kiosk);
+      expect(kiosk.facing, CameraFacing.front);
+      expect(kiosk.autoStart, isFalse);
+    });
+  });
+
+  group('lastFrameImage', () {
+    testWidgets('the last decoded frame in color, as the preview shows it', (
+      WidgetTester tester,
+    ) async {
+      final ScannerController c = create();
+      await tester.runAsync(() async {
+        await c.start();
+        expect(await c.lastFrameImage(), isNull, reason: 'no frame yet');
+        camera.push(
+          const <Barcode>[],
+          null,
+          false,
+          PixelBuffer(Uint8List(640 * 480), width: 640, height: 480),
+        );
+        await pumpEventQueue();
+        final ui.Image? image = await c.lastFrameImage();
+        // The frame is turned a quarter: 480 × 640 on screen.
+        expect(image?.width, 480);
+        expect(image?.height, 640);
+        image?.dispose();
+      });
+    });
+
+    test('null where frames are not in memory', () async {
+      final ScannerController c = create();
+      await c.start();
+      camera.push();
+      await pumpEventQueue();
+      expect(await c.lastFrameImage(), isNull);
     });
   });
 }

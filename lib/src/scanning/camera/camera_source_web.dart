@@ -83,14 +83,18 @@ final class WebCameraSource implements CameraSource {
       CameraResolution.hd => (1280, 720),
       CameraResolution.fullHd => (1920, 1080),
     };
+    if (!web.window.isSecureContext) {
+      // Plain http (not localhost) has no camera access at all.
+      throw const CameraUnsupportedException(
+        'Cameras need a secure page: serve it over https or from localhost',
+      );
+    }
     final web.MediaDevices? devices = web.window.navigator.has('mediaDevices')
         ? web.window.navigator.mediaDevices
         : null;
-    if (devices == null) {
-      // Plain http (not localhost) has no camera access at all.
-      throw const CameraNotFoundException(
-        'The browser offers no camera here (the page must be served over '
-        'https or from localhost)',
+    if (devices == null || !devices.has('getUserMedia')) {
+      throw const CameraUnsupportedException(
+        'This browser offers no camera access',
       );
     }
     final web.MediaStream stream;
@@ -126,7 +130,23 @@ final class WebCameraSource implements CameraSource {
       await Future<void>.delayed(const Duration(milliseconds: 16));
     }
     _updatePreview();
-    return _capabilities();
+    return _capabilities(hasOtherFacing: await _severalCameras(devices));
+  }
+
+  /// Whether the browser lists more than one camera. Browsers do not say
+  /// which side a camera is on before it is opened; once access is granted
+  /// they list every camera.
+  static Future<bool> _severalCameras(web.MediaDevices devices) async {
+    try {
+      final List<web.MediaDeviceInfo> all =
+          (await devices.enumerateDevices().toDart).toDart;
+      return all
+              .where((web.MediaDeviceInfo d) => d.kind == 'videoinput')
+              .length >
+          1;
+    } on Object {
+      return false;
+    }
   }
 
   /// The DOMException name of a camera failure (NotAllowedError,
@@ -137,10 +157,10 @@ final class WebCameraSource implements CameraSource {
     return RegExp(r'([A-Za-z]+Error)').firstMatch(text)?.group(1) ?? text;
   }
 
-  CameraCapabilities _capabilities() {
+  CameraCapabilities _capabilities({required bool hasOtherFacing}) {
     final web.MediaStreamTrack? track = _track;
     if (track == null || !track.has('getCapabilities')) {
-      return const CameraCapabilities();
+      return CameraCapabilities(hasOtherFacing: hasOtherFacing);
     }
     final JSObject caps = track.getCapabilities();
     double minZoom = 1;
@@ -160,6 +180,7 @@ final class WebCameraSource implements CameraSource {
       hasTorch: caps.has('torch'),
       minZoom: minZoom,
       maxZoom: maxZoom < minZoom ? minZoom : maxZoom,
+      hasOtherFacing: hasOtherFacing,
     );
   }
 

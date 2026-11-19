@@ -37,6 +37,11 @@ final class ScannerStrings {
     this.unavailableTitle = "The camera isn't available",
     this.unavailableMessage =
         'Another app may be using it, or this device has none.',
+    this.inUseMessage =
+        'Another app is using the camera. Close it and try again.',
+    this.unsupportedMessage =
+        'Camera access is not available here. On the web, the page must be '
+        'opened over https.',
     this.photoFallback = 'You can still read a code from a photo.',
     this.openSettings = 'Open Settings',
     this.tryAgain = 'Try again',
@@ -203,6 +208,14 @@ final class ScannerStrings {
 
   /// Text of the "camera not available" card.
   final String unavailableMessage;
+
+  /// Text of the "camera not available" card when another app uses the
+  /// camera (`CameraInUseException`).
+  final String inUseMessage;
+
+  /// Text of the "camera not available" card where cameras cannot be used
+  /// at all (`CameraUnsupportedException`: a web page over http).
+  final String unsupportedMessage;
 
   /// Added to the error cards when a photo can be read instead.
   final String photoFallback;
@@ -605,6 +618,8 @@ final class ScannerStrings {
       other.permissionMessage == permissionMessage &&
       other.unavailableTitle == unavailableTitle &&
       other.unavailableMessage == unavailableMessage &&
+      other.inUseMessage == inUseMessage &&
+      other.unsupportedMessage == unsupportedMessage &&
       other.photoFallback == photoFallback &&
       other.openSettings == openSettings &&
       other.tryAgain == tryAgain &&
@@ -740,6 +755,8 @@ final class ScannerStrings {
     permissionMessage,
     unavailableTitle,
     unavailableMessage,
+    inUseMessage,
+    unsupportedMessage,
     photoFallback,
     openSettings,
     tryAgain,

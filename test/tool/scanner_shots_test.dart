@@ -273,15 +273,16 @@ void main() {
     addTearDown(tester.view.reset);
     camera = FakeCamera(
       transform: FrameTransform(size),
-      capabilities: const CameraCapabilities(hasTorch: true, maxZoom: 6),
+      capabilities: const CameraCapabilities(
+        hasTorch: true,
+        maxZoom: 6,
+        hasOtherFacing: true,
+      ),
       preview: SizedBox.fromSize(size: size, child: preview),
     )..openError = openError;
     ScannerControllerDebug.cameraFactory = () => camera;
-    final ScannerController controller = ScannerController(
-      formats: template.formats,
-      scanWindow: template.scanWindow,
-      detection: template.detection,
-      maxBarcodes: template.maxBarcodes,
+    final ScannerController controller = ScannerController.fromTemplate(
+      template,
       autoStart: start,
     );
     addTearDown(controller.dispose);

@@ -97,7 +97,11 @@ final class FakeFrame extends CameraFrame {
 final class FakeCamera implements CameraSource {
   FakeCamera({
     this.transform = const FrameTransform(Size(640, 480), rotation: 90),
-    this.capabilities = const CameraCapabilities(hasTorch: true, maxZoom: 4),
+    this.capabilities = const CameraCapabilities(
+      hasTorch: true,
+      maxZoom: 4,
+      hasOtherFacing: true,
+    ),
     this.preview,
   });
 
@@ -116,6 +120,12 @@ final class FakeCamera implements CameraSource {
 
   /// Thrown by [setTorch].
   Exception? torchError;
+
+  /// Thrown by the next [nextFrame], like a camera another app took.
+  ScannerException? frameError;
+
+  /// Sides without a camera: [open] throws [CameraNotFoundException].
+  Set<CameraFacing> missing = <CameraFacing>{};
 
   final List<CameraFacing> opened = <CameraFacing>[];
 
@@ -136,6 +146,14 @@ final class FakeCamera implements CameraSource {
   final ValueNotifier<FrameTransform?> _preview =
       ValueNotifier<FrameTransform?>(null);
   Orientation _shape = Orientation.portrait;
+
+  /// Fails the open camera with [error], as when another app takes it.
+  void fail(ScannerException error) {
+    frameError = error;
+    final Completer<void>? waiter = _waiter;
+    _waiter = null;
+    waiter?.complete();
+  }
 
   /// Delivers a frame with [barcodes] and returns it.
   FakeFrame push([
@@ -171,6 +189,9 @@ final class FakeCamera implements CameraSource {
       openError = null;
       throw error;
     }
+    if (missing.contains(facing)) {
+      throw CameraNotFoundException('No ${facing.name} camera');
+    }
     _open = true;
     if (!previewOnFirstFrame) {
       _preview.value = transform;
@@ -192,6 +213,11 @@ final class FakeCamera implements CameraSource {
   @override
   Future<CameraFrame?> nextFrame() async {
     while (_open) {
+      final ScannerException? error = frameError;
+      if (error != null) {
+        frameError = null;
+        throw error;
+      }
       if (_frames.isNotEmpty) {
         return _frames.removeFirst();
       }

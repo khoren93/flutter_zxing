@@ -136,7 +136,9 @@ class ScanPage extends StatefulWidget {
 class _ScanPageState extends State<ScanPage> {
   DemoTemplate _picked = DemoTemplate.minimal;
   late ScannerTemplate _template = _build(_picked);
-  late final ScannerController _controller = _configure(ScannerController());
+  late final ScannerController _controller = ScannerController.fromTemplate(
+    _template,
+  );
   bool _menu = false;
 
   @override
@@ -145,11 +147,14 @@ class _ScanPageState extends State<ScanPage> {
     super.dispose();
   }
 
+  /// The camera stays open while the template changes: its settings go to
+  /// the controller in place.
   ScannerController _configure(ScannerController c) => c
     ..formats = _template.formats
     ..scanWindow = _template.scanWindow
     ..detection = _template.detection
-    ..maxBarcodes = _template.maxBarcodes;
+    ..maxBarcodes = _template.maxBarcodes
+    ..initialZoom = _template.initialZoom;
 
   void _pick(DemoTemplate t) {
     setState(() {

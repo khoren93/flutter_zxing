@@ -138,10 +138,6 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       _settled ||
       _checking;
 
-  /// Whether [ScannerTemplate.initialZoom] was set since the camera
-  /// started.
-  bool _zoomSet = false;
-
   ScannerTemplate get _template => widget.template;
 
   @override
@@ -159,7 +155,6 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   void didUpdateWidget(TemplateOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
     _listen();
-    _setInitialZoom();
     if (_template.mode != ScannerMode.pick) {
       if (_photo != null) {
         // The camera waits under a photo: the new template scans on.
@@ -206,25 +201,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     }
     unawaited(_captures?.cancel());
     _controller = controller;
-    _zoomSet = false;
     _captures = controller.barcodes.listen(_onCapture);
-    _setInitialZoom();
-  }
-
-  /// Zooms to [ScannerTemplate.initialZoom] once the camera runs, again
-  /// after every start.
-  void _setInitialZoom() {
-    final ScannerStatus status = widget.layout.state.status;
-    if (status != ScannerStatus.running && status != ScannerStatus.paused) {
-      _zoomSet = false;
-      return;
-    }
-    final double? zoom = _template.initialZoom;
-    if (_zoomSet || zoom == null) {
-      return;
-    }
-    _zoomSet = true;
-    unawaited(widget.layout.controller.setZoom(zoom));
   }
 
   void _onCapture(BarcodeCapture capture) {
@@ -695,7 +672,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     unawaited(controller.pause());
     final ui.Image? image = preview == null
         ? null
-        : await controller.freezeFrame();
+        : await controller.lastFrameImage();
     if (!mounted) {
       image?.dispose();
       return;

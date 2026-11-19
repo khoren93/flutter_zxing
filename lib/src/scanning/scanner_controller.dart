@@ -86,13 +86,17 @@ class ScannerController extends ValueNotifier<ScannerState> {
     DetectionMode detection = DetectionMode.distinct,
     ScanWindow scanWindow = const ScanWindow.centered(),
     int? maxBarcodes = 1,
-    this.facing = CameraFacing.back,
+    CameraFacing facing = CameraFacing.back,
     this.resolution = CameraResolution.hd,
     this.autoStart = true,
     this.stopInBackground = true,
     bool autoZoom = true,
-  }) : _formats = formats,
+    double? initialZoom,
+    bool torch = false,
+  }) : _formats = _checkFormats(formats),
+       _initialZoom = initialZoom,
        _autoZoom = autoZoom,
+       _torch = torch,
        _options = options,
        _detection = detection,
        _scanWindow = scanWindow,
@@ -100,6 +104,49 @@ class ScannerController extends ValueNotifier<ScannerState> {
        _facing = facing,
        super(ScannerState(facing: facing)) {
     _readOptions = _engineOptions();
+  }
+
+  /// Creates a controller with the camera settings of [template]: its
+  /// scan window, formats, detection, maxBarcodes, facing and initialZoom,
+  /// the settings `BarcodeScanner` gives the controller it creates for a
+  /// template. For a controller of your own that the template's screen
+  /// uses:
+  ///
+  /// ```dart
+  /// late final controller = ScannerController.fromTemplate(template);
+  ///
+  /// BarcodeScanner(controller: controller, template: template);
+  /// ```
+  ///
+  /// The other settings are those of the default constructor.
+  factory ScannerController.fromTemplate(
+    ScannerTemplate template, {
+    ReaderOptions options = const ReaderOptions.camera(),
+    CameraResolution resolution = CameraResolution.hd,
+    bool autoStart = true,
+    bool stopInBackground = true,
+    bool autoZoom = true,
+    bool torch = false,
+  }) => ScannerController(
+    formats: template.formats,
+    options: options,
+    detection: template.detection,
+    scanWindow: template.scanWindow,
+    maxBarcodes: template.maxBarcodes,
+    facing: template.facing ?? CameraFacing.back,
+    resolution: resolution,
+    autoStart: autoStart,
+    stopInBackground: stopInBackground,
+    autoZoom: autoZoom,
+    initialZoom: template.initialZoom,
+    torch: torch,
+  );
+
+  /// [formats] after the check `BarcodeReader` makes: [ArgumentError] for
+  /// an empty set and for a format that cannot be read.
+  static Set<BarcodeFormat>? _checkFormats(Set<BarcodeFormat>? formats) {
+    EngineReadOptions.formatsToEngine(formats);
+    return formats;
   }
 
   static int? _checkMax(int? value) {
@@ -112,14 +159,13 @@ class ScannerController extends ValueNotifier<ScannerState> {
   /// Formats to look for; `null` means all. Fewer formats decode faster.
   /// Can be changed while scanning.
   ///
-  /// Throws [ArgumentError] (here and in the constructor) for an empty set
-  /// and for formats that cannot be read, like `BarcodeReader.formats`.
+  /// Throws [ArgumentError] for an empty set and for a format that cannot
+  /// be read ([BarcodeFormat.canRead]: the EAN add-ons, `isbn`, `unknown`).
   Set<BarcodeFormat>? get formats => _formats;
   set formats(Set<BarcodeFormat>? value) {
-    if (setEquals(value, _formats)) {
+    if (setEquals(_checkFormats(value), _formats)) {
       return;
     }
-    EngineReadOptions.formatsToEngine(value);
     _formats = value;
     _onConfigChanged();
   }
@@ -180,14 +226,37 @@ class ScannerController extends ValueNotifier<ScannerState> {
 
   int? _maxBarcodes;
 
-  /// The camera opened by [start]. See [switchCamera].
-  final CameraFacing facing;
+  /// The camera in use, or the one [start] opens: the `facing` given to the
+  /// constructor until [switchCamera] changes it.
+  CameraFacing get facing => _facing;
 
   /// The camera resolution requested by [start].
   final CameraResolution resolution;
 
   /// Whether a `BarcodeScanner` starts the camera when it is shown.
   final bool autoStart;
+
+  /// The zoom every [start] sets, such as 2 for small codes; `null` starts
+  /// at 1×. Set again after the app returns from the background and after
+  /// [switchCamera], and clamped to what the camera can do. Changed while
+  /// the camera is open, the camera zooms there at once.
+  ///
+  /// Unlike [setZoom] it leaves automatic zoom on: from one of its steps
+  /// (1×, 2×, a camera's own zoom) automatic zoom moves on when the focus
+  /// asks for it; from another zoom it waits until the zoom is set to one
+  /// of them.
+  double? get initialZoom => _initialZoom;
+  set initialZoom(double? zoom) {
+    if (zoom == _initialZoom) {
+      return;
+    }
+    _initialZoom = zoom;
+    if (value.status.hasCamera) {
+      unawaited(_zoom(zoom ?? 1));
+    }
+  }
+
+  double? _initialZoom;
 
   /// Release the camera while the app is in the background and open it
   /// again when the app returns: the camera is stopped, not paused, so that
@@ -197,6 +266,22 @@ class ScannerController extends ValueNotifier<ScannerState> {
   // --- internals ---------------------------------------------------------
 
   CameraFacing _facing;
+
+  /// Whether the torch should be on: the `torch` given to the constructor,
+  /// then the last [setTorch]. Applied on every start.
+  bool _torch;
+
+  /// Whether the device has a camera on the other side; `null` until a
+  /// camera has opened.
+  bool? _otherFacing;
+
+  /// Sides whose camera turned out missing when [switchCamera] opened it.
+  final Set<CameraFacing> _missing = <CameraFacing>{};
+
+  /// The state of a closed camera.
+  ScannerState get _closed =>
+      ScannerState(facing: _facing, canSwitchCamera: _otherFacing ?? false);
+
   late EngineReadOptions _readOptions;
   CameraSource? _source;
   CameraCapabilities _capabilities = const CameraCapabilities();
@@ -447,6 +532,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
   ///
   /// Errors (no permission, no camera) do not throw: they are reported in
   /// [ScannerState.error] and the status becomes [ScannerStatus.error].
+  /// After a denied permission, the camera is tried again when the app
+  /// returns to the foreground while a `BarcodeScanner` shows this
+  /// controller: the user may have turned access on in the settings.
   Future<void> start() async {
     if (_disposed ||
         value.status == ScannerStatus.starting ||
@@ -454,15 +542,13 @@ class ScannerController extends ValueNotifier<ScannerState> {
         value.status == ScannerStatus.paused) {
       return;
     }
-    if (stopInBackground) {
-      _lifecycle ??= AppLifecycleListener(onHide: _onHide, onShow: _onShow);
-    }
+    _lifecycle ??= AppLifecycleListener(onHide: _onHide, onShow: _onShow);
     final int session = ++_session;
     _engineFailures = 0;
     _lens = CameraLens.main;
     _autoTarget = null;
     _autoChanged = DateTime(0);
-    _set(ScannerState(status: ScannerStatus.starting, facing: _facing));
+    _set(_closed.copyWith(status: ScannerStatus.starting));
     final CameraSource source = _source ??= _cameraFactory();
     source.previewTransform.removeListener(_onPreviewChanged);
     try {
@@ -479,6 +565,8 @@ class ScannerController extends ValueNotifier<ScannerState> {
       _telephoto = capabilities.telephoto;
       _ultraWideFocusesCloser = capabilities.ultraWideFocusesCloser;
       _lensMaxZoom = capabilities.maxZoom;
+      _otherFacing =
+          capabilities.hasOtherFacing && !_missing.contains(_facing.other);
     } on Object catch (e) {
       if (session == _session) {
         await _fail(
@@ -504,10 +592,18 @@ class ScannerController extends ValueNotifier<ScannerState> {
         maxZoom: math.max(_telephoto ?? 1, _capabilities.maxZoom),
         telephotoZoom: _telephoto,
         facing: _facing,
+        canSwitchCamera: _otherFacing ?? false,
         previewSize: source.previewTransform.value?.displaySize,
       ),
     );
     unawaited(_loop(session, source));
+    if (_torch && _capabilities.hasTorch && session == _session) {
+      await _setTorch(source, true);
+    }
+    final double? zoom = _initialZoom;
+    if (zoom != null && session == _session && !_disposed) {
+      await _zoom(zoom);
+    }
   }
 
   /// Stops decoding and releases the camera.
@@ -518,7 +614,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
     _clearResults();
     final CameraSource? source = _source;
     source?.previewTransform.removeListener(_onPreviewChanged);
-    _set(ScannerState(facing: _facing));
+    _set(_closed);
     await source?.close();
   }
 
@@ -562,7 +658,8 @@ class ScannerController extends ValueNotifier<ScannerState> {
   /// result.
   ///
   /// Throws [ImageDecodeException] if [encodedImage] is not a readable
-  /// image.
+  /// image, and [EngineException] if the engine failed (the next call
+  /// starts it again).
   Future<BarcodeCapture?> readImage(Uint8List encodedImage) async {
     final EngineReadResult result = await BarcodeEngine.shared.readImage(
       encodedImage,
@@ -601,13 +698,62 @@ class ScannerController extends ValueNotifier<ScannerState> {
     return capture;
   }
 
+  /// The last decoded camera frame in color, turned and mirrored the way
+  /// the preview shows it, at most 1280 pixels on its longest side: the
+  /// whole picture a code was found in, for example to keep it with the
+  /// result or to freeze the screen on it. After [pause] it is the frame
+  /// decoded last before it.
+  ///
+  /// ```dart
+  /// await controller.pause();
+  /// final ui.Image? frame = await controller.lastFrameImage();
+  /// ```
+  ///
+  /// Each call makes a new image, which the caller disposes. `null` before
+  /// the first decoded frame, and on the web, where frames are not kept in
+  /// memory. For one barcode, cut out and straightened, use
+  /// [BarcodeCapture.snapshot].
+  Future<ui.Image?> lastFrameImage() async {
+    final CameraFrame? frame = _lastFrame?.$1;
+    final FrameColors? colors = frame?.colors;
+    if (frame == null || colors == null) {
+      return null;
+    }
+    try {
+      final (Uint8List rgba, int width, int height) = await compute(
+        frameToRgba,
+        (colors, frame.transform),
+      );
+      final Completer<ui.Image> image = Completer<ui.Image>();
+      ui.decodeImageFromPixels(
+        rgba,
+        width,
+        height,
+        ui.PixelFormat.rgba8888,
+        image.complete,
+      );
+      return await image.future;
+    } on Object {
+      return null;
+    }
+  }
+
   /// Turns the torch on or off. No-op if [ScannerState.torch] is
   /// [TorchState.unavailable].
+  ///
+  /// The choice is kept: the torch comes on again when the camera opens
+  /// again (after the background, [switchCamera] or [stop] and [start]).
+  /// The constructor's `torch` is the choice before the first call.
   Future<void> setTorch(bool enabled) async {
     final CameraSource? source = _source;
     if (source == null || value.torch == TorchState.unavailable) {
       return;
     }
+    _torch = enabled;
+    await _setTorch(source, enabled);
+  }
+
+  Future<void> _setTorch(CameraSource source, bool enabled) async {
     try {
       await source.setTorch(enabled);
       _set(value.copyWith(torch: enabled ? TorchState.on : TorchState.off));
@@ -679,8 +825,21 @@ class ScannerController extends ValueNotifier<ScannerState> {
   }
 
   /// Focuses and meters exposure at [point], given as fractions of the
-  /// preview (0, 0 is top-left, 1, 1 is bottom-right). `BarcodeScanner`
-  /// calls this on tap.
+  /// camera preview as shown, not of the widget: (0, 0) is the preview's
+  /// top-left corner, (1, 1) its bottom-right, also where the widget covers
+  /// only part of it ([BoxFit.cover]). Values outside are clamped.
+  /// `BarcodeScanner` calls this on tap; from a tap of your own, map the
+  /// position with [ScannerLayout.previewRect]:
+  ///
+  /// ```dart
+  /// final Rect preview = layout.previewRect!;
+  /// controller.setFocusPoint(Offset(
+  ///   (tap.dx - preview.left) / preview.width,
+  ///   (tap.dy - preview.top) / preview.height,
+  /// ));
+  /// ```
+  ///
+  /// Does nothing where the camera cannot focus on a point (the web).
   Future<void> setFocusPoint(Offset point) async {
     if (value.status.hasCamera) {
       await _source?.setFocusPoint(
@@ -690,11 +849,16 @@ class ScannerController extends ValueNotifier<ScannerState> {
   }
 
   /// Switches to the camera with [facing], or to the other one if `null`.
+  ///
+  /// Does nothing where the device has no camera on that side
+  /// ([ScannerState.canSwitchCamera] is `false` once a camera has opened);
+  /// if that turns out only when the camera opens, the camera that was
+  /// open opens again. A paused scanner stays paused. While the camera is
+  /// closed, only the camera [start] opens changes.
   Future<void> switchCamera([CameraFacing? facing]) async {
-    final CameraFacing target =
-        facing ??
-        (_facing == CameraFacing.back ? CameraFacing.front : CameraFacing.back);
-    if (target == _facing) {
+    final CameraFacing previous = _facing;
+    final CameraFacing target = facing ?? previous.other;
+    if (target == previous || _otherFacing == false) {
       return;
     }
     _facing = target;
@@ -702,6 +866,14 @@ class ScannerController extends ValueNotifier<ScannerState> {
     if (status.hasCamera || status == ScannerStatus.starting) {
       await stop();
       await start();
+      if (value.status == ScannerStatus.error &&
+          value.error is CameraNotFoundException &&
+          _facing == target) {
+        // No camera there after all: back to the one that worked.
+        _missing.add(target);
+        _facing = previous;
+        await start();
+      }
       if (status == ScannerStatus.paused) {
         await pause();
       }
@@ -739,6 +911,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
       final CameraFrame? frame;
       try {
         frame = await source.nextFrame().timeout(_cameraStall);
+      } on ScannerException catch (e) {
+        await _fail(e, session);
+        return;
       } on TimeoutException {
         if (session != _session) {
           return;
@@ -1025,9 +1200,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
     _clearResults();
     final CameraSource? source = _source;
     source?.previewTransform.removeListener(_onPreviewChanged);
-    _set(
-      ScannerState(status: ScannerStatus.error, error: error, facing: _facing),
-    );
+    _set(_closed.copyWith(status: ScannerStatus.error, error: error));
     await source?.close();
   }
 
@@ -1063,7 +1236,8 @@ class ScannerController extends ValueNotifier<ScannerState> {
 
   void _onHide() {
     final ScannerStatus status = value.status;
-    if (status.hasCamera || status == ScannerStatus.starting) {
+    if (stopInBackground &&
+        (status.hasCamera || status == ScannerStatus.starting)) {
       _statusBeforeHide = status == ScannerStatus.paused
           ? ScannerStatus.paused
           : ScannerStatus.running;
@@ -1076,6 +1250,12 @@ class ScannerController extends ValueNotifier<ScannerState> {
     _statusBeforeHide = null;
     if (before != null && value.status == ScannerStatus.idle) {
       _pauseWhenStarted = before == ScannerStatus.paused;
+      unawaited(start());
+    } else if (_widgets > 0 &&
+        value.status == ScannerStatus.error &&
+        value.error is CameraPermissionException) {
+      // Back from the settings, where camera access may have been turned
+      // on.
       unawaited(start());
     }
   }
@@ -1102,6 +1282,12 @@ class ScannerController extends ValueNotifier<ScannerState> {
   }
 
   void _layout(Size size, BoxFit fit) => _view = _View(size, fit);
+}
+
+extension on CameraFacing {
+  /// The camera on the other side.
+  CameraFacing get other =>
+      this == CameraFacing.back ? CameraFacing.front : CameraFacing.back;
 }
 
 extension on ScannerStatus {
@@ -1288,6 +1474,7 @@ final class ScannerState {
     this.maxZoom = 1,
     this.telephotoZoom,
     this.facing = CameraFacing.back,
+    this.canSwitchCamera = false,
     this.previewSize,
   });
 
@@ -1322,6 +1509,11 @@ final class ScannerState {
   /// The camera in use.
   final CameraFacing facing;
 
+  /// Whether the device has a camera on the other side for
+  /// [ScannerController.switchCamera]. Known once a camera has opened, and
+  /// kept while it is closed; `false` before.
+  final bool canSwitchCamera;
+
   /// Size of the camera preview in its display orientation, once running.
   final Size? previewSize;
 
@@ -1339,6 +1531,7 @@ final class ScannerState {
     double? maxZoom,
     double? telephotoZoom,
     CameraFacing? facing,
+    bool? canSwitchCamera,
     Size? previewSize,
   }) => ScannerState(
     status: status ?? this.status,
@@ -1350,6 +1543,7 @@ final class ScannerState {
     maxZoom: maxZoom ?? this.maxZoom,
     telephotoZoom: telephotoZoom ?? this.telephotoZoom,
     facing: facing ?? this.facing,
+    canSwitchCamera: canSwitchCamera ?? this.canSwitchCamera,
     previewSize: previewSize ?? this.previewSize,
   );
 
@@ -1365,6 +1559,7 @@ final class ScannerState {
       other.maxZoom == maxZoom &&
       other.telephotoZoom == telephotoZoom &&
       other.facing == facing &&
+      other.canSwitchCamera == canSwitchCamera &&
       other.previewSize == previewSize;
 
   @override
@@ -1378,6 +1573,7 @@ final class ScannerState {
     maxZoom,
     telephotoZoom,
     facing,
+    canSwitchCamera,
     previewSize,
   );
 }
@@ -1579,37 +1775,6 @@ final class BarcodeCapture {
     }
     final GrayImage? image = straighten(cut, corners);
     return image?.toImage();
-  }
-}
-
-/// For the scanner's templates. Not exported.
-extension ScannerControllerFreeze on ScannerController {
-  /// The last decoded camera frame in color, the way the preview shows it.
-  /// The caller disposes the image. `null` before the first frame, and
-  /// where frames are not in memory (the web).
-  Future<ui.Image?> freezeFrame() async {
-    final CameraFrame? frame = _lastFrame?.$1;
-    final FrameColors? colors = frame?.colors;
-    if (frame == null || colors == null) {
-      return null;
-    }
-    try {
-      final (Uint8List rgba, int width, int height) = await compute(
-        frameToRgba,
-        (colors, frame.transform),
-      );
-      final Completer<ui.Image> image = Completer<ui.Image>();
-      ui.decodeImageFromPixels(
-        rgba,
-        width,
-        height,
-        ui.PixelFormat.rgba8888,
-        image.complete,
-      );
-      return await image.future;
-    } on Object {
-      return null;
-    }
   }
 }
 

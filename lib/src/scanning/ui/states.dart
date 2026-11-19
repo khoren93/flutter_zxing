@@ -197,7 +197,12 @@ class ScannerErrorView extends StatelessWidget {
         ? strings.permissionTitle
         : strings.unavailableTitle;
     final String message = <String>[
-      if (permission) strings.permissionMessage else strings.unavailableMessage,
+      switch (error) {
+        CameraPermissionException() => strings.permissionMessage,
+        CameraInUseException() => strings.inUseMessage,
+        CameraUnsupportedException() => strings.unsupportedMessage,
+        _ => strings.unavailableMessage,
+      },
       if (onPickImage != null) strings.photoFallback,
     ].join(' ');
     final VoidCallback? primaryAction = permission && onOpenSettings != null

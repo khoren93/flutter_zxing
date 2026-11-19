@@ -9,11 +9,7 @@ export 'content.dart';
 export 'rendering.dart';
 export 'src/scanning/scan_window.dart';
 export 'src/scanning/scanner_controller.dart'
-    hide
-        BarcodeCapturePhoto,
-        ScannerControllerDebug,
-        ScannerControllerFreeze,
-        ScannerFrameSample;
+    hide BarcodeCapturePhoto, ScannerControllerDebug, ScannerFrameSample;
 export 'src/scanning/style_content.dart';
 export 'src/scanning/ui/controls.dart' hide pickAndReadImage;
 export 'src/scanning/ui/glass.dart';

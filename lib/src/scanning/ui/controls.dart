@@ -40,7 +40,9 @@ class TorchButton extends StatelessWidget {
   );
 }
 
-/// A glass button that switches between the back and the front camera.
+/// A glass button that switches between the back and the front camera;
+/// hidden when there is no camera to switch to
+/// ([ScannerState.canSwitchCamera]).
 class SwitchCameraButton extends StatelessWidget {
   /// Creates the button.
   const SwitchCameraButton(this.controller, {super.key});
@@ -49,10 +51,18 @@ class SwitchCameraButton extends StatelessWidget {
   final ScannerController controller;
 
   @override
-  Widget build(BuildContext context) => ScannerButton(
-    icon: ScannerIcons.switchCamera,
-    label: ScannerStrings.of(context).switchCamera,
-    onPressed: () => unawaited(controller.switchCamera()),
+  Widget build(BuildContext context) => ValueListenableBuilder<ScannerState>(
+    valueListenable: controller,
+    builder: (BuildContext context, ScannerState state, Widget? _) {
+      if (!state.canSwitchCamera) {
+        return const SizedBox.shrink();
+      }
+      return ScannerButton(
+        icon: ScannerIcons.switchCamera,
+        label: ScannerStrings.of(context).switchCamera,
+        onPressed: () => unawaited(controller.switchCamera()),
+      );
+    },
   );
 }
 

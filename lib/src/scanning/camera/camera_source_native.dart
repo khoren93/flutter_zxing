@@ -8,7 +8,8 @@ import 'dart:async';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show DeviceOrientation;
+import 'package:flutter/services.dart'
+    show DeviceOrientation, MissingPluginException;
 import 'package:flutter/widgets.dart';
 
 import '../../engine/engine.dart';
@@ -111,6 +112,10 @@ final class NativeCameraSource implements CameraSource {
       cameras = await availableCameras();
     } on CameraException catch (e) {
       throw cameraError(e.code, e.description);
+    } on MissingPluginException {
+      throw const CameraUnsupportedException(
+        'No camera plugin for this platform',
+      );
     }
     final CameraLensDirection wanted = facing == CameraFacing.back
         ? CameraLensDirection.back
@@ -135,17 +140,13 @@ final class NativeCameraSource implements CameraSource {
     final double? teleZoom = _ios && wide != null && tele != null
         ? IosLens.telephotoZoom(back: facing == CameraFacing.back)
         : null;
-    // Desktop webcams are "external" or "front": use one when the back
-    // camera is asked for.
     final CameraDescription? description =
         switch (lens) {
           CameraLens.main => null,
           CameraLens.ultraWide => ultra,
           CameraLens.telephoto => teleZoom == null ? null : tele,
         } ??
-        wide ??
-        side.firstOrNull ??
-        (facing == CameraFacing.back ? cameras.firstOrNull : null);
+        _mainCamera(cameras, facing);
     if (description == null) {
       throw CameraNotFoundException(
         cameras.isEmpty ? 'No camera available' : 'No ${facing.name} camera',
@@ -182,6 +183,8 @@ final class NativeCameraSource implements CameraSource {
       _lens = IosLens.open(description.name);
     }
     camera.addListener(_updateOrientation);
+    camera.addListener(_checkError);
+    _failure = null;
     _updatePreview();
     double minZoom = 1;
     double maxZoom = 1;
@@ -200,7 +203,36 @@ final class NativeCameraSource implements CameraSource {
       ultraWide: _ios && wide != null && ultra != null ? _iosUltraWide : null,
       ultraWideFocusesCloser: _ios && _focusesCloser(ultra, than: wide),
       telephoto: teleZoom,
+      hasOtherFacing: switch (_mainCamera(
+        cameras,
+        facing == CameraFacing.back ? CameraFacing.front : CameraFacing.back,
+      )) {
+        final CameraDescription other => other.name != description.name,
+        null => false,
+      },
     );
+  }
+
+  /// The camera [open] uses for [facing]: the wide one of that side (iOS
+  /// lists each lens as a camera of its own), any camera of it, and for the
+  /// back camera any camera at all (desktop webcams are "external" or
+  /// "front").
+  static CameraDescription? _mainCamera(
+    List<CameraDescription> cameras,
+    CameraFacing facing,
+  ) {
+    final CameraLensDirection wanted = facing == CameraFacing.back
+        ? CameraLensDirection.back
+        : CameraLensDirection.front;
+    final List<CameraDescription> side = <CameraDescription>[
+      for (final CameraDescription c in cameras)
+        if (c.lensDirection == wanted) c,
+    ];
+    return side
+            .where((CameraDescription c) => c.lensType == CameraLensType.wide)
+            .firstOrNull ??
+        side.firstOrNull ??
+        (facing == CameraFacing.back ? cameras.firstOrNull : null);
   }
 
   void _onImage(CameraImage image) {
@@ -243,6 +275,7 @@ final class NativeCameraSource implements CameraSource {
     waiter?.complete();
     if (camera != null) {
       camera.removeListener(_updateOrientation);
+      camera.removeListener(_checkError);
       try {
         if (camera.value.isStreamingImages) {
           await camera.stopImageStream();
@@ -254,12 +287,34 @@ final class NativeCameraSource implements CameraSource {
     }
   }
 
+  /// A camera error reported after the camera opened that ends it: on
+  /// Android another app taking the camera. Thrown by [nextFrame].
+  ScannerException? _failure;
+
+  void _checkError() {
+    final String? error = _camera?.value.errorDescription;
+    if (error == null || _failure != null) {
+      return;
+    }
+    final ScannerException failure = cameraError('cameraError', error);
+    if (failure is CameraInUseException) {
+      _failure = failure;
+      final Completer<void>? waiter = _waiter;
+      _waiter = null;
+      waiter?.complete();
+    }
+  }
+
   @override
   Future<CameraFrame?> nextFrame() async {
     while (true) {
       final CameraDescription? description = _description;
       if (_camera == null || description == null) {
         return null;
+      }
+      final ScannerException? failure = _failure;
+      if (failure != null) {
+        throw failure;
       }
       final CameraImage? image = _latest;
       if (image != null && _received != _taken) {

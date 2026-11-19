@@ -216,6 +216,67 @@ void main() {
     expect(find.text('error: CameraPermissionException'), findsOneWidget);
   });
 
+  void appLifecycle(WidgetTester tester, List<AppLifecycleState> states) =>
+      states.forEach(tester.binding.handleAppLifecycleStateChanged);
+
+  const List<AppLifecycleState> leave = <AppLifecycleState>[
+    AppLifecycleState.inactive,
+    AppLifecycleState.hidden,
+  ];
+  const List<AppLifecycleState> back = <AppLifecycleState>[
+    AppLifecycleState.inactive,
+    AppLifecycleState.resumed,
+  ];
+
+  testWidgets('back from the settings, a denied camera is tried again', (
+    WidgetTester tester,
+  ) async {
+    final ScannerController controller = ScannerController(
+      stopInBackground: false,
+    );
+    addTearDown(controller.dispose);
+    camera.openError = const CameraPermissionException();
+    await tester.pumpWidget(host(BarcodeScanner(controller: controller)));
+    await tester.pump();
+    expect(controller.value.error, isA<CameraPermissionException>());
+
+    // The user turns camera access on in the settings and comes back.
+    appLifecycle(tester, leave);
+    appLifecycle(tester, back);
+    await tester.pump();
+    expect(controller.value.status, ScannerStatus.running);
+    expect(camera.opened, hasLength(2));
+
+    await tester.pumpWidget(host(const SizedBox()));
+    await tester.pump();
+  });
+
+  testWidgets('other errors and a controller without a scanner wait', (
+    WidgetTester tester,
+  ) async {
+    final ScannerController controller = ScannerController();
+    addTearDown(controller.dispose);
+    camera.openError = const CameraPermissionException();
+    await controller.start(); // no BarcodeScanner shows it
+    appLifecycle(tester, leave);
+    appLifecycle(tester, back);
+    await tester.pump();
+    expect(controller.value.status, ScannerStatus.error);
+
+    camera.openError = const CameraFailureException('broken');
+    await tester.pumpWidget(host(BarcodeScanner(controller: controller)));
+    await controller.start();
+    expect(controller.value.error, isA<CameraFailureException>());
+    appLifecycle(tester, leave);
+    appLifecycle(tester, back);
+    await tester.pump();
+    expect(controller.value.status, ScannerStatus.error);
+    expect(camera.opened, hasLength(2));
+
+    await tester.pumpWidget(host(const SizedBox()));
+    await tester.pump();
+  });
+
   testWidgets('a controller of its own is not disposed with the widget', (
     WidgetTester tester,
   ) async {

@@ -36,6 +36,7 @@ final class CameraCapabilities {
     this.ultraWide,
     this.ultraWideFocusesCloser = false,
     this.telephoto,
+    this.hasOtherFacing = false,
   });
 
   /// Whether the camera has a torch that can be switched.
@@ -61,6 +62,10 @@ final class CameraCapabilities {
   /// its zoom in the main camera's terms, e.g. 4 (3 or 5 on other models).
   /// `null` without one.
   final double? telephoto;
+
+  /// Whether the device has a camera on the other side to switch to: a
+  /// different camera than this one.
+  final bool hasOtherFacing;
 }
 
 /// Where a camera's lens is focused (iPhones: AVCaptureDevice).
@@ -120,7 +125,8 @@ abstract class CameraSource {
   Future<void> close();
 
   /// A frame newer than the last one handed out; waits for the camera.
-  /// `null` once the camera is closed.
+  /// `null` once the camera is closed. Throws a [ScannerException] when the
+  /// camera fails after it opened (another app took it).
   Future<CameraFrame?> nextFrame();
 
   /// How the preview shows the camera image, once it is known: its size as
@@ -204,6 +210,8 @@ ScannerException cameraError(String code, String? message) {
       ? code
       : '$code: $message';
   final String c = code.toLowerCase();
+  // Letters only: "CAMERA_IN_USE", "cameraInUse" and "already in use" alike.
+  final String all = text.toLowerCase().replaceAll(RegExp('[^a-z]'), '');
   if ((c.contains('denied') ||
           c.contains('restricted') ||
           c.contains('permission') ||
@@ -211,8 +219,23 @@ ScannerException cameraError(String code, String? message) {
       !c.contains('ongoing')) {
     return CameraPermissionException(text);
   }
-  if (c.contains('notfound') || c.contains('nocamera')) {
+  if (c.contains('notfound') ||
+      c.contains('nocamera') ||
+      c.contains('overconstrained')) {
     return CameraNotFoundException(text);
+  }
+  if (c.contains('notreadable') ||
+      c.contains('trackstart') ||
+      all.contains('camerainuse') ||
+      all.contains('camerasinuse') ||
+      all.contains('alreadyinuse') ||
+      all.contains('numberofopencameras')) {
+    return CameraInUseException(text);
+  }
+  if (c.contains('security') ||
+      c.contains('notsupported') ||
+      c.contains('insecure')) {
+    return CameraUnsupportedException(text);
   }
   return CameraFailureException(text);
 }
