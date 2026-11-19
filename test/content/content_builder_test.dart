@@ -120,6 +120,20 @@ void main() {
       );
     });
 
+    test('WPA3 is T:WPA with transition disabled', () {
+      const WifiContent wifi = WifiContent(
+        ssid: 'Home',
+        password: 'secret12',
+        security: WifiSecurity.wpa3,
+      );
+      expect(wifi.toPayload(), 'WIFI:T:WPA;R:1;S:Home;P:secret12;;');
+      _roundTrips(wifi);
+      expect(
+        const WifiContent(ssid: 'x', security: WifiSecurity.wpa3).validate(),
+        _issue('password'),
+      );
+    });
+
     test('without a security type: open without a password, WPA with', () {
       const WifiContent open = WifiContent(ssid: 'Cafe');
       expect(open.security, WifiSecurity.none);

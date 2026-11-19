@@ -299,7 +299,8 @@ class BarcodeResultSheet extends StatelessWidget {
     ProductContent() => ScannerIcons.book,
     Gs1Content() => ScannerIcons.parcel,
     BinaryContent() => ScannerIcons.binary,
-    TextContent() => ScannerIcons.text,
+    // TextContent, and kinds added in later versions.
+    _ => ScannerIcons.text,
   };
 }
 
@@ -585,6 +586,8 @@ final class _Summary {
         }
         return _Summary(first, payload: rest);
     }
+    // A kind added in a later version.
+    return _Summary(text);
   }
 
   final String title;
@@ -711,8 +714,8 @@ final class _Summary {
   ) {
     final String? amount = payment.amount;
     String? detail;
-    Map<String, String> fields;
-    List<String> chips;
+    Map<String, String> fields = <String, String>{};
+    List<String> chips = <String>[];
     String? copyLabel;
     String? copy = payment.account?.replaceAll(' ', '');
     switch (payment) {
@@ -825,7 +828,7 @@ final class _Summary {
     ].join(' ');
   }
 
-  static String _paymentStandard(PaymentContent payment) => switch (payment) {
+  static String? _paymentStandard(PaymentContent payment) => switch (payment) {
     EpcPaymentContent() => 'SEPA',
     SwissQrBillContent() => 'QR-bill',
     GostPaymentContent() => 'ГОСТ',
@@ -840,6 +843,7 @@ final class _Summary {
       EmvScheme.duitNow => 'DuitNow',
       EmvScheme.unknown => 'EMV',
     },
+    _ => null,
   };
 
   static String _currencyName(CryptoCurrency currency) => switch (currency) {

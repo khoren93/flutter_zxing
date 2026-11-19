@@ -32,6 +32,9 @@ enum LinkServiceInput {
 ///
 /// Links are plain `https://` addresses: any camera app opens them, in the
 /// service's app if it is installed.
+///
+/// New services are added in minor versions: a `switch` over it needs a
+/// `default` (or `_`) case.
 enum LinkService {
   /// WhatsApp chat (`wa.me`), optionally with a message.
   whatsApp('WhatsApp', LinkServiceInput.phone),

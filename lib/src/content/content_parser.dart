@@ -232,6 +232,7 @@ WifiContent? _wifi(String body) {
   String? ssid;
   String? password;
   String? type;
+  String? transitionDisable;
   bool hidden = false;
   for (final (String key, String raw) in _fields(body)) {
     final String value = _unescape(_unquote(raw));
@@ -244,8 +245,13 @@ WifiContent? _wifi(String body) {
         type = value.trim().toUpperCase();
       case 'H':
         hidden = value.trim().toLowerCase() == 'true';
+      case 'R':
+        transitionDisable = value.trim();
     }
   }
+  // WPA3 specification: bit 0 of R disables the WPA2 transition mode.
+  final bool wpa3Only =
+      (int.tryParse(transitionDisable ?? '', radix: 16) ?? 0) & 1 == 1;
   if (ssid == null || ssid.isEmpty) {
     return null;
   }
@@ -257,7 +263,9 @@ WifiContent? _wifi(String body) {
     'NOPASS' || 'NONE' || 'OPEN' => WifiSecurity.none,
     'WEP' => WifiSecurity.wep,
     final String t when t.contains('EAP') => WifiSecurity.enterprise,
-    final String t when t.startsWith('WPA') || t == 'SAE' => WifiSecurity.wpa,
+    'SAE' || 'WPA3' => WifiSecurity.wpa3,
+    final String t when t.startsWith('WPA') =>
+      wpa3Only ? WifiSecurity.wpa3 : WifiSecurity.wpa,
     _ => WifiSecurity.unknown,
   };
   return WifiContent(

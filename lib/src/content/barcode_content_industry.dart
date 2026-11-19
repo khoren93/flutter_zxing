@@ -385,6 +385,9 @@ final class VinContent extends BarcodeContent {
 }
 
 /// The smart home standard of a [SmartHomeContent].
+///
+/// New standards are added in minor versions: a `switch` over it needs a
+/// `default` (or `_`) case.
 enum SmartHomePlatform {
   /// Matter (`MT:`).
   matter,

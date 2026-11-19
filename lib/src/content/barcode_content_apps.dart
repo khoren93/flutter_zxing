@@ -152,6 +152,9 @@ final class EsimContent extends BarcodeContent {
 }
 
 /// The network of a [CryptoContent].
+///
+/// New networks are added in minor versions: a `switch` over it needs a
+/// `default` (or `_`) case.
 enum CryptoCurrency {
   /// Bitcoin (`bitcoin:`, BIP 21).
   bitcoin('bitcoin', 'BTC'),

@@ -584,7 +584,8 @@ final class ScannerStrings {
     ProductContent() => book,
     Gs1Content() => gs1,
     BinaryContent() => binary,
-    TextContent() => text,
+    // TextContent, and kinds added in later versions.
+    _ => text,
   };
 
   @override

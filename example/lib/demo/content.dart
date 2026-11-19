@@ -310,6 +310,12 @@ Described describe(Barcode barcode) {
           : Icons.notes_rounded,
       title: text,
     ),
+    // New kinds come in minor versions of flutter_zxing.
+    _ => Described(
+      kind: 'Text',
+      icon: Icons.notes_rounded,
+      title: barcode.text,
+    ),
   };
 }
 
@@ -332,6 +338,7 @@ String _date(DateTime d) =>
 String _security(WifiSecurity s) => switch (s) {
   WifiSecurity.none => 'None',
   WifiSecurity.wep => 'WEP',
+  WifiSecurity.wpa3 => 'WPA3',
   _ => 'WPA / WPA2',
 };
 
@@ -475,6 +482,7 @@ String contentClassName(BarcodeContent content) => switch (content) {
   DriverLicenseContent() => 'DriverLicenseContent',
   VinContent() => 'VinContent',
   ProductContent() => 'ProductContent',
+  _ => 'BarcodeContent',
 };
 
 /// `BarcodeCaption('…', size: …)`, with what differs from the defaults.

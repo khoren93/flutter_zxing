@@ -14,7 +14,11 @@ part of 'barcode_content.dart';
 /// Amounts are text with a decimal point (`'12.50'`), never a `double`, so
 /// nothing is lost to rounding. A code whose check digits or checksum are
 /// wrong is not a payment: it parses as [TextContent].
-sealed class PaymentContent extends BarcodeContent {
+///
+/// New standards are added in minor versions, so a `switch` over a payment
+/// needs a `default` (or `_`) case; classes outside this package cannot
+/// extend it.
+abstract final class PaymentContent extends BarcodeContent {
   const PaymentContent();
 
   /// Who is paid.
@@ -482,6 +486,9 @@ final class UpiPaymentContent extends PaymentContent {
 
 /// The national payment scheme of an [EmvPaymentContent], from the
 /// globally unique identifier of its merchant account.
+///
+/// New schemes are added in minor versions: a `switch` over it needs a
+/// `default` (or `_`) case.
 enum EmvScheme {
   /// Brazil's PIX (`br.gov.bcb.pix`).
   pix,

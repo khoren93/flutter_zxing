@@ -70,6 +70,7 @@ String buildWifi(WifiContent c) {
   out.write(switch (c.security) {
     WifiSecurity.none => 'T:nopass;',
     WifiSecurity.wep => 'T:WEP;',
+    WifiSecurity.wpa3 => 'T:WPA;R:1;',
     _ => 'T:WPA;',
   });
   out.write('S:${_escape(c.ssid, special)};');

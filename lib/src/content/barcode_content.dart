@@ -15,7 +15,10 @@ part 'barcode_content_payments.dart';
 
 /// The payload of a [Barcode], parsed into a typed value.
 ///
-/// Get it with [BarcodeContentOf.content] (`barcode.content`) and use pattern matching:
+/// Get it with [BarcodeContentOf.content] (`barcode.content`) and use
+/// pattern matching. New kinds are added in minor versions, so a `switch`
+/// over a content needs a `default` (or `_`) case; classes outside this
+/// package cannot extend it:
 ///
 /// ```dart
 /// switch (barcode.content) {
@@ -63,7 +66,7 @@ part 'barcode_content_payments.dart';
 /// BarcodeView(wifi.toPayload()); // WIFI:T:WPA;S:Home;P:secret12;;
 /// ```
 @immutable
-sealed class BarcodeContent {
+abstract final class BarcodeContent {
   const BarcodeContent();
 
   /// The text to put in a barcode: `WIFI:…`, a vCard, `mailto:…` and so on.
@@ -240,6 +243,9 @@ final class UrlContent extends BarcodeContent {
 }
 
 /// Security of a Wi-Fi network.
+///
+/// New values are added in minor versions: a `switch` over it needs a
+/// `default` (or `_`) case.
 enum WifiSecurity {
   /// Open network.
   none,
@@ -247,8 +253,12 @@ enum WifiSecurity {
   /// WEP.
   wep,
 
-  /// WPA, WPA2 or WPA3 personal.
+  /// WPA or WPA2 personal, or WPA2/WPA3 transition mode (`T:WPA`).
   wpa,
+
+  /// WPA3 personal only (`T:SAE`, or `T:WPA` with WPA3 transition disabled:
+  /// `R:1`).
+  wpa3,
 
   /// WPA2/WPA3 enterprise (EAP).
   enterprise,
@@ -290,9 +300,11 @@ final class WifiContent extends BarcodeContent {
   /// Whether the network does not broadcast its name.
   final bool hidden;
 
-  /// `WIFI:T:WPA;S:name;P:password;;`, with `\ ; , : "` escaped. WPA3
-  /// networks are written as `T:WPA`, which phones join as WPA2/WPA3.
-  /// [WifiSecurity.enterprise] and [WifiSecurity.unknown] cannot be built.
+  /// `WIFI:T:WPA;S:name;P:password;;`, with `\ ; , : "` escaped.
+  /// [WifiSecurity.wpa3] is written as `T:WPA` with `R:1` (Wi-Fi Alliance
+  /// WPA3 specification): phones that do not know `R` still join it as
+  /// WPA2/WPA3. [WifiSecurity.enterprise] and [WifiSecurity.unknown] cannot
+  /// be built.
   @override
   String toPayload() => buildWifi(this);
 

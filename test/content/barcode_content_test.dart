@@ -162,12 +162,23 @@ void main() {
           (_parse('WIFI:T:$type;S:n;P:p;;') as WifiContent).security;
       expect(security('WPA'), WifiSecurity.wpa);
       expect(security('WPA2'), WifiSecurity.wpa);
-      expect(security('wpa3'), WifiSecurity.wpa);
-      expect(security('SAE'), WifiSecurity.wpa);
+      expect(security('wpa3'), WifiSecurity.wpa3);
+      expect(security('SAE'), WifiSecurity.wpa3);
+      expect(security('WPA2/WPA3'), WifiSecurity.wpa);
       expect(security('WEP'), WifiSecurity.wep);
       expect(security('WPA2-EAP'), WifiSecurity.enterprise);
       expect(security('EAP'), WifiSecurity.enterprise);
       expect(security('Kerberos'), WifiSecurity.unknown);
+    });
+
+    test('WPA3 only: T:WPA with transition disabled (R, bit 0)', () {
+      WifiSecurity security(String r) =>
+          (_parse('WIFI:T:WPA;R:$r;S:n;P:p;;') as WifiContent).security;
+      expect(security('1'), WifiSecurity.wpa3);
+      expect(security('3'), WifiSecurity.wpa3);
+      expect(security('0'), WifiSecurity.wpa);
+      expect(security('2'), WifiSecurity.wpa);
+      expect(security('x'), WifiSecurity.wpa);
     });
 
     test('quoted values, lower case keys, any order', () {

@@ -432,6 +432,7 @@ enum CreateKind {
     wifi => const <KindChoice>[
       KindChoice('security', 'Security', <(String, String)>[
         ('wpa', 'WPA / WPA2'),
+        ('wpa3', 'WPA3'),
         ('wep', 'WEP'),
         ('none', 'None'),
       ]),
@@ -492,6 +493,7 @@ enum CreateKind {
         security: switch (c('security')) {
           'wep' => WifiSecurity.wep,
           'none' => WifiSecurity.none,
+          'wpa3' => WifiSecurity.wpa3,
           _ => WifiSecurity.wpa,
         },
       ),
