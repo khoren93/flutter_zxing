@@ -465,7 +465,8 @@ void main() {
     test('EAN-13 book: ISBN-13 and ISBN-10', () {
       final ProductContent book =
           _read('9780306406157', BarcodeFormat.ean13) as ProductContent;
-      expect(book.gtin, '9780306406157');
+      expect(book.gtin, '09780306406157');
+      expect(book.number, '9780306406157');
       expect(book.isbn13, '9780306406157');
       expect(book.isbn10, '0306406152');
       expect(book.issn, isNull);
@@ -483,11 +484,50 @@ void main() {
     test('UPC-A, EAN-8; digits in other formats are text', () {
       expect(
         _read('036000291452', BarcodeFormat.upcA),
-        const ProductContent(gtin: '036000291452', raw: '036000291452'),
+        const ProductContent(
+          gtin: '00036000291452',
+          number: '036000291452',
+          raw: '036000291452',
+        ),
       );
-      expect(_read('96385074', BarcodeFormat.ean8), isA<ProductContent>());
+      expect(
+        (_read('96385074', BarcodeFormat.ean8) as ProductContent).gtin,
+        '00000096385074',
+      );
       expect(_read('9780306406157', BarcodeFormat.code128), isA<TextContent>());
       expect(_parse('9780306406157'), isA<TextContent>());
+    });
+  });
+
+  group('UPC-E', () {
+    test('the GTIN is the expanded UPC-A, the number as printed', () {
+      final ProductContent upcE =
+          _read('01234565', BarcodeFormat.upcE) as ProductContent;
+      expect(upcE.number, '01234565');
+      expect(upcE.gtin, '00012345000065');
+    });
+
+    test('every last digit expands by its rule', () {
+      // Number system 0, digits 123450..123459, check digit left as given.
+      for (final (String upcE, String upcA) in <(String, String)>[
+        ('01234500', '012000003450'),
+        ('01234510', '012100003450'),
+        ('01234520', '012200003450'),
+        ('01234530', '012300000450'),
+        ('01234540', '012340000050'),
+        ('01234550', '012345000050'),
+        ('11234590', '112345000090'),
+      ]) {
+        expect(
+          (_read(upcE, BarcodeFormat.upcE) as ProductContent).gtin,
+          '00$upcA',
+          reason: upcE,
+        );
+      }
+    });
+
+    test('an 8-digit UPC-E that cannot be one is text', () {
+      expect(_read('21234565', BarcodeFormat.upcE), isA<TextContent>());
     });
   });
 

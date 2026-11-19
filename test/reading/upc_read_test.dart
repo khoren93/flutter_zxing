@@ -60,7 +60,8 @@ void main() {
       expect(b?.format, BarcodeFormat.upcE);
       expect(b?.text, '01234565');
       final ProductContent product = b!.content as ProductContent;
-      expect(product.gtin, '01234565');
+      expect(product.number, '01234565');
+      expect(product.gtin, '00012345000065');
       expect(product.addOn, isNull);
     },
   );

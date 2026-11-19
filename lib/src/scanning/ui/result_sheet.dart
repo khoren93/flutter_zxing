@@ -555,7 +555,7 @@ final class _Summary {
               ? 'ISBN $isbn'
               : issn != null
               ? 'ISSN $issn'
-              : product.gtin,
+              : product.number,
           fields: <String, String>{
             if (product.isbn10 case final String isbn10) 'ISBN-10': isbn10,
             if (isbn != null || issn != null) strings.gtin: product.gtin,

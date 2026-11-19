@@ -8,11 +8,21 @@ part of 'barcode_content.dart';
 /// [BarcodeContent.parseText] never returns it. [toPayload] returns [raw].
 final class ProductContent extends BarcodeContent {
   /// Creates product content.
-  const ProductContent({required this.gtin, required this.raw, this.addOn});
+  const ProductContent({
+    required this.gtin,
+    required this.number,
+    required this.raw,
+    this.addOn,
+  });
 
-  /// The number, as printed under the barcode: 13 digits for EAN-13, 12
-  /// for UPC-A, 8 for EAN-8 and UPC-E.
+  /// The GTIN-14: always 14 digits, zeros in front, as in
+  /// [Gs1Content.gtin] and product databases. A UPC-E number is expanded
+  /// to its UPC-A first: `01234565` is `00012345000065`.
   final String gtin;
+
+  /// The number as printed under the barcode: 13 digits for EAN-13, 12
+  /// for UPC-A, 8 for EAN-8 and UPC-E.
+  final String number;
 
   /// The EAN-2 or EAN-5 add-on (issue number, price), if read.
   final String? addOn;
@@ -20,19 +30,24 @@ final class ProductContent extends BarcodeContent {
   /// The text as read.
   final String raw;
 
+  /// [gtin] as 13 digits, or `null` if it does not start with a zero.
+  String? get _ean13 =>
+      gtin.length == 14 && gtin.startsWith('0') ? gtin.substring(1) : null;
+
   /// The ISBN-13 of a book (`978…`, `979…`), or `null`.
-  String? get isbn13 =>
-      gtin.length == 13 && (gtin.startsWith('978') || gtin.startsWith('979'))
-      ? gtin
-      : null;
+  String? get isbn13 => switch (_ean13) {
+    final String ean when ean.startsWith('978') || ean.startsWith('979') => ean,
+    _ => null,
+  };
 
   /// The ISBN-10 of a book whose ISBN-13 starts with 978, or `null`: what
   /// older catalogues list.
   String? get isbn10 {
-    if (gtin.length != 13 || !gtin.startsWith('978')) {
+    final String? ean = _ean13;
+    if (ean == null || !ean.startsWith('978')) {
       return null;
     }
-    final String body = gtin.substring(3, 12);
+    final String body = ean.substring(3, 12);
     int sum = 0;
     for (int i = 0; i < 9; i++) {
       sum += (10 - i) * (body.codeUnitAt(i) - 0x30);
@@ -43,10 +58,11 @@ final class ProductContent extends BarcodeContent {
 
   /// The ISSN of a periodical (`977…`), as `1234-5679`, or `null`.
   String? get issn {
-    if (gtin.length != 13 || !gtin.startsWith('977')) {
+    final String? ean = _ean13;
+    if (ean == null || !ean.startsWith('977')) {
       return null;
     }
-    final String body = gtin.substring(3, 10);
+    final String body = ean.substring(3, 10);
     int sum = 0;
     for (int i = 0; i < 7; i++) {
       sum += (8 - i) * (body.codeUnitAt(i) - 0x30);
@@ -67,14 +83,15 @@ final class ProductContent extends BarcodeContent {
   bool operator ==(Object other) =>
       other is ProductContent &&
       other.gtin == gtin &&
+      other.number == number &&
       other.addOn == addOn &&
       other.raw == raw;
 
   @override
-  int get hashCode => Object.hash(gtin, addOn, raw);
+  int get hashCode => Object.hash(gtin, number, addOn, raw);
 
   @override
-  String toString() => 'ProductContent($gtin)';
+  String toString() => 'ProductContent($number)';
 }
 
 /// One flight of a [BoardingPassContent].

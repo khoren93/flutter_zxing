@@ -28,20 +28,45 @@ ProductContent? parseProduct(Barcode barcode) {
     if (text.length < length) {
       continue;
     }
-    final String gtin = text.substring(0, length);
+    final String number = text.substring(0, length);
     final String rest = text
         .substring(length)
         .replaceFirst(RegExp(r'^[ \-]'), '');
-    if (RegExp(r'^\d+$').hasMatch(gtin) &&
+    if (RegExp(r'^\d+$').hasMatch(number) &&
         (rest.isEmpty || RegExp(r'^(\d{2}|\d{5})$').hasMatch(rest))) {
+      final String? full = barcode.format == BarcodeFormat.upcE
+          ? upcEToUpcA(number)
+          : number;
+      if (full == null) {
+        return null;
+      }
       return ProductContent(
-        gtin: gtin,
+        gtin: full.padLeft(14, '0'),
+        number: number,
         addOn: rest.isEmpty ? null : rest,
         raw: barcode.text,
       );
     }
   }
   return null;
+}
+
+/// The UPC-A number of an 8-digit UPC-E [number] (number system, six
+/// digits, check digit), or `null` if it is not one.
+String? upcEToUpcA(String number) {
+  if (!RegExp(r'^[01]\d{7}$').hasMatch(number)) {
+    return null;
+  }
+  final String n = number[0];
+  final String d = number.substring(1, 7);
+  final String check = number[7];
+  final String body = switch (d[5]) {
+    '0' || '1' || '2' => '${d.substring(0, 2)}${d[5]}0000${d.substring(2, 5)}',
+    '3' => '${d.substring(0, 3)}00000${d.substring(3, 5)}',
+    '4' => '${d.substring(0, 4)}00000${d[4]}',
+    _ => '${d.substring(0, 5)}0000${d[5]}',
+  };
+  return '$n$body$check';
 }
 
 // --- Boarding passes ---------------------------------------------------------------

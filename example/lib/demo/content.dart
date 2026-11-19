@@ -294,7 +294,7 @@ Described describe(Barcode barcode) {
       icon: product.isbn13 != null
           ? Icons.menu_book_outlined
           : Icons.view_week_outlined,
-      title: product.gtin,
+      title: product.number,
       fields: <(String, String)>[
         ('GTIN', product.gtin),
         if (product.isbn13 != null) ('ISBN-13', product.isbn13!),
