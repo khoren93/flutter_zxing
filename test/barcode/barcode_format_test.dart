@@ -98,7 +98,7 @@ void main() {
       if (input != null) {
         expect(input.description, isNotEmpty, reason: f.name);
         expect(input.example, isNotEmpty, reason: f.name);
-        if (input.digits) {
+        if (input.digitsOnly) {
           expect(input.example, matches(RegExp(r'^\d+$')), reason: f.name);
         }
       }

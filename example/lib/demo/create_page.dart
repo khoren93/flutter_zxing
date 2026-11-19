@@ -1190,7 +1190,9 @@ class _Form extends StatelessWidget {
           errorText: page._error,
           errorMaxLines: 3,
         ),
-        keyboardType: input.digits ? TextInputType.number : TextInputType.text,
+        keyboardType: input.digitsOnly
+            ? TextInputType.number
+            : TextInputType.text,
         style: const TextStyle(fontFamily: 'monospace'),
       );
     }

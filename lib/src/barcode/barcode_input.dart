@@ -18,7 +18,7 @@ final class BarcodeInput {
   const BarcodeInput(
     this.description,
     this.example, {
-    this.digits = false,
+    this.digitsOnly = false,
     this.anyText = false,
   });
 
@@ -30,7 +30,7 @@ final class BarcodeInput {
   final String example;
 
   /// Only digits: show a numeric keyboard.
-  final bool digits;
+  final bool digitsOnly;
 
   /// Holds any text, long enough for a link, Wi-Fi credentials or a contact
   /// card (QR Code, Data Matrix, Aztec, PDF417). Otherwise the format takes

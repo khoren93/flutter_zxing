@@ -290,7 +290,7 @@ enum BarcodeFormat {
   /// final BarcodeInput input = BarcodeFormat.ean13.input!;
   /// TextField(
   ///   decoration: InputDecoration(helperText: input.description, hintText: input.example),
-  ///   keyboardType: input.digits ? TextInputType.number : TextInputType.text,
+  ///   keyboardType: input.digitsOnly ? TextInputType.number : TextInputType.text,
   /// );
   /// ```
   BarcodeInput? get input => switch (this) {
@@ -461,7 +461,7 @@ const BarcodeInput _aztec = BarcodeInput(
 const BarcodeInput _aztecRune = BarcodeInput(
   'A number from 0 to 255',
   '25',
-  digits: true,
+  digitsOnly: true,
 );
 const BarcodeInput _pdf417 = BarcodeInput(
   'Any text or binary data, up to 1108 bytes',
@@ -488,27 +488,27 @@ const BarcodeInput _codabar = BarcodeInput(
 const BarcodeInput _evenDigits = BarcodeInput(
   'Digits; an odd count gets a leading zero',
   '12345678',
-  digits: true,
+  digitsOnly: true,
 );
 const BarcodeInput _ean13 = BarcodeInput(
   '12 digits, or 13 with the check digit',
   '9501101530003',
-  digits: true,
+  digitsOnly: true,
 );
 const BarcodeInput _ean8 = BarcodeInput(
   '7 digits, or 8 with the check digit',
   '96385074',
-  digits: true,
+  digitsOnly: true,
 );
 const BarcodeInput _upcA = BarcodeInput(
   '11 digits, or 12 with the check digit',
   '012345678905',
-  digits: true,
+  digitsOnly: true,
 );
 const BarcodeInput _upcE = BarcodeInput(
   '6 or 7 digits, or 8 with the check digit',
   '01234565',
-  digits: true,
+  digitsOnly: true,
 );
 const BarcodeInput _isbn = BarcodeInput(
   'ISBN-13, or ISBN-10, with its check digit',
@@ -517,12 +517,12 @@ const BarcodeInput _isbn = BarcodeInput(
 const BarcodeInput _gtin = BarcodeInput(
   'GTIN: up to 13 digits; the check digit is added',
   '0950110153000',
-  digits: true,
+  digitsOnly: true,
 );
 const BarcodeInput _gtinLimited = BarcodeInput(
   'GTIN starting with 0 or 1: up to 13 digits; the check digit is added',
   '0950110153000',
-  digits: true,
+  digitsOnly: true,
 );
 const BarcodeInput _gs1 = BarcodeInput(
   'GS1 data: Application Identifiers in parentheses',
@@ -531,12 +531,12 @@ const BarcodeInput _gs1 = BarcodeInput(
 const BarcodeInput _code32 = BarcodeInput(
   'Up to 8 digits; the check digit is added',
   '12345678',
-  digits: true,
+  digitsOnly: true,
 );
 const BarcodeInput _pzn = BarcodeInput(
   'Up to 7 digits; the check digit is added',
   '1234567',
-  digits: true,
+  digitsOnly: true,
 );
 const BarcodeInput _telepen = BarcodeInput(
   'ASCII text; digits only are encoded as Telepen Numeric',
