@@ -92,6 +92,158 @@ void main() {
     });
   });
 
+  group('writer checks', () {
+    void ok(BarcodeWriter writer) => checkWriter(writer);
+    Matcher fails(String message) => throwsA(
+      isA<ArgumentError>().having(
+        (ArgumentError e) => e.message,
+        'message',
+        contains(message),
+      ),
+    );
+
+    test('version within the range of the format', () {
+      for (final (BarcodeFormat format, int min, int max)
+          in <(BarcodeFormat, int, int)>[
+            (BarcodeFormat.qrCode, 1, 40),
+            (BarcodeFormat.qrCodeModel2, 1, 40),
+            (BarcodeFormat.microQrCode, 1, 4),
+            (BarcodeFormat.rmqrCode, 1, 38),
+            (BarcodeFormat.dataMatrix, 1, 48),
+            (BarcodeFormat.aztec, 1, 36),
+            (BarcodeFormat.pdf417, 1, 30),
+            (BarcodeFormat.compactPdf417, 1, 30),
+            (BarcodeFormat.microPdf417, 1, 4),
+          ]) {
+        ok(BarcodeWriter(format, version: min));
+        ok(BarcodeWriter(format, version: max));
+        for (final int bad in <int>[min - 1, max + 1, -1]) {
+          expect(
+            () => checkWriter(BarcodeWriter(format, version: bad)),
+            throwsA(
+              isA<RangeError>()
+                  .having((RangeError e) => e.start, 'start', min)
+                  .having((RangeError e) => e.end, 'end', max),
+            ),
+            reason: '${format.name} $bad',
+          );
+        }
+      }
+    });
+
+    test('version on a format without versions', () {
+      for (final BarcodeFormat format in BarcodeFormat.writable) {
+        if (versionRange(format) == null) {
+          expect(
+            () => checkWriter(BarcodeWriter(format, version: 1)),
+            fails('BarcodeFormat.${format.name} has no versions'),
+          );
+        }
+      }
+      expect(versionRange(BarcodeFormat.ean13), isNull);
+      expect(versionRange(BarcodeFormat.aztecRune), isNull);
+    });
+
+    test('zxingOptions take the keys zxing-cpp knows', () {
+      ok(
+        const BarcodeWriter(
+          BarcodeFormat.qrCode,
+          zxingOptions:
+              'ecLevel=H, eci=UTF-8, gs1, readerInit=true, data_mask: 3, '
+              'version=5',
+        ),
+      );
+      ok(
+        const BarcodeWriter(
+          BarcodeFormat.dataMatrix,
+          zxingOptions: '{"forceSquare": true}',
+        ),
+      );
+      ok(
+        const BarcodeWriter(
+          BarcodeFormat.pdf417,
+          zxingOptions: 'columns=4,rows=10,ecLevel=5',
+        ),
+      );
+      ok(
+        const BarcodeWriter(
+          BarcodeFormat.aztec,
+          zxingOptions: 'EcLevel=23%, extraEscapeMode',
+        ),
+      );
+      ok(const BarcodeWriter(BarcodeFormat.qrCode, zxingOptions: ' , '));
+    });
+
+    test('zxingOptions reject unknown keys and wrong values', () {
+      expect(
+        () => checkWriter(
+          const BarcodeWriter(BarcodeFormat.qrCode, zxingOptions: 'nonsense=1'),
+        ),
+        fails('Unknown option "nonsense"'),
+      );
+      expect(
+        () => checkWriter(
+          const BarcodeWriter(BarcodeFormat.qrCode, zxingOptions: 'ecLevel=Z'),
+        ),
+        fails('ecLevel is'),
+      );
+      expect(
+        () => checkWriter(
+          const BarcodeWriter(BarcodeFormat.qrCode, zxingOptions: 'ecLevel'),
+        ),
+        fails('ecLevel is'),
+      );
+      expect(
+        () => checkWriter(
+          const BarcodeWriter(BarcodeFormat.pdf417, zxingOptions: 'rows=ten'),
+        ),
+        fails('rows takes a whole number'),
+      );
+      expect(
+        () => checkWriter(
+          const BarcodeWriter(BarcodeFormat.qrCode, zxingOptions: 'gs1=yes'),
+        ),
+        fails('gs1 is true or false'),
+      );
+      expect(
+        () => checkWriter(
+          const BarcodeWriter(BarcodeFormat.qrCode, zxingOptions: 'eci='),
+        ),
+        fails('eci takes a value'),
+      );
+      expect(
+        () => checkWriter(
+          const BarcodeWriter(BarcodeFormat.qrCode, zxingOptions: 'version=99'),
+        ),
+        throwsRangeError,
+      );
+    });
+
+    test('encode checks before it starts the engine', () async {
+      await expectLater(
+        const BarcodeWriter(BarcodeFormat.qrCode, version: 0).encode('x'),
+        throwsRangeError,
+      );
+      await expectLater(
+        const BarcodeWriter(
+          BarcodeFormat.qrCode,
+          zxingOptions: 'nonsense=1',
+        ).encodeBytes(Uint8List(1)),
+        throwsArgumentError,
+      );
+      await expectLater(
+        const BarcodeWriter(BarcodeFormat.itf14).encode('x'),
+        throwsA(
+          isA<ArgumentError>().having(
+            (ArgumentError e) => e.message,
+            'message',
+            'BarcodeFormat.itf14 cannot be written',
+          ),
+        ),
+      );
+    });
+  });
+
   group('SymbolLayout', () {
     test('merges identical rows into one rectangle per bar', () {
       final SymbolLayout layout = SymbolLayout(

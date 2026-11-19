@@ -52,8 +52,24 @@ final class BarcodeWriter {
   /// default is low), zxing-cpp's for the others. See [ErrorCorrection].
   final ErrorCorrection? errorCorrection;
 
-  /// Symbol size, for formats that have versions (QR: 1–40, Data Matrix:
-  /// size index, Aztec: layers). `null` picks the smallest that fits.
+  /// Symbol size, for formats that have versions; `null` picks the
+  /// smallest that fits. The values zint takes:
+  ///
+  /// | Format | Version |
+  /// |---|---|
+  /// | QR Code | 1–40: 17 + 4 × version modules across |
+  /// | Micro QR | 1–4: M1–M4 |
+  /// | rMQR | 1–32: a fixed size, R7x43 to R17x139; 33–38: a fixed height (7, 9, 11, 13, 15 or 17 rows), the width to fit |
+  /// | Data Matrix | 1–48: 1–24 square (10×10 to 144×144), 25–30 rectangular, 31–48 rectangular DMRE |
+  /// | Aztec | 1–36: 1–4 compact with 1–4 layers, 5–36 full range with 1–32 layers |
+  /// | PDF417, Compact PDF417 | 1–30: data columns |
+  /// | MicroPDF417 | 1–4: data columns |
+  ///
+  /// Encoding throws [RangeError] for a version outside the range and
+  /// [ArgumentError] for a format without versions (linear formats, Aztec
+  /// Rune; DataBar Expanded Stacked takes `columns`/`rows` in
+  /// [zxingOptions]). A version too small for the data throws
+  /// [BarcodeWriteException].
   final int? version;
 
   /// Encode the data as GS1 (Application Identifiers in parentheses:
@@ -68,8 +84,28 @@ final class BarcodeWriter {
   final bool showText;
 
   /// Raw zxing-cpp creator options for anything not covered above, e.g.
-  /// `'eci=26, readerInit'`. A key given here wins over the typed field
-  /// it sets (`ecLevel` over [errorCorrection], `version` over [version]).
+  /// `'eci=26, readerInit'`: `key` or `key=value`, separated by commas.
+  /// A key given here wins over the typed field it sets (`ecLevel` over
+  /// [errorCorrection], `version` over [version]).
+  ///
+  /// The keys zxing-cpp knows (case and underscores do not matter):
+  ///
+  /// - `ecLevel`: error correction in the format's own terms: `L`, `M`,
+  ///   `Q`, `H` for QR, a percentage for Aztec (`23%`), a security level
+  ///   0–8 for PDF417.
+  /// - `eci`: the character set to declare, by name (`UTF-8`,
+  ///   `ISO-8859-5`) or ECI number; `eci=0` declares none.
+  /// - `gs1`: the same as [gs1].
+  /// - `readerInit`: mark the symbol for reader programming.
+  /// - `forceSquare`: Data Matrix in a square size only.
+  /// - `extraEscapeMode`: zint's extra escape sequences in Code 128 data.
+  /// - `columns`, `rows`: the layout of PDF417 and DataBar Expanded
+  ///   Stacked (`columns` also of MicroPDF417).
+  /// - `version`: the same as [version].
+  /// - `dataMask`: the mask pattern of a QR code (0–7) or Micro QR (0–3).
+  ///
+  /// Encoding throws [ArgumentError] for any other key and for a value of
+  /// the wrong kind (`version=abc`, `ecLevel=Z`).
   final String? zxingOptions;
 
   /// Encodes text into the module matrix (UTF-8, or the character set the
@@ -81,7 +117,8 @@ final class BarcodeWriter {
   /// ```
   ///
   /// Throws [BarcodeWriteException] if [data] cannot be encoded, and
-  /// [ArgumentError] if [format] cannot be written.
+  /// [ArgumentError] if [format] cannot be written or [version] or
+  /// [zxingOptions] are not valid for it.
   Future<BarcodeSymbol> encode(String data) =>
       _encode(utf8.encode(data), binary: false);
 
@@ -95,7 +132,8 @@ final class BarcodeWriter {
   /// ```
   ///
   /// Throws [BarcodeWriteException] if [data] cannot be encoded, and
-  /// [ArgumentError] if [format] cannot be written.
+  /// [ArgumentError] if [format] cannot be written or [version] or
+  /// [zxingOptions] are not valid for it.
   Future<BarcodeSymbol> encodeBytes(Uint8List data) =>
       _encode(data, binary: true);
 
@@ -104,9 +142,10 @@ final class BarcodeWriter {
       throw ArgumentError.value(
         format,
         'format',
-        '${format.displayName} cannot be written',
+        'BarcodeFormat.${format.name} cannot be written',
       );
     }
+    writing.checkWriter(this);
     final EngineSymbol s = await BarcodeEngine.shared.write(
       data,
       binary: binary,

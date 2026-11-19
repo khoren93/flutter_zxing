@@ -254,4 +254,54 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test('the engine takes the largest version of each format', () async {
+    for (final (BarcodeFormat format, int version, String data)
+        in <(BarcodeFormat, int, String)>[
+          (BarcodeFormat.qrCode, 40, 'x'),
+          (BarcodeFormat.microQrCode, 4, 'x'),
+          (BarcodeFormat.rmqrCode, 38, 'x'),
+          (BarcodeFormat.dataMatrix, 48, 'x'),
+          (BarcodeFormat.aztec, 36, 'x'),
+          (BarcodeFormat.pdf417, 30, 'x'),
+          (BarcodeFormat.microPdf417, 4, 'x'),
+        ]) {
+      final BarcodeSymbol symbol = await BarcodeWriter(
+        format,
+        version: version,
+      ).encode(data);
+      final Barcode? read = await _readerFor(
+        format,
+      ).readPixels(_pixels(await symbol.toImage()));
+      expect(read?.text, data, reason: format.name);
+    }
+    expect(
+      (await const BarcodeWriter(
+        BarcodeFormat.qrCode,
+        version: 40,
+      ).encode('x')).width,
+      177,
+    );
+  });
+
+  test('a version or option the format does not take throws', () async {
+    await expectLater(
+      const BarcodeWriter(BarcodeFormat.qrCode, version: 41).encode('x'),
+      throwsRangeError,
+    );
+    await expectLater(
+      const BarcodeWriter(BarcodeFormat.ean13, version: 1).encode('x'),
+      throwsArgumentError,
+    );
+    await expectLater(
+      const BarcodeWriter(
+        BarcodeFormat.dataMatrix,
+        zxingOptions: 'nonsense=1',
+      ).encode('x'),
+      throwsArgumentError,
+    );
+  });
 }
+
+PixelBuffer _pixels(BarcodeImage image) =>
+    PixelBuffer(image.pixels, width: image.width, height: image.height);
