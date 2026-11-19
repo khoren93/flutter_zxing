@@ -12,8 +12,9 @@ part of 'barcode_content.dart';
 /// ```
 ///
 /// Amounts are text with a decimal point (`'12.50'`), never a `double`, so
-/// nothing is lost to rounding. A code whose check digits or checksum are
-/// wrong is not a payment: it parses as [TextContent].
+/// nothing is lost to rounding; see [amount] and [currency] for what they
+/// hold exactly. A code whose check digits or checksum are wrong is not a
+/// payment: it parses as [TextContent].
 ///
 /// New standards are added in minor versions, so a `switch` over a payment
 /// needs a `default` (or `_`) case; classes outside this package cannot
@@ -28,10 +29,23 @@ abstract final class PaymentContent extends BarcodeContent {
   /// PIX key.
   String? get account;
 
-  /// The amount with a decimal point, or `null` when the payer enters it.
+  /// The amount in [currency], in its main unit with a decimal point
+  /// (`'12.50'` euros, not cents), or `null` when the payer enters it.
+  ///
+  /// The amount is as the code writes it and is not normalised: one code
+  /// may say `12.5` and another `12.50` or `12`. Compare amounts as
+  /// numbers, not as text. The ГОСТ standard holds kopecks; its [amount]
+  /// is in rubles with two decimals.
   String? get amount;
 
-  /// The ISO 4217 code of the currency, such as `EUR`.
+  /// The ISO 4217 alphabetic code of the currency, such as `EUR`.
+  ///
+  /// Fixed by the standard for EPC (`EUR`), ГОСТ (`RUB`) and UPI (`INR`);
+  /// from the code for a Swiss QR-bill (`CHF` or `EUR`) and SPAYD (`CZK`
+  /// when the code gives none). For EMVCo codes, the alphabetic code of
+  /// the code's numeric one (`986` → `BRL`) when it is known, else the
+  /// numeric code as written; `null` only for an EMVCo code without a
+  /// currency.
   String? get currency;
 
   /// What the payment is for: a reference or a message.
@@ -571,7 +585,8 @@ final class EmvPaymentContent extends PaymentContent {
   /// The two-letter country code (`58`).
   String? get countryCode => fields['58'];
 
-  /// The ISO 4217 numeric currency code (`53`), such as `986`.
+  /// The ISO 4217 numeric currency code (`53`), such as `986`; [currency]
+  /// is its alphabetic code.
   String? get currencyCode => fields['53'];
 
   /// The merchant category code (`52`).
@@ -596,8 +611,9 @@ final class EmvPaymentContent extends PaymentContent {
   @override
   String? get amount => fields['54'];
 
-  /// The alphabetic code of [currencyCode] for common currencies, else the
-  /// numeric code.
+  /// The ISO 4217 alphabetic code of [currencyCode], such as `BRL`; the
+  /// numeric code as written when it is not a known one, and `null` when the
+  /// code has no currency.
   @override
   String? get currency => emvCurrency(currencyCode);
 
@@ -637,7 +653,7 @@ final class SpaydPaymentContent extends PaymentContent {
     required this.iban,
     this.bic,
     this.amount,
-    this.currency,
+    this.currency = 'CZK',
     this.recipientName,
     this.message,
     this.dueDate,
@@ -657,9 +673,10 @@ final class SpaydPaymentContent extends PaymentContent {
   @override
   final String? amount;
 
-  /// The currency (`CC`); `null` means Czech crowns.
+  /// The ISO 4217 code of the currency (`CC`); `CZK` when the code gives
+  /// none. Always written.
   @override
-  final String? currency;
+  final String currency;
 
   /// The recipient's name (`RN`), up to 35 characters.
   final String? recipientName;
@@ -733,6 +750,5 @@ final class SpaydPaymentContent extends PaymentContent {
   );
 
   @override
-  String toString() =>
-      'SpaydPaymentContent($iban, ${amount ?? '-'} ${currency ?? 'CZK'})';
+  String toString() => 'SpaydPaymentContent($iban, ${amount ?? '-'} $currency)';
 }

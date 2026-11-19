@@ -262,7 +262,6 @@ void main() {
       const SpaydPaymentContent(
         iban: 'CZ5855000000001265098001',
         amount: '480.50',
-        currency: 'CZK',
       ),
     ];
     for (final BarcodeContent content in contents) {

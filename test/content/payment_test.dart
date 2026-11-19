@@ -519,10 +519,29 @@ void main() {
         spayd.toPayload(),
         <String>[
           'SPD', '1.0', 'ACC:CZ5855000000001265098001+RZBCCZPP', 'AM:10', //
-          'MSG:A %2A B', 'DT:20261231', 'X-PER:7',
+          'CC:CZK', 'MSG:A %2A B', 'DT:20261231', 'X-PER:7',
         ].join('*'),
       );
       _roundTrips(spayd);
+    });
+
+    test('the currency is CZK unless the code says otherwise', () {
+      expect(
+        (_parse('SPD*1.0*ACC:CZ5855000000001265098001*AM:1') as PaymentContent)
+            .currency,
+        'CZK',
+      );
+      expect(
+        (_parse('SPD*1.0*ACC:CZ5855000000001265098001*AM:1*CC:eur')
+                as PaymentContent)
+            .currency,
+        'EUR',
+      );
+      const SpaydPaymentContent spayd = SpaydPaymentContent(
+        iban: 'CZ5855000000001265098001',
+      );
+      expect(spayd.currency, 'CZK');
+      expect(spayd.toPayload(), 'SPD*1.0*ACC:CZ5855000000001265098001*CC:CZK');
     });
 
     test('issues', () {
@@ -534,6 +553,18 @@ void main() {
         _issue('variableSymbol'),
       );
     });
+  });
+
+  test('EMVCo currencies: the alphabetic code when known', () {
+    String? currency(String? numeric) => EmvPaymentContent(<String, String>{
+      '00': '01',
+      '53': ?numeric,
+    }).currency;
+    expect(currency('986'), 'BRL');
+    expect(currency('840'), 'USD');
+    expect(currency('203'), 'CZK');
+    expect(currency('999'), '999');
+    expect(currency(null), isNull);
   });
 
   test('every payment answers the common questions', () {

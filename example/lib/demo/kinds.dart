@@ -584,7 +584,6 @@ enum CreateKind {
       spayd => SpaydPaymentContent(
         iban: v('iban'),
         amount: o('amount'),
-        currency: o('amount') == null ? null : 'CZK',
         recipientName: o('recipientName'),
         message: o('message'),
       ),
@@ -806,7 +805,7 @@ String contentDart(BarcodeContent content) => switch (content) {
     _call('SpaydPaymentContent', const <Object>[], <String, Object?>{
       'iban': _q(p.iban),
       'amount': _qn(p.amount),
-      'currency': _qn(p.currency),
+      if (p.currency != 'CZK') 'currency': _q(p.currency),
       'recipientName': _qn(p.recipientName),
       'message': _qn(p.message),
     }),

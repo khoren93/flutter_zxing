@@ -889,14 +889,27 @@ String? emvCurrency(String? numeric) =>
     numeric == null ? null : _currencies[numeric] ?? numeric;
 
 const Map<String, String> _currencies = <String, String>{
-  '036': 'AUD', '050': 'BDT', '104': 'MMK', '116': 'KHR', '124': 'CAD', //
-  '144': 'LKR', '152': 'CLP', '156': 'CNY', '170': 'COP', '344': 'HKD', //
-  '356': 'INR', '360': 'IDR', '392': 'JPY', '404': 'KES', '410': 'KRW', //
-  '418': 'LAK', '458': 'MYR', '484': 'MXN', '524': 'NPR', '566': 'NGN', //
-  '586': 'PKR', '604': 'PEN', '608': 'PHP', '643': 'RUB', '682': 'SAR', //
-  '702': 'SGD', '704': 'VND', '710': 'ZAR', '764': 'THB', '784': 'AED', //
-  '826': 'GBP', '840': 'USD', '901': 'TWD', '949': 'TRY', '978': 'EUR', //
-  '986': 'BRL', '032': 'ARS',
+  '012': 'DZD', '032': 'ARS', '036': 'AUD', '048': 'BHD', '050': 'BDT', //
+  '051': 'AMD', '064': 'BTN', '068': 'BOB', '096': 'BND', '104': 'MMK', //
+  '116': 'KHR', '124': 'CAD', '144': 'LKR', '152': 'CLP', '156': 'CNY', //
+  '170': 'COP', '188': 'CRC', '203': 'CZK', '208': 'DKK', '214': 'DOP', //
+  '230': 'ETB', '242': 'FJD', '320': 'GTQ', '340': 'HNL', '344': 'HKD', //
+  '348': 'HUF', '352': 'ISK', '356': 'INR', '360': 'IDR', '368': 'IQD', //
+  '376': 'ILS', '388': 'JMD', '392': 'JPY', '398': 'KZT', '400': 'JOD', //
+  '404': 'KES', '410': 'KRW', '414': 'KWD', '417': 'KGS', '418': 'LAK', //
+  '422': 'LBP', '446': 'MOP', '458': 'MYR', '462': 'MVR', '480': 'MUR', //
+  '484': 'MXN', '496': 'MNT', '504': 'MAD', '512': 'OMR', '524': 'NPR', //
+  '554': 'NZD', '558': 'NIO', '566': 'NGN', '578': 'NOK', '586': 'PKR', //
+  '590': 'PAB', '598': 'PGK', '600': 'PYG', '604': 'PEN', '608': 'PHP', //
+  '634': 'QAR', '643': 'RUB', '646': 'RWF', '682': 'SAR', '702': 'SGD', //
+  '704': 'VND', '710': 'ZAR', '752': 'SEK', '756': 'CHF', '764': 'THB', //
+  '780': 'TTD', '784': 'AED', '788': 'TND', '800': 'UGX', '818': 'EGP', //
+  '826': 'GBP', '834': 'TZS', '840': 'USD', '858': 'UYU', '860': 'UZS', //
+  '901': 'TWD', '933': 'BYN', '934': 'TMT', '936': 'GHS', '941': 'RSD', //
+  '943': 'MZN', '944': 'AZN', '946': 'RON', '949': 'TRY', '950': 'XAF', //
+  '951': 'XCD', '952': 'XOF', '953': 'XPF', '967': 'ZMW', '971': 'AFN', //
+  '972': 'TJS', '973': 'AOA', '975': 'BGN', '976': 'CDF', '978': 'EUR', //
+  '980': 'UAH', '981': 'GEL', '985': 'PLN', '986': 'BRL', //
 };
 
 // --- SPAYD ---------------------------------------------------------------------------------
@@ -949,7 +962,7 @@ SpaydPaymentContent? parseSpayd(String text) {
     iban: iban,
     bic: account.length > 1 ? orNull(account[1].trim().toUpperCase()) : null,
     amount: orNull(fields['AM']),
-    currency: orNull(fields['CC']?.toUpperCase()),
+    currency: orNull(fields['CC']?.toUpperCase()) ?? 'CZK',
     recipientName: orNull(fields['RN']),
     message: orNull(fields['MSG']),
     dueDate: due,
@@ -973,7 +986,7 @@ String buildSpayd(SpaydPaymentContent c) {
         compactIban(c.iban) +
         (orNull(_t(c.bic)) == null ? '' : '+${_t(c.bic).toUpperCase()}'),
     'AM': orNull(_t(c.amount)),
-    'CC': orNull(_t(c.currency).toUpperCase()),
+    'CC': orNull(_t(c.currency).toUpperCase()) ?? 'CZK',
     'RN': orNull(_t(c.recipientName)),
     'MSG': orNull(_t(c.message)),
     'DT': due == null
