@@ -3,8 +3,8 @@
 import '../barcode/barcode_format.dart';
 import 'barcode_writer.dart';
 
-/// The zxing-cpp creator options of [writer]: its typed fields, then its
-/// `zxingOptions`.
+/// The zxing-cpp creator options of [writer]: its `zxingOptions`, then its
+/// typed fields.
 String writerCreatorOptions(BarcodeWriter writer) => creatorOptions(
   writer.format,
   // M rather than zxing-cpp's L: often no larger, and it survives print,
@@ -20,8 +20,9 @@ String writerCreatorOptions(BarcodeWriter writer) => creatorOptions(
   options: writer.zxingOptions,
 );
 
-/// The zxing-cpp creator options string: the typed settings, then the raw
-/// [options] last so that they win.
+/// The zxing-cpp creator options string: the raw [options], then the
+/// typed settings. zxing-cpp takes the first value of a key, so the raw
+/// options win.
 String creatorOptions(
   BarcodeFormat format, {
   ErrorCorrection? errorCorrection,
@@ -29,12 +30,12 @@ String creatorOptions(
   bool gs1 = false,
   String? options,
 }) => <String>[
+  if (options != null && options.trim().isNotEmpty) options.trim(),
   if (errorCorrection != null)
     if (_ecLevel(format, errorCorrection) case final String level)
       'ecLevel=$level',
   if (version != null) 'version=$version',
   if (gs1) 'gs1',
-  if (options != null && options.trim().isNotEmpty) options.trim(),
 ].join(',');
 
 /// The zxing-cpp ecLevel for [level] in [format]'s terms, `null` where error

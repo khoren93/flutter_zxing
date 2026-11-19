@@ -68,7 +68,8 @@ final class BarcodeWriter {
   final bool showText;
 
   /// Raw zxing-cpp creator options for anything not covered above, e.g.
-  /// `'eci=26, readerInit'`. Applied after the typed fields.
+  /// `'eci=26, readerInit'`. A key given here wins over the typed field
+  /// it sets (`ecLevel` over [errorCorrection], `version` over [version]).
   final String? zxingOptions;
 
   /// Encodes text into the module matrix (UTF-8, or the character set the

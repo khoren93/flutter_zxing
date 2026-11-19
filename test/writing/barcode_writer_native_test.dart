@@ -141,6 +141,43 @@ void main() {
     expect(v10.width, 57); // 17 + 4 * version
   });
 
+  test('zxingOptions win over the typed fields', () async {
+    Future<Barcode?> read(BarcodeWriter writer) async {
+      final BarcodeImage image = await (await writer.encode('x')).toImage();
+      return const BarcodeReader().readPixels(
+        PixelBuffer(image.pixels, width: image.width, height: image.height),
+      );
+    }
+
+    // Over the QR default M and over errorCorrection.
+    expect(
+      (await read(
+        const BarcodeWriter(BarcodeFormat.qrCode, zxingOptions: 'ecLevel=H'),
+      ))?.ecLevel,
+      'H',
+    );
+    expect(
+      (await read(
+        const BarcodeWriter(
+          BarcodeFormat.qrCode,
+          errorCorrection: ErrorCorrection.low,
+          zxingOptions: 'ecLevel=Q',
+        ),
+      ))?.ecLevel,
+      'Q',
+    );
+    expect(
+      (await read(
+        const BarcodeWriter(
+          BarcodeFormat.qrCode,
+          version: 2,
+          zxingOptions: 'version=5',
+        ),
+      ))?.version,
+      '5',
+    );
+  });
+
   test('GS1 data is encoded as GS1', () async {
     final BarcodeSymbol symbol = await const BarcodeWriter(
       BarcodeFormat.dataMatrix,

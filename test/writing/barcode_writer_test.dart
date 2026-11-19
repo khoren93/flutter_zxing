@@ -77,7 +77,7 @@ void main() {
       );
     });
 
-    test('combine version, GS1 and raw options, raw last', () {
+    test('combine version, GS1 and raw options, raw first to win', () {
       expect(
         writerCreatorOptions(
           const BarcodeWriter(
@@ -87,7 +87,7 @@ void main() {
             zxingOptions: ' readerInit ',
           ),
         ),
-        'version=12,gs1,readerInit',
+        'readerInit,version=12,gs1',
       );
     });
   });
