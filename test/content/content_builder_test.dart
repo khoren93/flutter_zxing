@@ -322,7 +322,7 @@ void main() {
       urls: <Uri>[Uri.parse('https://acme.example/mary')],
       addresses: const <String>['1 Main St, Springfield, 12345, US'],
       note: 'Met at the fair: line 1\nline 2',
-      birthday: DateTime(1990, 5, 17),
+      birthDate: DateTime(1990, 5, 17),
     );
 
     test('vCard 3.0', () {
@@ -370,7 +370,7 @@ void main() {
           const ContactContent(organization: 'Acme', phones: <String>['1']),
           format,
         );
-        _roundTrips(ContactContent(birthday: DateTime(2000, 2, 29)), format);
+        _roundTrips(ContactContent(birthDate: DateTime(2000, 2, 29)), format);
       }
     });
 
@@ -394,26 +394,26 @@ void main() {
       );
     });
 
-    test('birthday is parsed from vCard 4.0 and MeCard forms', () {
+    test('birthDate is parsed from vCard 4.0 and MeCard forms', () {
       expect(
         (BarcodeContent.parseText(
                   'BEGIN:VCARD\nFN:A\nBDAY:19611105T0000\n'
                   'END:VCARD',
                 )
                 as ContactContent)
-            .birthday,
+            .birthDate,
         DateTime(1961, 11, 5),
       );
       expect(
         (BarcodeContent.parseText('BEGIN:VCARD\nFN:A\nBDAY:--0517\nEND:VCARD')
                 as ContactContent)
-            .birthday,
+            .birthDate,
         isNull,
       );
       expect(
         (BarcodeContent.parseText('MECARD:N:A;BDAY:19900231;;')
                 as ContactContent)
-            .birthday,
+            .birthDate,
         isNull,
       );
     });

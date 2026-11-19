@@ -221,7 +221,7 @@ void main() {
             'Flat 2, 43 Howitt Road, Belsize Park, London, NW34LU, UK',
           ],
           note: 'Testing 1 2 3',
-          birthday: DateTime(1961, 11, 5),
+          birthDate: DateTime(1961, 11, 5),
         ),
       );
     });
@@ -623,8 +623,8 @@ void main() {
       expect(gs1.serial, '7C4K9M2');
       expect(gs1.count, 24);
       // Day 00: the last day of the month.
-      expect(gs1.expiry, DateTime(2025, 1, 31));
-      expect(gs1.bestBefore, DateTime(2026, 12, 31));
+      expect(gs1.expiryDate, DateTime(2025, 1, 31));
+      expect(gs1.bestBeforeDate, DateTime(2026, 12, 31));
     });
 
     test('expired after the expiry day, not on it', () {

@@ -47,7 +47,7 @@ final class HistoryItem {
   /// How long reading took, when known.
   final int? decodeMillis;
 
-  BarcodeContent get content => BarcodeContent.parse(barcode);
+  BarcodeContent get content => barcode.content;
 
   Map<String, Object?> toJson() {
     final BarcodeSymbol? symbol = barcode.symbol;

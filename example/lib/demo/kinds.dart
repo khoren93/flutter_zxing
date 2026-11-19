@@ -252,7 +252,7 @@ enum CreateKind {
         optional: true,
         input: FieldInput.code,
       ),
-      KindField('text', 'Message', 'Donation November', optional: true),
+      KindField('message', 'Message', 'Donation November', optional: true),
     ],
     swiss => const <KindField>[
       KindField(
@@ -276,7 +276,7 @@ enum CreateKind {
         hint: 'Empty: the payer enters it',
       ),
       KindField(
-        'qrReference',
+        'creditorReference',
         'Reference',
         '',
         optional: true,
@@ -542,7 +542,7 @@ enum CreateKind {
         iban: v('iban'),
         bic: o('bic'),
         amount: o('amount'),
-        text: o('text'),
+        message: o('message'),
       ),
       swiss => SwissQrBillContent(
         iban: v('iban'),
@@ -556,7 +556,7 @@ enum CreateKind {
         ),
         amount: o('amount'),
         currency: c('currency'),
-        qrReference: o('qrReference'),
+        creditorReference: o('creditorReference'),
         message: o('message'),
       ),
       gost => GostPaymentContent(
@@ -760,7 +760,7 @@ String contentDart(BarcodeContent content) => switch (content) {
       'iban': _q(p.iban),
       'bic': _qn(p.bic),
       'amount': _qn(p.amount),
-      'text': _qn(p.text),
+      'message': _qn(p.message),
     }),
   SwissQrBillContent p => _call(
     'SwissQrBillContent',
@@ -779,7 +779,7 @@ String contentDart(BarcodeContent content) => switch (content) {
       ),
       'amount': _qn(p.amount),
       if (p.currency != 'CHF') 'currency': _q(p.currency),
-      'qrReference': _qn(p.qrReference),
+      'creditorReference': _qn(p.creditorReference),
       'message': _qn(p.message),
     },
   ),

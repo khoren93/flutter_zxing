@@ -28,7 +28,7 @@ String? _asciiWithSeparators(List<int> bytes) {
   return ascii.decode(bytes);
 }
 
-/// [BarcodeContent.parse].
+/// [BarcodeContentOf.content].
 BarcodeContent parseBarcodeContent(Barcode barcode) {
   switch (barcode.contentType) {
     case BarcodeContentType.gs1:
@@ -297,7 +297,7 @@ ContactContent? _meCard(String body) {
   String? organization;
   String? title;
   String? note;
-  DateTime? birthday;
+  DateTime? birthDate;
   final List<String> phones = <String>[];
   final List<String> emails = <String>[];
   final List<Uri> urls = <Uri>[];
@@ -331,7 +331,7 @@ ContactContent? _meCard(String body) {
       case 'NOTE':
         note = _orNull(_unescape(raw).trim());
       case 'BDAY':
-        birthday = _birthday(_unescape(raw));
+        birthDate = _birthday(_unescape(raw));
     }
   }
   return _contact(
@@ -343,7 +343,7 @@ ContactContent? _meCard(String body) {
     urls: urls,
     addresses: addresses,
     note: note,
-    birthday: birthday,
+    birthDate: birthDate,
   );
 }
 
@@ -354,7 +354,7 @@ ContactContent? _vCard(String text) {
   String? organization;
   String? title;
   String? note;
-  DateTime? birthday;
+  DateTime? birthDate;
   final List<String> phones = <String>[];
   final List<String> emails = <String>[];
   final List<Uri> urls = <Uri>[];
@@ -394,7 +394,7 @@ ContactContent? _vCard(String text) {
       case 'NOTE':
         note = _orNull(line.text.trim());
       case 'BDAY':
-        birthday = _birthday(line.text);
+        birthDate = _birthday(line.text);
     }
   }
   return _contact(
@@ -406,7 +406,7 @@ ContactContent? _vCard(String text) {
     urls: urls,
     addresses: addresses,
     note: note,
-    birthday: birthday,
+    birthDate: birthDate,
   );
 }
 
@@ -419,13 +419,13 @@ ContactContent? _contact({
   required List<Uri> urls,
   required List<String> addresses,
   required String? note,
-  required DateTime? birthday,
+  required DateTime? birthDate,
 }) {
   if (name == null &&
       organization == null &&
       title == null &&
       note == null &&
-      birthday == null &&
+      birthDate == null &&
       phones.isEmpty &&
       emails.isEmpty &&
       urls.isEmpty &&
@@ -441,7 +441,7 @@ ContactContent? _contact({
     urls: List<Uri>.unmodifiable(urls),
     addresses: List<String>.unmodifiable(addresses),
     note: note,
-    birthday: birthday,
+    birthDate: birthDate,
   );
 }
 

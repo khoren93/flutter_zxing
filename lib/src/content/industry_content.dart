@@ -185,7 +185,7 @@ DriverLicenseContent? parseDriverLicense(String text) {
         (given.length > 1 ? orNull(given.skip(1).join(' ')) : null) ??
         part(2),
     lastName: lastName,
-    dateOfBirth: _aamvaDate(at('DBB'), country),
+    birthDate: _aamvaDate(at('DBB'), country),
     issueDate: _aamvaDate(at('DBD'), country),
     expiryDate: _aamvaDate(at('DBA'), country),
     street: at('DAG'),

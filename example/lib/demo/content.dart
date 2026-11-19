@@ -42,7 +42,7 @@ final class Described {
 
 /// Describes [barcode]'s content.
 Described describe(Barcode barcode) {
-  final BarcodeContent content = BarcodeContent.parse(barcode);
+  final BarcodeContent content = barcode.content;
   String or(String? s, String fallback) =>
       s == null || s.isEmpty ? fallback : s;
   return switch (content) {
@@ -145,9 +145,9 @@ Described describe(Barcode barcode) {
       fields: <(String, String)>[
         for (final MapEntry<String, String> e in gs1.elements.entries)
           switch (e.key) {
-            '17' when gs1.expiry != null => (
+            '17' when gs1.expiryDate != null => (
               'Expiry',
-              '${_date(gs1.expiry!)}${gs1.isExpired() ? ' · expired' : ''}',
+              '${_date(gs1.expiryDate!)}${gs1.isExpired() ? ' · expired' : ''}',
             ),
             _ => (_gs1Names[e.key] ?? '(${e.key})', e.value),
           },
@@ -280,7 +280,7 @@ Described describe(Barcode barcode) {
       title: <String>[?id.firstName, ?id.lastName].join(' '),
       fields: <(String, String)>[
         if (id.licenseNumber != null) ('Number', id.licenseNumber!),
-        if (id.dateOfBirth != null) ('Born', _date(id.dateOfBirth!)),
+        if (id.birthDate != null) ('Born', _date(id.birthDate!)),
         if (id.expiryDate != null) ('Expires', _date(id.expiryDate!)),
         if (id.state != null) ('State', id.state!),
         if (id.city != null) ('City', id.city!),

@@ -88,7 +88,7 @@ void main() {
     test('EPC fields cannot hold a line break', () {
       for (final EpcPaymentContent c in <EpcPaymentContent>[
         const EpcPaymentContent(name: 'ACME\nGmbH', iban: _iban),
-        const EpcPaymentContent(name: 'A', iban: _iban, text: 'one\ntwo'),
+        const EpcPaymentContent(name: 'A', iban: _iban, message: 'one\ntwo'),
         const EpcPaymentContent(name: 'A', iban: _iban, information: 'a\rb'),
       ]) {
         expect(c.validate(), isNotEmpty);

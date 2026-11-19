@@ -63,7 +63,7 @@ final class EpcPaymentContent extends PaymentContent {
     this.amount,
     this.purposeCode,
     this.creditorReference,
-    this.text,
+    this.message,
     this.information,
   });
 
@@ -84,11 +84,11 @@ final class EpcPaymentContent extends PaymentContent {
   final String? purposeCode;
 
   /// A structured reference, such as an ISO 11649 `RF…` reference; not
-  /// together with [text].
+  /// together with [message].
   final String? creditorReference;
 
   /// Remittance text for the beneficiary, up to 140 characters.
-  final String? text;
+  final String? message;
 
   /// A note for the payer, up to 70 characters, not sent with the payment.
   final String? information;
@@ -103,7 +103,7 @@ final class EpcPaymentContent extends PaymentContent {
   String get currency => 'EUR';
 
   @override
-  String? get reference => creditorReference ?? text;
+  String? get reference => creditorReference ?? message;
 
   /// Version 002 in UTF-8; the IBAN without spaces. At most 331 bytes.
   @override
@@ -121,7 +121,7 @@ final class EpcPaymentContent extends PaymentContent {
       other.amount == amount &&
       other.purposeCode == purposeCode &&
       other.creditorReference == creditorReference &&
-      other.text == text &&
+      other.message == message &&
       other.information == information;
 
   @override
@@ -132,7 +132,7 @@ final class EpcPaymentContent extends PaymentContent {
     amount,
     purposeCode,
     creditorReference,
-    text,
+    message,
     information,
   );
 
@@ -217,7 +217,7 @@ final class SwissQrBillContent extends PaymentContent {
     this.amount,
     this.currency = 'CHF',
     this.debtor,
-    this.qrReference,
+    this.creditorReference,
     this.message,
     this.billInformation,
     this.alternativeSchemes = const <String>[],
@@ -245,12 +245,12 @@ final class SwissQrBillContent extends PaymentContent {
   /// The QR reference (27 digits, only with a QR-IBAN) or ISO 11649
   /// creditor reference (`RF…`), or `null`. Spaces are left out when
   /// building.
-  final String? qrReference;
+  final String? creditorReference;
 
-  /// The kind of [qrReference], from the reference itself: `RF…` is
+  /// The kind of [creditorReference], from the reference itself: `RF…` is
   /// [SwissReferenceType.scor], no reference [SwissReferenceType.none],
   /// anything else [SwissReferenceType.qrr].
-  SwissReferenceType get referenceType => swissReferenceType(qrReference);
+  SwissReferenceType get referenceType => swissReferenceType(creditorReference);
 
   /// An unstructured message, up to 140 characters together with
   /// [billInformation].
@@ -269,7 +269,7 @@ final class SwissQrBillContent extends PaymentContent {
   String get account => iban;
 
   @override
-  String? get reference => qrReference ?? message;
+  String? get reference => creditorReference ?? message;
 
   /// The 0200 format with a structured creditor address, lines ending in a
   /// line feed. At most 997 characters.
@@ -287,7 +287,7 @@ final class SwissQrBillContent extends PaymentContent {
       other.amount == amount &&
       other.currency == currency &&
       other.debtor == debtor &&
-      other.qrReference == qrReference &&
+      other.creditorReference == creditorReference &&
       other.message == message &&
       other.billInformation == billInformation &&
       listEquals(other.alternativeSchemes, alternativeSchemes);
@@ -299,7 +299,7 @@ final class SwissQrBillContent extends PaymentContent {
     amount,
     currency,
     debtor,
-    qrReference,
+    creditorReference,
     message,
     billInformation,
     Object.hashAll(alternativeSchemes),

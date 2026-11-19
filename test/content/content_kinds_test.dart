@@ -18,14 +18,12 @@ const BarcodePosition _nowhere = BarcodePosition(
 BarcodeContent _read(
   String text, [
   BarcodeFormat format = BarcodeFormat.qrCode,
-]) => BarcodeContent.parse(
-  Barcode(
-    format: format,
-    text: text,
-    bytes: Uint8List.fromList(utf8.encode(text)),
-    position: _nowhere,
-  ),
-);
+]) => Barcode(
+  format: format,
+  text: text,
+  bytes: Uint8List.fromList(utf8.encode(text)),
+  position: _nowhere,
+).content;
 
 BarcodeContent _parse(String text) => BarcodeContent.parseText(text);
 
@@ -656,7 +654,7 @@ void main() {
       expect(id.firstName, 'JOHN');
       expect(id.middleName, 'QUINCY');
       expect(id.lastName, 'PUBLIC');
-      expect(id.dateOfBirth, DateTime(1977, 8, 31));
+      expect(id.birthDate, DateTime(1977, 8, 31));
       expect(id.issueDate, DateTime(2013, 8, 31));
       expect(id.expiryDate, DateTime(2020, 8, 31));
       expect(id.street, '123 MAIN STREET');
@@ -672,7 +670,7 @@ void main() {
           '@\n\x1e\rANSI 636012080102DL00410200ZO02410023DLDAQX1234\n'
           'DCSDOE\nDACJANE\nDBB19900517\nDCGCAN\r';
       expect(
-        (_parse(text) as DriverLicenseContent).dateOfBirth,
+        (_parse(text) as DriverLicenseContent).birthDate,
         DateTime(1990, 5, 17),
       );
     });

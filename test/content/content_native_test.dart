@@ -206,7 +206,7 @@ void main() {
         urls: <Uri>[Uri.parse('https://acme.example')],
         addresses: const <String>['1 Main St, Springfield'],
         note: 'line 1\nline 2',
-        birthday: DateTime(1990, 5, 17),
+        birthDate: DateTime(1990, 5, 17),
       ),
       EventContent(
         summary: 'Launch, v4',
@@ -237,7 +237,7 @@ void main() {
         name: 'Kaffeehaus Lumen',
         iban: 'DE89370400440532013000',
         amount: '12.50',
-        text: 'Invoice 42',
+        message: 'Invoice 42',
       ),
       const GostPaymentContent(
         name: 'ООО «Три кита»',

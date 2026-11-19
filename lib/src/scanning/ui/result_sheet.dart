@@ -518,7 +518,7 @@ final class _Summary {
           kindDetail: id.state,
           fields: <String, String>{
             if (id.licenseNumber case final String n) strings.licenseNumber: n,
-            if (id.dateOfBirth case final DateTime d)
+            if (id.birthDate case final DateTime d)
               strings.born: strings.fullDate(d),
             if (expiry != null) strings.expires: strings.fullDate(expiry),
             if (id.city case final String c) strings.city: c,
@@ -662,8 +662,8 @@ final class _Summary {
       title = sscc;
       kindDetail = strings.sscc;
     }
-    final DateTime? expiry = gs1.expiry;
-    final DateTime? bestBefore = gs1.bestBefore;
+    final DateTime? expiry = gs1.expiryDate;
+    final DateTime? bestBefore = gs1.bestBeforeDate;
     final Map<String, String> fields = <String, String>{
       if (expiry != null) strings.expires: strings.fullDate(expiry),
       if (bestBefore != null) strings.bestBefore: strings.fullDate(bestBefore),
@@ -716,7 +716,7 @@ final class _Summary {
     String? copy = payment.account?.replaceAll(' ', '');
     switch (payment) {
       case final EpcPaymentContent epc:
-        detail = epc.text ?? epc.information;
+        detail = epc.message ?? epc.information;
         fields = <String, String>{
           strings.iban: _grouped(epc.iban),
           if (epc.bic case final String bic) strings.bic: bic,
@@ -730,7 +730,7 @@ final class _Summary {
         detail = bill.message;
         fields = <String, String>{
           strings.accountNumber: _grouped(bill.iban),
-          if (bill.qrReference case final String r)
+          if (bill.creditorReference case final String r)
             strings.paymentReference:
                 bill.referenceType == SwissReferenceType.qrr
                 ? _qrReference(r)
@@ -1382,7 +1382,7 @@ class _Row extends StatelessWidget {
         if (sscc != null) strings.sscc else strings.gtin,
         if (gs1.count case final int count) '${strings.quantity} $count',
         if (gs1.batch case final String batch) '${strings.batch} $batch',
-        if (gs1.expiry case final DateTime expiry)
+        if (gs1.expiryDate case final DateTime expiry)
           '${strings.expires} ${strings.fullDate(expiry)}',
         detail,
       ].join(' · ');

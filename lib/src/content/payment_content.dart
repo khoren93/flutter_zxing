@@ -92,7 +92,7 @@ EpcPaymentContent? parseEpc(String text) {
     amount: euros,
     purposeCode: orNull(_at(l, 8)),
     creditorReference: orNull(_at(l, 9)),
-    text: orNull(_at(l, 10)),
+    message: orNull(_at(l, 10)),
     information: orNull(_at(l, 11)),
   );
 }
@@ -109,7 +109,7 @@ String _epcText(EpcPaymentContent c) {
     if (orNull(_t(c.amount)) case final String a) 'EUR$a' else '',
     _t(c.purposeCode),
     _t(c.creditorReference).toUpperCase(),
-    _t(c.text),
+    _t(c.message),
     _t(c.information),
   ];
   while (lines.last.isEmpty) {
@@ -134,7 +134,7 @@ List<ContentIssue> validateEpc(EpcPaymentContent c) {
     ?_tooLong('name', _t(c.name), 70, 'Name'),
     ?_lineBreak('name', c.name, 'Name'),
     ?_lineBreak('creditorReference', c.creditorReference, 'Reference'),
-    ?_lineBreak('text', c.text, 'Text'),
+    ?_lineBreak('message', c.message, 'Message'),
     ?_lineBreak('information', c.information, 'Information'),
     ?_ibanIssue('iban', c.iban),
     if (orNull(_t(c.bic)) case final String bic
@@ -148,10 +148,10 @@ List<ContentIssue> validateEpc(EpcPaymentContent c) {
     if (orNull(_t(c.purposeCode)) case final String p
         when !RegExp(r'^[A-Z0-9]{4}$').hasMatch(p))
       const ContentIssue('purposeCode', 'Purpose code must be 4 letters'),
-    if (reference.isNotEmpty && orNull(_t(c.text)) != null)
+    if (reference.isNotEmpty && orNull(_t(c.message)) != null)
       const ContentIssue(
-        'text',
-        'Give a reference or a text, not both',
+        'message',
+        'Give a reference or a message, not both',
         kind: ContentIssueKind.conflict,
       ),
     ?_tooLong('creditorReference', reference, 35, 'Reference'),
@@ -161,11 +161,11 @@ List<ContentIssue> validateEpc(EpcPaymentContent c) {
         'RF reference check digits are wrong',
         kind: ContentIssueKind.checksum,
       ),
-    ?_tooLong('text', _t(c.text), 140, 'Text'),
+    ?_tooLong('message', _t(c.message), 140, 'Message'),
     ?_tooLong('information', _t(c.information), 70, 'Information'),
     if (utf8.encode(_epcText(c)).length > 331)
       const ContentIssue(
-        'text',
+        'message',
         'The code is longer than 331 bytes',
         kind: ContentIssueKind.tooLong,
         limit: 331,
@@ -237,7 +237,7 @@ SwissQrBillContent? parseSwissQrBill(String text) {
     amount: orNull(_at(l, 18)),
     currency: _at(l, 19),
     debtor: _swissAddress(l, 20),
-    qrReference: orNull(reference),
+    creditorReference: orNull(reference),
     message: orNull(_at(l, 29)),
     billInformation: orNull(_at(l, 31)),
     alternativeSchemes: List<String>.unmodifiable(<String>[
@@ -282,7 +282,7 @@ String _swissText(SwissQrBillContent c) {
       SwissReferenceType.scor => 'SCOR',
       SwissReferenceType.none => 'NON',
     },
-    _t(c.qrReference).replaceAll(' ', '').toUpperCase(),
+    _t(c.creditorReference).replaceAll(' ', '').toUpperCase(),
     _t(c.message),
     'EPD',
     ...tail,
@@ -348,7 +348,9 @@ List<ContentIssue> _validateAddress(
 /// [SwissQrBillContent.validate].
 List<ContentIssue> validateSwissQrBill(SwissQrBillContent c) {
   final String iban = compactIban(c.iban);
-  final String reference = _t(c.qrReference).replaceAll(' ', '').toUpperCase();
+  final String reference = _t(
+    c.creditorReference,
+  ).replaceAll(' ', '').toUpperCase();
   final String amount = _t(c.amount);
   final int message = _t(c.message).length + _t(c.billInformation).length;
   return <ContentIssue>[
@@ -383,7 +385,7 @@ List<ContentIssue> validateSwissQrBill(SwissQrBillContent c) {
           ),
         if (!isValidQrReference(reference))
           const ContentIssue(
-            'qrReference',
+            'creditorReference',
             'QR reference must be 27 digits with a valid check digit',
             kind: ContentIssueKind.checksum,
           ),
@@ -397,7 +399,7 @@ List<ContentIssue> validateSwissQrBill(SwissQrBillContent c) {
           ),
         if (!isValidCreditorReference(reference))
           const ContentIssue(
-            'qrReference',
+            'creditorReference',
             'Not a valid RF creditor reference',
           ),
       ],

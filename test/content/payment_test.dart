@@ -50,7 +50,7 @@ void main() {
         name: 'Kaffeehaus Lumen',
         iban: 'DE89370400440532013000',
         amount: '12.50',
-        text: 'Invoice 42',
+        message: 'Invoice 42',
       );
       expect(
         epc.toPayload(),
@@ -97,9 +97,9 @@ void main() {
           name: 'x',
           iban: 'DE89370400440532013000',
           creditorReference: 'RF18539007547034',
-          text: 'both',
+          message: 'both',
         ).validate(),
-        _issue('text'),
+        _issue('message'),
       );
     });
   });
@@ -134,7 +134,7 @@ void main() {
       expect(bill.currency, 'CHF');
       expect(bill.debtor?.town, 'Rorschach');
       expect(bill.referenceType, SwissReferenceType.qrr);
-      expect(bill.qrReference, '210000000003139471430009017');
+      expect(bill.creditorReference, '210000000003139471430009017');
       expect(bill.message, 'Order of 15 June 2020');
       expect(bill.billInformation, startsWith('//S1/10/'));
       expect(bill.validate(), isEmpty);
@@ -150,7 +150,7 @@ void main() {
           town: 'Zürich',
           country: 'CH',
         ),
-        qrReference: reference,
+        creditorReference: reference,
       ).referenceType;
       expect(type(null), SwissReferenceType.none);
       expect(type(''), SwissReferenceType.none);
@@ -203,7 +203,7 @@ void main() {
           town: 'Zürich',
           country: 'CH',
         ),
-        qrReference: 'RF18539007547034',
+        creditorReference: 'RF18539007547034',
       );
       expect(bill.validate(), isEmpty);
       _roundTrips(bill);
@@ -228,7 +228,7 @@ void main() {
         const SwissQrBillContent(
           iban: 'CH9300762011623852957',
           creditor: creditor,
-          qrReference: '210000000003139471430009017',
+          creditorReference: '210000000003139471430009017',
         ).validate(),
         _issue('iban'),
       );

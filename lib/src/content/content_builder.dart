@@ -309,7 +309,7 @@ List<ContentIssue> validateContact(ContactContent c) {
       _orNull(c.organization?.trim()) == null &&
       _orNull(c.title?.trim()) == null &&
       _orNull(c.note?.trim()) == null &&
-      c.birthday == null &&
+      c.birthDate == null &&
       _notEmpty(c.phones).isEmpty &&
       _notEmpty(c.emails).isEmpty &&
       c.urls.isEmpty &&
@@ -324,9 +324,9 @@ List<ContentIssue> validateContact(ContactContent c) {
     for (final String e in _notEmpty(c.emails))
       if (!_emailAddress.hasMatch(e))
         ContentIssue('emails', 'Not an e-mail address: $e'),
-    if (c.birthday case final DateTime b when b.year < 1 || b.year > 9999)
+    if (c.birthDate case final DateTime b when b.year < 1 || b.year > 9999)
       const ContentIssue(
-        'birthday',
+        'birthDate',
         'Year must be between 1 and 9999',
         kind: ContentIssueKind.outOfRange,
       ),
@@ -352,7 +352,7 @@ String _vCard(ContactContent c) {
   final (String family, String given) = name == null
       ? ('', '')
       : _splitName(name);
-  final DateTime? birthday = c.birthday;
+  final DateTime? birthDate = c.birthDate;
   return <String>[
     'BEGIN:VCARD',
     'VERSION:3.0',
@@ -368,8 +368,8 @@ String _vCard(ContactContent c) {
     for (final String address in _notEmpty(c.addresses))
       'ADR:;;${text(address)};;;;',
     if (_orNull(c.note?.trim()) case final String note) 'NOTE:${text(note)}',
-    if (birthday != null)
-      'BDAY:${_year(birthday)}-${_two(birthday.month)}-${_two(birthday.day)}',
+    if (birthDate != null)
+      'BDAY:${_year(birthDate)}-${_two(birthDate.month)}-${_two(birthDate.day)}',
     'END:VCARD',
   ].join('\n');
 }
@@ -407,7 +407,7 @@ String _meCard(ContactContent c) {
   if (_orNull(c.note?.trim()) case final String note) {
     out.write(field('NOTE', note.replaceAll('\r\n', '\n')));
   }
-  if (c.birthday case final DateTime b) {
+  if (c.birthDate case final DateTime b) {
     out.write('BDAY:${_year(b)}${_two(b.month)}${_two(b.day)};');
   }
   out.write(';');

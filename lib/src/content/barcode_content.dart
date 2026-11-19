@@ -113,10 +113,6 @@ abstract final class BarcodeContent {
   /// ```
   Uri? get uri => null;
 
-  /// Parses the payload of [barcode]. `barcode.content` calls this once per
-  /// barcode and keeps the result.
-  static BarcodeContent parse(Barcode barcode) => parseBarcodeContent(barcode);
-
   /// Parses a payload that is only available as text, for example one saved
   /// earlier. Never returns [Gs1Content] or [BinaryContent]: whether a
   /// payload is GS1 or binary is known only from the barcode itself.
@@ -137,7 +133,7 @@ extension BarcodeContentOf on Barcode {
   ///   default: print(barcode.text);
   /// }
   /// ```
-  BarcodeContent get content => _contents[this] ??= BarcodeContent.parse(this);
+  BarcodeContent get content => _contents[this] ??= parseBarcodeContent(this);
 }
 
 final Expando<BarcodeContent> _contents = Expando<BarcodeContent>(
@@ -611,7 +607,7 @@ final class ContactContent extends BarcodeContent {
     this.urls = const <Uri>[],
     this.addresses = const <String>[],
     this.note,
-    this.birthday,
+    this.birthDate,
   });
 
   /// Formatted name, e.g. `Sean Owen` (from vCard `FN`, else `N`; the
@@ -641,7 +637,7 @@ final class ContactContent extends BarcodeContent {
 
   /// Date of birth (vCard `BDAY`, MeCard `BDAY`), at local midnight. A
   /// birthday without a year (vCard 4.0 `--0517`) is not kept.
-  final DateTime? birthday;
+  final DateTime? birthDate;
 
   /// A vCard 3.0, or with [ContactFormat.meCard] a shorter `MECARD:` that
   /// makes a smaller QR code. [name] is written as the formatted name and,
@@ -664,7 +660,7 @@ final class ContactContent extends BarcodeContent {
       listEquals(other.urls, urls) &&
       listEquals(other.addresses, addresses) &&
       other.note == note &&
-      other.birthday == birthday;
+      other.birthDate == birthDate;
 
   @override
   int get hashCode => Object.hash(
@@ -676,7 +672,7 @@ final class ContactContent extends BarcodeContent {
     Object.hashAll(urls),
     Object.hashAll(addresses),
     note,
-    birthday,
+    birthDate,
   );
 
   @override
@@ -781,12 +777,12 @@ final class Gs1Content extends BarcodeContent {
 
   /// The expiry date (AI 17), if present and valid; a day of `00` is the
   /// last day of the month.
-  DateTime? get expiry => gs1Date(elements['17']);
+  DateTime? get expiryDate => gs1Date(elements['17']);
 
   /// The best before date (AI 15), if present and valid.
-  DateTime? get bestBefore => gs1Date(elements['15']);
+  DateTime? get bestBeforeDate => gs1Date(elements['15']);
 
-  /// Whether the [expiry] date has passed: the item may be used through
+  /// Whether the [expiryDate] has passed: the item may be used through
   /// that day. `false` without an expiry date. [now] defaults to the
   /// current time.
   bool isExpired([DateTime? now]) {

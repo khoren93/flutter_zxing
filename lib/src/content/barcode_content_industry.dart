@@ -236,7 +236,7 @@ final class DriverLicenseContent extends BarcodeContent {
     this.firstName,
     this.middleName,
     this.lastName,
-    this.dateOfBirth,
+    this.birthDate,
     this.issueDate,
     this.expiryDate,
     this.street,
@@ -259,7 +259,7 @@ final class DriverLicenseContent extends BarcodeContent {
   final String? lastName;
 
   /// The date of birth (`DBB`).
-  final DateTime? dateOfBirth;
+  final DateTime? birthDate;
 
   /// The issue date (`DBD`).
   final DateTime? issueDate;
@@ -299,7 +299,7 @@ final class DriverLicenseContent extends BarcodeContent {
       other.firstName == firstName &&
       other.middleName == middleName &&
       other.lastName == lastName &&
-      other.dateOfBirth == dateOfBirth &&
+      other.birthDate == birthDate &&
       other.issueDate == issueDate &&
       other.expiryDate == expiryDate &&
       other.street == street &&
@@ -315,7 +315,7 @@ final class DriverLicenseContent extends BarcodeContent {
     firstName,
     middleName,
     lastName,
-    dateOfBirth,
+    birthDate,
     issueDate,
     expiryDate,
     street,

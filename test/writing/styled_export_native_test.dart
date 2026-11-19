@@ -150,7 +150,7 @@ void main() {
           country: 'CH',
         ),
         amount: '1949.75',
-        qrReference: '210000000003139471430009017',
+        creditorReference: '210000000003139471430009017',
         message: 'Order of 15 June 2020',
       );
       final Uint8List png = await BarcodeStyle.swissQrBill.encodePng(
