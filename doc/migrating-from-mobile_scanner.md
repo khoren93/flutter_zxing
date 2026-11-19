@@ -25,15 +25,37 @@ MobileScanner(
   onDetect: (BarcodeCapture capture) => print(capture.barcodes.first.rawValue),
 )
 
-// flutter_zxing
+// flutter_zxing: the controller is a field of your State
+final ScannerController controller = ScannerController(
+  formats: {BarcodeFormat.qrCode},
+);
+
+@override
+void dispose() {
+  controller.dispose();
+  super.dispose();
+}
+
+@override
+Widget build(BuildContext context) => BarcodeScanner(
+  controller: controller,
+  onDetect: (BarcodeCapture capture) => print(capture.barcode.text),
+);
+```
+
+Create the controller once, as above, not in `build`: a new controller on
+every rebuild restarts the camera. A controller you create is yours to
+`dispose()`.
+
+When the formats are all you set, you need no controller: a template takes
+them, and `BarcodeScanner` creates its own controller and disposes it.
+
+```dart
 BarcodeScanner(
-  controller: ScannerController(formats: {BarcodeFormat.qrCode}),
+  template: const ScannerTemplate.fullscreen(formats: {BarcodeFormat.qrCode}),
   onDetect: (BarcodeCapture capture) => print(capture.barcode.text),
 )
 ```
-
-Without a controller, `BarcodeScanner` creates one and disposes it. A
-controller you create is yours to `dispose()`.
 
 | mobile_scanner | flutter_zxing |
 |---|---|
@@ -42,12 +64,18 @@ controller you create is yours to `dispose()`.
 | `detectionSpeed: DetectionSpeed.noDuplicates` | `detection: DetectionMode.distinct` (the default: each code once, again after it has left the frame) |
 | `DetectionSpeed.normal` / `.unrestricted`, `detectionTimeoutMs` | `DetectionMode.continuous`: every frame, paced by the camera |
 | — | `DetectionMode.once`: stop after the first capture until `resume()` |
-| `facing: CameraFacing.back` | `facing: CameraFacing.back` |
+| `facing: CameraFacing.back` | `facing: CameraFacing.back`; `controller.facing` follows `switchCamera()` |
+| `autoStart: false`, `start()`, `stop()` | `autoStart: false`, `start()`, `stop()`; `pause()` and `resume()` keep the camera open |
+| A `WidgetsBindingObserver` that stops and starts the camera | Not needed: `stopInBackground` (on by default) stops the camera in the background and starts it again on return. Remove your observer |
+| `controller.barcodes` | `controller.barcodes`: a stream of `BarcodeCapture` |
+| `torchEnabled: true` | `ScannerController(torch: true)` |
 | `toggleTorch()`, `switchCamera()` | `toggleTorch()`, `setTorch(bool)`, `switchCamera()` |
-| `setZoomScale(0…1)` | `setZoom(1…maxZoom)`, in zoom factors; `state.maxZoom` says how far |
+| `availableCameras` | `controller.value.canSwitchCamera`; `SwitchCameraButton` hides itself without another camera |
+| `initialZoom`, `setZoomScale(0…1)` | `ScannerController(initialZoom: 2)`, `setZoom(1…maxZoom)`, in zoom factors; `state.maxZoom` says how far |
+| `returnImage: true`, `capture.image` | `await capture.snapshot()`: the barcode cut out and straightened; `await controller.lastFrameImage()`: the whole frame |
 | `scanWindow: Rect` (widget pixels) | `ScannerController(scanWindow: ScanWindow.centered())`, or `ScanWindow.fromRect(...)` in fractions of the preview, so it does not depend on the widget's size |
 | `overlayBuilder(context, constraints)` | `overlayBuilder(context, ScannerLayout layout)`: the scan window and each barcode's corners already in widget coordinates |
-| `errorBuilder(context, MobileScannerException)` | `errorBuilder(context, ScannerException)`: a sealed type, `CameraPermissionException`, `CameraNotFoundException` or `CameraFailureException` |
+| `errorBuilder(context, MobileScannerException)` | `errorBuilder(context, ScannerException)`: a sealed type, `CameraPermissionException`, `CameraNotFoundException`, `CameraInUseException`, `CameraUnsupportedException` or `CameraFailureException` |
 | `controller.analyzeImage(path)` | `controller.readImage(bytes)`: reported to `onDetect` like a frame; or `BarcodeReader().readAll(bytes)` without a controller |
 
 The controller is a `ValueNotifier<ScannerState>`: listen to it for the
@@ -66,14 +94,16 @@ brackets that lock onto the code and a sheet with what is in it.
 
 ```dart
 BarcodeScanner(
-  template: ScannerTemplate.minimal(),
-  theme: ScannerTheme(accent: Color(0xFFFF6A1A)),
+  template: const ScannerTemplate.minimal(),
+  theme: const ScannerTheme(accent: Color(0xFFFF6A1A)),
 )
 ```
 
-The templates are `minimal`, `payment`, `retail` (a list of scanned codes
-with counts), `ticket` and `content`; `ScannerTheme` sets the accent, the
-shapes and light or dark glass, and `ScannerStrings` translates the texts.
+There are 16 templates: `minimal`, `payment`, `retail` (a list of scanned
+codes with counts), `ticket`, `content`, `product`, `small`, `signIn`,
+`checkIn`, `pharma`, `pick`, `logistics`, `kiosk`, `fullscreen`, `vin` and
+`loyalty`. `ScannerTheme` sets the accent, the shapes and light or dark
+glass, and `ScannerStrings` translates the texts.
 The pieces (`ScannerButton`, `TorchButton`, `ScannerSheet`,
 `BarcodeResultSheet`, ...) are public, for your own `overlayBuilder`.
 

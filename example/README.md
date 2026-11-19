@@ -1,16 +1,14 @@
-# flutter_zxing_example
+# flutter_zxing example
 
-Demonstrates how to use the flutter_zxing plugin.
+[example.md](example.md) is the shortest app: scan a code with
+`scanBarcode` and show it again with `BarcodeView`.
 
-## Getting Started
+This folder also holds the full demo app:
 
-This project is a starting point for a Flutter application.
+- `lib/main.dart`: the demo with scanning, photos, history and creating codes.
+- `lib/api_tour.dart`: the 4.0 API in short scenarios.
+- `lib/showcase.dart`: every scanner template.
+- `lib/legacy_3x.dart`: the deprecated 3.x API.
+- `lib/diagnostics.dart`: the diagnostics page used to tune the scanner.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Run it with `flutter run` in this folder.

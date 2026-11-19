@@ -6,7 +6,8 @@ to change on the day you upgrade:** the 3.x API (`zx`, `Code`,
 engine, and is deprecated until its removal in 5.0. Each deprecated
 declaration names its replacement, so the analyzer's hints are a to-do list.
 
-This guide shows the replacements side by side.
+This guide shows the replacements side by side. Coming from an earlier
+4.0 release candidate: see [From 4.0.0-rc.2](#from-400-rc2).
 
 ## Upgrading
 
@@ -43,7 +44,7 @@ engine compiled to WebAssembly.
 | `zx.readBarcodesImagePath(file, params)` | `BarcodeReader().readAll(...)` |
 | `zx.readBarcode(pixels, params)` | `BarcodeReader().readPixels(PixelBuffer(...))` |
 | `zx.processCameraImage(image, params)` | `ScannerController`, or `readPixels` |
-| `zx.encodeBarcode(contents: ..., params: ...)` | `BarcodeWriter(format).toPng(...)`, `.toSvg(...)`, `.toImage(...)` or `.encode(...)` |
+| `zx.encodeBarcode(contents: ..., params: ...)` | `BarcodeWriter(format).toPng(...)`, `.toSvg(...)`, `.toImage(...)` or `.encode(...)`; with a style, `style.encodePng(writer, ...)` |
 | `Code` / `Codes` | `Barcode` / `List<Barcode>` |
 | `Format.qrCode \| Format.ean13` (an `int` bit mask) | `{BarcodeFormat.qrCode, BarcodeFormat.ean13}` |
 | `DecodeParams` | `ReaderOptions` + `formats` |
@@ -65,20 +66,36 @@ ReaderWidget(
   onScan: (Code code) => print(code.text),
 )
 
-// 4.0
-BarcodeScanner(
-  controller: ScannerController(
-    formats: {BarcodeFormat.qrCode, BarcodeFormat.ean13},
-  ),
+// 4.0: a field of your State, disposed with it
+final ScannerController controller = ScannerController(
+  formats: {BarcodeFormat.qrCode, BarcodeFormat.ean13},
+);
+
+@override
+void dispose() {
+  controller.dispose();
+  super.dispose();
+}
+
+@override
+Widget build(BuildContext context) => BarcodeScanner(
+  controller: controller,
   onDetect: (BarcodeCapture capture) => print(capture.barcode.text),
-)
+);
 ```
 
-`BarcodeScanner` creates and disposes a controller by itself when you do not
-pass one. A controller you create is yours to `dispose()`. It also lets you
-change `formats`, `options`, `scanWindow` and `detection` while the camera
-runs, and controls the torch, zoom, focus and camera (`setTorch`, `setZoom`,
-`setFocusPoint`, `switchCamera`).
+Create the controller once, not in `build`: a new controller on every
+rebuild restarts the camera. A controller you create is yours to
+`dispose()`. It lets you change `formats`, `options`, `scanWindow` and
+`detection` while the camera runs, and controls the torch, zoom, focus and
+camera (`setTorch`, `setZoom`, `setFocusPoint`, `switchCamera`).
+
+Without a controller, `BarcodeScanner` creates and disposes its own. A
+template takes the formats then:
+`BarcodeScanner(template: const ScannerTemplate.minimal(formats: {BarcodeFormat.qrCode}))`.
+
+As with `ReaderWidget`, the camera stops while the app is in the background
+and starts again when it returns (`ScannerController(stopInBackground:)`).
 
 The camera preset (`ReaderOptions.camera()`) already turns on `tryHarder`
 and `tryRotate`, so most 3.x scanner settings have no counterpart to set.
@@ -92,6 +109,8 @@ and `tryRotate`, so most 3.x scanner settings have no counterpart to set.
 | `maxNumberOfSymbols`, `isMultiScan` | `ScannerController(maxBarcodes:)`: 1 by default, `null` for all |
 | `resolution` | `ScannerController(resolution: CameraResolution.hd)` |
 | `lensDirection` | `ScannerController(facing: CameraFacing.back)` |
+| Torch on at the start | `ScannerController(torch: true)` |
+| Zoom at the start | `ScannerController(initialZoom: 2)` |
 | `allowPinchZoom` | `BarcodeScanner(pinchToZoom:)` |
 | `onScanFailure` | Not needed: frames without a code report nothing |
 | `onControllerCreated` | Pass your own `ScannerController` |
@@ -107,8 +126,8 @@ whole scanner screen, in your colors:
 
 ```dart
 BarcodeScanner(
-  template: ScannerTemplate.minimal(),
-  theme: ScannerTheme(
+  template: const ScannerTemplate.minimal(),
+  theme: const ScannerTheme(
     accent: Color(0xFFFF6A1A),
     buttonShape: ScannerButtonShape.roundedSquare,
   ),
@@ -135,7 +154,7 @@ ReaderWidget(
   onMultiScan: (Codes codes) => print(codes.codes.length),
 )
 
-// 4.0
+// 4.0, the controller a field of your State
 final controller = ScannerController(maxBarcodes: null);
 
 BarcodeScanner(
@@ -172,8 +191,8 @@ final Barcode? barcode = await const BarcodeReader().read(bytes);
 final List<Barcode> barcodes = await const BarcodeReader().readAll(bytes);
 ```
 
-JPEG, PNG, GIF and BMP files are decoded by the engine (on the web, also
-anything the browser decodes, such as WebP). "Not found" is
+JPEG, PNG, GIF and BMP files are decoded by the engine, and WebP and the
+other formats Flutter decodes are read too. "Not found" is
 `null` (or an empty list), not a `Code` with `isValid == false`; a file that
 is not an image throws `ImageDecodeException`.
 
@@ -222,14 +241,14 @@ const BarcodeReader reader = BarcodeReader(
 | `format` | `BarcodeReader(formats:)`; `null` reads every format |
 | `tryHarder`, `tryRotate`, `tryDownscale` | `ReaderOptions` fields of the same name |
 | `tryInverted` | `ReaderOptions(tryInvert:)` |
-| `maxNumberOfSymbols` | `readAll(limit:)`; `read` returns the first |
+| `maxNumberOfSymbols` | `readAll(maxBarcodes:)`; `read` returns the first |
 | `maxSize` | Not needed: images are read at full resolution, `tryDownscale` handles large ones |
 | `imageFormat`, `width`, `height`, `crop...` | `PixelBuffer` |
 | `isMultiScan` | `read` versus `readAll` |
 
 `ReaderOptions` also has `isPure`, `returnErrors`, `binarizer`,
-`minLineCount`, `validateOptionalChecksum` and `eanAddOn` (EAN-2/EAN-5
-add-ons).
+`minLineCount`, `validateOptionalChecksum`, `eanAddOn` (EAN-2/EAN-5
+add-ons) and `characterSet` (for codes that do not declare one).
 
 ## The result: `Code` → `Barcode`
 
@@ -246,7 +265,7 @@ add-ons).
 
 New in `Barcode`: `content` (below), `rotation`, `ecLevel`, `version`,
 `symbologyIdentifier`, `contentType` and `sequence` (structured append; join
-the parts with `BarcodeReader.merge`).
+the parts with `await reader.merge(parts)`).
 
 ## What is in the barcode
 
@@ -264,9 +283,9 @@ switch (barcode.content) {
 }
 ```
 
-The types are `UrlContent`, `WifiContent`, `ContactContent` (vCard, MeCard),
-`EventContent`, `EmailContent`, `PhoneContent`, `SmsContent`, `GeoContent`,
-`Gs1Content` (Application Identifiers), `BinaryContent` and `TextContent`.
+URLs, Wi-Fi, contacts, events, payments, GS1 data and more: the full list
+of kinds is in [Content types](content-types.md). New kinds can come in
+minor versions, so keep a `default` in a `switch`.
 
 ## Generating barcodes
 
@@ -283,9 +302,15 @@ final Uint8List png = await writer.toPng('https://pub.dev', size: 300);
 final String svg = await writer.toSvg('https://pub.dev');
 ```
 
-Both take the `BarcodeStyle` of `BarcodeView` (`style:`), so an exported
-code looks like the one on screen. `writer.toImage(...)` gives the plain
-grayscale pixels instead.
+These are black on white. To export a code that looks like the one on
+screen, use the `BarcodeStyle` of `BarcodeView`:
+
+```dart
+const BarcodeStyle style = BarcodeStyle(moduleShape: ModuleShape.rounded);
+final Uint8List styledPng = await style.encodePng(writer, 'https://pub.dev', size: 300);
+```
+
+`writer.toImage(...)` gives the plain grayscale pixels.
 
 `writer.encode(text)` and `writer.encodeBytes(bytes)` return a
 `BarcodeSymbol`: the module matrix, its quiet zone and the human readable
@@ -296,7 +321,7 @@ in an EAN-13, throws `BarcodeWriteException`.
 |---|---|
 | `format` | `BarcodeWriter(format)` |
 | `width`, `height` | `toPng(size:)` or `toPng(moduleSize:)`; `BarcodeView(width:, height:)` |
-| `margin` | `BarcodeWriter(quietZone:)`: the quiet zone the symbology requires, or none |
+| `margin` | The quiet zone the symbology requires, or none: `BarcodeStyle(quietZone:)`, or `toPng(quietZone: false)` |
 | `eccLevel` | `BarcodeWriter(errorCorrection: ErrorCorrection.high)`; without it, QR codes get M (3.x wrote zxing-cpp's L) |
 
 ### In a widget: `WriterWidget` → `BarcodeView`
@@ -310,13 +335,20 @@ const BarcodeView(
   width: 200,
   style: BarcodeStyle(moduleShape: ModuleShape.rounded),
 )
+
+const BarcodeView(
+  '4006381333931',
+  writer: BarcodeWriter(BarcodeFormat.ean13),
+  width: 240,
+)
 ```
 
 `BarcodeView` draws vectors, sharp at any size. `BarcodeStyle` sets the
 colors or a gradient, rounded or dot modules, rounded or round QR finder
 patterns, a logo in the middle of a QR code (error correction rises by its
 size), and a title, a caption and a card around the code
-(`BarcodeCaption`, `BarcodeCard`). `BarcodeView.bytes` shows binary data.
+(`BarcodeCaption`, `BarcodeCard`). `writer:` sets the format and its
+options; `BarcodeView.bytes` shows binary data.
 
 ## Formats
 
@@ -335,3 +367,39 @@ digits (3.x gave 13). Asking for EAN-13 alone still gives EAN-13.
 | `Format.linearCodes` | `BarcodeFormat.linear` |
 | `Format.matrixCodes` | `BarcodeFormat.matrix` |
 | `zx.barcodeFormatName(format)` | `format.displayName` |
+
+## From 4.0.0-rc.2
+
+The API changed in a few places before the release. The analyzer finds each
+of them; this table gives the new form.
+
+| rc.2 | Now |
+|---|---|
+| `BarcodeView(data, format:, errorCorrection:, gs1:, showText:)` | `BarcodeView(data, writer: BarcodeWriter(format, errorCorrection:, gs1:, showText:))` |
+| `BarcodeWriter(quietZone: false)` | `BarcodeStyle(quietZone: false)`, or `symbol.toPng(quietZone: false)` |
+| `BarcodeWriter(options: 'ecLevel=H')` | `BarcodeWriter(zxingOptions: 'ecLevel=H')`; it wins over `errorCorrection` and `version` |
+| `symbol.toSvg()`: one unit per module | `toSvg(size:, moduleSize:)` in pixels, 4 per module by default; `toPng(size:)` is the exact long side |
+| `showText: false` by default | `null`: on for EAN, UPC and ISBN |
+| `reader.readAll(bytes, limit: 5)` | `reader.readAll(bytes, maxBarcodes: 5)`, also `readAllPixels` |
+| `Barcode.merge(parts)` | `await reader.merge(parts)` |
+| `barcode.orientation` | `barcode.rotation` |
+| `format.input.digits` | `format.input.digitsOnly` |
+| `formats: {}` read every format | throws `ArgumentError`; `null` reads every format |
+| `formats: {BarcodeFormat.isbn}`, `ean2`, `ean5` | `ean13`; add-ons with `ReaderOptions(eanAddOn:)` |
+| `style.copyWith(logo: null)` kept the logo | `style.copyWith(logo: () => null)` removes it |
+| `template.copyWith(title: 'Pay')` | `template.copyWith(title: () => 'Pay')` |
+| `template.copyWith(onClose: () {})` | `template.copyWith(onClose: () => () {})`: `() {}` alone now clears `onClose` |
+| `ScannerController(pauseInBackground:)` | `ScannerController(stopInBackground:)` |
+| `resultBuilder: (context, barcode, scanAgain) => ...` | `resultBuilder: (context, result) => ...`, with `result.barcode`, `result.scanAgain` |
+| `actionsBuilder: (context, barcode, scanAgain) => [...]` | `actionsBuilder: (context, result) => [...result.defaultActions, ...]` |
+| `BarcodeResultSheet(showIcon:, showPicture:, asCard:)` | `BarcodeResultSheet(header: ResultHeader.icon)`, `.picture`, `.card` or `.none` |
+| `ScannerTemplate(showResultIcon:, resultAsCard:)` | `ScannerTemplate(resultHeader:)` |
+| `ScannerChip(danger: true)`, `ScannerBadge(warning: true)` | `ScannerChip(tone: ScannerTone.danger)`, `ScannerBadge(tone: ScannerTone.warning)` |
+| `ScanStatus.accepted`, `warning`, `rejected`; `verdict.status` | `ScanVerdictKind.accept`, `warn`, `reject`; `verdict.kind` |
+| `BarcodeContent.parse(barcode)` | `barcode.content` |
+| `expiry`, `bestBefore`, `birthday`, `dateOfBirth` | `expiryDate`, `bestBeforeDate`, `birthDate` |
+| `EpcPaymentContent(text:)` | `EpcPaymentContent(message:)` |
+| `SwissQrBillContent(referenceType:, qrReference:)` | `SwissQrBillContent(creditorReference:)`; the type follows from it |
+| `ProductContent.gtin` as printed | `ProductContent.number`; `gtin` is a GTIN-14 |
+| `CryptoContent.amount` in wei (Ethereum) | `amount` in ether; wei in `value` |
+| An exhaustive `switch` on `BarcodeContent` | add a `default`: new kinds come in minor versions |

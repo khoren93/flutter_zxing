@@ -71,10 +71,12 @@ abstract final class BarcodeContent {
 
   /// The text to put in a barcode: `WIFI:…`, a vCard, `mailto:…` and so on.
   ///
-  /// [BarcodeContent.parseText] reads it back as an equal value. Values
-  /// that are not in the form parsing returns are normalised first, so that
-  /// building again gives the same text: spaces leave phone numbers,
-  /// surrounding whitespace leaves fields, empty strings become `null`.
+  /// [BarcodeContent.parseText] reads it back, as an equal value for most
+  /// kinds (not for [ProductContent], [Gs1Content] and [BinaryContent],
+  /// which come only from barcodes). Values that are not in the form
+  /// parsing returns are normalised first, so that building again gives the
+  /// same text: spaces leave phone numbers, surrounding whitespace leaves
+  /// fields, empty strings become `null`.
   ///
   /// Throws an [ArgumentError] if [validate] finds a problem, and an
   /// [UnsupportedError] for [BinaryContent], which has no text: encode its

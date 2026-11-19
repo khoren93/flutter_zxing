@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+Upgrading from rc.2: see
+[From 4.0.0-rc.2](https://github.com/khoren93/flutter_zxing/blob/4.0/doc/migrating-to-4.0.md#from-400-rc2).
+
 ### Breaking changes
 
 * `Barcode.orientation` is now `Barcode.rotation`, as in zxing-cpp 3.2.
@@ -9,11 +12,63 @@
   read with their EAN-13 or UPC-A, and ISBN is read as EAN-13.
 * `Barcode.merge(parts)` is now `await reader.merge(parts)` on a
   `BarcodeReader`.
+* An empty format set, `isbn`, `ean2` or `ean5` in `BarcodeReader(formats:)`
+  or `ScannerController(formats:)` throws `ArgumentError`. `null` reads every
+  format.
+* `readAll(limit:)` and `readAllPixels(limit:)` are now `maxBarcodes:`.
+  `BarcodeInput.digits` is now `digitsOnly`.
+* `BarcodeView` takes a writer: `BarcodeView(data, writer: BarcodeWriter(...))`
+  replaces `format`, `errorCorrection`, `gs1` and `showText`.
+* `BarcodeWriter.options` is now `zxingOptions`. `BarcodeWriter.quietZone` is
+  gone: the quiet zone is `BarcodeStyle(quietZone:)`, or `quietZone:` of
+  `toPng`, `toSvg` and `toImage`.
+* `BarcodeWriter.showText` follows the format by default: on for EAN, UPC and
+  ISBN. SVG exports have their size in pixels, and a PNG's `size` is its long
+  side.
+* `copyWith` of `BarcodeStyle` and `ScannerTemplate` takes a function for
+  fields that can be empty: `copyWith(logo: () => null)` removes the logo. A
+  callback needs two: `copyWith(onClose: () => () {})`.
+* `ScannerController(pauseInBackground:)` is now `stopInBackground`.
+* `ScannerResultBuilder` and `ScannerActionsBuilder` get a `ScannerResult`
+  instead of the barcode and `scanAgain`.
+* `BarcodeResultSheet(showIcon:, showPicture:, asCard:)` and the template's
+  `showResultIcon` and `resultAsCard` are now `ResultHeader`. The `warning`
+  and `danger` flags of `ScannerChip` and `ScannerBadge` are now `ScannerTone`.
+  `ScanStatus` is now `ScanVerdictKind`, and `verdict.status` is `verdict.kind`.
+* `BarcodeContent` and `PaymentContent` can get new kinds in minor versions:
+  a `switch` over them needs a `default`.
+* One name for each idea in content: `expiryDate`, `bestBeforeDate` and
+  `birthDate`; `EpcPaymentContent.message`; `SwissQrBillContent.creditorReference`
+  (the reference type follows from it). `BarcodeContent.parse` is gone: use
+  `barcode.content`.
+* `ProductContent.gtin` is always a GTIN-14; the number as printed is
+  `ProductContent.number`. `SpaydPaymentContent.currency` is `CZK` when the
+  code gives none.
 
 ### New
 
+* zxing-cpp 3.2.0-rc1 instead of 3.1.1.
 * `ReaderOptions.characterSet`: the character set of codes that do not
   declare one, for example `CharacterSet.cp1251` or `CharacterSet.shiftJis`.
+* Images in WebP and every other format Flutter decodes are read.
+* `BarcodeContent.uri`: a link to open the content with `url_launcher`.
+* `ContentIssue.kind` and `limit`, to show form errors in your own language.
+  Wi-Fi networks with WPA3 (`WifiSecurity.wpa3`).
+* `BarcodeStyle.encode`, `encodeBytes` and `encodeContent` give a QR code
+  under a logo the error correction it needs. `BarcodeCaption.letterSpacing`.
+* `ScannerController`: `initialZoom`, `torch`, `fromTemplate` and
+  `lastFrameImage()`. `ScannerState.canSwitchCamera` hides the camera switch
+  when there is no other camera.
+* `CameraInUseException` and `CameraUnsupportedException`, for example on the
+  web over plain HTTP.
+* `BarcodeScanner(foregroundBuilder:, onOpenSettings:)`. A scanner that is
+  hidden, such as on another tab, pauses and releases the camera.
+* A `ScannerScope` around the app gives every scanner, `scanBarcode` and
+  `ScanFieldButton` its theme and texts. `ScannerStrings.copyWith`, and the
+  titles and hints of the presets are in `ScannerStrings`.
+* `warmUpBarcodeEngine(scanner: false)` starts only the engine, and never
+  fails.
+* Readable `toString()` on the reader, writer, options and symbols.
 
 ### Fixes
 
@@ -23,6 +78,16 @@
   a fractional pixel ratio or between two pixels are sharp and read again.
 * The `BarcodeFormat` documentation says which variants are reported as their
   base format, such as ITF-14 as ITF and Compact PDF417 as PDF417.
+* `zxingOptions` win over `errorCorrection` and `version`: `ecLevel=H` was
+  lost. A version the format does not have throws instead of being ignored.
+* Ethereum amounts are in ether, not wei. A Wi-Fi network without a password
+  is open.
+* `scanBarcode` keeps the whole template, its buttons and theme included. A
+  `check` also works while collecting codes.
+* The camera switch does nothing without another camera. After camera access
+  was turned on in the settings, the scanner starts when the app returns.
+* Scanner buttons are at least 48 pixels to tap, titles grow with the text
+  size, and right-to-left layouts are mirrored.
 
 ## 4.0.0-rc.2
 

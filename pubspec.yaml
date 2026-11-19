@@ -4,7 +4,7 @@ version: 4.0.0-rc.2
 homepage: https://khoren93.github.io/flutter_zxing/
 repository: https://github.com/khoren93/flutter_zxing
 issue_tracker: https://github.com/khoren93/flutter_zxing/issues
-documentation: https://github.com/khoren93/flutter_zxing/tree/main/doc
+documentation: https://github.com/khoren93/flutter_zxing/tree/4.0/doc
 topics:
   - barcode
   - qrcode

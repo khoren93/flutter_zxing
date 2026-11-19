@@ -2,7 +2,8 @@
 
 `barcode.content` parses what a barcode holds into a sealed `BarcodeContent`
 type. Every kind can also build the text for a new code with `toPayload()`,
-and `BarcodeContent.parseText` reads that text back as an equal value.
+and `BarcodeContent.parseText` reads that text back (see
+[Normal form](#normal-form) for when the value is equal).
 
 ```dart
 import 'package:flutter_zxing/flutter_zxing.dart';
@@ -13,14 +14,27 @@ switch (barcode.content) {
     joinNetwork(ssid, password);
   case OtpContent otp:
     addToAuthenticator(otp);
-  default:
+  default: // new kinds come in minor versions
     print(barcode.text);
 }
 
+// Opening: mailto:, tel:, geo:, web addresses… for package:url_launcher
+if (barcode.content.uri case final Uri uri) {
+  await launchUrl(uri);
+}
+
 // Creating
-const event = EventContent(summary: 'Launch', start: ..., end: ...);
+final event = EventContent(
+  summary: 'Launch',
+  start: DateTime(2027, 3, 1, 10),
+  end: DateTime(2027, 3, 1, 11),
+);
 BarcodeView(event.toPayload());
 ```
+
+`BarcodeContent` and `PaymentContent` get new kinds in minor versions, so a
+`switch` over them needs a `default`. `uri` is `null` for kinds without a
+link, such as Wi-Fi networks and contacts.
 
 ## Kinds
 
@@ -33,9 +47,9 @@ devices and will be added here.
 | Kind | Holds | Payload | Built |
 |---|---|---|---|
 | `TextContent` | text | as is | yes |
-| `UrlContent` | address, title, `service` | `https://…`; `MEBKM:` with a title | yes |
-| `WifiContent` | network name, password, security, hidden | `WIFI:T:WPA;S:…;P:…;;` | yes |
-| `ContactContent` | name, organization, title, phones, e-mails, web addresses, addresses, note, birthday | vCard 3.0, or `MECARD:` | yes |
+| `UrlContent` | `url`, `title`, `service` | `https://…`; `MEBKM:` with a title | yes |
+| `WifiContent` | `ssid`, `password`, `security` (open, WEP, WPA, WPA3), `hidden` | `WIFI:T:WPA;S:…;P:…;;` | yes |
+| `ContactContent` | name, organization, title, phones, e-mails, web addresses, addresses, note, `birthDate` | vCard 3.0, or `MECARD:` | yes |
 | `EventContent` | title, start, end, all day, location, description | `BEGIN:VCALENDAR` with one `VEVENT` | yes |
 | `EmailContent` | recipients, subject, body | `mailto:` | yes |
 | `PhoneContent` | number; phone or FaceTime | `tel:`, `facetime:`, `facetime-audio:` | yes |
@@ -43,14 +57,14 @@ devices and will be added here.
 | `GeoContent` | latitude, longitude, altitude, search | `geo:` | yes |
 | `OtpContent` | secret, account, issuer, TOTP or HOTP, algorithm, digits, period, counter | `otpauth://totp/…` | yes |
 | `EsimContent` | SM-DP+ address, Matching ID, OID, confirmation code | `LPA:1$…` | yes |
-| `CryptoContent` | network, address, amount, label, message, chain id | `bitcoin:`, `litecoin:`, `ethereum:`, `lightning:` | yes |
-| `Gs1Content` | Application Identifiers and values | GS1 element strings | yes, with `encodeContent` or `gs1: true` |
+| `CryptoContent` | network, address, `amount` in coins, `value` as written (wei), label, message, chain id | `bitcoin:`, `litecoin:`, `ethereum:`, `lightning:` | yes |
+| `Gs1Content` | Application Identifiers and values; `gtin`, `expiryDate`, `bestBeforeDate`, ... | GS1 element strings | yes, with `encodeContent` or `gs1: true` |
 | `BinaryContent` | bytes | binary | with `encodeContent` or `BarcodeView.bytes` |
 | `WifiDppContent` | public key, channels, MAC address, information | `DPP:…;;` (Wi‑Fi Easy Connect) | parsed only |
 | `SmartHomeContent` | Matter or HomeKit; setup code, vendor and product id, discriminator, category, setup id | `MT:…`, `X-HM://…` | parsed only |
-| `ProductContent` | GTIN, add-on; ISBN-13, ISBN-10, ISSN | EAN-13, EAN-8, UPC-A, UPC-E barcodes | parsed only |
+| `ProductContent` | `gtin` (always a GTIN-14), `number` as printed, add-on; ISBN-13, ISBN-10, ISSN | EAN-13, EAN-8, UPC-A, UPC-E barcodes | parsed only |
 | `BoardingPassContent` | passenger, legs: booking, from, to, carrier, flight, day, cabin, seat, sequence | IATA BCBP (`M1…`) | parsed only |
-| `DriverLicenseContent` | number, names, dates of birth, issue and expiry, address, state, country | AAMVA DL/ID (PDF417) | parsed only |
+| `DriverLicenseContent` | number, names, `birthDate`, issue and `expiryDate`, address, state, country | AAMVA DL/ID (PDF417) | parsed only |
 | `VinContent` | VIN, WMI, region, model year, check digit | 17 characters (ISO 3779) | parsed only |
 
 `ProductContent` comes only from EAN/UPC barcodes, and `Gs1Content` and
@@ -68,7 +82,7 @@ is not a payment: it parses as `TextContent`.
 | Kind | Standard | Payload | Checks |
 |---|---|---|---|
 | `EpcPaymentContent` | EPC069-12 SEPA credit transfer ("GiroCode") | `BCD\n002\n1\nSCT\n…` | IBAN, BIC, RF reference, amount ≤ 999 999 999.99 EUR, 331 bytes |
-| `SwissQrBillContent` | Swiss Payment Standards 2.3 | `SPC\n0200\n1\n…\nEPD` | IBAN or QR-IBAN, QR reference (mod 10) or RF, structured addresses, 997 characters |
+| `SwissQrBillContent` | Swiss Payment Standards 2.3 | `SPC\n0200\n1\n…\nEPD` | IBAN or QR-IBAN, `creditorReference`: QR reference (mod 10) or RF, structured addresses, 997 characters |
 | `GostPaymentContent` | ГОСТ Р 56042-2014 | `ST00012\|Name=…\|…` | account, BIC, correspondent account, INN, KPP; read in Windows-1251, UTF-8 and KOI8-R, written in UTF-8 |
 | `UpiPaymentContent` | NPCI UPI | `upi://pay?pa=…` | UPI address, amount, INR |
 | `EmvPaymentContent` | EMVCo merchant-presented QR: PIX, PayNow, PromptPay, QRIS, VietQR, DuitNow and others | `000201…6304XXXX` | CRC16; built with `EmvPaymentContent.pix(...)` |
@@ -79,9 +93,15 @@ const epc = EpcPaymentContent(
   name: 'Kaffeehaus Lumen',
   iban: 'DE89370400440532013000',
   amount: '12.50',
-  text: 'Invoice 42',
+  message: 'Invoice 42',
 );
-BarcodeView(epc.toPayload(), errorCorrection: ErrorCorrection.medium);
+BarcodeView(
+  epc.toPayload(),
+  writer: const BarcodeWriter(
+    BarcodeFormat.qrCode,
+    errorCorrection: ErrorCorrection.medium,
+  ),
+);
 
 // A Swiss QR-bill with the Swiss cross the standard requires
 BarcodeView(bill.toPayload(), style: BarcodeStyle.swissQrBill);
@@ -115,13 +135,24 @@ web link to a chat, so it is not in the list.
 ## Forms
 
 `validate()` lists what keeps a value from being built, as `ContentIssue`s
-with the field name of the constructor and an English message, without
-throwing. `toPayload()` throws an `ArgumentError` with the same messages.
+with the field name of the constructor, an English message, a `kind` and,
+for text that is too long, a `limit`. It does not throw; `toPayload()`
+throws an `ArgumentError` with the same messages.
 
 ```dart
 final List<ContentIssue> issues = WifiContent(ssid: ssid, password: pass).validate();
 // [ssid: Network name is empty]
+
+// Your own texts, from the kind:
+String say(ContentIssue issue) => switch (issue.kind) {
+  ContentIssueKind.empty => 'Required',
+  ContentIssueKind.tooLong => 'At most ${issue.limit} characters',
+  _ => issue.message,
+};
 ```
+
+The kinds are `empty`, `tooLong`, `invalid`, `checksum`, `outOfRange`,
+`conflict` and `unsupported`.
 
 ## Normal form
 
@@ -130,6 +161,11 @@ leave phone numbers, surrounding whitespace leaves fields, empty strings
 become `null`, OTP secrets lose spaces and padding. So
 `parseText(c.toPayload()) == c` holds for values in that form, and building
 again always gives the same text.
+
+It does not hold for `ProductContent`, `Gs1Content` and `BinaryContent`,
+which come only from barcodes (see above), and for a few values that read
+back with more filled in: an Ethereum `amount` also has its `value` in wei,
+and a SPAYD payment with an empty currency comes back in CZK.
 
 ## Encoding any kind
 

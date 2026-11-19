@@ -5,7 +5,7 @@ Linux, Windows and the web, with [zxing-cpp](https://github.com/zxing-cpp/zxing-
 built into your app.
 
 - **A complete scanner screen in one line**, or just the camera and your own UI.
-- **42 formats to read, 30 to create**, the same on every platform.
+- **39 formats to read, 30 to create**, the same on every platform.
 - **Barcodes as widgets:** sharp at any size, styled, exported to PNG and SVG.
 - **Knows what is inside:** URLs, Wi-Fi, contacts, events, GS1 data, as Dart types.
 - **No ML Kit, no Google Play services, no network.**
@@ -47,9 +47,12 @@ demo app of this repository, running on the web build of the package.
 ## Quick start
 
 ```dart
-import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing/scanner.dart';
 
-// A full scanner screen: camera, buttons, hints and a result sheet.
+// Scan one code and come back with it (null if the user closes the scanner).
+final Barcode? barcode = await scanBarcode(context);
+
+// A scanner screen in your own page: camera, buttons, hints and a result sheet.
 BarcodeScanner(
   template: const ScannerTemplate.minimal(),
   onDetect: (capture) => print(capture.barcode.text),
@@ -59,6 +62,9 @@ BarcodeScanner(
 const BarcodeView('https://pub.dev/packages/flutter_zxing', width: 200)
 ```
 
+`package:flutter_zxing/scanner.dart` is the whole 4.0 API; use it in new
+code. `flutter_zxing.dart` adds the deprecated 3.x API to it.
+
 ## Installation
 
 ```bash
@@ -67,14 +73,23 @@ flutter pub add flutter_zxing:^4.0.0-rc.2
 
 The package compiles zxing-cpp with a build hook: no CMake, CocoaPods or
 Gradle setup. The first build takes a minute longer; later builds use the
-cache. On the web, the WebAssembly engine ships inside the package as an
-asset and is only added to web builds.
+cache. Requires Flutter 3.41 or newer.
 
-Requires Flutter 3.41 or newer.
+**Android.** The `camera` plugin declares the camera permission. Its
+CameraX implementation also adds `RECORD_AUDIO` and `WRITE_EXTERNAL_STORAGE`
+(Android 9 and older) to every app. If your app does not record video,
+remove them in `android/app/src/main/AndroidManifest.xml`:
 
-**Camera permission.** Android needs nothing (the `camera` plugin declares
-the permission). iOS needs `NSCameraUsageDescription` in `ios/Runner/Info.plist`,
-and `NSPhotoLibraryUsageDescription` if users pick photos to scan:
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+  <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+```
+
+**iOS.** Add `NSCameraUsageDescription` to `ios/Runner/Info.plist` (App
+Store Connect may ask for it even without a scanner: the camera plugin is
+always linked), and `NSPhotoLibraryUsageDescription` if users pick photos:
 
 ```xml
 <key>NSCameraUsageDescription</key>
@@ -83,8 +98,14 @@ and `NSPhotoLibraryUsageDescription` if users pick photos to scan:
 <string>Reads barcodes from your photos</string>
 ```
 
-On the web the camera works on pages served over HTTPS (or `localhost`).
-For the camera on macOS, Linux and Windows, see [Camera on desktop](#camera-on-desktop).
+**Web.** `flutter build web` and `flutter build web --wasm` both work. The
+engine loads from the app's assets, so an app served under a sub-path needs
+`--base-href /sub-path/`. The camera works on pages served over HTTPS (or
+`localhost`). The package on pub.dev has the WebAssembly engine built in,
+added to web builds only; a git or path dependency on this repository has
+not: run `make wasm` in a clone and depend on it by path.
+
+**Desktop.** For the camera, see [Camera on desktop](#camera-on-desktop).
 
 ## Scanning
 
@@ -96,7 +117,7 @@ onto the code, and a sheet with what the code holds and what to do with it.
 
 | Template | For |
 |---|---|
-| `ScannerTemplate.minimal()` | Any code, with a sheet that shows what is in it; the default |
+| `ScannerTemplate.minimal()` | Any code, with a sheet that shows what is in it; the default of `scanBarcode` |
 | `ScannerTemplate.payment()` | Paying with a QR code: the window high up, your payment sheet below |
 | `ScannerTemplate.retail()` | Product and shipping barcodes in a row: dark glass, the torch, a list with counts |
 | `ScannerTemplate.ticket()` | Boarding passes, tickets and IDs (PDF417, Aztec, QR, Data Matrix), your sheet with the fields |
@@ -128,6 +149,38 @@ BarcodeScanner(
 )
 ```
 
+A `ScannerScope` gives every scanner below it, `scanBarcode` and
+`ScanFieldButton` included, a theme and texts. Put it in your app to follow
+its colors and language:
+
+```dart
+MaterialApp(
+  builder: (context, child) => ScannerScope(
+    theme: ScannerTheme(
+      accent: Theme.of(context).colorScheme.primary,
+      brightness: Theme.of(context).brightness,
+    ),
+    strings: const ScannerStrings(close: 'Scanner schließen', scanAgain: 'Weiter'),
+    child: child!,
+  ),
+)
+```
+
+`actionsBuilder` sets the buttons of the result sheet. `ScannerResult` has
+the code, its capture and the default buttons:
+
+```dart
+BarcodeScanner(
+  template: ScannerTemplate.content(
+    actionsBuilder: (context, result) => [
+      if (result.barcode.content.uri case final Uri uri)
+        ScannerAction(label: 'Open', primary: true, onPressed: () => launchUrl(uri)),
+      ...result.defaultActions,
+    ],
+  ),
+)
+```
+
 To scan one code and come back with it:
 
 ```dart
@@ -153,7 +206,8 @@ Each preset has the mode it needs, and `copyWith` changes it:
 BarcodeScanner(
   template: const ScannerTemplate.minimal().copyWith(
     mode: ScannerMode.collect,
-    onDone: (items) => print(items.length),
+    // A field that can be empty takes a function: () => null clears it.
+    onDone: () => (items) => print(items.length),
   ),
 )
 
@@ -203,6 +257,7 @@ templates (`ScannerOverlay`, `TorchButton`, `SwitchCameraButton`,
 `ZoomButtons`, `ScannerSheet`, `BarcodeResultSheet`, ...) are public.
 
 ```dart
+// A field of your State; dispose() it in the State's dispose().
 final controller = ScannerController(
   formats: {BarcodeFormat.qrCode, BarcodeFormat.ean13},
   scanWindow: const ScanWindow.centered(width: 0.8, aspectRatio: 1.6),
@@ -229,8 +284,11 @@ BarcodeScanner(
 `ScannerController` is a `ValueNotifier<ScannerState>`: listen to it for the
 camera status, torch, zoom and errors. It controls the torch, zoom, focus and
 camera, and its `formats`, `options`, `scanWindow`, `detection` and
-`maxBarcodes` can change while the camera runs. A controller you create is
-yours to `dispose()`; without one, `BarcodeScanner` makes its own.
+`maxBarcodes` can change while the camera runs. Create it once, not in
+`build`. A controller you create is yours to `dispose()`; without one,
+`BarcodeScanner` makes its own. The camera stops while the app is in the
+background (`stopInBackground`) and while the scanner is hidden, such as
+on another tab.
 
 - `detection`: `DetectionMode.distinct` (the default) reports each code once,
   and again after it has left the frame; `continuous` reports every frame;
@@ -292,8 +350,8 @@ Reading images and creating barcodes need nothing extra on desktop.
 
 ## Reading images
 
-`BarcodeReader` reads image files (PNG, JPEG, GIF, BMP; on the web, anything
-the browser decodes) and raw pixel buffers, on every platform, without a
+`BarcodeReader` reads image files (PNG, JPEG, GIF, BMP, WebP and anything
+else Flutter decodes) and raw pixel buffers, on every platform, without a
 camera:
 
 ```dart
@@ -327,8 +385,7 @@ const BarcodeView('https://pub.dev', width: 200)
 
 const BarcodeView(
   '4006381333931',
-  format: BarcodeFormat.ean13,
-  showText: true,
+  writer: BarcodeWriter(BarcodeFormat.ean13), // digits under it by default
   width: 240,
 )
 ```
@@ -417,10 +474,11 @@ EMVCo codes, SPAYD, all as `PaymentContent`), e-mail, phone and FaceTime,
 SMS, locations, events, one-time passwords (`otpauth://`), eSIM activation codes, cryptocurrency payments,
 Wi‑Fi Easy Connect, Matter and HomeKit setup codes, boarding passes, US
 driver's licenses, VINs and products (EAN/UPC with ISBN and ISSN). The full
-list, with what each kind holds: [doc/content-types.md](doc/content-types.md).
+list, with what each kind holds: [doc/content-types.md](https://github.com/khoren93/flutter_zxing/blob/4.0/doc/content-types.md).
 
-The other way round, every kind builds the text for a code, escaped as its
-format needs, and parsing reads it back as an equal value:
+`barcode.content.uri` is a link to open it with (`https://`, `mailto:`,
+`tel:`, `geo:`...). The other way round, every kind builds the text for a
+code, escaped as its format needs:
 
 ```dart
 const wifi = WifiContent(ssid: 'Home', password: 'secret;12');
@@ -437,15 +495,17 @@ BarcodeView(LinkService.whatsApp.link('+374 91 234567').toPayload());
 |---|---|---|
 | EAN-13, EAN-8 | Code 128 | QR Code |
 | UPC-A, UPC-E | Code 39 (Standard, Extended) | Micro QR Code |
-| EAN-2, EAN-5 add-ons ᴿ | Code 32, PZN | rMQR Code |
-| ISBN | Code 93 | Data Matrix |
+| EAN-2, EAN-5 add-ons ᴬ | Code 32, PZN | rMQR Code |
+| ISBN ᶜ | Code 93 | Data Matrix |
 | DataBar, DataBar Limited | Codabar | Aztec, Aztec Rune |
 | DataBar Expanded | ITF, ITF-14 ᴿ | PDF417, MicroPDF417 |
 | | Telepen | MaxiCode ᴿ |
 | | DX Film Edge | |
 
-ᴿ read only. `BarcodeFormat.writable` lists the formats to create, for a
-format picker. Engine: zxing-cpp 3.2.0-rc1 (`zxingCppVersion`).
+ᴿ read only. ᴬ read with their EAN-13 or UPC-A
+(`ReaderOptions(eanAddOn:)`). ᶜ created only; an ISBN reads as EAN-13.
+`BarcodeFormat.writable` lists the formats to create, for a format picker.
+Engine: zxing-cpp 3.2.0-rc1 (`zxingCppVersion`).
 
 MaxiCode is read from clean images only (a code without background, not
 skewed), not from the camera: a limit of zxing-cpp.
@@ -464,7 +524,7 @@ skewed), not from the camera: a limit of zxing-cpp.
 ## Benchmarks
 
 Release builds. The full tables, the raw data and how to repeat each run are
-in [benchmark/BENCHMARKS.md](benchmark/BENCHMARKS.md).
+in [benchmark/BENCHMARKS.md](https://github.com/khoren93/flutter_zxing/blob/4.0/benchmark/BENCHMARKS.md).
 
 **Images.** 32 images from zxing-cpp's test corpus, mean time per image; and
 a 12-megapixel photo with a small, dense QR code
@@ -523,9 +583,9 @@ trade-offs.
 | Android size | +2.7 MB per ABI | +3–10 MB bundled, ~0.6 MB unbundled |
 | Platforms | Android, iOS, macOS, Linux, Windows, web | Android, iOS, macOS, web |
 | Creates barcodes | Yes: widget, PNG, SVG, styles | No |
-| Formats | 42 to read, the same on every platform | Depends on the platform's decoder; ML Kit on Android reads 13 (no Micro QR, rMQR, DataBar, MaxiCode, MicroPDF417) |
+| Formats | 39 to read, the same on every platform | Depends on the platform's decoder; ML Kit on Android reads 13 (no Micro QR, rMQR, DataBar, MaxiCode, MicroPDF417) |
 | Parsed content | Sealed Dart types, the same on every platform | From the platform's decoder |
-| Scanner UI | Five templates and themable pieces, or your own | Your own (`overlayBuilder`) |
+| Scanner UI | 16 templates and themable pieces, or your own | Your own (`overlayBuilder`) |
 | Camera | The `camera` plugin: frames pass through Dart (only the scan window is copied); up to 30 fps | Native camera, frames stay native |
 
 Where mobile_scanner is ahead:
@@ -542,7 +602,7 @@ Choose flutter_zxing when Google services, offline use or privacy matter,
 when you need formats ML Kit does not read, Linux or Windows, the same results
 on every platform, or barcode generation in the same package.
 
-Coming from mobile_scanner: [the API, side by side](doc/migrating-from-mobile_scanner.md).
+Coming from mobile_scanner: [the API, side by side](https://github.com/khoren93/flutter_zxing/blob/4.0/doc/migrating-from-mobile_scanner.md).
 
 ## Upgrading from 3.x
 
@@ -551,13 +611,14 @@ keeps working in 4.x, on the new engine, and is deprecated until its removal
 in 5.0. Each deprecated declaration names its replacement. After upgrading,
 run `flutter clean` once.
 
-[Migrating to 4.0](doc/migrating-to-4.0.md) shows the replacements side by
-side; the [CHANGELOG](CHANGELOG.md) lists the few behaviour changes.
+[Migrating to 4.0](https://github.com/khoren93/flutter_zxing/blob/4.0/doc/migrating-to-4.0.md) shows the replacements side by
+side; the [CHANGELOG](https://github.com/khoren93/flutter_zxing/blob/4.0/CHANGELOG.md) lists the few behaviour changes.
 
 ## Layers
 
-The package is zxing-cpp for Flutter first. Everything else is a layer on
-top of that core, and each layer can be imported on its own:
+The package is zxing-cpp for Flutter first (Flutter apps only, not plain
+Dart). Everything else is a layer on top of that core, and each layer can
+be imported on its own:
 
 | Import | What it has |
 |---|---|
@@ -568,15 +629,15 @@ top of that core, and each layer can be imported on its own:
 | `package:flutter_zxing/flutter_zxing.dart` | all of the above and the deprecated 3.x API |
 
 Each layer exports the ones it builds on. The core never depends on the
-layers above it.
+layers above it. `camera` and `image_picker` come with any of them.
 
 ## Contributing
 
 Bug reports, ideas and pull requests are welcome. See
-[CONTRIBUTING.md](CONTRIBUTING.md) for how to build the package, run the
+[CONTRIBUTING.md](https://github.com/khoren93/flutter_zxing/blob/4.0/CONTRIBUTING.md) for how to build the package, run the
 demo and the tests.
 
 ## License
 
-MIT. See [LICENSE](LICENSE). zxing-cpp is licensed under Apache 2.0
-([third_party/zxing-cpp/LICENSE](third_party/zxing-cpp/LICENSE)).
+MIT. See [LICENSE](https://github.com/khoren93/flutter_zxing/blob/4.0/LICENSE). zxing-cpp is licensed under Apache 2.0
+([third_party/zxing-cpp/LICENSE](https://github.com/zxing-cpp/zxing-cpp/blob/master/LICENSE)).
