@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing/src/writing/creator_options.dart';
 import 'package:flutter_zxing/src/writing/symbol_layout.dart';
 
 /// A symbol from rows of '#' (dark) and '.' (light).
@@ -29,51 +30,63 @@ void main() {
   group('creator options', () {
     test('map error correction per symbology', () {
       expect(
-        const BarcodeWriter(
-          BarcodeFormat.qrCode,
-          errorCorrection: ErrorCorrection.high,
-        ).creatorOptions,
+        writerCreatorOptions(
+          const BarcodeWriter(
+            BarcodeFormat.qrCode,
+            errorCorrection: ErrorCorrection.high,
+          ),
+        ),
         'ecLevel=H',
       );
       expect(
-        const BarcodeWriter(
-          BarcodeFormat.qrCodeModel2,
-          errorCorrection: ErrorCorrection.low,
-        ).creatorOptions,
+        writerCreatorOptions(
+          const BarcodeWriter(
+            BarcodeFormat.qrCodeModel2,
+            errorCorrection: ErrorCorrection.low,
+          ),
+        ),
         'ecLevel=L',
       );
       expect(
-        const BarcodeWriter(
-          BarcodeFormat.aztec,
-          errorCorrection: ErrorCorrection.quartile,
-        ).creatorOptions,
+        writerCreatorOptions(
+          const BarcodeWriter(
+            BarcodeFormat.aztec,
+            errorCorrection: ErrorCorrection.quartile,
+          ),
+        ),
         'ecLevel=36%',
       );
       expect(
-        const BarcodeWriter(
-          BarcodeFormat.pdf417,
-          errorCorrection: ErrorCorrection.medium,
-        ).creatorOptions,
+        writerCreatorOptions(
+          const BarcodeWriter(
+            BarcodeFormat.pdf417,
+            errorCorrection: ErrorCorrection.medium,
+          ),
+        ),
         'ecLevel=3',
       );
       // Fixed error correction: nothing to pass.
       expect(
-        const BarcodeWriter(
-          BarcodeFormat.dataMatrix,
-          errorCorrection: ErrorCorrection.high,
-        ).creatorOptions,
+        writerCreatorOptions(
+          const BarcodeWriter(
+            BarcodeFormat.dataMatrix,
+            errorCorrection: ErrorCorrection.high,
+          ),
+        ),
         '',
       );
     });
 
     test('combine version, GS1 and raw options, raw last', () {
       expect(
-        const BarcodeWriter(
-          BarcodeFormat.dataMatrix,
-          version: 12,
-          gs1: true,
-          options: ' readerInit ',
-        ).creatorOptions,
+        writerCreatorOptions(
+          const BarcodeWriter(
+            BarcodeFormat.dataMatrix,
+            version: 12,
+            gs1: true,
+            zxingOptions: ' readerInit ',
+          ),
+        ),
         'version=12,gs1,readerInit',
       );
     });

@@ -174,7 +174,7 @@ void main() {
     ]);
     final BarcodeSymbol symbol = await const BarcodeWriter(
       BarcodeFormat.qrCode,
-      options: 'eci=0',
+      zxingOptions: 'eci=0',
     ).encodeBytes(cp1251);
     final BarcodeImage image = await symbol.toImage();
     final PixelBuffer pixels = PixelBuffer(

@@ -3,6 +3,23 @@
 import '../barcode/barcode_format.dart';
 import 'barcode_writer.dart';
 
+/// The zxing-cpp creator options of [writer]: its typed fields, then its
+/// `zxingOptions`.
+String writerCreatorOptions(BarcodeWriter writer) => creatorOptions(
+  writer.format,
+  // M rather than zxing-cpp's L: often no larger, and it survives print,
+  // glare and scratches far better.
+  errorCorrection:
+      writer.errorCorrection ??
+      (writer.format == BarcodeFormat.qrCode ||
+              writer.format == BarcodeFormat.qrCodeModel2
+          ? ErrorCorrection.medium
+          : null),
+  version: writer.version,
+  gs1: writer.gs1,
+  options: writer.zxingOptions,
+);
+
 /// The zxing-cpp creator options string: the typed settings, then the raw
 /// [options] last so that they win.
 String creatorOptions(

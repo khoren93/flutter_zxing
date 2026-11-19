@@ -41,7 +41,7 @@ final class BarcodeWriter {
     this.gs1 = false,
     this.quietZone = true,
     this.showText = false,
-    this.options,
+    this.zxingOptions,
   });
 
   /// The symbology to create.
@@ -69,7 +69,7 @@ final class BarcodeWriter {
 
   /// Raw zxing-cpp creator options for anything not covered above, e.g.
   /// `'eci=26, readerInit'`. Applied after the typed fields.
-  final String? options;
+  final String? zxingOptions;
 
   /// Encodes text into the module matrix (UTF-8, or the character set the
   /// symbology requires).
@@ -110,7 +110,7 @@ final class BarcodeWriter {
       data,
       binary: binary,
       format: format.zxingName,
-      options: creatorOptions,
+      options: writing.writerCreatorOptions(this),
     );
     final int quiet = math.max(
       math.max(s.quietZoneLeft, s.quietZoneRight),
@@ -157,23 +157,6 @@ final class BarcodeWriter {
     return '$printed$addOn';
   }
 
-  /// The zxing-cpp creator options for this writer: the typed fields, then
-  /// [options].
-  @visibleForTesting
-  String get creatorOptions => writing.creatorOptions(
-    format,
-    // M rather than zxing-cpp's L: often no larger, and it survives print,
-    // glare and scratches far better.
-    errorCorrection:
-        errorCorrection ??
-        (format == BarcodeFormat.qrCode || format == BarcodeFormat.qrCodeModel2
-            ? ErrorCorrection.medium
-            : null),
-    version: version,
-    gs1: gs1,
-    options: options,
-  );
-
   /// Encodes text and returns it as an SVG document, black on white. Same
   /// as `(await encode(data)).toSvg()`; for colors, shapes and a logo use
   /// `BarcodeStyle.encodeSvg`.
@@ -208,7 +191,7 @@ final class BarcodeWriter {
     bool? gs1,
     bool? quietZone,
     bool? showText,
-    String? options,
+    String? zxingOptions,
   }) => BarcodeWriter(
     format ?? this.format,
     errorCorrection: errorCorrection ?? this.errorCorrection,
@@ -216,7 +199,7 @@ final class BarcodeWriter {
     gs1: gs1 ?? this.gs1,
     quietZone: quietZone ?? this.quietZone,
     showText: showText ?? this.showText,
-    options: options ?? this.options,
+    zxingOptions: zxingOptions ?? this.zxingOptions,
   );
 
   @override
@@ -228,7 +211,7 @@ final class BarcodeWriter {
       other.gs1 == gs1 &&
       other.quietZone == quietZone &&
       other.showText == showText &&
-      other.options == options;
+      other.zxingOptions == zxingOptions;
 
   @override
   int get hashCode => Object.hash(
@@ -238,7 +221,7 @@ final class BarcodeWriter {
     gs1,
     quietZone,
     showText,
-    options,
+    zxingOptions,
   );
 }
 

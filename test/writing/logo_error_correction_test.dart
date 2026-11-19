@@ -11,6 +11,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:flutter_zxing/src/rendering/symbol_shapes.dart';
+import 'package:flutter_zxing/src/writing/creator_options.dart';
 import 'package:flutter_zxing/src/writing/symbol_layout.dart';
 
 /// Whether (x, y) is in a finder pattern with its separator: damage there
@@ -57,18 +58,20 @@ void main() {
 
   test('without a logo, QR codes get M', () {
     expect(
-      const BarcodeWriter(BarcodeFormat.qrCode).creatorOptions,
+      writerCreatorOptions(const BarcodeWriter(BarcodeFormat.qrCode)),
       contains('ecLevel=M'),
     );
     expect(
-      const BarcodeWriter(
-        BarcodeFormat.qrCode,
-        errorCorrection: ErrorCorrection.low,
-      ).creatorOptions,
+      writerCreatorOptions(
+        const BarcodeWriter(
+          BarcodeFormat.qrCode,
+          errorCorrection: ErrorCorrection.low,
+        ),
+      ),
       contains('ecLevel=L'),
     );
     expect(
-      const BarcodeWriter(BarcodeFormat.dataMatrix).creatorOptions,
+      writerCreatorOptions(const BarcodeWriter(BarcodeFormat.dataMatrix)),
       isNot(contains('ecLevel')),
     );
   });
