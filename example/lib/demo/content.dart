@@ -211,7 +211,9 @@ Described describe(Barcode barcode) {
       fields: <(String, String)>[
         ('Network', crypto.currency.name),
         ('Address', crypto.address),
-        if (crypto.amount != null) ('Amount', crypto.amount!),
+        if (crypto.amount != null)
+          ('Amount', '${crypto.amount} ${crypto.currency.symbol}'),
+        if (crypto.value != null) ('Value, wei', crypto.value!),
         if (crypto.label != null) ('Label', crypto.label!),
         if (crypto.message != null) ('Message', crypto.message!),
         if (crypto.chainId != null) ('Chain id', '${crypto.chainId}'),

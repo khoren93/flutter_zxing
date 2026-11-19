@@ -196,7 +196,50 @@ List<ContentIssue> validateEsim(EsimContent c) => <ContentIssue>[
 // --- Cryptocurrencies --------------------------------------------------------------
 
 final RegExp _coins = RegExp(r'^\d+(\.\d{1,8})?$');
-final RegExp _wei = RegExp(r'^\d+(\.\d+)?([eE]\d+)?$');
+final RegExp _ether = RegExp(r'^\d+(\.\d{1,18})?$');
+final RegExp _wei = RegExp(r'^(\d+)(?:\.(\d+))?(?:[eE](\d+))?$');
+
+/// [digits] with a decimal point after the first [point] of them, without
+/// leading or trailing zeros: `('2014', 1)` → `2.014`.
+String _decimal(String digits, int point) {
+  String d = digits;
+  int p = point;
+  if (p <= 0) {
+    d = '${'0' * (1 - p)}$d';
+    p = 1;
+  }
+  if (p > d.length) {
+    d = d.padRight(p, '0');
+  }
+  final String whole = d.substring(0, p).replaceFirst(RegExp('^0+(?=.)'), '');
+  final String fraction = d.substring(p).replaceFirst(RegExp(r'0+$'), '');
+  return fraction.isEmpty ? whole : '$whole.$fraction';
+}
+
+/// [wei] (`2.014e18`) in ether (`2.014`), by moving the decimal point;
+/// `null` if it is not a number or has more than 78 digits before the
+/// point, the most a 256-bit value has.
+String? weiToEther(String wei) {
+  final RegExpMatch? m = _wei.firstMatch(wei);
+  final String exponent = m?.group(3) ?? '0';
+  if (m == null || exponent.length > 3) {
+    return null;
+  }
+  final String whole = m.group(1)!.replaceFirst(RegExp('^0+(?=.)'), '');
+  final int point = whole.length + int.parse(exponent);
+  if (point > 78) {
+    return null;
+  }
+  return _decimal('$whole${m.group(2) ?? ''}', point - 18);
+}
+
+/// [ether] (`2.014`, up to 18 decimals) in wei (`2014000000000000000`).
+String _etherToWei(String ether) {
+  final List<String> parts = ether.split('.');
+  final String fraction = (parts.length > 1 ? parts[1] : '').padRight(18, '0');
+  return _decimal('${parts[0]}$fraction', parts[0].length + 18);
+}
+
 final RegExp _cryptoAddress = RegExp(r'^[^\s?&@/:]+$');
 
 /// Lightning invoices (BOLT 11) and LNURLs, bare or after `lightning:`.
@@ -282,13 +325,15 @@ CryptoContent? _eip681(String body) {
   final String? value = orNull(
     queryParameters(q < 0 ? '' : b.substring(q + 1))['value']?.trim(),
   );
-  if (value != null && !_wei.hasMatch(value)) {
+  final String? ether = value == null ? null : weiToEther(value);
+  if (value != null && ether == null) {
     return null;
   }
   return CryptoContent(
     currency: CryptoCurrency.ethereum,
     address: address,
-    amount: value,
+    amount: ether,
+    value: value,
     chainId: chainId,
   );
 }
@@ -310,9 +355,12 @@ String buildCrypto(CryptoContent c) {
       return '${c.currency.scheme}:$address'
           '${params.isEmpty ? '' : '?${params.join('&')}'}';
     case CryptoCurrency.ethereum:
+      final String? value =
+          orNull(c.value?.trim()) ??
+          (amount == null ? null : _etherToWei(amount));
       return 'ethereum:$address'
           '${c.chainId == null ? '' : '@${c.chainId}'}'
-          '${amount == null ? '' : '?value=$amount'}';
+          '${value == null ? '' : '?value=$value'}';
     case CryptoCurrency.lightning:
       return 'lightning:$address';
   }
@@ -322,8 +370,10 @@ String buildCrypto(CryptoContent c) {
 List<ContentIssue> validateCrypto(CryptoContent c) {
   final String address = c.address.trim();
   final String? amount = orNull(c.amount?.trim());
+  final String? value = orNull(c.value?.trim());
   final bool lightning = c.currency == CryptoCurrency.lightning;
   final bool ethereum = c.currency == CryptoCurrency.ethereum;
+  final String? ether = value == null ? null : weiToEther(value);
   return <ContentIssue>[
     if (address.isEmpty)
       const ContentIssue(
@@ -341,12 +391,32 @@ List<ContentIssue> validateCrypto(CryptoContent c) {
         'A Lightning invoice carries its amount',
         kind: ContentIssueKind.conflict,
       )
-    else if (amount != null && ethereum && !_wei.hasMatch(amount))
-      const ContentIssue('amount', 'Value must be a number of wei')
+    else if (amount != null && ethereum && !_ether.hasMatch(amount))
+      const ContentIssue(
+        'amount',
+        'Amount must be a number of ether, 18 decimals at most',
+      )
     else if (amount != null && !ethereum && !_coins.hasMatch(amount))
       const ContentIssue(
         'amount',
         'Amount must be a number, 8 decimals at most',
+      ),
+    if (value != null && !ethereum)
+      const ContentIssue(
+        'value',
+        'Only Ethereum links have a value in wei',
+        kind: ContentIssueKind.conflict,
+      )
+    else if (value != null && ether == null)
+      const ContentIssue('value', 'Value must be a number of wei')
+    else if (ether != null &&
+        amount != null &&
+        _ether.hasMatch(amount) &&
+        weiToEther(_etherToWei(amount)) != ether)
+      const ContentIssue(
+        'value',
+        'Value and amount are not the same amount',
+        kind: ContentIssueKind.conflict,
       ),
     if ((ethereum || lightning) && orNull(c.label) != null)
       ContentIssue(

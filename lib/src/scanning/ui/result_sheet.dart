@@ -460,11 +460,7 @@ final class _Summary {
         return _Summary(
           crypto.label ?? currency,
           kindDetail: currency,
-          display: amount == null
-              ? null
-              : crypto.currency == CryptoCurrency.ethereum
-              ? '$amount wei'
-              : '$amount ${crypto.currency.symbol}',
+          display: amount == null ? null : '$amount ${crypto.currency.symbol}',
           detail: crypto.message,
           payload: crypto.address,
         );

@@ -181,15 +181,20 @@ enum CryptoCurrency {
 /// amount.
 ///
 /// From `bitcoin:` and `litecoin:` (BIP 21: `amount`, `label`, `message`),
-/// `ethereum:` (EIP-681: an address with a chain id and a `value`; calls
-/// such as token transfers stay [TextContent]) and Lightning invoices,
-/// which are recognised but not decoded.
+/// `ethereum:` (EIP-681: an address with a chain id and a `value` in wei;
+/// calls such as token transfers stay [TextContent]) and Lightning
+/// invoices, which are recognised but not decoded.
+///
+/// [amount] is always in coins (BTC, ETH, LTC): an Ethereum link's wei are
+/// divided by 10^18 as text, without rounding. The wei as written are in
+/// [value].
 final class CryptoContent extends BarcodeContent {
   /// Creates cryptocurrency content.
   const CryptoContent({
     required this.currency,
     required this.address,
     this.amount,
+    this.value,
     this.label,
     this.message,
     this.chainId,
@@ -202,10 +207,19 @@ final class CryptoContent extends BarcodeContent {
   /// LNURL.
   final String address;
 
-  /// The amount as written: in coins for Bitcoin and Litecoin (`0.0015`),
-  /// in wei for Ethereum (`value`, `2.014e18`). Kept as text, so nothing is
-  /// lost to floating point.
+  /// The amount in coins (`0.0015` BTC, `2.014` ETH), or `null` when the
+  /// payer enters it. Kept as text, so nothing is lost to floating point;
+  /// as written for Bitcoin and Litecoin, and for Ethereum the link's
+  /// [value] in ether, without trailing zeros.
   final String? amount;
+
+  /// For Ethereum, the EIP-681 `value` in wei as written (`2.014e18`), or
+  /// `null`.
+  ///
+  /// When building, [value] is written as it is if given, else [amount]
+  /// in wei; given both, they must be the same amount. Other networks have
+  /// no [value].
+  final String? value;
 
   /// The payee's name (BIP 21 `label`).
   final String? label;
@@ -217,7 +231,7 @@ final class CryptoContent extends BarcodeContent {
   final int? chainId;
 
   /// `bitcoin:address?amount=…&label=…&message=…`,
-  /// `ethereum:address@chainId?value=…`, `lightning:invoice`.
+  /// `ethereum:address@chainId?value=…` (wei), `lightning:invoice`.
   @override
   String toPayload() => buildCrypto(this);
 
@@ -230,13 +244,14 @@ final class CryptoContent extends BarcodeContent {
       other.currency == currency &&
       other.address == address &&
       other.amount == amount &&
+      other.value == value &&
       other.label == label &&
       other.message == message &&
       other.chainId == chainId;
 
   @override
   int get hashCode =>
-      Object.hash(currency, address, amount, label, message, chainId);
+      Object.hash(currency, address, amount, value, label, message, chainId);
 
   @override
   String toString() => 'CryptoContent(${currency.name}, $address)';

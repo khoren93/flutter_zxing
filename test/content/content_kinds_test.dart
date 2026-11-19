@@ -231,7 +231,8 @@ void main() {
         const CryptoContent(
           currency: CryptoCurrency.ethereum,
           address: '0xfb6916095ca1df60bb79Ce92ce3ea74c37c5d359',
-          amount: '2.014e18',
+          amount: '2.014',
+          value: '2.014e18',
         ),
       );
       expect(
@@ -250,6 +251,69 @@ void main() {
           '?address=0x8e23ee67d1332ad560396262c48ffbb01f93d052&uint256=1',
         ),
         isA<TextContent>(),
+      );
+    });
+
+    test('Ethereum amounts are in ether, divided as text', () {
+      String? ether(String value) =>
+          (_parse('ethereum:0xab?value=$value') as CryptoContent).amount;
+      expect(ether('1000000000000000000'), '1');
+      expect(ether('1e18'), '1');
+      expect(ether('1.5e17'), '0.15');
+      expect(ether('20000000000000000'), '0.02');
+      expect(ether('1'), '0.000000000000000001');
+      expect(ether('1.5'), '0.0000000000000000015');
+      expect(ether('0'), '0');
+      expect(
+        ether('123456789012345678901234567890'),
+        '123456789012.34567890123456789',
+      );
+      // Past what 256 bits hold, or no number: text.
+      expect(_parse('ethereum:0xab?value=1e100'), isA<TextContent>());
+      expect(_parse('ethereum:0xab?value=1e99999999999'), isA<TextContent>());
+      expect(_parse('ethereum:0xab?value=0x10'), isA<TextContent>());
+    });
+
+    test('Ethereum builds the amount in wei, or the value as written', () {
+      const CryptoContent pay = CryptoContent(
+        currency: CryptoCurrency.ethereum,
+        address: '0xab',
+        amount: '0.02',
+      );
+      expect(pay.toPayload(), 'ethereum:0xab?value=20000000000000000');
+      expect(
+        const CryptoContent(
+          currency: CryptoCurrency.ethereum,
+          address: '0xab',
+          amount: '2.014',
+          value: '2.014e18',
+        ).toPayload(),
+        'ethereum:0xab?value=2.014e18',
+      );
+      expect(
+        const CryptoContent(
+          currency: CryptoCurrency.ethereum,
+          address: '0xab',
+          amount: '2',
+          value: '2.014e18',
+        ).validate(),
+        _issue('value'),
+      );
+      expect(
+        const CryptoContent(
+          currency: CryptoCurrency.bitcoin,
+          address: 'x',
+          value: '1',
+        ).validate(),
+        _issue('value'),
+      );
+      expect(
+        const CryptoContent(
+          currency: CryptoCurrency.ethereum,
+          address: '0xab',
+          amount: '0.0000000000000000001',
+        ).validate(),
+        _issue('amount'),
       );
     });
 
@@ -283,7 +347,8 @@ void main() {
         const CryptoContent(
           currency: CryptoCurrency.ethereum,
           address: '0xfb6916095ca1df60bb79Ce92ce3ea74c37c5d359',
-          amount: '1e18',
+          amount: '1.5',
+          value: '1500000000000000000',
           chainId: 1,
         ),
       );
