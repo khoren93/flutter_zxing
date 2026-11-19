@@ -83,8 +83,8 @@ class _DemoShellState extends State<DemoShell> {
       final bool wide =
           c.maxWidth >= (_desktop ? 640 : 900) ||
           (c.maxWidth > c.maxHeight && c.maxHeight < 500);
-      // The pages stay alive: the scanner keeps its camera, the generator
-      // its form.
+      // The pages stay alive: the generator keeps its form. The scanner of
+      // a tab not shown (its tickers off) pauses and lets its camera go.
       final Widget pages = IndexedStack(
         // Kept when the layout changes (a phone turned): the scanner is moved,
         // not rebuilt, and keeps its camera.
@@ -94,9 +94,7 @@ class _DemoShellState extends State<DemoShell> {
           for (final _Tab t in _Tab.values)
             TickerMode(
               enabled: t == _tab,
-              child: t == _Tab.scan && _tab != _Tab.scan
-                  ? const SizedBox.shrink()
-                  : _page(t, wide: wide),
+              child: _page(t, wide: wide),
             ),
         ],
       );

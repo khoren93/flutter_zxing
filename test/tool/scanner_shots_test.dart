@@ -333,7 +333,8 @@ void main() {
     _corners(lockedPaper, const Size(117, 117), 6),
     ']Q1',
   );
-  ScannerTemplate closable(ScannerTemplate t) => t.copyWith(onClose: () {});
+  ScannerTemplate closable(ScannerTemplate t) =>
+      t.copyWith(onClose: () => () {});
 
   testWidgets('minimal', (WidgetTester tester) async {
     await shot(
@@ -417,35 +418,34 @@ void main() {
       preview: _warm(<Widget>[_paper(paper, -4, qr(epc, 160))]),
       template: closable(
         ScannerTemplate.payment(
-          resultBuilder:
-              (BuildContext context, Barcode barcode, VoidCallback again) {
-                final ScannerTheme theme = ScannerTheme.of(context);
-                return ScannerSheet(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text('PAYMENT REQUEST', style: theme.overlineStyle),
-                      const SizedBox(height: 4),
-                      Text('Kaffeehaus Lumen', style: theme.titleStyle),
-                      const SizedBox(height: 16),
-                      Text('€4.80', style: theme.displayStyle),
-                      Text('Reference A7F3-21', style: theme.mutedStyle),
-                      const SizedBox(height: 16),
-                      const ScannerChip('QR Code'),
-                      const SizedBox(height: 16),
-                      ScannerActions(<ScannerAction>[
-                        ScannerAction(
-                          label: 'Pay €4.80',
-                          primary: true,
-                          onPressed: () {},
-                        ),
-                        ScannerAction(label: 'Cancel', onPressed: again),
-                      ]),
-                    ],
-                  ),
-                );
-              },
+          resultBuilder: (BuildContext context, ScannerResult result) {
+            final ScannerTheme theme = ScannerTheme.of(context);
+            return ScannerSheet(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text('PAYMENT REQUEST', style: theme.overlineStyle),
+                  const SizedBox(height: 4),
+                  Text('Kaffeehaus Lumen', style: theme.titleStyle),
+                  const SizedBox(height: 16),
+                  Text('€4.80', style: theme.displayStyle),
+                  Text('Reference A7F3-21', style: theme.mutedStyle),
+                  const SizedBox(height: 16),
+                  const ScannerChip('QR Code'),
+                  const SizedBox(height: 16),
+                  ScannerActions(<ScannerAction>[
+                    ScannerAction(
+                      label: 'Pay €4.80',
+                      primary: true,
+                      onPressed: () {},
+                    ),
+                    ScannerAction(label: 'Cancel', onPressed: result.scanAgain),
+                  ]),
+                ],
+              ),
+            );
+          },
         ),
       ),
       barcodes: <Barcode>[
@@ -518,44 +518,43 @@ void main() {
       template: closable(
         ScannerTemplate.ticket(
           title: 'Scan your boarding pass',
-          resultBuilder:
-              (BuildContext context, Barcode barcode, VoidCallback again) {
-                final ScannerTheme theme = ScannerTheme.of(context);
-                return ScannerSheet(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text(
-                        'BOARDING PASS · LX 423',
-                        style: theme.overlineStyle,
-                      ),
-                      const SizedBox(height: 4),
-                      Text('Zurich – Amsterdam', style: theme.titleStyle),
-                      const SizedBox(height: 16),
-                      const ScannerFields(<String, String>{
-                        'Passenger': 'ZXING/FLUTTER',
-                        'Date': '14 Nov',
-                        'Seat': '12C',
-                        'Class': 'Y',
-                        'Booking': 'E7QK3TP',
-                        'Sequence': '34',
-                      }),
-                      const SizedBox(height: 16),
-                      const ScannerChip('PDF417'),
-                      const SizedBox(height: 16),
-                      ScannerActions(<ScannerAction>[
-                        ScannerAction(
-                          label: 'Save pass',
-                          primary: true,
-                          onPressed: () {},
-                        ),
-                        ScannerAction(label: 'Scan again', onPressed: again),
-                      ]),
-                    ],
-                  ),
-                );
-              },
+          resultBuilder: (BuildContext context, ScannerResult result) {
+            final ScannerTheme theme = ScannerTheme.of(context);
+            return ScannerSheet(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text('BOARDING PASS · LX 423', style: theme.overlineStyle),
+                  const SizedBox(height: 4),
+                  Text('Zurich – Amsterdam', style: theme.titleStyle),
+                  const SizedBox(height: 16),
+                  const ScannerFields(<String, String>{
+                    'Passenger': 'ZXING/FLUTTER',
+                    'Date': '14 Nov',
+                    'Seat': '12C',
+                    'Class': 'Y',
+                    'Booking': 'E7QK3TP',
+                    'Sequence': '34',
+                  }),
+                  const SizedBox(height: 16),
+                  const ScannerChip('PDF417'),
+                  const SizedBox(height: 16),
+                  ScannerActions(<ScannerAction>[
+                    ScannerAction(
+                      label: 'Save pass',
+                      primary: true,
+                      onPressed: () {},
+                    ),
+                    ScannerAction(
+                      label: 'Scan again',
+                      onPressed: result.scanAgain,
+                    ),
+                  ]),
+                ],
+              ),
+            );
+          },
         ),
       ),
       barcodes: <Barcode>[
@@ -578,17 +577,16 @@ void main() {
       preview: _warm(<Widget>[_paper(paper, 4, qr(wifi, 150))]),
       template: closable(
         ScannerTemplate.content(
-          actionsBuilder:
-              (BuildContext context, Barcode barcode, VoidCallback again) =>
-                  <ScannerAction>[
-                    ScannerAction(
-                      label: 'Connect',
-                      icon: ScannerIcons.wifi,
-                      primary: true,
-                      onPressed: () {},
-                    ),
-                    ScannerAction.copy(barcode.text),
-                  ],
+          actionsBuilder: (BuildContext context, ScannerResult result) =>
+              <ScannerAction>[
+                ScannerAction(
+                  label: 'Connect',
+                  icon: ScannerIcons.wifi,
+                  primary: true,
+                  onPressed: () {},
+                ),
+                ScannerAction.copy(result.barcode.text),
+              ],
         ),
       ),
       barcodes: <Barcode>[
@@ -711,7 +709,7 @@ void main() {
                     alignment: Alignment.bottomCenter,
                     child: BarcodeResultSheet(
                       barcode,
-                      showIcon: true,
+                      header: ResultHeader.icon,
                       onScanAgain: () {},
                     ),
                   ),

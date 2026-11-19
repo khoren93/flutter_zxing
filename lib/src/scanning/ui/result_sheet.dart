@@ -28,14 +28,16 @@ final class ScannerAction {
   }) : _copyText = null;
 
   /// Copies [text] to the clipboard; the button confirms with "Copied".
-  /// [label] replaces [ScannerStrings.copy], such as "Copy IBAN".
-  const ScannerAction.copy(String text, {this.primary = false, this.label = ''})
+  /// [label] replaces [ScannerStrings.copy], such as "Copy IBAN"; an empty
+  /// string shows the icon alone.
+  const ScannerAction.copy(String text, {this.primary = false, this.label})
     : icon = ScannerIcons.copy,
       onPressed = null,
       _copyText = text;
 
-  /// The text; for [ScannerAction.copy], empty uses [ScannerStrings.copy].
-  final String label;
+  /// The text; an empty string shows the [icon] alone. `null` only for
+  /// [ScannerAction.copy], which then says [ScannerStrings.copy].
+  final String? label;
 
   /// An icon before the text.
   final ScannerIconData? icon;
@@ -47,6 +49,23 @@ final class ScannerAction {
   final bool primary;
 
   final String? _copyText;
+}
+
+/// What a [BarcodeResultSheet] shows next to its title.
+enum ResultHeader {
+  /// The picture of the code ([BarcodeThumbnail]). The default.
+  picture,
+
+  /// An icon of the content's kind, such as a Wi‑Fi sign.
+  icon,
+
+  /// The text as the number of a card, such as a loyalty card: large, in
+  /// groups of four, under a card badge (`ScannerTemplate.loyalty`). A code
+  /// with a secret (an OTP key) shows its picture instead.
+  card,
+
+  /// Nothing: the title alone.
+  none,
 }
 
 /// The result sheet of a scanned code: its kind ("LINK"), a title, details,
@@ -74,22 +93,16 @@ class BarcodeResultSheet extends StatelessWidget {
     this.actions,
     this.onScanAgain,
     this.onClose,
-    this.showIcon = false,
-    this.showPicture = true,
+    this.header = ResultHeader.picture,
     this.cutOut,
-    this.asCard = false,
   });
-
-  /// Shows the text as the number of a card, such as a loyalty card: large,
-  /// in groups of four, under a card badge ([ScannerTemplate.loyalty]).
-  final bool asCard;
 
   /// The code.
   final Barcode barcode;
 
-  /// Shows the picture of the code next to the title ([BarcodeThumbnail]),
-  /// unless [showIcon].
-  final bool showPicture;
+  /// What shows next to the title: the picture of the code (the default),
+  /// an icon of its kind, the text as a card number, or nothing.
+  final ResultHeader header;
 
   /// The camera's cut-out of the code, for the picture of codes that
   /// cannot be drawn exactly. Not disposed by the sheet.
@@ -106,37 +119,17 @@ class BarcodeResultSheet extends StatelessWidget {
   /// `ScannerTemplate.pick`.
   final VoidCallback? onClose;
 
-  /// Shows an icon of the content's kind next to the title.
-  final bool showIcon;
-
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
     final ScannerStrings strings = ScannerStrings.of(context);
     final BarcodeContent content = barcode.content;
     // A code with a secret is never shown as a number.
-    final bool card = asCard && content is! OtpContent;
-    final _Summary summary = card
-        ? _Summary.card(barcode.text, strings)
-        : _Summary.of(barcode, content, strings);
+    final bool card = header == ResultHeader.card && content is! OtpContent;
+    final _Summary summary = _Summary.forHeader(barcode, header, strings);
     final String kind = summary.kind ?? strings.kindOf(content);
     final List<ScannerAction> actions =
-        this.actions ??
-        <ScannerAction>[
-          // A code with a secret (an OTP key) is not copied unasked.
-          if (summary.secret == null)
-            ScannerAction.copy(
-              summary.copy ?? barcode.text,
-              label: summary.copyLabel ?? '',
-              primary: onScanAgain == null,
-            ),
-          if (onScanAgain != null)
-            ScannerAction(
-              label: strings.scanAgain,
-              onPressed: onScanAgain,
-              primary: true,
-            ),
-        ];
+        this.actions ?? summary.actions(barcode, strings, onScanAgain);
     final String symbology = _symbology(barcode);
     final VoidCallback? scanAgain = onScanAgain;
     final VoidCallback? close =
@@ -171,16 +164,16 @@ class BarcodeResultSheet extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              if (showIcon || card) ...<Widget>[
+              if (header == ResultHeader.icon || card) ...<Widget>[
                 ScannerBadge(icon: card ? ScannerIcons.card : iconOf(content)),
                 const SizedBox(width: 16),
-              ] else if (showPicture) ...<Widget>[
+              ] else if (header != ResultHeader.none) ...<Widget>[
                 BarcodeThumbnail(barcode, cutOut: cutOut, size: 72),
                 const SizedBox(width: 16),
               ],
               Expanded(child: heading),
               if (close != null) ...<Widget>[
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 _SheetClose(
                   label: onClose != null
                       ? strings.backToCodes
@@ -240,9 +233,9 @@ class BarcodeResultSheet extends StatelessWidget {
               ScannerChip(symbology),
               for (final String chip in summary.chips) ScannerChip(chip),
               if (summary.warning case final String warning)
-                ScannerChip(warning, warning: true),
+                ScannerChip(warning, tone: ScannerTone.warning),
               if (summary.danger case final String danger)
-                ScannerChip(danger, danger: true),
+                ScannerChip(danger, tone: ScannerTone.danger),
             ],
           ),
           if (actions.isNotEmpty) ...<Widget>[
@@ -325,6 +318,15 @@ final class _Summary {
     this.copyLabel,
     this.kind,
   });
+
+  /// The summary of [barcode] for a sheet with [header].
+  factory _Summary.forHeader(
+    Barcode barcode,
+    ResultHeader header,
+    ScannerStrings strings,
+  ) => header == ResultHeader.card && barcode.content is! OtpContent
+      ? _Summary.card(barcode.text, strings)
+      : _Summary.of(barcode, barcode.content, strings);
 
   /// A card number: [text] large, in groups of four when it has no spaces.
   factory _Summary.card(String text, ScannerStrings strings) {
@@ -585,6 +587,28 @@ final class _Summary {
     // A kind added in a later version.
     return _Summary(text);
   }
+
+  /// The default buttons: a copy of what matters (the IBAN of a payment,
+  /// with "Copy IBAN"), unless the code holds a secret, and "Scan again".
+  List<ScannerAction> actions(
+    Barcode barcode,
+    ScannerStrings strings,
+    VoidCallback? onScanAgain,
+  ) => <ScannerAction>[
+    // A code with a secret (an OTP key) is not copied unasked.
+    if (secret == null)
+      ScannerAction.copy(
+        copy ?? barcode.text,
+        label: copyLabel,
+        primary: onScanAgain == null,
+      ),
+    if (onScanAgain != null)
+      ScannerAction(
+        label: strings.scanAgain,
+        onPressed: onScanAgain,
+        primary: true,
+      ),
+  ];
 
   final String title;
   final String? detail;
@@ -903,6 +927,21 @@ final class _Summary {
   }
 }
 
+/// The buttons a [BarcodeResultSheet] with [header] shows for [barcode]
+/// without its own: a copy of what matters, such as "Copy IBAN" for a
+/// payment (none for a code with a secret), and "Scan again" with
+/// [onScanAgain].
+List<ScannerAction> defaultResultActions(
+  Barcode barcode,
+  ScannerStrings strings, {
+  VoidCallback? onScanAgain,
+  ResultHeader header = ResultHeader.picture,
+}) => _Summary.forHeader(
+  barcode,
+  header,
+  strings,
+).actions(barcode, strings, onScanAgain);
+
 /// A secret behind dots, shown on request: an OTP key.
 class _SecretField extends StatefulWidget {
   const _SecretField(this.secret, {required this.strings});
@@ -934,7 +973,7 @@ class _SecretFieldState extends State<_SecretField> {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
+        padding: const EdgeInsetsDirectional.fromSTEB(16, 4, 4, 4),
         child: Row(
           children: <Widget>[
             Expanded(
@@ -1019,18 +1058,24 @@ class _SheetClose extends StatelessWidget {
       child: Pressable(
         onPressed: onPressed,
         shape: shape,
-        child: DecoratedBox(
-          decoration: ShapeDecoration(
-            color: theme.inkColor.withValues(alpha: 0.08),
-            shape: shape,
-          ),
-          child: SizedBox.square(
-            dimension: 40,
-            child: Center(
-              child: ScannerIcon(
-                ScannerIcons.close,
-                size: 20,
-                color: theme.inkMutedColor,
+        // A 48 × 48 target around the 40 × 40 button.
+        child: SizedBox.square(
+          dimension: 48,
+          child: Center(
+            child: DecoratedBox(
+              decoration: ShapeDecoration(
+                color: theme.inkColor.withValues(alpha: 0.08),
+                shape: shape,
+              ),
+              child: SizedBox.square(
+                dimension: 40,
+                child: Center(
+                  child: ScannerIcon(
+                    ScannerIcons.close,
+                    size: 20,
+                    color: theme.inkMutedColor,
+                  ),
+                ),
               ),
             ),
           ),
@@ -1048,7 +1093,7 @@ class ScannerBadge extends StatelessWidget {
     super.key,
     required this.icon,
     this.size = 52,
-    this.warning = false,
+    this.tone = ScannerTone.accent,
   });
 
   /// The icon.
@@ -1057,17 +1102,26 @@ class ScannerBadge extends StatelessWidget {
   /// Width and height.
   final double size;
 
-  /// In the signal color instead of the accent, for problems.
-  final bool warning;
+  /// The color: the accent, or a warning or danger for problems.
+  final ScannerTone tone;
 
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
+    final (Color fill, Color ink) = switch (tone) {
+      ScannerTone.accent => (theme.lockSoftColor, theme.lockInkColor),
+      ScannerTone.warning => (
+        theme.signalColor.withValues(alpha: 0.2),
+        theme.signalInkColor,
+      ),
+      ScannerTone.danger => (
+        theme.dangerColor.withValues(alpha: 0.2),
+        theme.dangerInkColor,
+      ),
+    };
     return DecoratedBox(
       decoration: ShapeDecoration(
-        color: warning
-            ? theme.signalColor.withValues(alpha: 0.2)
-            : theme.lockSoftColor,
+        color: fill,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(size * 0.31)),
         ),
@@ -1075,11 +1129,7 @@ class ScannerBadge extends StatelessWidget {
       child: SizedBox.square(
         dimension: size,
         child: Center(
-          child: ScannerIcon(
-            icon,
-            size: size * 0.54,
-            color: warning ? theme.signalInkColor : theme.lockInkColor,
-          ),
+          child: ScannerIcon(icon, size: size * 0.54, color: ink),
         ),
       ),
     );
@@ -1148,7 +1198,7 @@ class ScannerActions extends StatelessWidget {
 
   Widget _button(ScannerAction action) => action._copyText == null
       ? ScannerActionButton(
-          label: action.label,
+          label: action.label ?? '',
           icon: action.icon,
           primary: action.primary,
           onPressed: action.onPressed,
@@ -1198,7 +1248,7 @@ class _CopyButton extends StatefulWidget {
   });
 
   final String text;
-  final String label;
+  final String? label;
   final bool primary;
 
   @override
@@ -1232,12 +1282,14 @@ class _CopyButtonState extends State<_CopyButton> {
   @override
   Widget build(BuildContext context) {
     final ScannerStrings strings = ScannerStrings.of(context);
+    final String label = widget.label ?? strings.copy;
     return ScannerActionButton(
-      label: _copied
+      label: _copied ? (label.isEmpty ? '' : strings.copied) : label,
+      semanticLabel: _copied
           ? strings.copied
-          : widget.label.isEmpty
+          : label.isEmpty
           ? strings.copy
-          : widget.label,
+          : null,
       icon: _copied ? ScannerIcons.check : ScannerIcons.copy,
       primary: widget.primary,
       onPressed: () => unawaited(_copy()),
@@ -1389,7 +1441,7 @@ class _Row extends StatelessWidget {
     }
     return AnimatedContainer(
       duration: const Duration(milliseconds: 240),
-      padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
+      padding: const EdgeInsetsDirectional.fromSTEB(8, 8, 16, 8),
       decoration: BoxDecoration(
         color: latest ? theme.lockSoftColor : const Color(0x00000000),
         borderRadius: const BorderRadius.all(Radius.circular(16)),

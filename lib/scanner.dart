@@ -13,13 +13,14 @@ export 'src/scanning/scanner_controller.dart'
 export 'src/scanning/style_content.dart';
 export 'src/scanning/ui/controls.dart' hide pickAndReadImage;
 export 'src/scanning/ui/glass.dart';
-export 'src/scanning/ui/result_sheet.dart';
+export 'src/scanning/ui/result_sheet.dart' hide defaultResultActions;
 export 'src/scanning/ui/scan_field_button.dart';
 export 'src/scanning/ui/scan_verdict.dart';
 export 'src/scanning/ui/scanner_icons.dart' hide svgPath;
 export 'src/scanning/ui/scanner_strings.dart';
 export 'src/scanning/ui/scanner_template.dart';
-export 'src/scanning/ui/scanner_theme.dart';
+export 'src/scanning/ui/scanner_theme.dart' hide resolvedScannerScope;
 export 'src/scanning/ui/states.dart';
-export 'src/scanning/ui/thumbnail.dart';
+export 'src/scanning/ui/thumbnail.dart'
+    hide BarcodeThumbnailKind, barcodeThumbnailKindOf;
 export 'src/scanning/ui/window_overlay.dart' hide BracketsPainter, WindowScrim;

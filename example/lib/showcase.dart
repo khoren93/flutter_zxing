@@ -249,14 +249,15 @@ class _ShowcasePageState extends State<ShowcasePage> {
 
 /// The sheet of the payments template: any payment code the library reads
 /// (EPC/SEPA, Swiss QR-bill, ГОСТ, UPI, PIX and other EMVCo codes, SPAYD).
-Widget _paymentSheet(
-  BuildContext context,
-  Barcode barcode,
-  VoidCallback scanAgain,
-) {
+Widget _paymentSheet(BuildContext context, ScannerResult result) {
+  final Barcode barcode = result.barcode;
   final BarcodeContent content = barcode.content;
   if (content is! PaymentContent) {
-    return BarcodeResultSheet(barcode, onScanAgain: scanAgain);
+    return BarcodeResultSheet(
+      barcode,
+      onScanAgain: result.scanAgain,
+      cutOut: result.cutOut,
+    );
   }
   final ScannerTheme theme = ScannerTheme.of(context);
   final String? amount = content.amount == null
@@ -286,7 +287,7 @@ Widget _paymentSheet(
             primary: true,
             onPressed: () => Navigator.of(context).pop(),
           ),
-          ScannerAction(label: 'Cancel', onPressed: scanAgain),
+          ScannerAction(label: 'Cancel', onPressed: result.scanAgain),
         ]),
       ],
     ),
@@ -294,14 +295,15 @@ Widget _paymentSheet(
 }
 
 /// The sheet of the tickets template: an IATA boarding pass (BCBP).
-Widget _ticketSheet(
-  BuildContext context,
-  Barcode barcode,
-  VoidCallback scanAgain,
-) {
+Widget _ticketSheet(BuildContext context, ScannerResult result) {
+  final Barcode barcode = result.barcode;
   final BarcodeContent content = barcode.content;
   if (content is! BoardingPassContent) {
-    return BarcodeResultSheet(barcode, onScanAgain: scanAgain);
+    return BarcodeResultSheet(
+      barcode,
+      onScanAgain: result.scanAgain,
+      cutOut: result.cutOut,
+    );
   }
   final BoardingPassLeg leg = content.legs.first;
   // The pass gives the day of the year, not the year: this year's.
@@ -337,7 +339,7 @@ Widget _ticketSheet(
             primary: true,
             onPressed: () => Navigator.of(context).pop(),
           ),
-          ScannerAction(label: 'Scan again', onPressed: scanAgain),
+          ScannerAction(label: 'Scan again', onPressed: result.scanAgain),
         ]),
       ],
     ),
@@ -354,9 +356,9 @@ const List<String> _months = <String>[
 /// (url_launcher, a Wi‑Fi plugin), so here they only say what they would do.
 List<ScannerAction> _contentActions(
   BuildContext context,
-  Barcode barcode,
-  VoidCallback scanAgain,
+  ScannerResult result,
 ) {
+  final Barcode barcode = result.barcode;
   void tell(String what) => ScaffoldMessenger.of(
     context,
   ).showSnackBar(SnackBar(content: Text('Your app would $what')));

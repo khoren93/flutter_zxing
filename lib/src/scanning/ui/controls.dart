@@ -216,30 +216,40 @@ class ZoomButtons extends StatelessWidget {
         child: Pressable(
           onPressed: onPressed,
           shape: theme.pillBorder,
-          child: ExcludeSemantics(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              constraints: const BoxConstraints(minWidth: 44, minHeight: 36),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: ShapeDecoration(
-                shape: theme.pillBorder,
-                color: selected
-                    ? theme.inkColor
-                    : lit
-                    ? theme.inkColor.withValues(alpha: 0.22)
-                    : const Color(0x00000000),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                text,
-                style: theme.labelStyle.copyWith(
-                  fontSize: 13,
-                  height: 18 / 13,
-                  color: selected ? pressedText : theme.inkColor,
-                  fontFeatures: const <FontFeature>[
-                    FontFeature.tabularFigures(),
-                  ],
+          // A 48 × 48 target around the 44 × 36 pill.
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+              child: ExcludeSemantics(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  constraints: const BoxConstraints(
+                    minWidth: 44,
+                    minHeight: 36,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: ShapeDecoration(
+                    shape: theme.pillBorder,
+                    color: selected
+                        ? theme.inkColor
+                        : lit
+                        ? theme.inkColor.withValues(alpha: 0.22)
+                        : const Color(0x00000000),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    text,
+                    style: theme.labelStyle.copyWith(
+                      fontSize: 13,
+                      height: 18 / 13,
+                      color: selected ? pressedText : theme.inkColor,
+                      fontFeatures: const <FontFeature>[
+                        FontFeature.tabularFigures(),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -277,20 +287,18 @@ class ZoomButtons extends StatelessWidget {
       return Semantics(
         container: true,
         label: strings.zoom,
+        // The targets reach the glass's edge; the pills keep their inset.
         child: ScannerGlass(
-          padding: const EdgeInsets.all(4),
+          padding: direction == Axis.horizontal
+              ? const EdgeInsets.symmetric(horizontal: 2)
+              : const EdgeInsets.symmetric(vertical: 2),
           child: AnimatedSize(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
             child: Flex(
               direction: direction,
               mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                for (int i = 0; i < buttons.length; i++) ...<Widget>[
-                  if (i > 0) const SizedBox(width: 4, height: 4),
-                  buttons[i],
-                ],
-              ],
+              children: buttons,
             ),
           ),
         ),

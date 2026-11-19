@@ -13,6 +13,8 @@ import 'package:flutter_zxing/src/scanning/frame_geometry.dart';
 import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
     show ScannerControllerDebug;
 import 'package:flutter_zxing/src/scanning/ui/scanner_icons.dart' show svgPath;
+import 'package:flutter_zxing/src/scanning/ui/thumbnail.dart'
+    show BarcodeThumbnailKind, barcodeThumbnailKindOf;
 import 'package:flutter_zxing/src/scanning/ui/window_overlay.dart'
     show WindowScrim;
 
@@ -459,7 +461,7 @@ void main() {
         _host(
           BarcodeScanner(
             template: ScannerTemplate.minimal(
-              actionsBuilder: (_, Barcode b, _) => <ScannerAction>[
+              actionsBuilder: (_, _) => <ScannerAction>[
                 ScannerAction(label: 'Open', primary: true, onPressed: () {}),
               ],
             ),
@@ -591,16 +593,15 @@ void main() {
         _host(
           BarcodeScanner(
             template: ScannerTemplate.content(
-              actionsBuilder:
-                  (BuildContext context, Barcode barcode, VoidCallback again) =>
-                      <ScannerAction>[
-                        ScannerAction(
-                          label: 'Connect',
-                          primary: true,
-                          onPressed: () => opened++,
-                        ),
-                        ScannerAction.copy(barcode.text),
-                      ],
+              actionsBuilder: (BuildContext context, ScannerResult result) =>
+                  <ScannerAction>[
+                    ScannerAction(
+                      label: 'Connect',
+                      primary: true,
+                      onPressed: () => opened++,
+                    ),
+                    ScannerAction.copy(result.barcode.text),
+                  ],
             ),
           ),
         ),
@@ -802,7 +803,8 @@ void main() {
       );
       await tester.pump();
       expect(find.byType(ScannerPlaceholder), findsOneWidget);
-      expect(find.text('Starting the camera…'), findsOneWidget);
+      // Not started yet: the window alone.
+      expect(find.text('Starting the camera…'), findsNothing);
       await controller.start();
       await tester.pump();
       expect(find.byType(ScannerPlaceholder), findsNothing);
@@ -1009,7 +1011,7 @@ void main() {
       expect(const ScannerTemplate.kiosk().largeHint, isTrue);
       expect(const ScannerTemplate.small().initialZoom, 2);
       expect(const ScannerTemplate.signIn().closeOnResult, isTrue);
-      expect(const ScannerTemplate.loyalty().resultAsCard, isTrue);
+      expect(const ScannerTemplate.loyalty().resultHeader, ResultHeader.card);
       expect(const ScannerTemplate.minimal().detection, DetectionMode.once);
       expect(
         ScannerTemplate.minimal(check: (Barcode b) => null).detection,
@@ -1017,10 +1019,34 @@ void main() {
       );
       final ScannerTemplate copy = const ScannerTemplate.minimal().copyWith(
         mode: ScannerMode.pick,
-        initialZoom: 3,
+        initialZoom: () => 3,
       );
       expect(copy.mode, ScannerMode.pick);
       expect(copy.initialZoom, 3);
+    });
+
+    test('copyWith clears a field with a function returning null', () {
+      final ScannerTemplate base = ScannerTemplate.payment(
+        check: (Barcode b) => null,
+        onClose: () {},
+      );
+      final ScannerTemplate cleared = base.copyWith(
+        title: () => null,
+        formats: () => null,
+        check: () => null,
+        onClose: () => null,
+        resumeAfter: () => const Duration(seconds: 1),
+      );
+      expect(cleared.title, isNull);
+      expect(cleared.formats, isNull);
+      expect(cleared.check, isNull);
+      expect(cleared.onClose, isNull);
+      expect(cleared.resumeAfter, const Duration(seconds: 1));
+      // Left out: kept.
+      final ScannerTemplate kept = base.copyWith(torchButton: true);
+      expect(kept.formats, base.formats);
+      expect(kept.check, same(base.check));
+      expect(kept.onClose, same(base.onClose));
     });
 
     testWidgets('small starts zoomed in, kiosk on the front camera', (
@@ -1965,14 +1991,14 @@ void main() {
             symbol: s,
           );
       expect(
-        BarcodeThumbnail.kindOf(
+        barcodeThumbnailKindOf(
           code(BarcodeFormat.qrCode, 'x', s: grid(BarcodeFormat.qrCode)),
         ),
         BarcodeThumbnailKind.exact,
       );
       // A QR code without its grid (not read by the engine) is a cut-out.
       expect(
-        BarcodeThumbnail.kindOf(code(BarcodeFormat.qrCode, 'x')),
+        barcodeThumbnailKindOf(code(BarcodeFormat.qrCode, 'x')),
         BarcodeThumbnailKind.cutOut,
       );
       for (final (BarcodeFormat format, String text)
@@ -1985,7 +2011,7 @@ void main() {
             (BarcodeFormat.itf14, '09501101530003'),
           ]) {
         expect(
-          BarcodeThumbnail.kindOf(code(format, text)),
+          barcodeThumbnailKindOf(code(format, text)),
           BarcodeThumbnailKind.regenerated,
           reason: format.name,
         );
@@ -2006,7 +2032,7 @@ void main() {
       }
       // MaxiCode's grid is hexagonal: drawn as squares it would not be it.
       expect(
-        BarcodeThumbnail.kindOf(
+        barcodeThumbnailKindOf(
           code(BarcodeFormat.maxiCode, 'x', s: grid(BarcodeFormat.maxiCode)),
         ),
         BarcodeThumbnailKind.cutOut,

@@ -52,7 +52,8 @@ const List<Type> _types = <Type>[
   ScannerSheet, ScannerActionButton, ScannerChip, ScannerCloseButton,
   PickImageButton, ZoomButtons, ScannerAction, ScannerActions, ScannerBadge,
   ScannerFields, BarcodeResultSheet, BarcodeListSheet, CollectedBarcode,
-  ScannerPlaceholder, ScannerErrorView, BarcodeThumbnail, BarcodeThumbnailKind,
+  ScannerPlaceholder, ScannerErrorView, BarcodeThumbnail, ScannerResult,
+  ResultHeader, ScannerTone, ScanVerdict, ScanVerdictKind, ScannerCheck,
   // Errors
   ZxingException, ImageDecodeException, BarcodeWriteException,
   EngineException, ScannerException, CameraPermissionException,

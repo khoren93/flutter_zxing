@@ -160,6 +160,20 @@ final class ScannerStrings {
     this.codesInView = _codesInView,
     this.pickCode = 'Pick this code',
     this.scanCode = 'Scan a code',
+    this.hintCode = 'Point the camera at a code',
+    this.hintQrCode = 'Point at a QR code',
+    this.hintBarcode = 'Point at the barcode',
+    this.hintCloser = 'Move closer',
+    this.hintTicket = 'Point at the ticket',
+    this.hintDataMatrix = 'Point at the Data Matrix',
+    this.hintPick = 'Tap a code',
+    this.hintKiosk = 'Hold the code up to the camera',
+    this.hintVin = 'Windshield or door pillar',
+    this.hintCard = "Point at the card's barcode",
+    this.hintField = 'Point at the code',
+    this.titlePayment = 'Pay with QR',
+    this.titleTicket = 'Scan your ticket',
+    this.titleSignIn = 'Scan to sign in',
   });
 
   /// The strings of the nearest [ScannerScope], or the English defaults.
@@ -571,6 +585,354 @@ final class ScannerStrings {
   /// Label of `ScanFieldButton` for screen readers.
   final String scanCode;
 
+  /// The hint of `ScannerTemplate.minimal`.
+  final String hintCode;
+
+  /// The hint of `ScannerTemplate.content`.
+  final String hintQrCode;
+
+  /// The hint of `ScannerTemplate.product`.
+  final String hintBarcode;
+
+  /// The hint of `ScannerTemplate.small`.
+  final String hintCloser;
+
+  /// The hint of `ScannerTemplate.checkIn`.
+  final String hintTicket;
+
+  /// The hint of `ScannerTemplate.pharma`.
+  final String hintDataMatrix;
+
+  /// The hint of `ScannerTemplate.pick`.
+  final String hintPick;
+
+  /// The hint of `ScannerTemplate.kiosk`.
+  final String hintKiosk;
+
+  /// The hint of `ScannerTemplate.vin`.
+  final String hintVin;
+
+  /// The hint of `ScannerTemplate.loyalty`.
+  final String hintCard;
+
+  /// The hint of the scanner `ScanFieldButton` opens.
+  final String hintField;
+
+  /// The title of `ScannerTemplate.payment`.
+  final String titlePayment;
+
+  /// The title of `ScannerTemplate.ticket` and `ScannerTemplate.kiosk`.
+  final String titleTicket;
+
+  /// The title of `ScannerTemplate.signIn`.
+  final String titleSignIn;
+
+  /// A copy with the given texts replaced, such as a few of the English
+  /// defaults:
+  ///
+  /// ```dart
+  /// const ScannerStrings().copyWith(scanAgain: 'Next ticket')
+  /// ```
+  ScannerStrings copyWith({
+    String? close,
+    String? torchOn,
+    String? torchOff,
+    String? switchCamera,
+    String? pickImage,
+    String? zoom,
+    String? autoZoom,
+    String? autoZoomOn,
+    String? autoZoomOff,
+    String? starting,
+    String? permissionTitle,
+    String? permissionMessage,
+    String? unavailableTitle,
+    String? unavailableMessage,
+    String? inUseMessage,
+    String? unsupportedMessage,
+    String? photoFallback,
+    String? openSettings,
+    String? tryAgain,
+    String? choosePhoto,
+    String? noCodeInPhoto,
+    String? backToCamera,
+    String? backToCodes,
+    String? copy,
+    String? copied,
+    String? scanAgain,
+    String? done,
+    String? scanned,
+    String? emptyList,
+    String Function(int count)? itemCount,
+    String Function(int count)? byteCount,
+    String? link,
+    String? wifi,
+    String? wifiOpen,
+    String? wifiPassword,
+    String? contact,
+    String? event,
+    String? email,
+    String? phone,
+    String? sms,
+    String? location,
+    String? gs1,
+    String? faceTime,
+    String? payment,
+    String? otp,
+    String? esim,
+    String? crypto,
+    String? wifiDevice,
+    String? smartHome,
+    String? boardingPass,
+    String? driverLicense,
+    String? vehicle,
+    String? product,
+    String? book,
+    String? secret,
+    String? show,
+    String? hide,
+    String? otpType,
+    String? otpTimeBased,
+    String? otpCounterBased,
+    String? otpDigits,
+    String? otpPeriod,
+    String? otpCounter,
+    String Function(int seconds)? seconds,
+    String? matchingId,
+    String? confirmationCode,
+    String? needed,
+    String? setupCode,
+    String? vendorId,
+    String? productId,
+    String? discriminator,
+    String? category,
+    String? setupId,
+    String? gtin,
+    String? addOn,
+    String? passenger,
+    String? date,
+    String? seat,
+    String? cabin,
+    String? booking,
+    String? sequence,
+    String Function(int flight, int count)? flightOf,
+    String? licenseNumber,
+    String? born,
+    String? expires,
+    String? city,
+    String? state,
+    String? country,
+    String? expired,
+    String? makerCode,
+    String? modelYear,
+    String? checkDigit,
+    String? valid,
+    String? macAddress,
+    String? channels,
+    String Function(DateTime date)? dayAndMonth,
+    String Function(DateTime date)? fullDate,
+    String Function(VinRegion region)? vinRegion,
+    String Function(String amount, String? currency)? money,
+    String? payerEntersAmount,
+    String? reusable,
+    String? copyIban,
+    String? copyAccount,
+    String? copyUpiId,
+    String? copyPixKey,
+    String? iban,
+    String? bic,
+    String? accountNumber,
+    String? paymentReference,
+    String? address,
+    String? payableBy,
+    String? bank,
+    String? inn,
+    String? kpp,
+    String? upiId,
+    String? pixKey,
+    String? transaction,
+    String? variableSymbol,
+    String? binary,
+    String? text,
+    String? batch,
+    String? serial,
+    String? sscc,
+    String? quantity,
+    String? bestBefore,
+    String? loyaltyCard,
+    String? cardNumber,
+    String? accepted,
+    String? needsAttention,
+    String? rejected,
+    String Function(int count)? checkedIn,
+    String Function(int count)? codesInView,
+    String? pickCode,
+    String? scanCode,
+    String? hintCode,
+    String? hintQrCode,
+    String? hintBarcode,
+    String? hintCloser,
+    String? hintTicket,
+    String? hintDataMatrix,
+    String? hintPick,
+    String? hintKiosk,
+    String? hintVin,
+    String? hintCard,
+    String? hintField,
+    String? titlePayment,
+    String? titleTicket,
+    String? titleSignIn,
+  }) => ScannerStrings(
+    close: close ?? this.close,
+    torchOn: torchOn ?? this.torchOn,
+    torchOff: torchOff ?? this.torchOff,
+    switchCamera: switchCamera ?? this.switchCamera,
+    pickImage: pickImage ?? this.pickImage,
+    zoom: zoom ?? this.zoom,
+    autoZoom: autoZoom ?? this.autoZoom,
+    autoZoomOn: autoZoomOn ?? this.autoZoomOn,
+    autoZoomOff: autoZoomOff ?? this.autoZoomOff,
+    starting: starting ?? this.starting,
+    permissionTitle: permissionTitle ?? this.permissionTitle,
+    permissionMessage: permissionMessage ?? this.permissionMessage,
+    unavailableTitle: unavailableTitle ?? this.unavailableTitle,
+    unavailableMessage: unavailableMessage ?? this.unavailableMessage,
+    inUseMessage: inUseMessage ?? this.inUseMessage,
+    unsupportedMessage: unsupportedMessage ?? this.unsupportedMessage,
+    photoFallback: photoFallback ?? this.photoFallback,
+    openSettings: openSettings ?? this.openSettings,
+    tryAgain: tryAgain ?? this.tryAgain,
+    choosePhoto: choosePhoto ?? this.choosePhoto,
+    noCodeInPhoto: noCodeInPhoto ?? this.noCodeInPhoto,
+    backToCamera: backToCamera ?? this.backToCamera,
+    backToCodes: backToCodes ?? this.backToCodes,
+    copy: copy ?? this.copy,
+    copied: copied ?? this.copied,
+    scanAgain: scanAgain ?? this.scanAgain,
+    done: done ?? this.done,
+    scanned: scanned ?? this.scanned,
+    emptyList: emptyList ?? this.emptyList,
+    itemCount: itemCount ?? this.itemCount,
+    byteCount: byteCount ?? this.byteCount,
+    link: link ?? this.link,
+    wifi: wifi ?? this.wifi,
+    wifiOpen: wifiOpen ?? this.wifiOpen,
+    wifiPassword: wifiPassword ?? this.wifiPassword,
+    contact: contact ?? this.contact,
+    event: event ?? this.event,
+    email: email ?? this.email,
+    phone: phone ?? this.phone,
+    sms: sms ?? this.sms,
+    location: location ?? this.location,
+    gs1: gs1 ?? this.gs1,
+    faceTime: faceTime ?? this.faceTime,
+    payment: payment ?? this.payment,
+    otp: otp ?? this.otp,
+    esim: esim ?? this.esim,
+    crypto: crypto ?? this.crypto,
+    wifiDevice: wifiDevice ?? this.wifiDevice,
+    smartHome: smartHome ?? this.smartHome,
+    boardingPass: boardingPass ?? this.boardingPass,
+    driverLicense: driverLicense ?? this.driverLicense,
+    vehicle: vehicle ?? this.vehicle,
+    product: product ?? this.product,
+    book: book ?? this.book,
+    secret: secret ?? this.secret,
+    show: show ?? this.show,
+    hide: hide ?? this.hide,
+    otpType: otpType ?? this.otpType,
+    otpTimeBased: otpTimeBased ?? this.otpTimeBased,
+    otpCounterBased: otpCounterBased ?? this.otpCounterBased,
+    otpDigits: otpDigits ?? this.otpDigits,
+    otpPeriod: otpPeriod ?? this.otpPeriod,
+    otpCounter: otpCounter ?? this.otpCounter,
+    seconds: seconds ?? this.seconds,
+    matchingId: matchingId ?? this.matchingId,
+    confirmationCode: confirmationCode ?? this.confirmationCode,
+    needed: needed ?? this.needed,
+    setupCode: setupCode ?? this.setupCode,
+    vendorId: vendorId ?? this.vendorId,
+    productId: productId ?? this.productId,
+    discriminator: discriminator ?? this.discriminator,
+    category: category ?? this.category,
+    setupId: setupId ?? this.setupId,
+    gtin: gtin ?? this.gtin,
+    addOn: addOn ?? this.addOn,
+    passenger: passenger ?? this.passenger,
+    date: date ?? this.date,
+    seat: seat ?? this.seat,
+    cabin: cabin ?? this.cabin,
+    booking: booking ?? this.booking,
+    sequence: sequence ?? this.sequence,
+    flightOf: flightOf ?? this.flightOf,
+    licenseNumber: licenseNumber ?? this.licenseNumber,
+    born: born ?? this.born,
+    expires: expires ?? this.expires,
+    city: city ?? this.city,
+    state: state ?? this.state,
+    country: country ?? this.country,
+    expired: expired ?? this.expired,
+    makerCode: makerCode ?? this.makerCode,
+    modelYear: modelYear ?? this.modelYear,
+    checkDigit: checkDigit ?? this.checkDigit,
+    valid: valid ?? this.valid,
+    macAddress: macAddress ?? this.macAddress,
+    channels: channels ?? this.channels,
+    dayAndMonth: dayAndMonth ?? this.dayAndMonth,
+    fullDate: fullDate ?? this.fullDate,
+    vinRegion: vinRegion ?? this.vinRegion,
+    money: money ?? this.money,
+    payerEntersAmount: payerEntersAmount ?? this.payerEntersAmount,
+    reusable: reusable ?? this.reusable,
+    copyIban: copyIban ?? this.copyIban,
+    copyAccount: copyAccount ?? this.copyAccount,
+    copyUpiId: copyUpiId ?? this.copyUpiId,
+    copyPixKey: copyPixKey ?? this.copyPixKey,
+    iban: iban ?? this.iban,
+    bic: bic ?? this.bic,
+    accountNumber: accountNumber ?? this.accountNumber,
+    paymentReference: paymentReference ?? this.paymentReference,
+    address: address ?? this.address,
+    payableBy: payableBy ?? this.payableBy,
+    bank: bank ?? this.bank,
+    inn: inn ?? this.inn,
+    kpp: kpp ?? this.kpp,
+    upiId: upiId ?? this.upiId,
+    pixKey: pixKey ?? this.pixKey,
+    transaction: transaction ?? this.transaction,
+    variableSymbol: variableSymbol ?? this.variableSymbol,
+    binary: binary ?? this.binary,
+    text: text ?? this.text,
+    batch: batch ?? this.batch,
+    serial: serial ?? this.serial,
+    sscc: sscc ?? this.sscc,
+    quantity: quantity ?? this.quantity,
+    bestBefore: bestBefore ?? this.bestBefore,
+    loyaltyCard: loyaltyCard ?? this.loyaltyCard,
+    cardNumber: cardNumber ?? this.cardNumber,
+    accepted: accepted ?? this.accepted,
+    needsAttention: needsAttention ?? this.needsAttention,
+    rejected: rejected ?? this.rejected,
+    checkedIn: checkedIn ?? this.checkedIn,
+    codesInView: codesInView ?? this.codesInView,
+    pickCode: pickCode ?? this.pickCode,
+    scanCode: scanCode ?? this.scanCode,
+    hintCode: hintCode ?? this.hintCode,
+    hintQrCode: hintQrCode ?? this.hintQrCode,
+    hintBarcode: hintBarcode ?? this.hintBarcode,
+    hintCloser: hintCloser ?? this.hintCloser,
+    hintTicket: hintTicket ?? this.hintTicket,
+    hintDataMatrix: hintDataMatrix ?? this.hintDataMatrix,
+    hintPick: hintPick ?? this.hintPick,
+    hintKiosk: hintKiosk ?? this.hintKiosk,
+    hintVin: hintVin ?? this.hintVin,
+    hintCard: hintCard ?? this.hintCard,
+    hintField: hintField ?? this.hintField,
+    titlePayment: titlePayment ?? this.titlePayment,
+    titleTicket: titleTicket ?? this.titleTicket,
+    titleSignIn: titleSignIn ?? this.titleSignIn,
+  );
+
   /// The kind of [content], as shown above a result's title.
   /// A link to a known service is named after it ("Instagram").
   String kindOf(BarcodeContent content) => switch (content) {
@@ -737,7 +1099,21 @@ final class ScannerStrings {
       other.checkedIn == checkedIn &&
       other.codesInView == codesInView &&
       other.pickCode == pickCode &&
-      other.scanCode == scanCode;
+      other.scanCode == scanCode &&
+      other.hintCode == hintCode &&
+      other.hintQrCode == hintQrCode &&
+      other.hintBarcode == hintBarcode &&
+      other.hintCloser == hintCloser &&
+      other.hintTicket == hintTicket &&
+      other.hintDataMatrix == hintDataMatrix &&
+      other.hintPick == hintPick &&
+      other.hintKiosk == hintKiosk &&
+      other.hintVin == hintVin &&
+      other.hintCard == hintCard &&
+      other.hintField == hintField &&
+      other.titlePayment == titlePayment &&
+      other.titleTicket == titleTicket &&
+      other.titleSignIn == titleSignIn;
 
   @override
   int get hashCode => Object.hashAll(<Object>[
@@ -875,6 +1251,20 @@ final class ScannerStrings {
     codesInView,
     pickCode,
     scanCode,
+    hintCode,
+    hintQrCode,
+    hintBarcode,
+    hintCloser,
+    hintTicket,
+    hintDataMatrix,
+    hintPick,
+    hintKiosk,
+    hintVin,
+    hintCard,
+    hintField,
+    titlePayment,
+    titleTicket,
+    titleSignIn,
   ]);
 
   static String _itemCount(int count) => count == 1 ? '1 item' : '$count items';

@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/widgets.dart';
 
 import '../../barcode/barcode.dart';
@@ -7,24 +9,59 @@ import '../scanner_controller.dart';
 import 'result_sheet.dart';
 import 'scan_verdict.dart';
 import 'scanner_icons.dart';
+import 'scanner_strings.dart';
 import 'scanner_theme.dart';
 
-/// Builds the sheet shown for a scanned [barcode]; [scanAgain] hides it
-/// and resumes scanning.
+/// Builds the sheet shown for a code the scanner found: see
+/// [ScannerResult].
 typedef ScannerResultBuilder =
-    Widget Function(
-      BuildContext context,
-      Barcode barcode,
-      VoidCallback scanAgain,
-    );
+    Widget Function(BuildContext context, ScannerResult result);
 
-/// Builds the buttons of the default result sheet for [barcode].
+/// Builds the buttons of the default result sheet, such as
+/// `[...result.defaultActions, ScannerAction(label: 'Open', ...)]`.
 typedef ScannerActionsBuilder =
-    List<ScannerAction> Function(
-      BuildContext context,
-      Barcode barcode,
-      VoidCallback scanAgain,
-    );
+    List<ScannerAction> Function(BuildContext context, ScannerResult result);
+
+/// A code the scanner found and shows, for a [ScannerResultBuilder] and a
+/// [ScannerActionsBuilder].
+@immutable
+final class ScannerResult {
+  /// Creates a result.
+  const ScannerResult({
+    required this.barcode,
+    required this.capture,
+    required this.scanAgain,
+    this.cutOut,
+    this.close,
+    this.defaultActions = const <ScannerAction>[],
+  });
+
+  /// The code.
+  final Barcode barcode;
+
+  /// The capture the code came from: the other codes found with it, where
+  /// it came from (camera or photo), and its picture with
+  /// `capture.snapshot(barcode)`.
+  final BarcodeCapture capture;
+
+  /// The camera's cut-out of the code, for a [BarcodeThumbnail]; `null`
+  /// until it is cut out, or where it cannot be. Owned by the scanner and
+  /// valid while the result shows: `clone()` it to keep it.
+  final ui.Image? cutOut;
+
+  /// Hides the result and scans the next code with the camera.
+  final VoidCallback scanAgain;
+
+  /// Hides the result without scanning again: back to the codes to pick
+  /// from in [ScannerMode.pick] (`BarcodeResultSheet.onClose`). `null` in
+  /// the other modes, where the result hides by scanning again.
+  final VoidCallback? close;
+
+  /// The buttons of the default sheet: a copy of what matters, such as
+  /// "Copy IBAN" with the IBAN alone for a payment (none for a code with a
+  /// secret), then "Scan again".
+  final List<ScannerAction> defaultActions;
+}
 
 /// Called with the [barcode] the user picked in [ScannerMode.pick] and the
 /// [capture] it came from, which also holds the other codes found with it
@@ -87,6 +124,7 @@ final class ScannerTemplate {
     this.largeHint = false,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = true,
     this.photoButton = false,
     this.zoomButtons = false,
@@ -97,8 +135,7 @@ final class ScannerTemplate {
     this.check,
     this.counter = false,
     this.showResult = true,
-    this.showResultIcon = false,
-    this.resultAsCard = false,
+    this.resultHeader = ResultHeader.picture,
     this.resultBuilder,
     this.actionsBuilder,
     this.closeOnResult = false,
@@ -107,7 +144,43 @@ final class ScannerTemplate {
     this.facing,
     this.haptics = true,
     this.sound = false,
-  });
+  }) : _titleOf = null,
+       _hintOf = null;
+
+  const ScannerTemplate._copy({
+    required this.theme,
+    required this.scanWindow,
+    required this.formats,
+    required this.title,
+    required this.hint,
+    required this.hintIcon,
+    required this.largeHint,
+    required this.closeButton,
+    required this.onClose,
+    required this.onOpenSettings,
+    required this.torchButton,
+    required this.photoButton,
+    required this.zoomButtons,
+    required this.switchCameraButton,
+    required this.mode,
+    required this.onDone,
+    required this.onPick,
+    required this.check,
+    required this.counter,
+    required this.showResult,
+    required this.resultHeader,
+    required this.resultBuilder,
+    required this.actionsBuilder,
+    required this.closeOnResult,
+    required this.resumeAfter,
+    required this.initialZoom,
+    required this.facing,
+    required this.haptics,
+    required this.sound,
+    required String Function(ScannerStrings strings)? titleOf,
+    required String Function(ScannerStrings strings)? hintOf,
+  }) : _titleOf = titleOf,
+       _hintOf = hintOf;
 
   /// The default screen: close and torch buttons, a hint under the window,
   /// a photo button, zoom presets and a camera switch; a result sheet with
@@ -117,10 +190,11 @@ final class ScannerTemplate {
     this.scanWindow = const ScanWindow.centered(alignment: Alignment(0, -0.1)),
     this.formats,
     this.title,
-    this.hint = 'Point the camera at a code',
+    this.hint,
     this.hintIcon = ScannerIcons.qrCode,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = true,
     this.photoButton = true,
     this.zoomButtons = true,
@@ -136,12 +210,13 @@ final class ScannerTemplate {
        onDone = null,
        onPick = null,
        counter = false,
-       showResultIcon = false,
-       resultAsCard = false,
+       resultHeader = ResultHeader.picture,
        closeOnResult = false,
        resumeAfter = null,
        initialZoom = null,
-       facing = null;
+       facing = null,
+       _titleOf = null,
+       _hintOf = _hintCode;
 
   /// Paying with a QR code: a title pill, the window high up and a sheet
   /// for the payment below it.
@@ -152,11 +227,12 @@ final class ScannerTemplate {
       alignment: Alignment(0, -0.5),
     ),
     this.formats = const <BarcodeFormat>{BarcodeFormat.qrCode},
-    this.title = 'Pay with QR',
+    this.title,
     this.hint,
     this.hintIcon,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = false,
     this.photoButton = false,
     this.check,
@@ -172,16 +248,17 @@ final class ScannerTemplate {
        onPick = null,
        counter = false,
        showResult = true,
-       showResultIcon = false,
-       resultAsCard = false,
+       resultHeader = ResultHeader.picture,
        closeOnResult = false,
        resumeAfter = null,
        initialZoom = null,
-       facing = null;
+       facing = null,
+       _titleOf = _titlePayment,
+       _hintOf = null;
 
   /// Retail and warehouse: dark glass, a wide window for product and
   /// shipping barcodes, the torch, and a list of everything scanned with
-  /// counts; [onDone] receives the list.
+  /// counts; [onDone] receives the list. A [check] keeps codes out of it.
   const ScannerTemplate.retail({
     this.theme = const ScannerTheme(brightness: Brightness.dark),
     this.scanWindow = const ScanWindow.centered(
@@ -196,8 +273,10 @@ final class ScannerTemplate {
     this.title,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = true,
     this.onDone,
+    this.check,
     this.haptics = true,
     this.sound = false,
   }) : mode = ScannerMode.collect,
@@ -208,17 +287,17 @@ final class ScannerTemplate {
        photoButton = false,
        zoomButtons = false,
        switchCameraButton = false,
-       check = null,
        counter = false,
        showResult = true,
-       showResultIcon = false,
-       resultAsCard = false,
+       resultHeader = ResultHeader.picture,
        resultBuilder = null,
        actionsBuilder = null,
        closeOnResult = false,
        resumeAfter = null,
        initialZoom = null,
-       facing = null;
+       facing = null,
+       _titleOf = null,
+       _hintOf = null;
 
   /// Tickets and documents: a wide window for boarding passes, tickets and
   /// IDs (PDF417, Aztec, QR, Data Matrix), a title pill and a sheet for the
@@ -236,9 +315,10 @@ final class ScannerTemplate {
       BarcodeFormat.qrCode,
       BarcodeFormat.dataMatrix,
     },
-    this.title = 'Scan your ticket',
+    this.title,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = true,
     this.check,
     this.resultBuilder,
@@ -256,12 +336,13 @@ final class ScannerTemplate {
        onPick = null,
        counter = false,
        showResult = true,
-       showResultIcon = false,
-       resultAsCard = false,
+       resultHeader = ResultHeader.picture,
        closeOnResult = false,
        resumeAfter = null,
        initialZoom = null,
-       facing = null;
+       facing = null,
+       _titleOf = _titleTicket,
+       _hintOf = null;
 
   /// Everyday QR codes: links, Wi‑Fi networks, contacts, events. Dark
   /// glass and a sheet with an icon of the content's kind; add buttons such
@@ -274,10 +355,11 @@ final class ScannerTemplate {
     ),
     this.formats = const <BarcodeFormat>{BarcodeFormat.qrCode},
     this.title,
-    this.hint = 'Point at a QR code',
+    this.hint,
     this.hintIcon = ScannerIcons.qrCode,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = true,
     this.photoButton = true,
     this.check,
@@ -293,12 +375,13 @@ final class ScannerTemplate {
        onPick = null,
        counter = false,
        showResult = true,
-       showResultIcon = true,
-       resultAsCard = false,
+       resultHeader = ResultHeader.icon,
        closeOnResult = false,
        resumeAfter = null,
        initialZoom = null,
-       facing = null;
+       facing = null,
+       _titleOf = null,
+       _hintOf = _hintQrCode;
 
   /// Products and books: a wide window for EAN and UPC barcodes and a
   /// sheet with the GTIN, or the ISBN of a book ([ProductContent]).
@@ -311,10 +394,11 @@ final class ScannerTemplate {
     ),
     this.formats = BarcodeFormat.retail,
     this.title,
-    this.hint = 'Point at the barcode',
+    this.hint,
     this.hintIcon = ScannerIcons.barcode,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = true,
     this.photoButton = true,
     this.check,
@@ -330,12 +414,13 @@ final class ScannerTemplate {
        onPick = null,
        counter = false,
        showResult = true,
-       showResultIcon = true,
-       resultAsCard = false,
+       resultHeader = ResultHeader.icon,
        closeOnResult = false,
        resumeAfter = null,
        initialZoom = null,
-       facing = null;
+       facing = null,
+       _titleOf = null,
+       _hintOf = _hintBarcode;
 
   /// Small codes on parts, boards and labels: a small window, the camera
   /// zoomed to 2× from the start, zoom presets, and 2D formats that are
@@ -353,10 +438,11 @@ final class ScannerTemplate {
       BarcodeFormat.rmqrCode,
     },
     this.title,
-    this.hint = 'Move closer',
+    this.hint,
     this.hintIcon = ScannerIcons.closer,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = true,
     this.zoomButtons = true,
     this.check,
@@ -373,11 +459,12 @@ final class ScannerTemplate {
        onPick = null,
        counter = false,
        showResult = true,
-       showResultIcon = true,
-       resultAsCard = false,
+       resultHeader = ResultHeader.icon,
        closeOnResult = false,
        resumeAfter = null,
-       facing = null;
+       facing = null,
+       _titleOf = null,
+       _hintOf = _hintCloser;
 
   /// Signing in or pairing a device with a QR code shown on another
   /// screen: a title pill, QR codes only, and the screen closes with the
@@ -390,11 +477,12 @@ final class ScannerTemplate {
       alignment: Alignment(0, -0.2),
     ),
     this.formats = const <BarcodeFormat>{BarcodeFormat.qrCode},
-    this.title = 'Scan to sign in',
+    this.title,
     this.hint,
     this.hintIcon,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = false,
     this.check,
     this.haptics = true,
@@ -408,14 +496,15 @@ final class ScannerTemplate {
        onPick = null,
        counter = false,
        showResult = false,
-       showResultIcon = false,
-       resultAsCard = false,
+       resultHeader = ResultHeader.picture,
        resultBuilder = null,
        actionsBuilder = null,
        closeOnResult = true,
        resumeAfter = null,
        initialZoom = null,
-       facing = null;
+       facing = null,
+       _titleOf = _titleSignIn,
+       _hintOf = null;
 
   /// Tickets at the door: scanning never stops, [check] judges each code
   /// and the window flashes in the verdict's color with a sound and a
@@ -433,10 +522,11 @@ final class ScannerTemplate {
       BarcodeFormat.pdf417,
       BarcodeFormat.dataMatrix,
     },
-    this.hint = 'Point at the ticket',
+    this.hint,
     this.hintIcon = ScannerIcons.qrCode,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = true,
     this.counter = true,
     this.resumeAfter = const Duration(seconds: 2),
@@ -451,13 +541,14 @@ final class ScannerTemplate {
        onDone = null,
        onPick = null,
        showResult = true,
-       showResultIcon = false,
-       resultAsCard = false,
+       resultHeader = ResultHeader.picture,
        resultBuilder = null,
        actionsBuilder = null,
        closeOnResult = false,
        initialZoom = null,
-       facing = null;
+       facing = null,
+       _titleOf = null,
+       _hintOf = _hintTicket;
 
   /// Medicine packs: GS1 Data Matrix, and a sheet with the GTIN, batch,
   /// serial number and expiry date, marked when it has passed.
@@ -472,10 +563,11 @@ final class ScannerTemplate {
       BarcodeFormat.qrCode,
     },
     this.title,
-    this.hint = 'Point at the Data Matrix',
+    this.hint,
     this.hintIcon = ScannerIcons.qrCode,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = true,
     this.check,
     this.resultBuilder,
@@ -491,12 +583,13 @@ final class ScannerTemplate {
        onPick = null,
        counter = false,
        showResult = true,
-       showResultIcon = true,
-       resultAsCard = false,
+       resultHeader = ResultHeader.icon,
        closeOnResult = false,
        resumeAfter = null,
        initialZoom = null,
-       facing = null;
+       facing = null,
+       _titleOf = null,
+       _hintOf = _hintDataMatrix;
 
   /// Several codes in view, such as on a box or a poster: no window, a
   /// label on every code, and a tap on one picks it: [onPick] is told, and
@@ -509,10 +602,11 @@ final class ScannerTemplate {
     this.theme = const ScannerTheme(brightness: Brightness.dark),
     this.formats,
     this.title,
-    this.hint = 'Tap a code',
+    this.hint,
     this.hintIcon = ScannerIcons.qrCode,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = true,
     this.photoButton = true,
     this.onPick,
@@ -530,11 +624,12 @@ final class ScannerTemplate {
        switchCameraButton = false,
        onDone = null,
        counter = false,
-       showResultIcon = true,
-       resultAsCard = false,
+       resultHeader = ResultHeader.icon,
        resumeAfter = null,
        initialZoom = null,
-       facing = null;
+       facing = null,
+       _titleOf = null,
+       _hintOf = _hintPick;
 
   /// Logistics labels: GS1-128 and GS1 2D codes with SSCC, GTIN, batch
   /// and quantity in a list with counts; [onDone] receives the list.
@@ -554,8 +649,10 @@ final class ScannerTemplate {
     this.title,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = true,
     this.onDone,
+    this.check,
     this.haptics = true,
     this.sound = false,
   }) : mode = ScannerMode.collect,
@@ -566,17 +663,17 @@ final class ScannerTemplate {
        photoButton = false,
        zoomButtons = false,
        switchCameraButton = false,
-       check = null,
        counter = false,
        showResult = true,
-       showResultIcon = false,
-       resultAsCard = false,
+       resultHeader = ResultHeader.picture,
        resultBuilder = null,
        actionsBuilder = null,
        closeOnResult = false,
        resumeAfter = null,
        initialZoom = null,
-       facing = null;
+       facing = null,
+       _titleOf = null,
+       _hintOf = null;
 
   /// A self-service kiosk: the front camera, no buttons, the [title] and
   /// [hint] large in a panel (at the side in landscape), and a verdict for
@@ -591,9 +688,10 @@ final class ScannerTemplate {
       BarcodeFormat.pdf417,
       BarcodeFormat.dataMatrix,
     },
-    this.title = 'Scan your ticket',
-    this.hint = 'Hold the code up to the camera',
+    this.title,
+    this.hint,
     this.check,
+    this.onOpenSettings,
     this.counter = false,
     this.resumeAfter = const Duration(seconds: 3),
     this.facing = CameraFacing.front,
@@ -611,12 +709,13 @@ final class ScannerTemplate {
        onDone = null,
        onPick = null,
        showResult = true,
-       showResultIcon = false,
-       resultAsCard = false,
+       resultHeader = ResultHeader.picture,
        resultBuilder = null,
        actionsBuilder = null,
        closeOnResult = false,
-       initialZoom = null;
+       initialZoom = null,
+       _titleOf = _titleTicket,
+       _hintOf = _hintKiosk;
 
   /// The whole camera, without a window or dimming: the brackets appear
   /// on the code found. Photo, zoom and camera buttons at the bottom.
@@ -626,6 +725,7 @@ final class ScannerTemplate {
     this.title,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = true,
     this.photoButton = true,
     this.zoomButtons = true,
@@ -644,12 +744,13 @@ final class ScannerTemplate {
        onDone = null,
        onPick = null,
        counter = false,
-       showResultIcon = true,
-       resultAsCard = false,
+       resultHeader = ResultHeader.icon,
        closeOnResult = false,
        resumeAfter = null,
        initialZoom = null,
-       facing = null;
+       facing = null,
+       _titleOf = null,
+       _hintOf = null;
 
   /// Vehicle identification numbers on the windshield or the door pillar:
   /// a long, low window, Code 39 and 2D codes, and a sheet with the VIN
@@ -668,10 +769,11 @@ final class ScannerTemplate {
       BarcodeFormat.qrCode,
     },
     this.title,
-    this.hint = 'Windshield or door pillar',
+    this.hint,
     this.hintIcon = ScannerIcons.vehicle,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = true,
     this.check,
     this.resultBuilder,
@@ -687,12 +789,13 @@ final class ScannerTemplate {
        onPick = null,
        counter = false,
        showResult = true,
-       showResultIcon = true,
-       resultAsCard = false,
+       resultHeader = ResultHeader.icon,
        closeOnResult = false,
        resumeAfter = null,
        initialZoom = null,
-       facing = null;
+       facing = null,
+       _titleOf = null,
+       _hintOf = _hintVin;
 
   /// Loyalty and membership cards: the barcodes they carry (Code 128,
   /// PDF417, QR, EAN-13, Aztec, Code 39) and a sheet with the card number
@@ -713,10 +816,11 @@ final class ScannerTemplate {
       BarcodeFormat.code39,
     },
     this.title,
-    this.hint = "Point at the card's barcode",
+    this.hint,
     this.hintIcon = ScannerIcons.card,
     this.closeButton = true,
     this.onClose,
+    this.onOpenSettings,
     this.torchButton = true,
     this.photoButton = true,
     this.check,
@@ -732,12 +836,13 @@ final class ScannerTemplate {
        onPick = null,
        counter = false,
        showResult = true,
-       showResultIcon = false,
-       resultAsCard = true,
+       resultHeader = ResultHeader.card,
        closeOnResult = false,
        resumeAfter = null,
        initialZoom = null,
-       facing = null;
+       facing = null,
+       _titleOf = null,
+       _hintOf = _hintCard;
 
   /// The template's theme; `BarcodeScanner.theme` is merged on top.
   final ScannerTheme theme;
@@ -750,11 +855,46 @@ final class ScannerTemplate {
   /// Formats of the scanner's own controller; `null` reads all.
   final Set<BarcodeFormat>? formats;
 
-  /// A title pill at the top, e.g. "Pay with QR".
+  /// A title pill at the top, e.g. "Pay with QR"; an empty string for
+  /// none. `null` is the preset's title from [ScannerStrings], such as
+  /// [ScannerStrings.titlePayment], or none. See [resolveTitle].
   final String? title;
 
-  /// A hint under the window while searching.
+  /// A hint under the window while searching; an empty string for none.
+  /// `null` is the preset's hint from [ScannerStrings], such as
+  /// [ScannerStrings.hintCode], or none. See [resolveHint].
   final String? hint;
+
+  /// The preset's title and hint, from the strings of the scanner.
+  final String Function(ScannerStrings strings)? _titleOf;
+  final String Function(ScannerStrings strings)? _hintOf;
+
+  /// The title shown with [strings]: [title], or the preset's; `null` for
+  /// none.
+  String? resolveTitle(ScannerStrings strings) =>
+      _shown(title ?? _titleOf?.call(strings));
+
+  /// The hint shown with [strings]: [hint], or the preset's; `null` for
+  /// none.
+  String? resolveHint(ScannerStrings strings) =>
+      _shown(hint ?? _hintOf?.call(strings));
+
+  static String? _shown(String? text) =>
+      text == null || text.isEmpty ? null : text;
+
+  static String _hintCode(ScannerStrings s) => s.hintCode;
+  static String _hintQrCode(ScannerStrings s) => s.hintQrCode;
+  static String _hintBarcode(ScannerStrings s) => s.hintBarcode;
+  static String _hintCloser(ScannerStrings s) => s.hintCloser;
+  static String _hintTicket(ScannerStrings s) => s.hintTicket;
+  static String _hintDataMatrix(ScannerStrings s) => s.hintDataMatrix;
+  static String _hintPick(ScannerStrings s) => s.hintPick;
+  static String _hintKiosk(ScannerStrings s) => s.hintKiosk;
+  static String _hintVin(ScannerStrings s) => s.hintVin;
+  static String _hintCard(ScannerStrings s) => s.hintCard;
+  static String _titlePayment(ScannerStrings s) => s.titlePayment;
+  static String _titleTicket(ScannerStrings s) => s.titleTicket;
+  static String _titleSignIn(ScannerStrings s) => s.titleSignIn;
 
   /// An icon before [hint].
   final ScannerIconData? hintIcon;
@@ -770,6 +910,12 @@ final class ScannerTemplate {
 
   /// Called by the close button; default `Navigator.maybePop`.
   final VoidCallback? onClose;
+
+  /// Opens the app's settings, where the user allows the camera: the
+  /// error card then offers "Open Settings" when camera access is off.
+  /// Opening the settings needs a plugin such as `app_settings`;
+  /// `BarcodeScanner.onOpenSettings` takes precedence.
+  final VoidCallback? onOpenSettings;
 
   /// A torch button at the top right, when the camera has a torch.
   final bool torchButton;
@@ -798,8 +944,10 @@ final class ScannerTemplate {
   /// Accepts, flags or refuses each code before anything else happens.
   /// With [ScannerMode.single] and [ScannerMode.pick], a refused code
   /// flashes the window in [ScannerTheme.dangerColor] with the verdict's
-  /// text, and scanning goes on; with [ScannerMode.continuous], every
-  /// verdict shows for [resumeAfter]. `null` accepts every code.
+  /// text, and scanning goes on; with [ScannerMode.collect], a refused code
+  /// stays out of the list and a flagged one goes in, each with the
+  /// verdict's text; with [ScannerMode.continuous], every verdict shows for
+  /// [resumeAfter]. `null` accepts every code.
   final ScannerCheck? check;
 
   /// With [ScannerMode.continuous]: a counter of the accepted codes at the
@@ -810,19 +958,19 @@ final class ScannerTemplate {
   /// the brackets lock onto the code and the app handles `onDetect`.
   final bool showResult;
 
-  /// An icon of the content's kind on the default result sheet.
-  final bool showResultIcon;
+  /// What the default result sheet shows next to its title
+  /// ([BarcodeResultSheet.header]): the picture of the code, an icon of its
+  /// kind, the text as a card number, or nothing.
+  final ResultHeader resultHeader;
 
-  /// The default result sheet shows the text as a card number
-  /// ([BarcodeResultSheet.asCard]).
-  final bool resultAsCard;
-
-  /// Builds the result sheet; default [BarcodeResultSheet].
+  /// Builds the result sheet; default [BarcodeResultSheet]. A tap on the
+  /// camera around it scans again.
   final ScannerResultBuilder? resultBuilder;
 
-  /// The buttons of the default result sheet; default copy and "Scan
-  /// again". Buttons that do not scan again get a close in the sheet's
-  /// corner; a tap on the camera around the sheet scans again too.
+  /// The buttons of the default result sheet; default
+  /// [ScannerResult.defaultActions]. Buttons that do not scan again get a
+  /// close in the sheet's corner; a tap on the camera around the sheet
+  /// scans again too.
   final ScannerActionsBuilder? actionsBuilder;
 
   /// Once a code is accepted, the brackets lock onto it and the scanner's
@@ -868,65 +1016,78 @@ final class ScannerTemplate {
   };
 
   /// A copy with the given fields replaced.
+  ///
+  /// Fields that may be `null` take a function, so that they can be
+  /// cleared as well as set:
+  ///
+  /// ```dart
+  /// template.copyWith(hint: () => 'Scan the label', check: () => null)
+  /// ```
   ScannerTemplate copyWith({
     ScannerTheme? theme,
     ScanWindow? scanWindow,
-    Set<BarcodeFormat>? formats,
-    String? title,
-    String? hint,
-    ScannerIconData? hintIcon,
+    ValueGetter<Set<BarcodeFormat>?>? formats,
+    ValueGetter<String?>? title,
+    ValueGetter<String?>? hint,
+    ValueGetter<ScannerIconData?>? hintIcon,
     bool? largeHint,
     bool? closeButton,
-    VoidCallback? onClose,
+    ValueGetter<VoidCallback?>? onClose,
+    ValueGetter<VoidCallback?>? onOpenSettings,
     bool? torchButton,
     bool? photoButton,
     bool? zoomButtons,
     bool? switchCameraButton,
     ScannerMode? mode,
-    ValueChanged<List<CollectedBarcode>>? onDone,
-    ScannerPickCallback? onPick,
-    ScannerCheck? check,
+    ValueGetter<ValueChanged<List<CollectedBarcode>>?>? onDone,
+    ValueGetter<ScannerPickCallback?>? onPick,
+    ValueGetter<ScannerCheck?>? check,
     bool? counter,
     bool? showResult,
-    bool? showResultIcon,
-    bool? resultAsCard,
-    ScannerResultBuilder? resultBuilder,
-    ScannerActionsBuilder? actionsBuilder,
+    ResultHeader? resultHeader,
+    ValueGetter<ScannerResultBuilder?>? resultBuilder,
+    ValueGetter<ScannerActionsBuilder?>? actionsBuilder,
     bool? closeOnResult,
-    Duration? resumeAfter,
-    double? initialZoom,
-    CameraFacing? facing,
+    ValueGetter<Duration?>? resumeAfter,
+    ValueGetter<double?>? initialZoom,
+    ValueGetter<CameraFacing?>? facing,
     bool? haptics,
     bool? sound,
-  }) => ScannerTemplate(
+  }) => ScannerTemplate._copy(
     theme: theme ?? this.theme,
     scanWindow: scanWindow ?? this.scanWindow,
-    formats: formats ?? this.formats,
-    title: title ?? this.title,
-    hint: hint ?? this.hint,
-    hintIcon: hintIcon ?? this.hintIcon,
+    formats: formats == null ? this.formats : formats(),
+    title: title == null ? this.title : title(),
+    hint: hint == null ? this.hint : hint(),
+    hintIcon: hintIcon == null ? this.hintIcon : hintIcon(),
     largeHint: largeHint ?? this.largeHint,
     closeButton: closeButton ?? this.closeButton,
-    onClose: onClose ?? this.onClose,
+    onClose: onClose == null ? this.onClose : onClose(),
+    onOpenSettings: onOpenSettings == null
+        ? this.onOpenSettings
+        : onOpenSettings(),
     torchButton: torchButton ?? this.torchButton,
     photoButton: photoButton ?? this.photoButton,
     zoomButtons: zoomButtons ?? this.zoomButtons,
     switchCameraButton: switchCameraButton ?? this.switchCameraButton,
     mode: mode ?? this.mode,
-    onDone: onDone ?? this.onDone,
-    onPick: onPick ?? this.onPick,
-    check: check ?? this.check,
+    onDone: onDone == null ? this.onDone : onDone(),
+    onPick: onPick == null ? this.onPick : onPick(),
+    check: check == null ? this.check : check(),
     counter: counter ?? this.counter,
     showResult: showResult ?? this.showResult,
-    showResultIcon: showResultIcon ?? this.showResultIcon,
-    resultAsCard: resultAsCard ?? this.resultAsCard,
-    resultBuilder: resultBuilder ?? this.resultBuilder,
-    actionsBuilder: actionsBuilder ?? this.actionsBuilder,
+    resultHeader: resultHeader ?? this.resultHeader,
+    resultBuilder: resultBuilder == null ? this.resultBuilder : resultBuilder(),
+    actionsBuilder: actionsBuilder == null
+        ? this.actionsBuilder
+        : actionsBuilder(),
     closeOnResult: closeOnResult ?? this.closeOnResult,
-    resumeAfter: resumeAfter ?? this.resumeAfter,
-    initialZoom: initialZoom ?? this.initialZoom,
-    facing: facing ?? this.facing,
+    resumeAfter: resumeAfter == null ? this.resumeAfter : resumeAfter(),
+    initialZoom: initialZoom == null ? this.initialZoom : initialZoom(),
+    facing: facing == null ? this.facing : facing(),
     haptics: haptics ?? this.haptics,
     sound: sound ?? this.sound,
+    titleOf: _titleOf,
+    hintOf: _hintOf,
   );
 }

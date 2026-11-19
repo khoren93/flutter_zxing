@@ -65,7 +65,8 @@ class ScanFieldButton extends StatelessWidget {
   /// A title pill over the scanner, such as the field's label.
   final String? title;
 
-  /// A hint under the scan window; default "Point at the code".
+  /// A hint under the scan window; default [ScannerStrings.hintField], or
+  /// the [template]'s hint. An empty string for none.
   final String? hint;
 
   /// The scanner screen; default a wide window for linear and 2D codes
@@ -94,7 +95,6 @@ class ScanFieldButton extends StatelessWidget {
             aspectRatio: 1.6,
             alignment: Alignment(0, -0.1),
           ),
-          hint: 'Point at the code',
           hintIcon: ScannerIcons.barcode,
         );
     final Barcode? barcode = await scanBarcode(
@@ -102,8 +102,12 @@ class ScanFieldButton extends StatelessWidget {
       formats: formats,
       check: check,
       presentation: presentation,
-      template: title == null ? base : base.copyWith(title: title),
-      hint: hint,
+      template: title == null ? base : base.copyWith(title: () => title),
+      hint:
+          hint ??
+          (template == null
+              ? (strings ?? ScannerStrings.of(context)).hintField
+              : null),
       theme: theme,
       strings: strings,
     );
@@ -130,22 +134,28 @@ class ScanFieldButton extends StatelessWidget {
       label: title == null ? texts.scanCode : '${texts.scanCode}: $title',
       excludeSemantics: true,
       child: Padding(
-        padding: const EdgeInsets.all(4),
+        padding: const EdgeInsets.all(2),
         child: Pressable(
           onPressed: () => unawaited(_scan(context)),
           shape: shape,
-          child: DecoratedBox(
-            decoration: ShapeDecoration(
-              color: resolved.lockSoftColor,
-              shape: shape,
-            ),
-            child: SizedBox.square(
-              dimension: 44,
-              child: Center(
-                child: ScannerIcon(
-                  ScannerIcons.scan,
-                  size: 24,
-                  color: resolved.lockInkColor,
+          // A 48 × 48 target around the 44 × 44 button.
+          child: SizedBox.square(
+            dimension: 48,
+            child: Center(
+              child: DecoratedBox(
+                decoration: ShapeDecoration(
+                  color: resolved.lockSoftColor,
+                  shape: shape,
+                ),
+                child: SizedBox.square(
+                  dimension: 44,
+                  child: Center(
+                    child: ScannerIcon(
+                      ScannerIcons.scan,
+                      size: 24,
+                      color: resolved.lockInkColor,
+                    ),
+                  ),
                 ),
               ),
             ),

@@ -193,7 +193,7 @@ class _ScanPageState extends State<ScanPage> {
     ),
     DemoTemplate.payment => ScannerTemplate.payment(
       closeButton: false,
-      title: null, // The picker above names the template.
+      title: '', // The picker above names the template.
       actionsBuilder: _actions,
     ),
     DemoTemplate.product => ScannerTemplate.product(
@@ -227,7 +227,7 @@ class _ScanPageState extends State<ScanPage> {
     DemoTemplate.kiosk => ScannerTemplate.kiosk(check: _checkIn),
     DemoTemplate.ticket => ScannerTemplate.ticket(
       closeButton: false,
-      title: null, // The picker above names the template.
+      title: '', // The picker above names the template.
       actionsBuilder: _actions,
     ),
   };
@@ -258,11 +258,8 @@ class _ScanPageState extends State<ScanPage> {
     }
   }
 
-  List<ScannerAction> _actions(
-    BuildContext context,
-    Barcode barcode,
-    VoidCallback scanAgain,
-  ) {
+  List<ScannerAction> _actions(BuildContext context, ScannerResult result) {
+    final Barcode barcode = result.barcode;
     final Described d = describe(barcode);
     final Uri? open = d.open;
     final String copy = d.secret ?? barcode.text;
@@ -276,24 +273,22 @@ class _ScanPageState extends State<ScanPage> {
           onPressed: () => unawaited(openUri(context, open)),
         )
       else
-        ScannerAction(label: 'Scan again', primary: true, onPressed: scanAgain),
+        ScannerAction(
+          label: 'Scan again',
+          primary: true,
+          onPressed: result.scanAgain,
+        ),
     ];
   }
 
-  /// Opens the diagnostics page. It has a camera of its own, so this one is
-  /// released until the page closes.
-  Future<void> _openDiagnostics() async {
-    final NavigatorState navigator = Navigator.of(context, rootNavigator: true);
-    await _controller.stop();
-    await navigator.push(
-      MaterialPageRoute<void>(
-        builder: (BuildContext context) => const DiagnosticsPage(),
-      ),
-    );
-    if (mounted) {
-      await _controller.start();
-    }
-  }
+  /// Opens the diagnostics page. It has a camera of its own; the scanner
+  /// under it pauses and lets its camera go by itself.
+  Future<void> _openDiagnostics() =>
+      Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute<void>(
+          builder: (BuildContext context) => const DiagnosticsPage(),
+        ),
+      );
 
   Future<void> _onDetect(BarcodeCapture capture) async {
     // Retail keeps its own list, onDone saves it; onPick saves a picked code.
@@ -346,39 +341,34 @@ class _ScanPageState extends State<ScanPage> {
                 template: _template,
                 theme: const ScannerTheme(blur: true, scrimBlur: true),
                 onDetect: (BarcodeCapture c) => unawaited(_onDetect(c)),
-              ),
-            ),
-            Positioned(
-              left: 16,
-              top: top.top + 8,
-              child: _Picker(
-                picked: _picked,
-                open: _menu,
-                onTap: () => setState(() => _menu = !_menu),
-              ),
-            ),
-            // In the template's top bar: left of its torch or of the button
-            // that leaves a paused scan, in their place without them.
-            if (!kIsWeb)
-              ValueListenableBuilder<ScannerState>(
-                valueListenable: _controller,
-                builder: (BuildContext context, ScannerState state, Widget? _) {
-                  final bool taken =
-                      state.status == ScannerStatus.paused ||
-                      state.status == ScannerStatus.error ||
-                      (_template.torchButton &&
-                          state.torch != TorchState.unavailable);
-                  return Positioned(
-                    right: top.right + 20 + (taken ? 48 + 8 : 0),
-                    top: top.top + 12,
-                    child: ScannerButton(
-                      icon: ScannerIcons.binary,
-                      label: 'Open diagnostics',
-                      onPressed: () => unawaited(_openDiagnostics()),
+                // The template picker and the diagnostics button, over the
+                // template's screen in its theme; the close button they
+                // stand in for is off.
+                foregroundBuilder: (BuildContext context, ScannerLayout _) =>
+                    Positioned(
+                      left: top.left + 16,
+                      top: top.top + 8,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          _Picker(
+                            picked: _picked,
+                            open: _menu,
+                            onTap: () => setState(() => _menu = !_menu),
+                          ),
+                          if (!kIsWeb) ...<Widget>[
+                            const SizedBox(width: 8),
+                            ScannerButton(
+                              icon: ScannerIcons.binary,
+                              label: 'Open diagnostics',
+                              onPressed: () => unawaited(_openDiagnostics()),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                  );
-                },
               ),
+            ),
             if (_menu) ...<Widget>[
               Positioned.fill(
                 child: GestureDetector(

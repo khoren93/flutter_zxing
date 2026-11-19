@@ -59,45 +59,15 @@ class BarcodeThumbnail extends StatelessWidget {
   /// Width and height in logical pixels.
   final double size;
 
-  /// How [barcode] is pictured.
-  static BarcodeThumbnailKind kindOf(Barcode barcode) {
-    if (barcode.symbol != null && barcode.format != BarcodeFormat.maxiCode) {
-      return BarcodeThumbnailKind.exact;
-    }
-    return _regenerated(barcode) == null
-        ? BarcodeThumbnailKind.cutOut
-        : BarcodeThumbnailKind.regenerated;
-  }
-
   /// Whether [barcode] is pictured from a cut-out: keep the cut-out of
   /// these, the others are drawn.
   static bool needsCutOut(Barcode barcode) =>
-      kindOf(barcode) == BarcodeThumbnailKind.cutOut;
-
-  /// The writable format that draws [barcode]'s text exactly as it was
-  /// printed, or `null` if there is none.
-  static BarcodeFormat? _regenerated(Barcode barcode) {
-    final String text = barcode.text;
-    if (!RegExp(r'^\d+$').hasMatch(text)) {
-      return null;
-    }
-    // Lengths without an add-on: with one, its digits follow in the text.
-    return switch (barcode.format) {
-      BarcodeFormat.ean13 ||
-      BarcodeFormat.isbn when text.length == 13 => BarcodeFormat.ean13,
-      BarcodeFormat.ean8 when text.length == 8 => BarcodeFormat.ean8,
-      BarcodeFormat.upcA when text.length == 12 => BarcodeFormat.upcA,
-      BarcodeFormat.upcE when text.length == 8 => BarcodeFormat.upcE,
-      BarcodeFormat.itf ||
-      BarcodeFormat.itf14 when text.length.isEven => BarcodeFormat.itf,
-      _ => null,
-    };
-  }
+      barcodeThumbnailKindOf(barcode) == BarcodeThumbnailKind.cutOut;
 
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
-    final BarcodeThumbnailKind kind = kindOf(barcode);
+    final BarcodeThumbnailKind kind = barcodeThumbnailKindOf(barcode);
     final ui.Image? image = cutOut;
     final Widget picture = switch (kind) {
       BarcodeThumbnailKind.exact => BarcodeView.symbol(
@@ -147,4 +117,34 @@ class BarcodeThumbnail extends StatelessWidget {
       ),
     );
   }
+}
+
+/// How [barcode] is pictured by a [BarcodeThumbnail].
+BarcodeThumbnailKind barcodeThumbnailKindOf(Barcode barcode) {
+  if (barcode.symbol != null && barcode.format != BarcodeFormat.maxiCode) {
+    return BarcodeThumbnailKind.exact;
+  }
+  return _regenerated(barcode) == null
+      ? BarcodeThumbnailKind.cutOut
+      : BarcodeThumbnailKind.regenerated;
+}
+
+/// The writable format that draws [barcode]'s text exactly as it was
+/// printed, or `null` if there is none.
+BarcodeFormat? _regenerated(Barcode barcode) {
+  final String text = barcode.text;
+  if (!RegExp(r'^\d+$').hasMatch(text)) {
+    return null;
+  }
+  // Lengths without an add-on: with one, its digits follow in the text.
+  return switch (barcode.format) {
+    BarcodeFormat.ean13 ||
+    BarcodeFormat.isbn when text.length == 13 => BarcodeFormat.ean13,
+    BarcodeFormat.ean8 when text.length == 8 => BarcodeFormat.ean8,
+    BarcodeFormat.upcA when text.length == 12 => BarcodeFormat.upcA,
+    BarcodeFormat.upcE when text.length == 8 => BarcodeFormat.upcE,
+    BarcodeFormat.itf ||
+    BarcodeFormat.itf14 when text.length.isEven => BarcodeFormat.itf,
+    _ => null,
+  };
 }

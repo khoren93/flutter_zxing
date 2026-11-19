@@ -25,8 +25,12 @@ typedef ScannerOverlayBuilder =
 /// )
 /// ```
 ///
-/// Replace the overlay with [overlayBuilder]. Tap to focus and pinch to
-/// zoom are on.
+/// Replace the overlay with [overlayBuilder], or add your own buttons over
+/// it with [foregroundBuilder]. Tap to focus and pinch to zoom are on.
+///
+/// While the scanner is not shown, such as under another page or in a tab
+/// that is not selected ([TickerMode] off), it stops decoding, and after a
+/// few seconds releases the camera; see [pauseWhenHidden].
 class BarcodeScanner extends StatefulWidget {
   /// Creates a scanner.
   const BarcodeScanner({
@@ -37,11 +41,14 @@ class BarcodeScanner extends StatefulWidget {
     this.theme,
     this.strings,
     this.overlayBuilder,
+    this.foregroundBuilder,
     this.errorBuilder,
     this.placeholderBuilder,
+    this.onOpenSettings,
     this.fit = BoxFit.cover,
     this.tapToFocus = true,
     this.pinchToZoom = true,
+    this.pauseWhenHidden = true,
   });
 
   /// The controller. `null` creates one with the [template]'s scan window,
@@ -54,10 +61,12 @@ class BarcodeScanner extends StatefulWidget {
   /// A ready-made screen around the camera; see [ScannerTemplate].
   final ScannerTemplate? template;
 
-  /// Colors and shapes, merged onto the [template]'s theme.
+  /// Colors and shapes, merged onto the [template]'s theme, which is
+  /// merged onto the theme of a [ScannerScope] around the scanner.
   final ScannerTheme? theme;
 
-  /// The texts; English by default.
+  /// The texts; default those of a [ScannerScope] around the scanner, or
+  /// English.
   final ScannerStrings? strings;
 
   /// Builds the overlay while the camera runs, instead of the [template]'s
@@ -65,12 +74,39 @@ class BarcodeScanner extends StatefulWidget {
   /// none.
   final ScannerOverlayBuilder? overlayBuilder;
 
+  /// Builds a layer of your own over the overlay (the [template]'s too),
+  /// in every state of the camera ([ScannerLayout.state]), with the
+  /// scanner's theme: buttons of your own beside the template's.
+  ///
+  /// ```dart
+  /// BarcodeScanner(
+  ///   template: ScannerTemplate.minimal(),
+  ///   foregroundBuilder: (context, layout) => Positioned(
+  ///     left: 16,
+  ///     top: layout.scanWindow.bottom + 72,
+  ///     child: ScannerButton(icon: ScannerIcons.binary, label: 'Help', onPressed: help),
+  ///   ),
+  /// )
+  /// ```
+  ///
+  /// It is laid out in a [Stack] that fills the scanner; leave the rest of
+  /// it free of taps, so they reach the overlay and the camera.
+  final ScannerOverlayBuilder? foregroundBuilder;
+
+  /// Opens the app's settings, where the user allows the camera: the
+  /// default error view (and the [template]'s) then offers "Open Settings"
+  /// when camera access is off, instead of "Try again". Opening the
+  /// settings needs a plugin such as `app_settings`; default
+  /// [ScannerTemplate.onOpenSettings].
+  final VoidCallback? onOpenSettings;
+
   /// Shown instead of the preview when the camera cannot be used. Default
   /// [ScannerErrorView].
   final Widget Function(BuildContext context, ScannerException error)?
   errorBuilder;
 
-  /// Shown while the camera is starting. Default [ScannerPlaceholder].
+  /// Shown while the camera is starting or stopped. Default
+  /// [ScannerPlaceholder].
   final WidgetBuilder? placeholderBuilder;
 
   /// How the preview fills the widget. With [BoxFit.cover] (the default)
@@ -84,15 +120,39 @@ class BarcodeScanner extends StatefulWidget {
   /// Zoom with a pinch gesture.
   final bool pinchToZoom;
 
+  /// While the scanner is not shown ([TickerMode] off: under another
+  /// page, in a tab that is not selected), pause decoding, and release the
+  /// camera after a few seconds; when it shows again, go on as before.
+  /// Nothing is reported to `onDetect` meanwhile. `false` keeps the camera
+  /// as it is.
+  final bool pauseWhenHidden;
+
   @override
   State<BarcodeScanner> createState() => _BarcodeScannerState();
 }
+
+/// How long a hidden scanner keeps the camera, so that a quick look at
+/// another tab does not open it again.
+const Duration _releaseHidden = Duration(seconds: 3);
 
 class _BarcodeScannerState extends State<BarcodeScanner> {
   ScannerController? _own;
   StreamSubscription<BarcodeCapture>? _detections;
   double _zoomAtPinchStart = 1;
   final BackdropKey _backdrop = BackdropKey();
+
+  /// [BarcodeScanner.pauseWhenHidden]: whether tickers are on here, and
+  /// whether the scanner is treated as hidden.
+  bool _shown = true;
+  bool _hidden = false;
+  bool _firstDependencies = true;
+
+  /// What hiding did, to undo when the scanner shows again: paused the
+  /// camera, stopped it (and whether it was paused before).
+  bool _pausedByHiding = false;
+  bool _stoppedByHiding = false;
+  bool _pausedBeforeStop = false;
+  Timer? _release;
 
   ScannerController get _controller =>
       widget.controller ?? (_own ??= _create(widget.template));
@@ -113,12 +173,22 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
     super.didUpdateWidget(oldWidget);
     final ScannerController? old = oldWidget.controller ?? _own;
     if (widget.controller != oldWidget.controller) {
+      if (_pausedByHiding) {
+        unawaited(old!.resume());
+      }
       _disconnect(old!);
       if (oldWidget.controller == null) {
         _own?.dispose();
         _own = null;
       }
+      _pausedByHiding = false;
+      _stoppedByHiding = false;
       _connect();
+      if (_hidden) {
+        // The new controller hides as well.
+        _hidden = false;
+        _setHidden(true, now: true);
+      }
     } else if (_own case final ScannerController own
         when widget.template != oldWidget.template) {
       final ScannerTemplate? template = widget.template;
@@ -129,13 +199,91 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
         ..maxBarcodes = template == null ? 1 : template.maxBarcodes
         ..initialZoom = template?.initialZoom;
     }
+    if (widget.pauseWhenHidden != oldWidget.pauseWhenHidden) {
+      _setHidden(widget.pauseWhenHidden && !_shown);
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _shown = TickerMode.valuesOf(context).enabled;
+    final bool first = _firstDependencies;
+    _firstDependencies = false;
+    _setHidden(widget.pauseWhenHidden && !_shown, now: first);
   }
 
   @override
   void dispose() {
+    _release?.cancel();
+    if (_pausedByHiding) {
+      unawaited(_controller.resume());
+    }
     _disconnect(_controller);
     _own?.dispose();
     super.dispose();
+  }
+
+  /// Pauses the camera when the scanner hides and releases it a little
+  /// later ([now]: at once, for a scanner hidden from the start); undoes
+  /// that when it shows again.
+  void _setHidden(bool hidden, {bool now = false}) {
+    if (hidden == _hidden) {
+      return;
+    }
+    _hidden = hidden;
+    final ScannerController controller = _controller;
+    if (hidden) {
+      final ScannerStatus status = controller.value.status;
+      if (status == ScannerStatus.running ||
+          (status == ScannerStatus.starting && !controller._pauseWhenStarted)) {
+        _pausedByHiding = true;
+        unawaited(controller.pause());
+      }
+      _release?.cancel();
+      _release = now ? null : Timer(_releaseHidden, _releaseCamera);
+      if (now) {
+        _releaseCamera();
+      }
+      return;
+    }
+    _release?.cancel();
+    _release = null;
+    final ScannerStatus status = controller.value.status;
+    if (_stoppedByHiding) {
+      final bool paused = _pausedBeforeStop && !_pausedByHiding;
+      _stoppedByHiding = false;
+      _pausedByHiding = false;
+      if (status == ScannerStatus.idle || status == ScannerStatus.error) {
+        unawaited(controller.start());
+        if (paused) {
+          unawaited(controller.pause());
+        }
+      }
+    } else if (_pausedByHiding) {
+      _pausedByHiding = false;
+      if (status == ScannerStatus.error) {
+        // The camera failed meanwhile, such as taken by another page.
+        unawaited(controller.start());
+      } else {
+        unawaited(controller.resume());
+      }
+    }
+  }
+
+  void _releaseCamera() {
+    _release = null;
+    if (!mounted || !_hidden) {
+      return;
+    }
+    final ScannerController controller = _controller;
+    final ScannerStatus status = controller.value.status;
+    if (status.hasCamera || status == ScannerStatus.starting) {
+      _stoppedByHiding = true;
+      _pausedBeforeStop =
+          status == ScannerStatus.paused || controller._pauseWhenStarted;
+      unawaited(controller.stop());
+    }
   }
 
   void _connect() {
@@ -157,10 +305,16 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
     final ScannerController controller = _controller;
     final Orientation shape = MediaQuery.orientationOf(context);
     final ScannerTemplate? template = widget.template;
-    return ScannerScope.resolve(
+    // A scope around the scanner gives the app's theme and texts; the
+    // template's theme and the scanner's own go on top.
+    final ScannerScope? around = context
+        .dependOnInheritedWidgetOfExactType<ScannerScope>();
+    return resolvedScannerScope(
       context,
-      theme: (template?.theme ?? const ScannerTheme()).merge(widget.theme),
-      strings: widget.strings ?? const ScannerStrings(),
+      theme: (around?.theme ?? const ScannerTheme())
+          .merge(template?.theme)
+          .merge(widget.theme),
+      strings: widget.strings ?? around?.strings ?? const ScannerStrings(),
       child: BackdropGroup(
         backdropKey: _backdrop,
         child: LayoutBuilder(
@@ -229,35 +383,43 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
               : ScannerErrorView(
                   error,
                   onRetry: () => unawaited(controller.start()),
+                  onOpenSettings: widget.onOpenSettings,
                 ));
     } else {
       base =
           widget.placeholderBuilder?.call(context) ??
           (templateOverlay
               ? const SizedBox.expand()
-              : ScannerPlaceholder(scanWindow: controller.scanWindow));
+              : ScannerPlaceholder(
+                  scanWindow: controller.scanWindow,
+                  // Stopped, not starting: no "Starting the camera".
+                  starting: state.status != ScannerStatus.idle,
+                ));
     }
+
+    ScannerLayout layoutOf(_Visible? visible) => ready
+        ? _layoutOf(controller, state, size, fit!, preview, visible)
+        : ScannerLayout(
+            size: size,
+            scanWindow: controller.scanWindow.resolve(size),
+            barcodes: const <VisibleBarcode>[],
+            state: state,
+            controller: controller,
+          );
 
     Widget? overlay;
     if (templateOverlay || ready) {
       overlay = ValueListenableBuilder<_Visible?>(
         valueListenable: controller._visible,
         builder: (BuildContext context, _Visible? visible, Widget? _) {
-          final ScannerLayout layout = ready
-              ? _layoutOf(controller, state, size, fit!, preview, visible)
-              : ScannerLayout(
-                  size: size,
-                  scanWindow: controller.scanWindow.resolve(size),
-                  barcodes: const <VisibleBarcode>[],
-                  state: state,
-                  controller: controller,
-                );
+          final ScannerLayout layout = layoutOf(visible);
           if (templateOverlay) {
             return TemplateOverlay(
               template: template,
               layout: layout,
               drawPlaceholder: widget.placeholderBuilder == null,
               drawError: widget.errorBuilder == null,
+              onOpenSettings: widget.onOpenSettings ?? template.onOpenSettings,
             );
           }
           return widget.overlayBuilder?.call(context, layout) ??
@@ -265,6 +427,7 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
         },
       );
     }
+    final ScannerOverlayBuilder? foreground = widget.foregroundBuilder;
 
     final bool focus = ready && widget.tapToFocus;
     final bool zoom = ready && widget.pinchToZoom;
@@ -316,6 +479,18 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
         ),
         if (overlay != null)
           KeyedSubtree(key: const ValueKey<String>('overlay'), child: overlay),
+        if (foreground != null)
+          KeyedSubtree(
+            key: const ValueKey<String>('foreground'),
+            child: ValueListenableBuilder<_Visible?>(
+              valueListenable: controller._visible,
+              builder: (BuildContext context, _Visible? visible, Widget? _) =>
+                  Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[foreground(context, layoutOf(visible))],
+                  ),
+            ),
+          ),
       ],
     );
   }
@@ -439,11 +614,16 @@ enum ScannerPresentation {
 ///
 /// The screen is [template] (default [ScannerTemplate.minimal]) without
 /// its result sheet: the brackets lock onto the code and the screen
-/// closes. [formats] and [scanWindow] replace the template's; [hint] is
-/// shown under the scan window, e.g. "Point the camera at a QR code" (pass
-/// your own localized text, or an empty string for none). A [check] that
+/// closes. Everything else of the template stays; one that collects codes
+/// or keeps scanning takes one code here. [formats], [scanWindow],
+/// [facing], [hint] and [check] replace the template's; [hint] is shown
+/// under the scan window, e.g. "Point the camera at a QR code" (pass your
+/// own localized text, or an empty string for none). A [check] that
 /// refuses a code keeps the scanner open with the verdict's text.
 /// [presentation] opens it as a page or as a sheet.
+///
+/// The theme and texts of a [ScannerScope] around [context] apply, under
+/// the template's theme, [theme] and [strings].
 Future<Barcode?> scanBarcode(
   BuildContext context, {
   Set<BarcodeFormat>? formats,
@@ -457,36 +637,37 @@ Future<Barcode?> scanBarcode(
   ScannerStrings? strings,
 }) {
   final ScannerTemplate base = template ?? const ScannerTemplate.minimal();
-  final ScannerTemplate page = ScannerTemplate(
-    theme: base.theme,
-    scanWindow: scanWindow ?? base.scanWindow,
-    formats: formats ?? base.formats,
-    title: base.title,
-    hint: hint == null ? base.hint : (hint.isEmpty ? null : hint),
-    hintIcon: base.hintIcon,
-    closeButton: base.closeButton,
-    onClose: base.onClose,
-    torchButton: base.torchButton,
-    photoButton: base.photoButton,
-    zoomButtons: base.zoomButtons,
-    switchCameraButton: base.switchCameraButton,
-    check: check ?? base.check,
+  final ScannerTemplate page = base.copyWith(
+    scanWindow: scanWindow,
+    formats: formats == null ? null : () => formats,
+    hint: hint == null ? null : () => hint,
+    facing: facing == null ? null : () => facing,
+    check: check == null ? null : () => check,
+    // One code and the screen closes: a template that collects codes or
+    // keeps scanning takes one at a time here.
+    mode: switch (base.mode) {
+      ScannerMode.collect || ScannerMode.continuous => ScannerMode.single,
+      final ScannerMode mode => mode,
+    },
     showResult: false,
     closeOnResult: true,
-    initialZoom: base.initialZoom,
-    facing: facing ?? base.facing,
-    haptics: base.haptics,
-    sound: base.sound,
   );
+  // The route is built under the navigator: take the caller's scope along.
+  final ScannerScope? around = context
+      .getInheritedWidgetOfExactType<ScannerScope>();
+  final ScannerStrings texts = strings ?? ScannerStrings.of(context);
   // The page has no Material: keep the caller's font.
   final TextStyle text = DefaultTextStyle.of(context).style;
-  final Widget scanner = DefaultTextStyle(
-    style: text,
-    child: _ScanPage(
-      template: page,
-      theme: theme,
-      strings: strings,
-      sheet: presentation == ScannerPresentation.sheet,
+  final Widget scanner = ScannerScope(
+    theme: around?.theme ?? const ScannerTheme(),
+    strings: texts,
+    child: DefaultTextStyle(
+      style: text,
+      child: _ScanPage(
+        template: page,
+        theme: theme,
+        sheet: presentation == ScannerPresentation.sheet,
+      ),
     ),
   );
   return Navigator.of(context).push<Barcode>(switch (presentation) {
@@ -510,7 +691,7 @@ Future<Barcode?> scanBarcode(
       opaque: false,
       barrierDismissible: true,
       barrierColor: const Color(0x6B06090D),
-      barrierLabel: (strings ?? const ScannerStrings()).close,
+      barrierLabel: texts.close,
       transitionDuration: const Duration(milliseconds: 320),
       reverseTransitionDuration: const Duration(milliseconds: 240),
       pageBuilder:
@@ -537,44 +718,22 @@ Future<Barcode?> scanBarcode(
   });
 }
 
-class _ScanPage extends StatefulWidget {
+class _ScanPage extends StatelessWidget {
   const _ScanPage({
     required this.template,
     required this.theme,
-    required this.strings,
     required this.sheet,
   });
 
   final ScannerTemplate template;
   final ScannerTheme? theme;
-  final ScannerStrings? strings;
   final bool sheet;
-
-  @override
-  State<_ScanPage> createState() => _ScanPageState();
-}
-
-class _ScanPageState extends State<_ScanPage> {
-  late final ScannerController _controller = ScannerController.fromTemplate(
-    widget.template,
-  );
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     // The template's overlay closes the page with the code accepted.
-    final Widget scanner = BarcodeScanner(
-      controller: _controller,
-      template: widget.template,
-      theme: widget.theme,
-      strings: widget.strings,
-    );
-    if (!widget.sheet) {
+    final Widget scanner = BarcodeScanner(template: template, theme: theme);
+    if (!sheet) {
       return ColoredBox(color: const Color(0xFF000000), child: scanner);
     }
     final Size screen = MediaQuery.sizeOf(context);

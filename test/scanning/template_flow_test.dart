@@ -435,7 +435,9 @@ void main() {
 
     testWidgets('on a card sheet', (WidgetTester t) async {
       await t.pumpWidget(
-        sheet(BarcodeResultSheet(fakeBarcode(_otp, _a), asCard: true)),
+        sheet(
+          BarcodeResultSheet(fakeBarcode(_otp, _a), header: ResultHeader.card),
+        ),
       );
       expect(leaks(), isEmpty);
       expect(find.text('Copy'), findsNothing);

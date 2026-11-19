@@ -13,20 +13,21 @@ import '../../barcode/barcode.dart';
 /// found meanwhile are skipped.
 typedef ScannerCheck = FutureOr<ScanVerdict?> Function(Barcode barcode);
 
-/// How a [ScannerCheck] judged a code.
-enum ScanStatus {
-  /// The code is accepted.
-  accepted,
+/// How a [ScannerCheck] judged a code: the constructor of its
+/// [ScanVerdict].
+enum ScanVerdictKind {
+  /// The code is accepted ([ScanVerdict.accept]).
+  accept,
 
   /// The code is accepted but needs a look, such as a ticket already
-  /// checked in.
-  warning,
+  /// checked in ([ScanVerdict.warn]).
+  warn,
 
-  /// The code is refused.
-  rejected,
+  /// The code is refused ([ScanVerdict.reject]).
+  reject,
 }
 
-/// The answer of a [ScannerCheck]: the [status] and what to tell the user.
+/// The answer of a [ScannerCheck]: its [kind] and what to tell the user.
 ///
 /// ```dart
 /// ScannerTemplate.checkIn(
@@ -41,23 +42,23 @@ enum ScanStatus {
 ///
 /// The scanner shows the verdict in [ScannerTheme.lockColor],
 /// [ScannerTheme.warningColor] or [ScannerTheme.dangerColor], with a haptic
-/// and a sound of its own for each status.
+/// and a sound of its own for each kind.
 @immutable
 final class ScanVerdict {
   /// Accepts the code.
   const ScanVerdict.accept({this.title, this.message})
-    : status = ScanStatus.accepted;
+    : kind = ScanVerdictKind.accept;
 
   /// Accepts the code, which needs a look.
   const ScanVerdict.warn({this.title, this.message})
-    : status = ScanStatus.warning;
+    : kind = ScanVerdictKind.warn;
 
   /// Refuses the code.
   const ScanVerdict.reject({this.title, this.message})
-    : status = ScanStatus.rejected;
+    : kind = ScanVerdictKind.reject;
 
   /// The judgement.
-  final ScanStatus status;
+  final ScanVerdictKind kind;
 
   /// The headline, such as a guest's name or "Invalid ticket"; `null`
   /// shows the code's text.
@@ -69,14 +70,14 @@ final class ScanVerdict {
   @override
   bool operator ==(Object other) =>
       other is ScanVerdict &&
-      other.status == status &&
+      other.kind == kind &&
       other.title == title &&
       other.message == message;
 
   @override
-  int get hashCode => Object.hash(status, title, message);
+  int get hashCode => Object.hash(kind, title, message);
 
   @override
   String toString() =>
-      'ScanVerdict.${status.name}(${<String>[?title, ?message].join(', ')})';
+      'ScanVerdict.${kind.name}(${<String>[?title, ?message].join(', ')})';
 }

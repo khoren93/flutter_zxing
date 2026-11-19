@@ -35,6 +35,7 @@ class TemplateOverlay extends StatefulWidget {
     required this.layout,
     this.drawPlaceholder = true,
     this.drawError = true,
+    this.onOpenSettings,
   });
 
   /// The template.
@@ -48,6 +49,9 @@ class TemplateOverlay extends StatefulWidget {
 
   /// Draws [ScannerErrorView] when the camera failed.
   final bool drawError;
+
+  /// Opens the app's settings from the error view.
+  final VoidCallback? onOpenSettings;
 
   @override
   State<TemplateOverlay> createState() => _TemplateOverlayState();
@@ -81,6 +85,9 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   int _lock = 0;
   ScannerController? _controller;
   Barcode? _result;
+
+  /// The capture [_result] came from.
+  BarcodeCapture? _resultCapture;
   Timer? _showResult;
   final List<CollectedBarcode> _items = <CollectedBarcode>[];
   String? _notice;
@@ -98,7 +105,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   int _accepted = 0;
 
   /// The window flashes in a verdict's color.
-  ScanStatus? _flash;
+  ScanVerdictKind? _flash;
   Timer? _flashEnd;
 
   /// The latest capture of each code in view, for [ScannerMode.pick]: a
@@ -207,7 +214,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   void _onCapture(BarcodeCapture capture) {
     switch (_template.mode) {
       case ScannerMode.collect:
-        _collect(capture);
+        _collectLater(capture);
       case ScannerMode.pick:
         if (capture.source == CaptureSource.image) {
           unawaited(_openPhoto(capture));
@@ -227,15 +234,69 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     }
   }
 
-  void _collect(BarcodeCapture capture) {
-    if (_template.haptics) {
+  /// [ScannerMode.collect]: the captures wait for the check of the one
+  /// before them, so that none is skipped.
+  Future<void> _collecting = Future<void>.value();
+
+  void _collectLater(BarcodeCapture capture) {
+    _collecting = _collecting.then((_) => _collect(capture));
+  }
+
+  Future<void> _collect(BarcodeCapture capture) async {
+    if (!mounted) {
+      return;
+    }
+    List<Barcode> taken = capture.barcodes;
+    bool told = false;
+    if (_template.check != null) {
+      taken = <Barcode>[];
+      ScanVerdict? flagged;
+      ScanVerdict? refused;
+      for (final Barcode barcode in capture.barcodes) {
+        final ScanVerdict? verdict = await _judge(barcode);
+        if (!mounted) {
+          return;
+        }
+        switch (verdict?.kind) {
+          case null:
+            break;
+          case ScanVerdictKind.reject:
+            refused = verdict;
+          case ScanVerdictKind.warn:
+            flagged = verdict;
+            taken.add(barcode);
+          case ScanVerdictKind.accept:
+            taken.add(barcode);
+        }
+      }
+      // A refused code is told first: it is not in the list.
+      if (refused ?? flagged case final ScanVerdict verdict) {
+        final ScannerStrings strings = ScannerStrings.of(context);
+        told = true;
+        _feedback(verdict.kind);
+        _flashFor(verdict.kind);
+        _showNotice(
+          <String>[
+            verdict.title ??
+                (verdict.kind == ScanVerdictKind.reject
+                    ? strings.rejected
+                    : strings.needsAttention),
+            ?verdict.message,
+          ].join(' · '),
+        );
+      }
+      if (taken.isEmpty) {
+        return;
+      }
+    }
+    if (!told && _template.haptics) {
       unawaited(HapticFeedback.selectionClick());
     }
-    if (_template.sound) {
+    if (!told && _template.sound) {
       unawaited(SystemSound.play(SystemSoundType.click));
     }
     setState(() {
-      for (final Barcode barcode in capture.barcodes) {
+      for (final Barcode barcode in taken) {
         final int index = _items.indexWhere(
           (CollectedBarcode item) =>
               item.barcode.format == barcode.format &&
@@ -305,9 +366,9 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         _scanOn(capture);
         return;
       }
-      if (verdict.status == ScanStatus.rejected) {
-        _feedback(ScanStatus.rejected);
-        _flashFor(ScanStatus.rejected);
+      if (verdict.kind == ScanVerdictKind.reject) {
+        _feedback(ScanVerdictKind.reject);
+        _flashFor(ScanVerdictKind.reject);
         _showNotice(
           <String>[
             verdict.title ?? ScannerStrings.of(context).rejected,
@@ -324,7 +385,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     if (_template.mode == ScannerMode.pick) {
       _template.onPick?.call(barcode, capture);
     }
-    _feedback(ScanStatus.accepted);
+    _feedback(ScanVerdictKind.accept);
     final ScannerController controller = widget.layout.controller;
     unawaited(_takeIn(capture, barcode, ++_lock, from: from));
     if (_template.closeOnResult) {
@@ -350,7 +411,10 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     _showResult = Timer(delay, () {
       _showResult = null;
       if (mounted) {
-        setState(() => _result = barcode);
+        setState(() {
+          _result = barcode;
+          _resultCapture = capture;
+        });
         if (_template.resumeAfter case final Duration after) {
           _after = Timer(after, _scanAgain);
         }
@@ -393,14 +457,14 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     if (!mounted || verdict == null) {
       return;
     }
-    _feedback(verdict.status);
+    _feedback(verdict.kind);
     _hideVerdict?.cancel();
     final Duration shown = _template.resumeAfter ?? const Duration(seconds: 2);
     setState(() {
       _verdict = verdict;
       _verdictOf = barcode;
-      _flash = verdict.status;
-      if (verdict.status == ScanStatus.accepted) {
+      _flash = verdict.kind;
+      if (verdict.kind == ScanVerdictKind.accept) {
         _accepted++;
       }
     });
@@ -416,18 +480,18 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     });
   }
 
-  void _feedback(ScanStatus status) {
+  void _feedback(ScanVerdictKind kind) {
     if (_template.haptics) {
-      unawaited(switch (status) {
-        ScanStatus.accepted => HapticFeedback.mediumImpact(),
-        ScanStatus.warning => HapticFeedback.heavyImpact(),
-        ScanStatus.rejected => HapticFeedback.vibrate(),
+      unawaited(switch (kind) {
+        ScanVerdictKind.accept => HapticFeedback.mediumImpact(),
+        ScanVerdictKind.warn => HapticFeedback.heavyImpact(),
+        ScanVerdictKind.reject => HapticFeedback.vibrate(),
       });
     }
     if (_template.sound) {
       unawaited(
         SystemSound.play(
-          status == ScanStatus.accepted
+          kind == ScanVerdictKind.accept
               ? SystemSoundType.click
               : SystemSoundType.alert,
         ),
@@ -435,10 +499,10 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     }
   }
 
-  /// The window flashes in [status]'s color for a moment.
-  void _flashFor(ScanStatus status) {
+  /// The window flashes in [kind]'s color for a moment.
+  void _flashFor(ScanVerdictKind kind) {
     _flashEnd?.cancel();
-    setState(() => _flash = status);
+    setState(() => _flash = kind);
     _flashEnd = Timer(const Duration(milliseconds: 900), () {
       if (mounted) {
         setState(() => _flash = null);
@@ -531,6 +595,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     _lock++;
     _run++;
     _result = null;
+    _resultCapture = null;
     _settled = false;
   }
 
@@ -800,9 +865,9 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   }
 
   Color? _flashColor(ScannerTheme theme) => switch (_flash) {
-    ScanStatus.accepted => theme.lockColor,
-    ScanStatus.warning => theme.warningColor,
-    ScanStatus.rejected => theme.dangerColor,
+    ScanVerdictKind.accept => theme.lockColor,
+    ScanVerdictKind.warn => theme.warningColor,
+    ScanVerdictKind.reject => theme.dangerColor,
     null => null,
   };
 
@@ -858,7 +923,8 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         photo == null &&
         (template.onClose != null || (ModalRoute.of(context)?.canPop ?? false));
     const Duration fade = Duration(milliseconds: 200);
-    final String? hint = _notice ?? (template.largeHint ? null : template.hint);
+    final String? hint =
+        _notice ?? (template.largeHint ? null : template.resolveHint(strings));
     final bool bottomBar =
         template.photoButton ||
         template.zoomButtons ||
@@ -872,7 +938,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         ? strings.codesInView(layout.barcodes.length)
         : choosing
         ? strings.codesInView(photo.codes.length)
-        : template.title;
+        : template.resolveTitle(strings);
 
     final ScannerException? error = layout.state.error;
     // The hint: under the window, or above the bottom bar without one.
@@ -961,12 +1027,16 @@ class _TemplateOverlayState extends State<TemplateOverlay>
             ScannerErrorView(
               error,
               onRetry: () => unawaited(controller.start()),
+              onOpenSettings: widget.onOpenSettings,
               onPickImage: template.photoButton
                   ? () => unawaited(_pickPhoto())
                   : null,
             ),
         ] else if (widget.drawPlaceholder)
-          ScannerPlaceholder(scanWindow: controller.scanWindow),
+          ScannerPlaceholder(
+            scanWindow: controller.scanWindow,
+            starting: status != ScannerStatus.idle,
+          ),
         // The window tinted in a verdict's color.
         if (camera && !noWindow)
           IgnorePointer(
@@ -1049,7 +1119,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         // The hint under the window.
         if ((camera || choosing) &&
             hint != null &&
-            template.mode != ScannerMode.collect)
+            (template.mode != ScannerMode.collect || _notice != null))
           Positioned(
             left: 16,
             right: 16,
@@ -1079,7 +1149,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
             child: Center(child: ScannerHint(_notice!, liveRegion: true)),
           ),
         // A tap around a result scans again, or goes back to the codes.
-        if (_result != null && template.resultBuilder == null)
+        if (_result != null)
           Positioned.fill(
             child: ExcludeSemantics(
               child: GestureDetector(
@@ -1095,9 +1165,11 @@ class _TemplateOverlayState extends State<TemplateOverlay>
           left: safe.left + 20,
           right: safe.right + 20,
           top: safe.top + 12,
-          child: SizedBox(
-            height: 48,
+          // At least the buttons' height: a title in large text grows it.
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
             child: Stack(
+              alignment: Alignment.center,
               children: <Widget>[
                 if (showClose)
                   Align(
@@ -1149,23 +1221,32 @@ class _TemplateOverlayState extends State<TemplateOverlay>
               child: AnimatedOpacity(
                 opacity: sheet == null ? 1 : 0,
                 duration: fade,
+                // On a screen too low for the column it is made smaller.
                 child: landscape
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: <Widget>[
-                          if (template.photoButton)
-                            PickImageButton(controller, onResult: _photoRead),
-                          if (template.zoomButtons) ...<Widget>[
-                            // Gaps give way on a low screen.
-                            const Flexible(child: SizedBox(height: 16)),
-                            ZoomButtons(controller, direction: Axis.vertical),
-                          ],
-                          if (template.switchCameraButton) ...<Widget>[
-                            // Gaps give way on a low screen.
-                            const Flexible(child: SizedBox(height: 16)),
-                            SwitchCameraButton(controller),
-                          ],
-                        ],
+                    ? Center(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            spacing: 16,
+                            children: <Widget>[
+                              if (template.photoButton)
+                                PickImageButton(
+                                  controller,
+                                  onResult: _photoRead,
+                                ),
+                              if (template.zoomButtons)
+                                ZoomButtons(
+                                  controller,
+                                  direction: Axis.vertical,
+                                ),
+                              // Hidden without a second camera: no gap.
+                              if (template.switchCameraButton &&
+                                  full.state.canSwitchCamera)
+                                SwitchCameraButton(controller),
+                            ],
+                          ),
+                        ),
                       )
                     : SizedBox(
                         height: 48,
@@ -1265,22 +1346,33 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     final Barcode? result = _result;
     if (result == null) {
       return template.largeHint && camera
-          ? _HintPanel(title: template.title, hint: _notice ?? template.hint)
+          ? _HintPanel(
+              title: template.resolveTitle(ScannerStrings.of(context)),
+              hint: _notice ?? template.resolveHint(ScannerStrings.of(context)),
+            )
           : null;
     }
     final bool pick = template.mode == ScannerMode.pick;
-    return template.resultBuilder?.call(
-          context,
-          result,
-          pick ? _backToCodes : _scanAgain,
-        ) ??
+    final ScannerResult shown = ScannerResult(
+      barcode: result,
+      capture: _resultCapture!,
+      cutOut: _resultCutOut,
+      scanAgain: _scanAgain,
+      close: pick ? _backToCodes : null,
+      defaultActions: defaultResultActions(
+        result,
+        ScannerStrings.of(context),
+        onScanAgain: _scanAgain,
+        header: template.resultHeader,
+      ),
+    );
+    return template.resultBuilder?.call(context, shown) ??
         BarcodeResultSheet(
           result,
-          actions: template.actionsBuilder?.call(context, result, _scanAgain),
+          actions: template.actionsBuilder?.call(context, shown),
           onScanAgain: _scanAgain,
-          onClose: pick ? _backToCodes : null,
-          showIcon: template.showResultIcon,
-          asCard: template.resultAsCard,
+          onClose: shown.close,
+          header: template.resultHeader,
           cutOut: _resultCutOut,
         );
   }
@@ -1342,20 +1434,20 @@ class _VerdictSheet extends StatelessWidget {
       Color on,
       ScannerIconData icon,
       String over,
-    ) = switch (verdict.status) {
-      ScanStatus.accepted => (
+    ) = switch (verdict.kind) {
+      ScanVerdictKind.accept => (
         theme.lockColor,
         theme.onLockColor,
         ScannerIcons.check,
         strings.accepted,
       ),
-      ScanStatus.warning => (
+      ScanVerdictKind.warn => (
         theme.warningColor,
         theme.onWarningColor,
         ScannerIcons.alert,
         strings.needsAttention,
       ),
-      ScanStatus.rejected => (
+      ScanVerdictKind.reject => (
         theme.dangerColor,
         theme.onDangerColor,
         ScannerIcons.close,

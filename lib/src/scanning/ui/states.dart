@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
@@ -37,18 +38,24 @@ class _Void extends StatelessWidget {
   );
 }
 
-/// Shown while the camera starts: the scan window, its brackets breathing,
-/// a spinner and "Starting the camera…", so the layout does not jump when
-/// the picture arrives.
+/// Shown where the camera picture will be: while the camera starts, the
+/// scan window, its brackets breathing, a spinner and "Starting the
+/// camera…", so the layout does not jump when the picture arrives. While
+/// the camera is stopped ([starting] `false`), the scan window alone.
 class ScannerPlaceholder extends StatefulWidget {
   /// Creates the placeholder for [scanWindow].
   const ScannerPlaceholder({
     super.key,
     this.scanWindow = const ScanWindow.centered(),
+    this.starting = true,
   });
 
   /// The scan window to draw.
   final ScanWindow scanWindow;
+
+  /// Whether the camera is starting; `false` for a camera that is stopped,
+  /// such as after `ScannerController.stop`.
+  final bool starting;
 
   @override
   State<ScannerPlaceholder> createState() => _ScannerPlaceholderState();
@@ -64,11 +71,23 @@ class _ScannerPlaceholderState extends State<ScannerPlaceholder>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _animate();
+  }
+
+  @override
+  void didUpdateWidget(ScannerPlaceholder oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _animate();
+  }
+
+  void _animate() {
     final bool still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    if (still) {
-      _clock.stop();
+    if (still || !widget.starting) {
+      _clock
+        ..stop()
+        ..value = 0;
     } else if (!_clock.isAnimating) {
-      _clock.repeat();
+      unawaited(_clock.repeat());
     }
   }
 
@@ -107,22 +126,24 @@ class _ScannerPlaceholderState extends State<ScannerPlaceholder>
                 version: window,
               ),
             ),
-            CustomPaint(
-              size: size,
-              painter: _SpinnerPainter(
-                _clock,
-                window.center,
-                theme.windowColor,
+            if (widget.starting) ...<Widget>[
+              CustomPaint(
+                size: size,
+                painter: _SpinnerPainter(
+                  _clock,
+                  window.center,
+                  theme.windowColor,
+                ),
               ),
-            ),
-            Positioned(
-              left: 16,
-              right: 16,
-              top: math.min(window.bottom + 24, size.height - 64),
-              child: Center(
-                child: ScannerHint(strings.starting, liveRegion: true),
+              Positioned(
+                left: 16,
+                right: 16,
+                top: math.min(window.bottom + 24, size.height - 64),
+                child: Center(
+                  child: ScannerHint(strings.starting, liveRegion: true),
+                ),
               ),
-            ),
+            ],
           ],
         );
       },
@@ -243,7 +264,9 @@ class ScannerErrorView extends StatelessWidget {
                                 ? ScannerIcons.cameraOff
                                 : ScannerIcons.cameraAlert,
                             size: 64,
-                            warning: !permission,
+                            tone: permission
+                                ? ScannerTone.accent
+                                : ScannerTone.warning,
                           ),
                         ),
                         const SizedBox(height: 16),

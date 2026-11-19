@@ -485,9 +485,12 @@ double _contrast(Color a, Color b) {
 
 /// Gives the scanner widgets below it a theme and texts.
 ///
-/// `BarcodeScanner` inserts one with its template's theme; use it to style
-/// scanner widgets elsewhere, such as a [ScannerTheme]-styled button in
-/// your own screen.
+/// Put one around the app or a screen to give every scanner below it the
+/// app's theme and translated texts: `BarcodeScanner`, `scanBarcode` and
+/// `ScanFieldButton` take them, under a template's theme and their own
+/// `theme` and `strings`. `BarcodeScanner` inserts one with the result;
+/// use it also to style scanner widgets elsewhere, such as a
+/// [ScannerTheme]-styled button in your own screen.
 class ScannerScope extends InheritedWidget {
   /// Creates a scope.
   const ScannerScope({
@@ -497,44 +500,11 @@ class ScannerScope extends InheritedWidget {
     required super.child,
   });
 
-  /// The theme. Its `null` brightness is resolved by [ScannerScope.resolve].
+  /// The theme; a `null` brightness follows the platform's.
   final ScannerTheme theme;
 
   /// The texts.
   final ScannerStrings strings;
-
-  /// A scope whose theme has its brightness resolved from the platform and
-  /// whose text uses the app's font, around [child].
-  static Widget resolve(
-    BuildContext context, {
-    required ScannerTheme theme,
-    required ScannerStrings strings,
-    required Widget child,
-  }) {
-    final ScannerTheme resolved = theme.brightness != null
-        ? theme
-        : theme.copyWith(
-            brightness:
-                MediaQuery.maybePlatformBrightnessOf(context) ??
-                Brightness.light,
-          );
-    return ScannerScope(
-      theme: resolved,
-      strings: strings,
-      child: DefaultTextStyle(
-        style: TextStyle(
-          inherit: false,
-          fontFamily: resolved.fontFamily ?? _ambientFamily(context),
-          fontSize: 16,
-          height: 1.5,
-          fontWeight: FontWeight.w400,
-          color: resolved.inkColor,
-          decoration: TextDecoration.none,
-        ),
-        child: child,
-      ),
-    );
-  }
 
   /// The font of the surrounding text, unless it is the warning style a
   /// Material app gives text outside a `Material` (red monospace).
@@ -550,4 +520,36 @@ class ScannerScope extends InheritedWidget {
   @override
   bool updateShouldNotify(ScannerScope oldWidget) =>
       oldWidget.theme != theme || oldWidget.strings != strings;
+}
+
+/// A scope whose theme has its brightness resolved from the platform and
+/// whose text uses the app's font, around [child].
+Widget resolvedScannerScope(
+  BuildContext context, {
+  required ScannerTheme theme,
+  required ScannerStrings strings,
+  required Widget child,
+}) {
+  final ScannerTheme resolved = theme.brightness != null
+      ? theme
+      : theme.copyWith(
+          brightness:
+              MediaQuery.maybePlatformBrightnessOf(context) ?? Brightness.light,
+        );
+  return ScannerScope(
+    theme: resolved,
+    strings: strings,
+    child: DefaultTextStyle(
+      style: TextStyle(
+        inherit: false,
+        fontFamily: resolved.fontFamily ?? ScannerScope._ambientFamily(context),
+        fontSize: 16,
+        height: 1.5,
+        fontWeight: FontWeight.w400,
+        color: resolved.inkColor,
+        decoration: TextDecoration.none,
+      ),
+      child: child,
+    ),
+  );
 }

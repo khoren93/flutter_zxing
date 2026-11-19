@@ -321,10 +321,15 @@ class ScannerActionButton extends StatelessWidget {
     this.icon,
     this.primary = false,
     this.compact = false,
+    this.semanticLabel,
   });
 
-  /// The text.
+  /// The text; an empty string shows the [icon] alone.
   final String label;
+
+  /// What screen readers say instead of [label], such as for a button
+  /// with an icon alone.
+  final String? semanticLabel;
 
   /// An icon before the text.
   final ScannerIconData? icon;
@@ -348,25 +353,24 @@ class ScannerActionButton extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       // The label is on the button's semantics node.
       children: <Widget>[
-        if (icon != null) ...<Widget>[
-          ScannerIcon(icon!, size: 20, color: ink),
-          const SizedBox(width: 8),
-        ],
-        Flexible(
-          child: Text(
-            label,
-            style: theme.labelStyle.copyWith(color: ink),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        if (icon != null) ScannerIcon(icon!, size: 20, color: ink),
+        if (icon != null && label.isNotEmpty) const SizedBox(width: 8),
+        if (label.isNotEmpty)
+          Flexible(
+            child: Text(
+              label,
+              style: theme.labelStyle.copyWith(color: ink),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-        ),
       ],
     );
     return Semantics(
       container: true,
       button: true,
       enabled: onPressed != null,
-      label: label,
+      label: semanticLabel ?? label,
       child: Pressable(
         onPressed: onPressed,
         shape: shape,
@@ -402,33 +406,46 @@ class ScannerActionButton extends StatelessWidget {
       };
 }
 
+/// The color of a [ScannerChip] or a `ScannerBadge`.
+enum ScannerTone {
+  /// The accent ([ScannerTheme.lockColor]). The default.
+  accent,
+
+  /// The signal color ([ScannerTheme.signalColor]), for things to look
+  /// at.
+  warning,
+
+  /// The danger color ([ScannerTheme.dangerColor]), for problems such as
+  /// "Expired".
+  danger,
+}
+
 /// A chip with the symbology of a code ("QR Code", "GS1-128 · GS1").
 class ScannerChip extends StatelessWidget {
   /// Creates a chip.
-  const ScannerChip(
-    this.text, {
-    super.key,
-    this.warning = false,
-    this.danger = false,
-  });
+  const ScannerChip(this.text, {super.key, this.tone = ScannerTone.accent});
 
   /// The text.
   final String text;
 
-  /// In the signal color instead of the accent, for things to look at.
-  final bool warning;
-
-  /// In the danger color, for problems ("Expired").
-  final bool danger;
+  /// The color: the accent, or a warning or danger for things to look at
+  /// and problems ("Expired").
+  final ScannerTone tone;
 
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
-    final (Color fill, Color ink) = danger
-        ? (theme.dangerColor.withValues(alpha: 0.2), theme.dangerInkColor)
-        : warning
-        ? (theme.signalColor.withValues(alpha: 0.2), theme.signalInkColor)
-        : (theme.lockSoftColor, theme.lockInkColor);
+    final (Color fill, Color ink) = switch (tone) {
+      ScannerTone.accent => (theme.lockSoftColor, theme.lockInkColor),
+      ScannerTone.warning => (
+        theme.signalColor.withValues(alpha: 0.2),
+        theme.signalInkColor,
+      ),
+      ScannerTone.danger => (
+        theme.dangerColor.withValues(alpha: 0.2),
+        theme.dangerInkColor,
+      ),
+    };
     return DecoratedBox(
       decoration: ShapeDecoration(
         color: fill,
