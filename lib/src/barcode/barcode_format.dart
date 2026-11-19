@@ -17,6 +17,11 @@ import 'barcode_input.dart';
 ///
 /// Every value carries the zxing-cpp format id, which is derived from the
 /// ISO/IEC 15424 symbology identifier, so it is stable across versions.
+///
+/// Errors name a format as it is written in code, `BarcodeFormat.isbn`
+/// ([name]), not by its [displayName]: a format that cannot be read or
+/// written throws an `ArgumentError` saying `BarcodeFormat.isbn cannot be
+/// read`.
 enum BarcodeFormat {
   // --- 1D (linear) -----------------------------------------------------------
 

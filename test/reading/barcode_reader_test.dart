@@ -188,4 +188,46 @@ void main() {
       );
     });
   });
+
+  group('as documented on Barcode', () {
+    Future<Barcode> roundTrip(BarcodeFormat format, String data) async {
+      final Uint8List png = await BarcodeWriter(
+        format,
+      ).toPng(data, moduleSize: 4);
+      return (await BarcodeReader(formats: <BarcodeFormat>{format}).read(png))!;
+    }
+
+    test('ecLevel and version in the terms of each format', () async {
+      for (final (BarcodeFormat format, String ec, String? version)
+          in <(BarcodeFormat, String, String?)>[
+            (BarcodeFormat.qrCode, r'^[LMQH]$', r'^\d+$'),
+            (BarcodeFormat.microQrCode, r'^[LMQ]$', r'^M[1-4]$'),
+            (BarcodeFormat.rmqrCode, r'^[MH]$', r'^R\d+x\d+$'),
+            (BarcodeFormat.aztec, r'^\d+%$', r'^\d+$'),
+            (BarcodeFormat.pdf417, r'^\d+%$', null),
+            (BarcodeFormat.microPdf417, r'^\d+%$', null),
+          ]) {
+        final Barcode b = await roundTrip(format, 'HELLO');
+        expect(b.ecLevel, matches(ec), reason: format.name);
+        expect(
+          b.version,
+          version == null ? isNull : matches(version),
+          reason: format.name,
+        );
+      }
+      final Barcode dm = await roundTrip(BarcodeFormat.dataMatrix, 'HELLO');
+      expect(dm.ecLevel, isNull);
+      expect(dm.version, '12x12');
+    });
+
+    test('text escapes binary content; bytes hold it', () async {
+      final BarcodeSymbol symbol = await const BarcodeWriter(
+        BarcodeFormat.qrCode,
+      ).encodeBytes(Uint8List.fromList(<int>[0x00, 0x80, 0x41]));
+      final Barcode b = (await reader.read(await symbol.toPng()))!;
+      expect(b.contentType, BarcodeContentType.binary);
+      expect(b.text, '<NUL><U+80>A');
+      expect(b.bytes, <int>[0x00, 0x80, 0x41]);
+    });
+  });
 }

@@ -80,6 +80,10 @@ final class ReaderOptions {
   final CharacterSet? characterSet;
 
   /// Creates a copy with the given fields replaced.
+  ///
+  /// A `null` argument keeps the field, so `copyWith` cannot set
+  /// [characterSet] back to `null` (guess). Create the options anew for
+  /// that, or start from `const ReaderOptions()`.
   ReaderOptions copyWith({
     bool? tryHarder,
     bool? tryRotate,

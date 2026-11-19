@@ -55,6 +55,13 @@ final class Barcode {
   /// The payload as text (UTF-8, or decoded with the character set the
   /// barcode declares). For GS1 codes this is the human readable form,
   /// e.g. `(01)09501101530003(17)250101`.
+  ///
+  /// For binary or mixed content ([contentType] [BarcodeContentType.binary],
+  /// [BarcodeContentType.mixed], [BarcodeContentType.unknownEci]) the
+  /// characters that cannot be shown are escaped, so the text is for
+  /// display only: control characters by name (`<NUL>`, `<GS>`), others by
+  /// code point (`<U+80>`). The bytes `00 80 41` read as `<NUL><U+80>A`.
+  /// Use [bytes] for the data itself.
   final String text;
 
   /// The raw payload bytes, before any character set interpretation.
@@ -75,11 +82,24 @@ final class Barcode {
   /// Whether the symbol was found with inverted colors (light on dark).
   final bool isInverted;
 
-  /// Error correction level, if the symbology has one (`L`, `M`, `Q`, `H`
-  /// for QR codes).
+  /// Error correction level, if the symbology has one, in its own terms:
+  ///
+  /// - QR Code: `L`, `M`, `Q` or `H`; Micro QR: `L`, `M` or `Q`; rMQR:
+  ///   `M` or `H`.
+  /// - Aztec, PDF417, MicroPDF417: the share of error correction
+  ///   codewords, e.g. `23%`.
+  /// - MaxiCode: the mode, `2` to `6`.
+  /// - Data Matrix and linear formats: `null` (fixed or none).
   final String? ecLevel;
 
-  /// Symbol version, if the symbology has one (`4` for a 33×33 QR code).
+  /// Symbol version, if the symbology has one:
+  ///
+  /// - QR Code: `1` to `40` (`4` is 33×33 modules); Micro QR: `M1` to
+  ///   `M4`; rMQR: rows × columns, e.g. `R11x27`.
+  /// - Aztec: the number of layers, e.g. `5` (compact and full range
+  ///   symbols both count from 1).
+  /// - Data Matrix: rows × columns, e.g. `12x12`.
+  /// - PDF417, MicroPDF417, MaxiCode and linear formats: `null`.
   final String? version;
 
   /// ISO/IEC 15424 symbology identifier, e.g. `]Q1`.
@@ -236,13 +256,17 @@ final class BarcodeSequence {
   /// Zero-based position of this symbol in the sequence.
   final int index;
 
-  /// Number of symbols in the sequence.
+  /// Number of symbols in the sequence; 0 while it is not known. A PDF417
+  /// sequence may only give its size in its last part: the parts before
+  /// it have size 0 (`BarcodeReader.merge` takes the size from the part
+  /// that has it).
   final int size;
 
   /// Identifier shared by all symbols of the sequence, if the symbology has one.
   final String id;
 
-  /// Whether this is the last symbol of the sequence.
+  /// Whether this is the last symbol of the sequence; `false` while
+  /// [size] is not known.
   bool get isLast => index == size - 1;
 
   @override

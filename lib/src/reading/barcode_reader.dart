@@ -17,7 +17,8 @@ import 'reader_options.dart';
 /// Decoding runs in the background (an isolate on native platforms, a Web
 /// Worker on the web) and never blocks the UI. There is nothing to create
 /// or dispose: a reader is a constant configuration, the engine starts on
-/// first use.
+/// first use. If it cannot start, every call throws [EngineException]
+/// (and the next call tries again).
 ///
 /// ```dart
 /// const reader = BarcodeReader();
@@ -246,6 +247,10 @@ final class BarcodeReader {
   }
 
   /// Creates a copy with the given fields replaced.
+  ///
+  /// A `null` argument keeps the field, so `copyWith` cannot set [formats]
+  /// back to `null` (all formats). Create a new reader for that:
+  /// `BarcodeReader(options: reader.options)`.
   BarcodeReader copyWith({
     Set<BarcodeFormat>? formats,
     ReaderOptions? options,

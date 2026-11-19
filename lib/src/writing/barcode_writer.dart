@@ -224,6 +224,10 @@ final class BarcodeWriter {
   }) async => (await encode(data)).toImage(size: size, moduleSize: moduleSize);
 
   /// Creates a copy with the given fields replaced.
+  ///
+  /// A `null` argument keeps the field, so `copyWith` cannot set
+  /// [errorCorrection], [version] or [zxingOptions] back to `null`. Create
+  /// a new writer for that.
   BarcodeWriter copyWith({
     BarcodeFormat? format,
     ErrorCorrection? errorCorrection,
