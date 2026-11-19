@@ -1,5 +1,5 @@
 // The Field tab of the diagnostics page: the codes of the sheet
-// 00-all-formats.png, tried one by one under the conditions set here.
+// 1-formats/all-grid, tried one by one under the conditions set here.
 import 'dart:async';
 import 'dart:io';
 

@@ -1,4 +1,4 @@
-// The codes of the sheet 00-all-formats.png (`make sheets`), as the scanner
+// The codes of the sheet 1-formats/all-grid (`make sheets`), as the scanner
 // reports them: the field test of the diagnostics page knows a code by these.
 // The sheets test fails when this list and the sheet differ.
 

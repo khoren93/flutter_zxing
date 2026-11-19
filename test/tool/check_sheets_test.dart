@@ -1,18 +1,20 @@
-// Check sheets: pages with every code flutter_zxing reads, makes and
-// understands, to show on a screen and scan with a phone. Every tile has an
-// id (A1, B4…), the format, the content kind the scanner should report and
-// the data. After drawing, each tile is read back by the engine, and the
-// result goes into report.md next to the pages. Then each page is read
-// whole like a camera frame, a few times shifted, turned and blurred: read/
-// has the pages with every code outlined where the engine found it, and
-// read/report.md how much each outline's height varies between reads.
-// Skipped unless SHEETS names an output folder (build/ is ignored by git):
+// Check sheets: every code flutter_zxing makes or reads, drawn into PNG
+// files at many sizes and read back from those files. Skipped unless SHEETS
+// names an output folder (build/ is ignored by git):
 //
 //   SHEETS=build/check_sheets flutter test test/tool/check_sheets_test.dart
 //
-// Open index.html there to scroll through all pages, or the PNGs one by one.
-// The first page, 00-all-formats.png, has every format on one sheet: on top
-// what the writer makes, below what the scanner only reads.
+// The folders:
+//   1-formats/   every supported format: all-grid (square sheets),
+//                all-column (one code per row), linear-grid and 2d-grid
+//   2-single/    each code alone, by pixels per module (density)
+//   3-content/, 4-templates/, 5-styles/, 6-hard/: real content, scanner
+//                templates, styles and hard cases
+// Every file is drawn at its size, not scaled, and read whole, once, as a
+// file. Next to every X.png is X_read.png: each tile framed by what reading
+// gave and labelled with its pixels per module. Each folder has report.md;
+// index.html shows every file next to its read; tiles.md lists every tile
+// with what it holds, to scan with a phone. The sizes are the lists below.
 // Text uses Roboto from the Flutter SDK when FLUTTER_ROOT is set.
 @Tags(<String>['native'])
 library;
@@ -27,22 +29,72 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing/src/rendering/barcode_painter.dart';
 
 // The codes the field test of the diagnostics page knows.
 // ignore: avoid_relative_lib_imports
 import '../../example/lib/diagnostics/field_codes.dart';
 
+part 'check_sheets/tiles.dart';
+part 'check_sheets/views.dart';
+
 final String? _out = Platform.environment['SHEETS'];
 const String _samples = 'third_party/zxing-cpp/test/samples';
 
-// Page geometry, in logical pixels; the PNGs are twice as large.
-const double _pixelRatio = 2;
+// The sizes the sheets are drawn at: edit these lists.
+
+/// 1-formats grids: the side of the square, in pixels.
+const List<int> _gridSides = <int>[
+  1000,
+  1500,
+  2000,
+  3000,
+  4000,
+  5000,
+  7000,
+  10000,
+];
+
+/// 1-formats columns: the width in pixels; the height follows the codes.
+const List<int> _columnWidths = <int>[400, 720, 1080, 1440];
+
+/// 2-single: pixels per module, from [_densityFrom] to [_densityTo] by
+/// [_densityStep]. Each file is the code scaled exactly, not snapped to
+/// whole pixels, so 2.5 is really 2.5 (on a screen BarcodeView draws only
+/// whole pixels from 2 up).
+const double _densityFrom = 0.5;
+const double _densityTo = 5.0;
+const double _densityStep = 0.1;
+final List<double> _modulePixels = <double>[
+  for (int i = 0; _densityFrom + i * _densityStep <= _densityTo + 1e-9; i++)
+    ((_densityFrom + i * _densityStep) * 100).roundToDouble() / 100,
+];
+
+/// 3-content to 6-hard: the page width in pixels.
+const List<int> _pageWidths = <int>[2000, 4000];
+
+/// The sizes at which every tile is also read on its own, to make sure the
+/// sheet itself is right, and the ones index.html shows first.
+const int _checkGrid = 4000;
+const int _checkColumn = 1080;
+const int _checkPage = 4000;
+
+// Geometry, in logical pixels.
 const Size _page = Size(1600, 1000);
 const double _margin = 28;
 const double _header = 64;
 const double _gap = 14;
 const int _columns = 4;
 const int _rows = 3;
+const double _gridSide = 2400;
+const double _gridHeader = 92;
+const double _gridHeading = 58;
+const double _columnWidth = 480;
+
+/// A single code: logical pixels per module (BarcodeView with no size) and
+/// the white around it.
+const double _singleModule = 4;
+const double _singlePad = 40;
 
 // Colours.
 const Color _ink = Color(0xFF0E1218);
@@ -51,1125 +103,201 @@ const Color _paper = Color(0xFFEEF0F3);
 const Color _accent = Color(0xFF00735D);
 const Color _warn = Color(0xFFB45309);
 
-/// How a tile's code is shown, beyond its style.
-enum _Look { plain, rotated, mirrored, tiny }
+/// How every file is read: whole, once, with the options for files.
+const BarcodeReader _fileReader = BarcodeReader(
+  options: ReaderOptions(eanAddOn: EanAddOn.read),
+);
 
-/// One code on a sheet.
-final class _Tile {
-  const _Tile(
+/// What reading gave for a tile.
+enum _Outcome {
+  read('✓', 'read', Color(0xFF16A34A)),
+  offTile('↗', 'outline off its tile', Color(0xFF9333EA)),
+  wrong('✗', 'read wrong', Color(0xFFDC2626)),
+  missing('—', 'not found', Color(0xFFEA580C));
+
+  const _Outcome(this.mark, this.label, this.color);
+  final String mark;
+  final String label;
+  final Color color;
+
+  String get css =>
+      '#${(color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+}
+
+/// A code on a sheet and where it is, in logical pixels.
+final class _Placed {
+  _Placed(this.id, this.tile, this.rect);
+
+  final String id;
+  final _Tile tile;
+  final Rect rect;
+
+  /// Around the code itself: its module size is measured there.
+  final GlobalKey key = GlobalKey();
+
+  int get count => tile.codes?.length ?? 1;
+}
+
+/// A sheet, drawn once per variant.
+final class _Sheet {
+  _Sheet(
+    this.name,
     this.title,
-    this.data, {
-    this.format = BarcodeFormat.qrCode,
-    this.kind,
-    this.note,
-    this.gs1 = false,
-    this.ecc,
-    this.style = BarcodeStyle.classic,
-    this.span = 1,
-    this.look = _Look.plain,
-    this.sample,
-    this.bytes,
-    this.codes,
-    this.exact = true,
-    this.warning = false,
-    this.expect,
+    this.size,
+    this.placed,
+    this.page,
+    this.variants, {
+    this.check,
+    this.snap = true,
   });
 
+  /// The file name before the size, and the sub-folder if the folder has
+  /// them.
+  final String name;
   final String title;
+  final Size size;
+  final List<_Placed> placed;
+  final Widget page;
 
-  /// What the code holds: the payload drawn, or the text a sample holds.
-  final String data;
-  final BarcodeFormat format;
+  /// The label in each file name and its device pixel ratio.
+  final List<(String, double)> variants;
 
-  /// The content kind the scanner should report, or null to not check.
-  final Type? kind;
+  /// The variant whose tiles are also read one by one.
+  final String? check;
 
-  /// What to look at when scanning: a template, a chip, a caveat.
-  final String? note;
-  final bool gs1;
-  final ErrorCorrection? ecc;
-  final BarcodeStyle style;
-
-  /// Columns the tile takes: long linear and stacked codes take two.
-  final int span;
-  final _Look look;
-
-  /// An image file to show instead of drawing (formats the writer lacks).
-  final String? sample;
-
-  /// Binary data to draw instead of [data].
-  final Uint8List? bytes;
-
-  /// Several QR codes in one tile (the pick template).
-  final List<String>? codes;
-
-  /// Whether the text read must equal [data] (not for GS1, where the
-  /// reader puts separators in its own way).
-  final bool exact;
-
-  /// Highlights the note: the tile is expected to need something special.
-  final bool warning;
-
-  /// The text the reader gives when it differs from [data] by design
-  /// (GS1 in parentheses, a Code 32 'A', a PZN '-').
-  final String? expect;
-
-  String get expectedText => expect ?? data;
+  /// Whether BarcodeView snaps modules to the file's pixels, as on a
+  /// screen. If not, the sheet is laid out at a ratio of 1 and scaled.
+  final bool snap;
 }
 
-/// A tile for [content]: its payload and its kind.
-_Tile _content(
-  String title,
-  BarcodeContent content, {
-  BarcodeFormat format = BarcodeFormat.qrCode,
-  String? note,
-  ErrorCorrection? ecc,
-  BarcodeStyle style = BarcodeStyle.classic,
-  int span = 1,
-}) => _Tile(
-  title,
-  content.toPayload(),
-  format: format,
-  kind: content.runtimeType,
-  note: note,
-  ecc: ecc,
-  style: style,
-  span: span,
-);
+/// A folder of sheets.
+final class _Folder {
+  _Folder(
+    this.name,
+    this.title,
+    this.about,
+    this.sheets, {
+    this.subfolders = false,
+    this.single = false,
+  });
 
-/// A GS1 tile: [content] written with FNC1 first.
-_Tile _gs1(
-  String title,
-  Gs1Content content, {
-  BarcodeFormat format = BarcodeFormat.dataMatrix,
-  String? note,
-  int span = 1,
-}) => _Tile(
-  title,
-  content.toPayload(),
-  format: format,
-  gs1: true,
-  kind: Gs1Content,
-  note: note,
-  span: span,
-  exact: false,
-);
+  final String name;
+  final String title;
+  final String about;
+  final List<_Sheet> sheets;
 
-/// A tile for a format the writer creates, with its documented example.
-_Tile _format(
-  BarcodeFormat format, {
-  int span = 1,
-  String? data,
-  String? expect,
-  String? note,
-}) => _Tile(
-  format.displayName,
-  data ?? format.input!.example,
-  format: format,
-  span: span,
-  expect: expect,
-  note: note,
-);
+  /// Each sheet in a folder of its own.
+  final bool subfolders;
 
-/// A tile from a zxing-cpp test image; the text is from its .txt file.
-_Tile _sample(
-  String title,
-  BarcodeFormat format,
-  String path, {
-  int span = 1,
-  bool exact = true,
-}) {
-  final File text = File(
-    '$_samples/${path.substring(0, path.lastIndexOf('.'))}.txt',
+  /// 2-single: one table of every code by size, not one per sheet.
+  final bool single;
+  final List<_FileResult> results = <_FileResult>[];
+
+  String pathOf(_Sheet sheet, String file) =>
+      subfolders ? '${sheet.name}/$file' : file;
+}
+
+/// One tile of one file.
+final class _TileResult {
+  const _TileResult(this.placed, this.modulePx, this.outcome, this.detail);
+
+  final _Placed placed;
+
+  /// Pixels per module of the code as drawn, or null for a sample image.
+  final double? modulePx;
+  final _Outcome outcome;
+  final String? detail;
+
+  String get cell => '${outcome.mark} ${_pxText(modulePx)}'.trim();
+}
+
+/// One file and what reading it gave.
+final class _FileResult {
+  const _FileResult(
+    this.sheet,
+    this.label,
+    this.width,
+    this.height,
+    this.ms,
+    this.tiles,
+    this.stray,
   );
-  return _Tile(
-    title,
-    text.existsSync() ? text.readAsStringSync() : '',
-    format: format,
-    sample: '$_samples/$path',
-    span: span,
-    exact: exact && text.existsSync(),
-    note: 'Sample image from zxing-cpp: the writer does not make it',
-  );
-}
 
-/// The check digit of a GTIN or SSCC without one (GS1 mod 10).
-String _withCheck(String digits) {
-  int sum = 0;
-  for (int i = 0; i < digits.length; i++) {
-    final int d = digits.codeUnitAt(digits.length - 1 - i) - 48;
-    sum += i.isEven ? d * 3 : d;
-  }
-  return '$digits${(10 - sum % 10) % 10}';
-}
+  final _Sheet sheet;
+  final String label;
+  final int width;
+  final int height;
 
-/// An EMV tag-length-value list.
-String _tlv(Map<String, String> fields) => fields.entries
-    .map(
-      (MapEntry<String, String> e) =>
-          '${e.key}${e.value.length.toString().padLeft(2, '0')}${e.value}',
-    )
-    .join();
+  /// Time to read the file, decoding it included.
+  final int ms;
+  final List<_TileResult> tiles;
 
-/// A section of the sheets: tiles under one heading, split into pages of
-/// [_rows] rows.
-typedef _Section = (String letter, String title, String about, List<_Tile>);
+  /// Reads that belong to no tile.
+  final List<String> stray;
 
-List<_Section> _sections(Uint8List logo) {
-  final MemoryImage logoImage = MemoryImage(logo);
-  const String gtin = '09501101530003';
-  final String sscc = _withCheck('03761234500000001');
-  final String homeKit =
-      'X-HM://${(51808582 + 5 * 2147483648).toRadixString(36).toUpperCase().padLeft(9, '0')}7G2K';
-  return <_Section>[
-    (
-      'A',
-      'Formats · 2D',
-      'Every matrix format. MaxiCode and QR Model 1 are read-only samples.',
-      <_Tile>[
-        _format(BarcodeFormat.qrCode),
-        _format(BarcodeFormat.microQrCode),
-        _format(BarcodeFormat.rmqrCode, span: 2),
-        _format(BarcodeFormat.dataMatrix),
-        _format(BarcodeFormat.aztec),
-        _format(
-          BarcodeFormat.aztecRune,
-          expect: '025',
-          note: 'Reads as three digits',
-        ),
-        _sample(
-          'QR Code Model 1',
-          BarcodeFormat.qrCode,
-          'qrcode-1/qr-model-1.png',
-        ),
-        const _Tile(
-          'MaxiCode',
-          '',
-          format: BarcodeFormat.maxiCode,
-          sample: '$_samples/maxicode-1/MODE2.png',
-          exact: false,
-          warning: true,
-          note:
-              'zxing-cpp reads MaxiCode only from clean images, not from a camera',
-        ),
-      ],
-    ),
-    (
-      'B',
-      'Formats · stacked',
-      'PDF417 family and the stacked DataBar variants.',
-      <_Tile>[
-        _format(BarcodeFormat.pdf417, span: 2),
-        _format(BarcodeFormat.compactPdf417, span: 2),
-        _format(BarcodeFormat.microPdf417, span: 2),
-        _format(
-          BarcodeFormat.dataBarStacked,
-          expect: '(01)09501101530003',
-          note: 'Reads as GS1: (01) GTIN',
-        ),
-        _format(
-          BarcodeFormat.dataBarStackedOmni,
-          expect: '(01)09501101530003',
-          note: 'Reads as GS1: (01) GTIN',
-        ),
-        _format(
-          BarcodeFormat.dataBarExpandedStacked,
-          span: 2,
-          expect: '(01)09501101530003(17)250101',
-        ),
-      ],
-    ),
-    (
-      'C',
-      'Formats · retail',
-      'EAN/UPC as printed: UPC-A reads as 12 digits, UPC-E as 8.',
-      <_Tile>[
-        _format(BarcodeFormat.ean13),
-        _format(BarcodeFormat.ean8),
-        _format(BarcodeFormat.upcA),
-        _format(BarcodeFormat.upcE),
-        _format(BarcodeFormat.isbn, data: '9781234567897'),
-        _sample(
-          'EAN-13 + EAN-5 add-on',
-          BarcodeFormat.ean13,
-          'ean13-ext-1/1.png',
-          exact: false,
-        ),
-        _format(
-          BarcodeFormat.dataBar,
-          expect: '(01)09501101530003',
-          note: 'Reads as GS1: (01) GTIN',
-        ),
-        _format(
-          BarcodeFormat.dataBarLimited,
-          expect: '(01)09501101530003',
-          note: 'Reads as GS1: (01) GTIN',
-        ),
-        _format(
-          BarcodeFormat.dataBarExpanded,
-          span: 2,
-          expect: '(01)09501101530003(17)250101',
-        ),
-      ],
-    ),
-    (
-      'D',
-      'Formats · industrial',
-      'Linear codes of logistics, pharmacy and film.',
-      <_Tile>[
-        _format(BarcodeFormat.code128),
-        _format(BarcodeFormat.code39),
-        _format(
-          BarcodeFormat.code39Extended,
-          span: 2,
-          note: 'Lower case and punctuation as pairs of Code 39 characters',
-        ),
-        _format(BarcodeFormat.code93),
-        _format(BarcodeFormat.codabar),
-        _format(BarcodeFormat.itf),
-        _format(
-          BarcodeFormat.code32,
-          expect: 'A123456788',
-          note: 'Italian pharmacode, reads with an A',
-        ),
-        _format(
-          BarcodeFormat.pzn,
-          expect: '-12345678',
-          note: 'German pharmacode, reads with a -',
-        ),
-        _format(BarcodeFormat.telepen, span: 2),
-        _format(BarcodeFormat.dxFilmEdge),
-      ],
-    ),
-    (
-      'E',
-      'Content · basics',
-      'What the system camera of a phone also understands.',
-      <_Tile>[
-        _content(
-          'Text, Unicode',
-          const TextContent('Привет, 世界! 👋 flutter_zxing 4.0'),
-        ),
-        _content(
-          'Link',
-          UrlContent(Uri.parse('https://pub.dev/packages/flutter_zxing')),
-        ),
-        _content(
-          'Wi‑Fi, WPA',
-          const WifiContent(ssid: 'Lumen Guest', password: 'coffee-2026'),
-          note: 'Phone camera: offers to join',
-        ),
-        _content(
-          'Wi‑Fi, open and hidden',
-          const WifiContent(
-            ssid: 'Lumen Lab',
-            security: WifiSecurity.none,
-            hidden: true,
-          ),
-        ),
-        _content(
-          'Contact, vCard',
-          ContactContent(
-            name: 'Anna Petrosyan',
-            organization: 'Lumen Café',
-            title: 'Barista',
-            phones: const <String>['+37491234567'],
-            emails: const <String>['anna@example.com'],
-            urls: <Uri>[Uri.parse('https://example.com')],
-          ),
-        ),
-        const _Tile(
-          'Contact, MECARD',
-          'MECARD:N:Petrosyan,Anna;TEL:+37491234567;EMAIL:anna@example.com;;',
-          kind: ContactContent,
-        ),
-        _content(
-          'Email',
-          const EmailContent(
-            address: 'hello@example.com',
-            subject: 'Hi',
-            body: 'From the check sheet',
-          ),
-        ),
-        _content('Phone', const PhoneContent('+37491234567')),
-        _content(
-          'SMS',
-          const SmsContent(number: '+37491234567', message: 'See you at 7'),
-        ),
-        _content(
-          'Location',
-          const GeoContent(
-            latitude: 40.1776,
-            longitude: 44.5126,
-            query: 'Republic Square',
-          ),
-        ),
-        _content(
-          'Event',
-          EventContent(
-            summary: 'flutter_zxing 4.0 launch',
-            start: DateTime(2026, 12, 1, 18),
-            end: DateTime(2026, 12, 1, 20),
-            location: 'Yerevan',
-          ),
-          note: 'VCALENDAR without PRODID: check the phone camera adds it',
-        ),
-        _content(
-          'FaceTime',
-          const PhoneContent('+37491234567', type: CallType.faceTime),
-        ),
-      ],
-    ),
-    (
-      'F',
-      'Content · apps, security, smart home',
-      'Kinds the content() template shows with their own sheet.',
-      <_Tile>[
-        _content(
-          '2FA, TOTP',
-          const OtpContent(
-            issuer: 'Acme',
-            account: 'anna@example.com',
-            secret: 'JBSWY3DPEHPK3PXP',
-          ),
-          note: 'Secret hidden behind “Show”',
-        ),
-        _content(
-          '2FA, HOTP · SHA-256 · 8 digits',
-          const OtpContent(
-            issuer: 'Acme',
-            account: 'anna',
-            secret: 'GEZDGNBVGY3TQOJQ',
-            type: OtpType.hotp,
-            algorithm: OtpAlgorithm.sha256,
-            digits: 8,
-            counter: 7,
-          ),
-        ),
-        _content(
-          'eSIM',
-          const EsimContent(
-            smdpAddress: 'rsp.example.com',
-            matchingId: 'QRF-BETTERROAMING-PMRDGIR2EARDEIT5',
-          ),
-          note: 'Phone camera: offers to add the plan (do not confirm)',
-        ),
-        const _Tile(
-          'Wi‑Fi Easy Connect (DPP)',
-          'DPP:C:81/1,115/36;M:5254005828e5;I:SN4321;'
-              'K:MDkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDIgADM2206avxHJaHXgLMkq/24e0rsrfMP9K1Tm8gx+ovP0I=;;',
-          kind: WifiDppContent,
-        ),
-        const _Tile(
-          'Matter',
-          'MT:Y.K9042C00KA0648G00',
-          kind: SmartHomeContent,
-          note: 'Setup code 2020-2021',
-        ),
-        _Tile(
-          'HomeKit',
-          homeKit,
-          kind: SmartHomeContent,
-          note: 'Setup code 518-08-582, a light',
-        ),
-        _content(
-          'Bitcoin',
-          const CryptoContent(
-            currency: CryptoCurrency.bitcoin,
-            address: '175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W',
-            amount: '0.005',
-            label: 'Lumen Café',
-          ),
-        ),
-        const _Tile(
-          'Ethereum, EIP-681',
-          'ethereum:0xfb6916095ca1df60bb79Ce92ce3ea74c37c5d359?value=2.014e18',
-          kind: CryptoContent,
-        ),
-        const _Tile(
-          'Lightning invoice',
-          'lightning:lnbc2500u1pvjluezpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdq5xysxxatsyp3k7enxv4jsxqzpuaztrnwngzn3kdzw5hydlzf03qdgm2hdq27cqv3agm2awhz5se903vruatfhq77w3ls4evs3ch9zw97j25emudupq63nyw24cg27h2rspfj9srp',
-          kind: CryptoContent,
-        ),
-        _content(
-          'WhatsApp chat',
-          LinkService.whatsApp.link('+37491234567', message: 'Hi!'),
-        ),
-        _content('Telegram', LinkService.telegram.link('@flutterdev')),
-        _content('App Store', LinkService.appStore.link('284882215')),
-      ],
-    ),
-    (
-      'G',
-      'Content · industry',
-      'Product numbers, travel documents and vehicles.',
-      <_Tile>[
-        _Tile(
-          'Product, EAN-13',
-          gtin.substring(1),
-          format: BarcodeFormat.ean13,
-          kind: ProductContent,
-        ),
-        const _Tile(
-          'Book, ISBN',
-          '9783161484100',
-          format: BarcodeFormat.ean13,
-          kind: ProductContent,
-          note: 'Chip “ISBN”, ISBN-10 3-16-148410-X',
-        ),
-        _Tile(
-          'Periodical, ISSN',
-          _withCheck('977031784700'),
-          format: BarcodeFormat.ean13,
-          kind: ProductContent,
-          note: 'ISSN 0317-8471',
-        ),
-        const _Tile(
-          'VIN, North American, QR',
-          '1M8GDM9AXKP042788',
-          kind: VinContent,
-          note: 'Model year 1989, check digit valid',
-        ),
-        _Tile(
-          'Boarding pass, one leg',
-          'M1${'ZXING/FLUTTER'.padRight(20)}EE7QK3TPZRHAMSLX 0423 318Y012C0034 100',
-          format: BarcodeFormat.pdf417,
-          kind: BoardingPassContent,
-          span: 2,
-          note: 'ZRH → AMS, LX 423, seat 12C',
-        ),
-        const _Tile(
-          "Driver's license, AAMVA",
-          '@\n\x1e\rANSI 636014080102DL00410288ZC03290015DLDAQD1234562\n'
-              'DCSPUBLIC\nDDEN\nDACJOHN\nDDFN\nDADQUINCY\nDDGN\nDCAC\nDCBNONE\n'
-              'DCDNONE\nDBD08312013\nDBB08311977\nDBA08312020\nDBC1\nDAU069 IN\n'
-              'DAG123 MAIN STREET\nDAIANYTOWN\nDAJCA\nDAK902230000  \nDCGUSA\r',
-          format: BarcodeFormat.pdf417,
-          kind: DriverLicenseContent,
-          span: 2,
-          exact: false,
-          note: 'JOHN QUINCY PUBLIC, expired 2020',
-        ),
-        _Tile(
-          'Boarding pass, two legs',
-          <String>[
-            'M2${'DESMARAIS/LUC'.padRight(20)}',
-            'EABC123 YULFRAAC 0834 326J001A0025 106',
-            'XYZ789',
-            'DEF456 FRAGVALH 3664 327C012C0026 100',
-          ].join(),
-          format: BarcodeFormat.aztec,
-          kind: BoardingPassContent,
-          note: 'Chips “Flight 1 of 2”',
-        ),
-        const _Tile(
-          'VIN, European, Code 39',
-          'WVWZZZ1JZXW000001',
-          format: BarcodeFormat.code39,
-          kind: VinContent,
-          span: 2,
-          note: 'vin() template; no check digit: a VIN only from Code 39',
-        ),
-      ],
-    ),
-    (
-      'H',
-      'Content · payments',
-      'Examples from the specifications. Scan in a banking app, do not pay.',
-      <_Tile>[
-        const _Tile(
-          'SEPA · EPC (GiroCode)',
-          'BCD\n002\n1\nSCT\nBHBLDEHHXXX\nFranz Mustermänn\n'
-              'DE71110220330123456789\nEUR12.3\nGDDS\nRF18539007547034',
-          kind: EpcPaymentContent,
-          ecc: ErrorCorrection.medium,
-          note: '12.30 EUR · payment() template; banking app: EU',
-        ),
-        _Tile(
-          'Swiss QR-bill',
-          <String>[
-            'SPC', '0200', '1', 'CH4431999123000889012', //
-            'S',
-            'Robert Schneider AG',
-            'Rue du Lac',
-            '1268',
-            '2501',
-            'Biel',
-            'CH',
-            '', '', '', '', '', '', '', //
-            '1949.75', 'CHF', //
-            'S',
-            'Pia-Maria Rutschmann-Schnyder',
-            'Grosse Marktgasse',
-            '28',
-            '9400',
-            'Rorschach', 'CH', //
-            'QRR',
-            '210000000003139471430009017',
-            'Order of 15 June 2020',
-            'EPD',
-          ].join('\n'),
-          kind: SwissQrBillContent,
-          style: BarcodeStyle.swissQrBill,
-          ecc: ErrorCorrection.medium,
-          note: '1 949.75 CHF, QR reference grouped as on the bill',
-        ),
-        _Tile(
-          'ГОСТ Р 56042',
-          <String>[
-            'ST00012',
-            'Name=ООО «Три кита»',
-            'PersonalAcc=40702810138250123017',
-            'BankName=ОАО "БАНК"',
-            'BIC=044525225',
-            'CorrespAcc=30101810400000000225',
-            'Sum=125050',
-            'Purpose=Оплата по счёту № 7',
-            'PayeeINN=7700000000',
-            'KPP=770001001',
-          ].join('|'),
-          kind: GostPaymentContent,
-          note: '1 250.50 RUB · banking app: Russia',
-        ),
-        const _Tile(
-          'UPI',
-          'upi://pay?pa=lumen@okaxis&pn=Lumen%20Cafe&am=120.00&cu=INR&tn=Coffee',
-          kind: UpiPaymentContent,
-        ),
-        const _Tile(
-          'PIX (Brazil)',
-          '00020126580014br.gov.bcb.pix0136123e4567-e12b-12d1-a456-426655440000'
-              '5204000053039865802BR5913Fulano de Tal6008BRASILIA62070503***63041D3D',
-          kind: EmvPaymentContent,
-          note: 'Example from the BCB manual',
-        ),
-        _content(
-          'PromptPay (Thailand), EMVCo',
-          EmvPaymentContent(<String, String>{
-            '00': '01',
-            '01': '11',
-            '29': _tlv(<String, String>{
-              '00': 'A000000677010111',
-              '01': '0066812345678',
-            }),
-            '52': '0000',
-            '53': '764',
-            '58': 'TH',
-            '59': 'LUMEN CAFE',
-            '60': 'BANGKOK',
-          }),
-        ),
-        const _Tile(
-          'SPAYD (Czechia)',
-          'SPD*1.0*ACC:CZ5855000000001265098001*AM:480.50*CC:CZK*'
-              'MSG:PLATBA ZA ZBOZI*X-VS:1234567890',
-          kind: SpaydPaymentContent,
-        ),
-        const _Tile(
-          'SEPA with a wrong IBAN',
-          'BCD\n002\n1\nSCT\nBHBLDEHHXXX\nFranz Mustermänn\n'
-              'DE72110220330123456789\nEUR12.3\nGDDS\nRF18539007547034',
-          kind: TextContent,
-          ecc: ErrorCorrection.medium,
-          warning: true,
-          note: 'Must NOT show a payment: the IBAN check digits are wrong',
-        ),
-      ],
-    ),
-    (
-      'I',
-      'Scanner templates',
-      'Codes each new template is made for. Pick the template in the demo first.',
-      <_Tile>[
-        _gs1(
-          'Medicine, GS1 Data Matrix',
-          const Gs1Content(<String, String>{
-            '01': gtin,
-            '17': '281231',
-            '10': 'AB1234',
-            '21': 'SN000123',
-          }),
-          note: 'pharma(): GTIN, batch, expiry 31.12.2028, serial',
-        ),
-        _gs1(
-          'Medicine, expired',
-          const Gs1Content(<String, String>{
-            '01': gtin,
-            '17': '250600',
-            '10': 'OLD42',
-            '21': 'SN000999',
-          }),
-          note: 'pharma(): chip “Expired” (day 00 = 30.06.2025)',
-        ),
-        _gs1(
-          'Pallet, GS1-128 SSCC',
-          Gs1Content(<String, String>{'00': sscc, '02': gtin, '37': '24'}),
-          format: BarcodeFormat.code128,
-          span: 2,
-          note: 'logistics(): SSCC, contents GTIN, 24 pieces',
-        ),
-        const _Tile(
-          'Loyalty card, Code 128',
-          '4006381333931',
-          format: BarcodeFormat.code128,
-          kind: TextContent,
-          span: 2,
-          style: BarcodeStyle(
-            title: BarcodeCaption('Lumen Café · Friends', size: 0.07),
-            caption: BarcodeCaption('4006 3813 3393 1', size: 0.06),
-            card: BarcodeCard(color: Color(0xFFF4EFE4)),
-          ),
-          note: 'loyalty(): number large, in groups of 4',
-        ),
-        const _Tile(
-          'Sign in',
-          'https://example.com/device?code=WDJB-MJHT',
-          kind: UrlContent,
-          note: 'signIn(): QR only, closes on the first code',
-        ),
-        const _Tile(
-          'Small Data Matrix',
-          'SN 0042',
-          format: BarcodeFormat.dataMatrix,
-          kind: TextContent,
-          look: _Look.tiny,
-          note: 'small(): starts at 2× zoom',
-        ),
-        const _Tile(
-          'Small Micro QR',
-          'HELLO 42',
-          format: BarcodeFormat.microQrCode,
-          kind: TextContent,
-          look: _Look.tiny,
-          note: 'small()',
-        ),
-        _Tile(
-          'Product for a form field',
-          gtin.substring(1),
-          format: BarcodeFormat.ean13,
-          kind: ProductContent,
-          note: '“Scan into a form”: the GTIN field takes it',
-        ),
-      ],
-    ),
-    (
-      'J',
-      'Check-in, kiosk and pick',
-      'checkIn() / kiosk(): scan J1 → J4 in order. pick(): aim at J5, tap one code.',
-      <_Tile>[
-        const _Tile(
-          'Ticket 001',
-          'LUMEN CONF / TICKET 001 / ROW 5 SEAT 12',
-          kind: TextContent,
-          note: 'Accepted · “Welcome in”, counter 1',
-        ),
-        const _Tile(
-          'Ticket 002',
-          'LUMEN CONF / TICKET 002 / ROW 5 SEAT 13',
-          kind: TextContent,
-          note: 'Accepted, counter 2',
-        ),
-        const _Tile(
-          'Ticket 001 again',
-          'LUMEN CONF / TICKET 001 / ROW 5 SEAT 12',
-          kind: TextContent,
-          warning: true,
-          note: 'Warning · “Already checked in”, counter stays 2',
-        ),
-        _content(
-          'Not a ticket',
-          const WifiContent(ssid: 'Lumen Guest', password: 'coffee-2026'),
-          note: 'Rejected · red flash, “Not a ticket”',
-        ),
-        const _Tile(
-          'Six codes in one view',
-          '',
-          span: 2,
-          codes: <String>[
-            'A Espresso',
-            'B Latte',
-            'C Cappuccino',
-            'D Mocha',
-            'E Tea',
-            'F Water',
-          ],
-          kind: TextContent,
-          exact: false,
-          note: 'pick(): six labels, a tap returns that code',
-        ),
-        const _Tile(
-          'Ticket 003, link',
-          'https://example.com/t/003',
-          kind: UrlContent,
-          note: 'Accepted, counter 3',
-        ),
-      ],
-    ),
-    (
-      'K',
-      'Styles',
-      'BarcodeView styles, logos, captions and cards. All must read.',
-      <_Tile>[
-        for (final MapEntry<String, BarcodeStyle> p
-            in BarcodeStyle.presets.entries)
-          _Tile(
-            'Preset “${p.key}”',
-            'https://pub.dev/packages/flutter_zxing',
-            kind: UrlContent,
-            style: p.value,
-          ),
-        _Tile(
-          'Logo 0.2 → ECC Q',
-          'https://t.me/flutterdev',
-          kind: UrlContent,
-          style: BarcodeStyle(logo: BarcodeLogo(logoImage, size: 0.2)),
-          note: 'Auto error correction by logo size',
-        ),
-        _Tile(
-          'Logo 0.22 (default) → ECC H',
-          'https://t.me/flutterdev',
-          kind: UrlContent,
-          style: BarcodeStyle(
-            logo: BarcodeLogo(logoImage),
-            moduleShape: ModuleShape.rounded,
-          ),
-        ),
-        _Tile(
-          'Card with caption',
-          'https://t.me/flutterdev',
-          kind: UrlContent,
-          style: BarcodeStyle(
-            color: const Color(0xFF229ED9),
-            moduleShape: ModuleShape.rounded,
-            finderShape: FinderShape.rounded,
-            logo: BarcodeLogo(logoImage, size: 0.2),
-            caption: const BarcodeCaption('@flutterdev'),
-            card: const BarcodeCard(elevation: 0.03),
-          ),
-        ),
-        const _Tile(
-          'Dark card, title and caption',
-          'https://pub.dev/packages/flutter_zxing',
-          kind: UrlContent,
-          style: BarcodeStyle(
-            color: Color(0xFFFFFFFF),
-            backgroundColor: Color(0xFF0E1218),
-            title: BarcodeCaption('flutter_zxing'),
-            caption: BarcodeCaption(
-              'Scan, create and style barcodes in Flutter',
-              size: 0.06,
-            ),
-            card: BarcodeCard(color: Color(0xFF0E1218)),
-          ),
-          warning: true,
-          note: 'Light on dark: a camera needs tryInvert',
-        ),
-        const _Tile(
-          'EAN-13, title and caption',
-          '5901234123457',
-          format: BarcodeFormat.ean13,
-          kind: ProductContent,
-          style: BarcodeStyle(
-            title: BarcodeCaption('Lumen Café · Coffee beans', size: 0.07),
-            caption: BarcodeCaption('250 g · 9.90 €', size: 0.07),
-          ),
-        ),
-      ],
-    ),
-    (
-      'L',
-      'Hard cases',
-      'Limits of the reader. Orange notes say what to expect.',
-      <_Tile>[
-        _Tile(
-          'Dense QR, 1 200 characters',
-          List<String>.generate(
-            40,
-            (int i) => 'flutter_zxing line ${i.toString().padLeft(2, '0')} ·',
-          ).join(' '),
-          kind: TextContent,
-          warning: true,
-          note: 'Version ~27: hold steady, fill the window',
-        ),
-        const _Tile(
-          'Inverted QR',
-          'INVERTED · light on dark',
-          kind: TextContent,
-          style: BarcodeStyle(
-            color: Color(0xFFFFFFFF),
-            backgroundColor: Color(0xFF000000),
-          ),
-          warning: true,
-          note:
-              'ReaderOptions.camera() skips inverted codes: not read live unless tryInvert',
-        ),
-        const _Tile(
-          'Low contrast',
-          'LOW CONTRAST',
-          kind: TextContent,
-          style: BarcodeStyle(
-            color: Color(0xFF7A7A7A),
-            backgroundColor: Color(0xFFDADADA),
-          ),
-        ),
-        const _Tile(
-          'Rotated 30°',
-          'ROTATED 30',
-          kind: TextContent,
-          look: _Look.rotated,
-        ),
-        const _Tile(
-          'Mirrored QR',
-          'MIRRORED',
-          kind: TextContent,
-          look: _Look.mirrored,
-          note: 'Result says isMirrored',
-        ),
-        const _Tile(
-          'Tiny QR',
-          'TINY',
-          kind: TextContent,
-          look: _Look.tiny,
-          warning: true,
-          note: 'About 6 mm on a laptop screen: needs zoom or closeness',
-        ),
-        const _Tile(
-          'Inverted Data Matrix',
-          'INVERTED DM',
-          format: BarcodeFormat.dataMatrix,
-          kind: TextContent,
-          style: BarcodeStyle(
-            color: Color(0xFFFFFFFF),
-            backgroundColor: Color(0xFF000000),
-          ),
-          warning: true,
-          note: 'Same as the inverted QR',
-        ),
-        const _Tile(
-          'Long Code 128',
-          'FLUTTER-ZXING-4.0-LONG-CODE-128-0123456789',
-          format: BarcodeFormat.code128,
-          kind: TextContent,
-          span: 2,
-          note: 'Hold the phone parallel to the bars',
-        ),
-        _Tile(
-          'Binary data',
-          '',
-          bytes: Uint8List.fromList(<int>[
-            0,
-            1,
-            2,
-            3,
-            0xFE,
-            0xFF,
-            0x80,
-            0x7F,
-            0x1B,
-            0x00,
-          ]),
-          kind: BinaryContent,
-          exact: false,
-          note: '10 bytes 00 01 02 03 FE FF 80 7F 1B 00: no text',
-        ),
-        const _Tile(
-          'Latin-1 without ECI',
-          'ROW 5 \u00b7 SEAT 12',
-          kind: TextContent,
-          warning: true,
-          note:
-              'Known issue: \u00b7 \u00b7 may read as half-width katakana (Shift_JIS guess). What does the phone camera show?',
-        ),
-      ],
-    ),
-  ];
-}
+  String get file => '${sheet.name}_$label.png';
+  String get readFile => '${sheet.name}_${label}_read.png';
+  int count(_Outcome o) =>
+      tiles.where((_TileResult t) => t.outcome == o).length;
+  _TileResult tile(String id) =>
+      tiles.firstWhere((_TileResult t) => t.placed.id == id);
 
-/// The section's tiles, cut into pages of [_rows] rows of [_columns].
-List<(int, List<_Tile>, List<Rect>)> _paginate(List<_Tile> tiles) {
-  final Size cell = Size(
-    (_page.width - 2 * _margin - (_columns - 1) * _gap) / _columns,
-    (_page.height - _header - 2 * _margin - (_rows - 1) * _gap) / _rows,
-  );
-  final List<(int, List<_Tile>, List<Rect>)> pages =
-      <(int, List<_Tile>, List<Rect>)>[];
-  List<_Tile> page = <_Tile>[];
-  List<Rect> rects = <Rect>[];
-  int first = 0;
-  int column = 0;
-  int row = 0;
-  for (int i = 0; i < tiles.length; i++) {
-    final _Tile tile = tiles[i];
-    if (column + tile.span > _columns) {
-      column = 0;
-      row++;
-    }
-    if (row == _rows) {
-      pages.add((first, page, rects));
-      page = <_Tile>[];
-      rects = <Rect>[];
-      first = i;
-      row = 0;
-    }
-    page.add(tile);
-    rects.add(
-      Rect.fromLTWH(
-        _margin + column * (cell.width + _gap),
-        _header + _margin + row * (cell.height + _gap),
-        tile.span * cell.width + (tile.span - 1) * _gap,
-        cell.height,
-      ),
-    );
-    column += tile.span;
-  }
-  pages.add((first, page, rects));
-  return pages;
-}
-
-// The overview page: every format on one sheet.
-const double _overviewWidth = 2400;
-const int _overviewColumns = 7;
-const double _overviewRow = 190;
-const double _overviewHeader = 92;
-const double _overviewHeading = 58;
-
-/// The formats the scanner reads and the writer has no format for, each with
-/// the best picture of it there is. An add-on only exists next to an EAN-13.
-List<(BarcodeFormat, _Tile)> _readOnlyTiles() => <(BarcodeFormat, _Tile)>[
-  (
-    BarcodeFormat.maxiCode,
-    const _Tile(
-      'MaxiCode',
-      '',
-      format: BarcodeFormat.maxiCode,
-      sample: '$_samples/maxicode-1/MODE2.png',
-      exact: false,
-      warning: true,
-      note: 'Sample. Fill the frame with it: never found on a whole page',
-    ),
-  ),
-  (
-    BarcodeFormat.qrCodeModel1,
-    _sample('QR Code Model 1', BarcodeFormat.qrCode, 'qrcode-1/qr-model-1.png'),
-  ),
-  (
-    BarcodeFormat.ean5,
-    _sample(
-      'EAN-5 add-on',
-      BarcodeFormat.ean13,
-      'ean13-ext-1/1.png',
-      span: 2,
-      exact: false,
-    ),
-  ),
-  (
-    BarcodeFormat.ean2,
-    const _Tile(
-      'EAN-2 add-on',
-      '4006381333931+12',
-      format: BarcodeFormat.ean13,
-      expect: '400638133393112',
-      span: 2,
-      note: 'Drawn next to an EAN-13',
-    ),
-  ),
-  (
-    BarcodeFormat.itf14,
-    _Tile(
-      'ITF-14',
-      _withCheck('0001234560001'),
-      format: BarcodeFormat.itf,
-      span: 2,
-      note: 'Drawn as ITF with 14 digits',
-    ),
-  ),
-];
-
-/// One tile of each format the writer makes, as on the sheets that follow.
-List<_Tile> _writtenTiles(List<_Section> sections) => <_Tile>[
-  for (final BarcodeFormat format in BarcodeFormat.writable)
-    _forOverview(
-      sections
-          .expand((_Section s) => s.$4)
-          .firstWhere(
-            (_Tile t) =>
-                t.format == format &&
-                t.sample == null &&
-                t.bytes == null &&
-                t.codes == null &&
-                t.look == _Look.plain &&
-                t.style == BarcodeStyle.classic,
-          ),
-    ),
-];
-
-/// [tile] as it has to be on a page with all the others. DataBars holding the
-/// same GTIN are taken for one code when read together, so each gets its own;
-/// both PDF417 kinds report one format, so their texts differ for the field
-/// test to tell them apart; the longest code gets the width it needs.
-_Tile _forOverview(_Tile tile) {
-  _Tile dataBar(String digits) {
-    final String gtin = _withCheck(digits);
-    return _format(
-      tile.format,
-      data: gtin,
-      expect: '(01)$gtin',
-      note: tile.note,
-    );
-  }
-
-  return switch (tile.format) {
-    BarcodeFormat.dataBarStacked => dataBar('0950110153001'),
-    BarcodeFormat.dataBarStackedOmni => dataBar('0950110153002'),
-    BarcodeFormat.compactPdf417 => _format(
-      tile.format,
-      data: 'Compact PDF417',
-      span: tile.span,
-    ),
-    BarcodeFormat.code39Extended => _format(
-      tile.format,
-      span: 4,
-      note: tile.note,
-    ),
-    BarcodeFormat.code93 => _format(tile.format, span: 3, note: tile.note),
-    _ => tile,
+  Map<String, Object> toJson() => <String, Object>{
+    'width': width,
+    'height': height,
+    'total': tiles.length,
+    for (final _Outcome o in _Outcome.values) o.name: count(o),
+    'other': stray.length,
+    'ms': ms,
+    'tiles': <String, String>{
+      for (final _TileResult t in tiles) t.placed.id: t.outcome.name,
+    },
   };
 }
 
-/// The height of [tile] on the overview. The longest linear codes get two
-/// rows: a code keeps its proportions, so only height lets its bars grow.
-double _overviewHeightOf(_Tile tile) =>
-    tile.format == BarcodeFormat.code39Extended ||
-        tile.format == BarcodeFormat.code93
-    ? 2 * _overviewRow + _gap
-    : _overviewRow;
+String _pxText(double? px) => px == null ? '' : '${px.toStringAsFixed(1)} px';
 
-/// The formats that start a row of the overview: the two large codes share
-/// one, and the rows after them stay as they are. A DataBar in the same row as
-/// the stacked ones keeps those from being found on the whole page.
-const Set<BarcodeFormat> _overviewRowStarts = <BarcodeFormat>{
-  BarcodeFormat.code39Extended,
-  BarcodeFormat.codabar,
-  BarcodeFormat.itf,
-};
+String _slug(String s) => s
+    .toLowerCase()
+    .replaceAll(RegExp('[^a-z0-9]+'), '-')
+    .replaceAll(RegExp(r'^-|-$'), '');
 
-/// Places [tiles] in rows from [top]; gives their places and the bottom.
-(List<Rect>, double) _overviewRects(List<_Tile> tiles, double top) {
-  const double cell =
-      (_overviewWidth - 2 * _margin - (_overviewColumns - 1) * _gap) /
-      _overviewColumns;
+Rect _px(Rect r, double dpr) =>
+    Rect.fromLTRB(r.left * dpr, r.top * dpr, r.right * dpr, r.bottom * dpr);
+
+String _describe(Barcode b) {
+  final String text = _visible(b.text);
+  return '${b.format.displayName} “${text.length > 40 ? '${text.substring(0, 39)}…' : text}”';
+}
+
+/// Tiles under a heading.
+typedef _Group = (String heading, String about, List<(String, _Tile)> tiles);
+
+/// Places [tiles] in rows of [columns] from [top]; gives their places and
+/// the bottom. A tile in [tall] takes two rows: a code keeps its proportions,
+/// so only height lets its bars grow. A tile in [rowStarts] starts a row.
+(List<Rect>, double) _gridRects(
+  List<_Tile> tiles,
+  double top, {
+  required int columns,
+  required double row,
+  Set<BarcodeFormat> tall = const <BarcodeFormat>{},
+  Set<BarcodeFormat> rowStarts = const <BarcodeFormat>{},
+}) {
+  final double cell =
+      (_gridSide - 2 * _margin - (columns - 1) * _gap) / columns;
   final List<Rect> rects = <Rect>[];
   int column = 0;
   double rowTop = top;
   double rowHeight = 0;
   for (final _Tile tile in tiles) {
-    if (column + tile.span > _overviewColumns ||
-        (column > 0 && _overviewRowStarts.contains(tile.format))) {
+    if (column + tile.span > columns ||
+        (column > 0 && rowStarts.contains(tile.format))) {
       column = 0;
       rowTop += rowHeight + _gap;
       rowHeight = 0;
     }
-    final double height = _overviewHeightOf(tile);
+    final double height = tall.contains(tile.format) ? 2 * row + _gap : row;
     rects.add(
       Rect.fromLTWH(
         _margin + column * (cell + _gap),
@@ -1184,652 +312,868 @@ const Set<BarcodeFormat> _overviewRowStarts = <BarcodeFormat>{
   return (rects, rowTop + rowHeight + _gap);
 }
 
-/// A tile of the overview: the id, the name and as much code as fits.
-Widget _overviewTile(
-  String id,
-  _Tile tile,
-  Map<String, ui.Image> images,
-  GlobalKey key,
-) => DecoratedBox(
-  decoration: BoxDecoration(
-    color: const Color(0xFFFFFFFF),
-    borderRadius: BorderRadius.circular(12),
+Widget _heading(String title, String about, double size) => Text.rich(
+  TextSpan(
+    children: <InlineSpan>[
+      TextSpan(
+        text: title,
+        style: _text.copyWith(fontSize: size, fontWeight: FontWeight.bold),
+      ),
+      TextSpan(
+        text: '   $about',
+        style: _text.copyWith(fontSize: size * 0.62, color: _muted),
+      ),
+    ],
   ),
-  child: Padding(
-    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  maxLines: 1,
+  overflow: TextOverflow.ellipsis,
+);
+
+/// A square sheet of [groups], the rows as high as makes it square.
+_Sheet _gridSheet(
+  String name,
+  String title,
+  List<_Group> groups,
+  Map<String, ui.Image> images, {
+  required int columns,
+  Set<BarcodeFormat> tall = const <BarcodeFormat>{},
+  Set<BarcodeFormat> rowStarts = const <BarcodeFormat>{},
+}) {
+  (List<List<Rect>>, List<double>, double) layout(double row) {
+    double y = _gridHeader;
+    final List<List<Rect>> rects = <List<Rect>>[];
+    final List<double> tops = <double>[];
+    for (final _Group g in groups) {
+      y += _gridHeading;
+      tops.add(y);
+      final (List<Rect> r, double end) = _gridRects(
+        <_Tile>[for (final (String _, _Tile t) in g.$3) t],
+        y,
+        columns: columns,
+        row: row,
+        tall: tall,
+        rowStarts: rowStarts,
+      );
+      rects.add(r);
+      y = end;
+    }
+    return (rects, tops, y - _gap + _margin);
+  }
+
+  // The height grows linearly with the row: solve for a square.
+  final double h1 = layout(100).$3;
+  final double h2 = layout(200).$3;
+  final double row = 100 + (_gridSide - h1) * 100 / (h2 - h1);
+  final (List<List<Rect>> rects, List<double> tops, double height) = layout(
+    row,
+  );
+  final List<_Placed> placed = <_Placed>[
+    for (int g = 0; g < groups.length; g++)
+      for (int i = 0; i < groups[g].$3.length; i++)
+        _Placed(groups[g].$3[i].$1, groups[g].$3[i].$2, rects[g][i]),
+  ];
+  final Widget page = ColoredBox(
+    color: _paper,
+    child: Stack(
       children: <Widget>[
-        Text.rich(
-          TextSpan(
-            children: <InlineSpan>[
-              TextSpan(
-                text: '$id  ',
-                style: const TextStyle(
-                  color: _accent,
-                  fontWeight: FontWeight.bold,
+        Positioned(
+          left: _margin,
+          right: _margin,
+          top: 20,
+          child: Text(
+            'flutter_zxing 4.0 · $title',
+            style: _text.copyWith(fontSize: 32, fontWeight: FontWeight.bold),
+          ),
+        ),
+        for (int g = 0; g < groups.length; g++)
+          Positioned(
+            left: _margin,
+            right: _margin,
+            top: tops[g] - _gridHeading + 12,
+            child: _heading(groups[g].$1, groups[g].$2, 24),
+          ),
+        for (final _Placed p in placed)
+          Positioned.fromRect(
+            rect: p.rect,
+            child: _overviewTile(p.id, p.tile, images, p.key),
+          ),
+      ],
+    ),
+  );
+  return _Sheet(
+    name,
+    title,
+    Size(_gridSide, height),
+    placed,
+    page,
+    <(String, double)>[
+      for (final int side in _gridSides)
+        (side.toString().padLeft(5, '0'), side / _gridSide),
+    ],
+    check: _checkGrid.toString().padLeft(5, '0'),
+  );
+}
+
+/// One code per row, as a phone screen shows a list.
+_Sheet _columnSheet(
+  String name,
+  String title,
+  List<_Group> groups,
+  Map<String, ui.Image> images,
+) {
+  const double side = 16;
+  const double top = 56;
+  const double heading = 40;
+  const double between = 10;
+  double y = top;
+  final List<double> tops = <double>[];
+  final List<_Placed> placed = <_Placed>[];
+  for (final _Group g in groups) {
+    tops.add(y);
+    y += heading;
+    for (final (String id, _Tile t) in g.$3) {
+      final double h = t.format.isLinear ? 150 : 240;
+      placed.add(
+        _Placed(id, t, Rect.fromLTWH(side, y, _columnWidth - 2 * side, h)),
+      );
+      y += h + between;
+    }
+  }
+  final Size size = Size(_columnWidth, y - between + side);
+  final Widget page = ColoredBox(
+    color: _paper,
+    child: Stack(
+      children: <Widget>[
+        Positioned(
+          left: side,
+          right: side,
+          top: 14,
+          child: Text(
+            'flutter_zxing 4.0 · $title',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: _text.copyWith(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+        ),
+        for (int g = 0; g < groups.length; g++)
+          Positioned(
+            left: side,
+            right: side,
+            top: tops[g] + 8,
+            child: _heading(groups[g].$1, groups[g].$2, 16),
+          ),
+        for (final _Placed p in placed)
+          Positioned.fromRect(
+            rect: p.rect,
+            child: _overviewTile(p.id, p.tile, images, p.key),
+          ),
+      ],
+    ),
+  );
+  return _Sheet(name, title, size, placed, page, <(String, double)>[
+    for (final int w in _columnWidths)
+      ('w${w.toString().padLeft(4, '0')}', w / _columnWidth),
+  ], check: 'w${_checkColumn.toString().padLeft(4, '0')}');
+}
+
+/// The pages of a section, as they always were.
+List<_Sheet> _sectionSheets(_Section section, Map<String, ui.Image> images) {
+  final (String letter, String title, String about, List<_Tile> tiles) =
+      section;
+  final List<(int, List<_Tile>, List<Rect>)> parts = _paginate(tiles);
+  return <_Sheet>[
+    for (int part = 0; part < parts.length; part++)
+      () {
+        final (int first, List<_Tile> pageTiles, List<Rect> rects) =
+            parts[part];
+        final String heading = parts.length > 1
+            ? '$title (${part + 1}/${parts.length})'
+            : title;
+        final List<_Placed> placed = <_Placed>[
+          for (int i = 0; i < pageTiles.length; i++)
+            _Placed('$letter${first + i + 1}', pageTiles[i], rects[i]),
+        ];
+        final Widget page = ColoredBox(
+          color: _paper,
+          child: Stack(
+            children: <Widget>[
+              Positioned(
+                left: _margin,
+                right: _margin,
+                top: 18,
+                height: _header,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      '$letter  ',
+                      style: _text.copyWith(
+                        fontSize: 30,
+                        fontWeight: FontWeight.bold,
+                        color: _accent,
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            heading,
+                            style: _text.copyWith(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            about,
+                            style: _text.copyWith(fontSize: 14, color: _muted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      'flutter_zxing 4.0 · check sheet',
+                      style: _text.copyWith(fontSize: 13, color: _muted),
+                    ),
+                  ],
                 ),
               ),
-              TextSpan(text: tile.title),
-              if (tile.note != null)
-                TextSpan(
-                  text: '  ${tile.note}',
-                  style: const TextStyle(color: _muted, fontSize: 12),
+              for (final _Placed p in placed)
+                Positioned.fromRect(
+                  rect: p.rect,
+                  child: _tile(p.id, p.tile, images, p.key),
                 ),
             ],
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: _text.copyWith(fontSize: 15, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 6),
-        Expanded(
-          child: KeyedSubtree(
-            key: key,
-            child: tile.sample == null
-                ? Center(child: _code(tile, images))
-                : SizedBox.expand(child: _code(tile, images)),
-          ),
-        ),
-      ],
-    ),
-  ),
-);
-
-/// Gives every BarcodeView real time to encode and paint.
-Future<void> _settle(WidgetTester tester) async {
-  for (int i = 0; i < 200; i++) {
-    final bool waiting = find
-        .byType(BarcodeView)
-        .evaluate()
-        .any(
-          (Element e) => find
-              .descendant(
-                of: find.byWidget(e.widget),
-                matching: find.byType(CustomPaint),
-              )
-              .evaluate()
-              .isEmpty,
         );
-    if (!waiting && i > 10) {
-      break;
-    }
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
-    );
-    await tester.pump();
-  }
-  await tester.pump();
-}
-
-/// What the overview page gave.
-final class _Overview {
-  const _Overview(this.file, this.tiles, this.checks, this.missing);
-
-  final String file;
-
-  /// Every tile and where it is, as in sheets.json.
-  final List<Map<String, Object>> tiles;
-
-  /// Every tile read on its own.
-  final List<_Check> checks;
-
-  /// The tiles not found when the whole page is read at once.
-  final List<String> missing;
-}
-
-/// Draws 00-all-formats.png and reads it, tile by tile and as a whole.
-Future<_Overview> _drawOverview(
-  WidgetTester tester,
-  Directory dir,
-  List<_Section> sections,
-) async {
-  final List<_Tile> written = _writtenTiles(sections);
-  final List<(BarcodeFormat, _Tile)> readOnly = _readOnlyTiles();
-  expect(
-    <BarcodeFormat>{
-      for (final BarcodeFormat f in BarcodeFormat.values)
-        if (f.canRead && !f.canWrite) f,
-    }.difference(<BarcodeFormat>{
-      for (final (BarcodeFormat f, _Tile _) in readOnly) f,
-    }),
-    isEmpty,
-    reason: 'a format the scanner only reads has no tile on the overview',
-  );
-  final List<_Tile> others = <_Tile>[
-    for (final (BarcodeFormat _, _Tile t) in readOnly) t,
+        return _Sheet(
+          '$letter-${_slug(title)}${parts.length > 1 ? '-${part + 1}' : ''}',
+          '$letter · $heading',
+          _page,
+          placed,
+          page,
+          <(String, double)>[
+            for (final int w in _pageWidths)
+              (w.toString().padLeft(5, '0'), w / _page.width),
+          ],
+          check: _checkPage.toString().padLeft(5, '0'),
+        );
+      }(),
   ];
+}
 
-  const double writtenTop = _overviewHeader + _overviewHeading;
-  final (List<Rect> writtenRects, double writtenEnd) = _overviewRects(
-    written,
-    writtenTop,
+/// A code alone on white; [codeSize] is its size at [_singleModule].
+_Sheet _singleSheet(
+  String id,
+  _Tile tile,
+  Size codeSize,
+  Map<String, ui.Image> images,
+) {
+  final Size size = Size(
+    codeSize.width + 2 * _singlePad,
+    codeSize.height + 2 * _singlePad,
   );
-  final double othersTop = writtenEnd + _overviewHeading;
-  final (List<Rect> otherRects, double end) = _overviewRects(others, othersTop);
-  final Size page = Size(_overviewWidth, end + _margin);
-
-  final Map<String, ui.Image> images = <String, ui.Image>{};
-  await tester.runAsync(() async {
-    for (final _Tile t in others) {
-      if (t.sample case final String path) {
-        images[path] = await decodeImageFromList(File(path).readAsBytesSync());
-      }
-    }
-  });
-
-  final List<(String, _Tile, Rect, GlobalKey)> tiles =
-      <(String, _Tile, Rect, GlobalKey)>[
-        for (int i = 0; i < written.length; i++)
-          ('W${i + 1}', written[i], writtenRects[i], GlobalKey()),
-        for (int i = 0; i < others.length; i++)
-          ('R${i + 1}', others[i], otherRects[i], GlobalKey()),
-      ];
-  Widget heading(double top, String title, String about) => Positioned(
-    left: _margin,
-    right: _margin,
-    top: top - _overviewHeading + 12,
-    child: Text.rich(
-      TextSpan(
-        children: <InlineSpan>[
-          TextSpan(
-            text: title,
-            style: _text.copyWith(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          TextSpan(
-            text: '   $about',
-            style: _text.copyWith(fontSize: 15, color: _muted),
-          ),
-        ],
-      ),
+  final _Placed placed = _Placed(id, tile, Offset.zero & size);
+  return _Sheet(
+    '$id-${_slug(tile.title)}',
+    '$id ${tile.title}',
+    size,
+    <_Placed>[placed],
+    ColoredBox(
+      color: const Color(0xFFFFFFFF),
+      child: Center(child: _singleCode(tile, images, placed.key)),
     ),
+    <(String, double)>[
+      for (final double m in _modulePixels)
+        ('m${m.toStringAsFixed(1)}', m / _singleModule),
+    ],
+    snap: false,
   );
+}
 
-  tester.view.physicalSize = page;
+/// The code at [_singleModule] logical pixels per module.
+Widget _singleCode(_Tile tile, Map<String, ui.Image> images, Key key) =>
+    UnconstrainedBox(
+      child: KeyedSubtree(key: key, child: _code(tile, images)),
+    );
+
+/// The smallest pixels per module of the codes under [key].
+double? _moduleOf(GlobalKey key, double dpr) {
+  double? least;
+  for (final Element e
+      in find
+          .descendant(of: find.byKey(key), matching: find.byType(CustomPaint))
+          .evaluate()) {
+    final CustomPainter? painter = (e.widget as CustomPaint).painter;
+    if (painter is BarcodePainter) {
+      final Size size = (e.renderObject! as RenderBox).size;
+      final double m = painter.moduleSize(size) * dpr;
+      least = least == null ? m : math.min(least, m);
+    }
+  }
+  return least;
+}
+
+/// Shows [page] at [dpr] and gives every BarcodeView time to paint. With
+/// [snap] off, BarcodeView sees a ratio of 1 and does not snap to [dpr].
+Future<GlobalKey> _show(
+  WidgetTester tester,
+  Widget page,
+  Size size,
+  double dpr, {
+  bool snap = true,
+}) async {
+  tester.view
+    ..devicePixelRatio = dpr
+    ..physicalSize = size * dpr;
   final GlobalKey boundary = GlobalKey();
   await tester.pumpWidget(
-    Directionality(
-      textDirection: TextDirection.ltr,
-      child: DefaultTextStyle(
-        style: _text,
-        child: RepaintBoundary(
-          key: boundary,
-          child: ColoredBox(
-            color: _paper,
-            child: Stack(
-              children: <Widget>[
-                Positioned(
-                  left: _margin,
-                  right: _margin,
-                  top: 20,
-                  child: Text(
-                    'flutter_zxing 4.0 · all formats on one sheet',
-                    style: _text.copyWith(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                heading(
-                  writtenTop,
-                  'Made by flutter_zxing',
-                  '${written.length} formats drawn by BarcodeWriter',
-                ),
-                heading(
-                  othersTop,
-                  'Read only',
-                  'the scanner reads these, the writer has no such format',
-                ),
-                for (final (String id, _Tile t, Rect r, GlobalKey k) in tiles)
-                  Positioned.fromRect(
-                    rect: r,
-                    child: _overviewTile(id, t, images, k),
-                  ),
-              ],
-            ),
+    MediaQuery(
+      data: MediaQueryData(size: size, devicePixelRatio: snap ? dpr : 1),
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: DefaultTextStyle(
+          style: _text,
+          child: RepaintBoundary(
+            key: boundary,
+            child: SizedBox.fromSize(size: size, child: page),
           ),
         ),
       ),
     ),
   );
   await _settle(tester);
+  return boundary;
+}
 
-  const String file = '00-all-formats.png';
-  final RenderRepaintBoundary render =
-      boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-  final ByteData? rgba = await tester.runAsync<ByteData?>(() async {
-    final ui.Image image = await render.toImage(pixelRatio: _pixelRatio);
-    final ByteData png = (await image.toByteData(
-      format: ui.ImageByteFormat.png,
-    ))!;
-    File('${dir.path}/$file').writeAsBytesSync(png.buffer.asUint8List());
-    final ByteData? pixels = await image.toByteData();
-    image.dispose();
-    return pixels;
-  });
-  final int width = (page.width * _pixelRatio).round();
-  final int height = (page.height * _pixelRatio).round();
-  const BarcodeReader reader = BarcodeReader(
-    options: ReaderOptions(eanAddOn: EanAddOn.read),
-  );
-
-  final List<_Check> checks = <_Check>[];
-  for (final (String id, _Tile t, Rect _, GlobalKey k) in tiles) {
-    final Rect area = tester.getRect(find.byKey(k));
-    final List<Barcode> found = (await tester.runAsync<List<Barcode>>(
-      () => reader.readAllPixels(
-        PixelBuffer(
-          rgba!.buffer.asUint8List(),
-          width: width,
-          height: height,
-          layout: PixelLayout.rgba,
-          crop: Rect.fromLTRB(
-            area.left * _pixelRatio,
-            area.top * _pixelRatio,
-            area.right * _pixelRatio,
-            area.bottom * _pixelRatio,
-          ),
-        ),
-      ),
-    ))!;
-    checks.add(_Check(id, t, found));
+/// Which tile each read belongs to, and how each tile went. A read counts
+/// for the tile it lies in; one with the right text lying elsewhere counts
+/// for its tile as off its tile (zxing-cpp gives some codes a wrong
+/// outline); anything else is wrong.
+(List<_TileResult>, List<(Barcode, _Outcome)>, List<String>) _classify(
+  List<_Placed> placed,
+  double dpr,
+  List<Barcode> found,
+  Map<String, double?> modules,
+) {
+  bool fits(_Tile t, Barcode b) =>
+      b.format.symbology == t.format.symbology &&
+      (!t.exact || b.text.trim() == t.expectedText.trim());
+  final Map<String, List<Barcode>> hits = <String, List<Barcode>>{
+    for (final _Placed p in placed) p.id: <Barcode>[],
+  };
+  final Map<String, List<Barcode>> off = <String, List<Barcode>>{
+    for (final _Placed p in placed) p.id: <Barcode>[],
+  };
+  final Map<String, List<Barcode>> wrong = <String, List<Barcode>>{
+    for (final _Placed p in placed) p.id: <Barcode>[],
+  };
+  final List<(Barcode, _Outcome)> marks = <(Barcode, _Outcome)>[];
+  final List<(Barcode, _Placed?)> loose = <(Barcode, _Placed?)>[];
+  for (final Barcode b in found) {
+    final List<Offset> c = b.position.corners;
+    final Offset middle = (c[0] + c[1] + c[2] + c[3]) / 4;
+    final _Placed? t = placed
+        .where((_Placed p) => _px(p.rect, dpr).contains(middle))
+        .firstOrNull;
+    if (t != null && fits(t.tile, b)) {
+      // A second read of a code already found adds nothing.
+      if (hits[t.id]!.length < t.count) {
+        hits[t.id]!.add(b);
+        marks.add((b, _Outcome.read));
+      }
+      continue;
+    }
+    loose.add((b, t));
   }
-
-  // The whole sheet in one read: which tiles does it find?
-  final List<Barcode> whole = (await tester.runAsync<List<Barcode>>(
-    () => reader.readAllPixels(
-      PixelBuffer(
-        rgba!.buffer.asUint8List(),
-        width: width,
-        height: height,
-        layout: PixelLayout.rgba,
-      ),
-    ),
-  ))!;
-  final List<String> missing = <String>[
-    for (final (String id, _Tile t, Rect r, GlobalKey _) in tiles)
-      if (!whole.any((Barcode b) {
-        final List<Offset> c = b.position.corners;
-        final Offset middle = (c[0] + c[1] + c[2] + c[3]) / 4 / _pixelRatio;
-        return r.contains(middle) && b.format.symbology == t.format.symbology;
-      }))
-        '$id ${t.title}',
+  final List<String> stray = <String>[];
+  for (final (Barcode b, _Placed? t) in loose) {
+    final List<_Placed> owners =
+        placed
+            .where(
+              (_Placed u) =>
+                  fits(u.tile, b) &&
+                  hits[u.id]!.length + off[u.id]!.length < u.count,
+            )
+            .toList()
+          ..sort(
+            (_Placed u, _Placed v) => (u.tile.format == b.format ? 0 : 1)
+                .compareTo(v.tile.format == b.format ? 0 : 1),
+          );
+    if (owners.isNotEmpty) {
+      off[owners.first.id]!.add(b);
+      marks.add((b, _Outcome.offTile));
+    } else if (placed.any((_Placed u) => fits(u.tile, b))) {
+      // Another read of a code already found.
+    } else if (t != null) {
+      wrong[t.id]!.add(b);
+      marks.add((b, _Outcome.wrong));
+    } else {
+      stray.add(_describe(b));
+      marks.add((b, _Outcome.wrong));
+    }
+  }
+  final List<_TileResult> tiles = <_TileResult>[
+    for (final _Placed p in placed)
+      () {
+        final int h = hits[p.id]!.length;
+        final int o = off[p.id]!.length;
+        final (_Outcome outcome, String? detail) = h >= p.count
+            ? (_Outcome.read, null)
+            : h + o >= p.count
+            ? (_Outcome.offTile, 'outline off its tile')
+            : wrong[p.id]!.isNotEmpty
+            ? (
+                _Outcome.wrong,
+                'read as ${wrong[p.id]!.map(_describe).join('; ')}',
+              )
+            : (
+                _Outcome.missing,
+                h + o > 0 ? 'found ${h + o}/${p.count}' : null,
+              );
+        return _TileResult(p, modules[p.id], outcome, detail);
+      }(),
   ];
+  return (tiles, marks, stray);
+}
 
-  for (final ui.Image image in images.values) {
-    image.dispose();
-  }
-  tester.view.physicalSize = _page;
-  // The field test recognises these codes by what they read as.
-  expect(
-    <String>[for (final FieldCode c in fieldCodes) c.id],
-    <String>[for (final _Check c in checks) c.id],
-    reason: 'example/lib/diagnostics/field_codes.dart is out of date',
-  );
-  for (final (int i, _Check c) in checks.indexed) {
-    expect(
-      c.found.any((Barcode b) => fieldCodes[i].matches(b.format.name, b.text)),
-      isTrue,
-      reason: '${c.id} is not what field_codes.dart expects',
+/// [image] with every tile framed by its outcome and labelled, and every
+/// read outlined.
+Future<Uint8List> _annotate(
+  ui.Image image,
+  double dpr,
+  List<_TileResult> tiles,
+  List<(Barcode, _Outcome)> marks,
+) async {
+  final ui.PictureRecorder recorder = ui.PictureRecorder();
+  final Canvas canvas = Canvas(recorder)
+    ..drawImage(image, Offset.zero, Paint());
+  for (final _TileResult t in tiles) {
+    final Rect rect = _px(t.placed.rect, dpr);
+    final double font = math
+        .min(rect.shortestSide / 9, image.width / 110)
+        .clamp(9, 44);
+    final double stroke = (font / 5).clamp(1.5, 8);
+    canvas.drawRect(
+      rect.deflate(stroke / 2),
+      Paint()
+        ..color = t.outcome.color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke,
+    );
+    final ui.Paragraph label =
+        (ui.ParagraphBuilder(
+                ui.ParagraphStyle(fontFamily: 'Roboto', fontSize: font),
+              )
+              ..pushStyle(
+                ui.TextStyle(
+                  color: const Color(0xFFFFFFFF),
+                  background: Paint()..color = t.outcome.color,
+                  fontWeight: FontWeight.bold,
+                ),
+              )
+              ..addText(
+                ' ${t.placed.id} ${_pxText(t.modulePx)}'
+                '${t.outcome == _Outcome.read ? '' : ' · ${t.outcome.label}'} ',
+              ))
+            .build()
+          ..layout(ui.ParagraphConstraints(width: math.max(rect.width, 160)));
+    canvas.drawParagraph(
+      label,
+      Offset(rect.left + stroke, rect.bottom - stroke - label.height),
     );
   }
-  File('${dir.path}/overview.json').writeAsStringSync(
-    const JsonEncoder.withIndent('  ').convert(<Map<String, Object?>>[
-      for (final _Check c in checks)
-        <String, Object?>{
-          'id': c.id,
-          'title': c.tile.title,
-          'reads': <String>[
-            for (final Barcode b in c.found) '${b.format.name}|${b.text}',
-          ],
-        },
-    ]),
-  );
-  return _Overview(
-    file,
-    <Map<String, Object>>[
-      for (final (String id, _Tile t, Rect r, GlobalKey _) in tiles)
-        <String, Object>{
-          'id': id,
-          'title': t.title,
-          'format': t.format.name,
-          'linear': t.format.isLinear,
-          'count': 1,
-          'rect': <double>[
-            r.left * _pixelRatio,
-            r.top * _pixelRatio,
-            r.right * _pixelRatio,
-            r.bottom * _pixelRatio,
-          ],
-        },
-    ],
-    checks,
-    missing,
-  );
-}
-
-/// [text] with control characters made visible.
-String _visible(String text) => text
-    .replaceAll('\r', '‹CR›')
-    .replaceAll('\n', '⏎')
-    .replaceAll('\x1d', '‹GS›')
-    .replaceAll('\x1e', '‹RS›');
-
-String _kindName(Type? kind) => kind?.toString() ?? '—';
-
-Future<void> _loadFonts() async {
-  final String? root = Platform.environment['FLUTTER_ROOT'];
-  if (root != null) {
-    final FontLoader roboto = FontLoader('Roboto');
-    for (final String weight in <String>['Regular', 'Medium', 'Bold']) {
-      final File file = File(
-        '$root/bin/cache/artifacts/material_fonts/Roboto-$weight.ttf',
-      );
-      if (file.existsSync()) {
-        roboto.addFont(
-          Future<ByteData>.value(ByteData.sublistView(file.readAsBytesSync())),
-        );
-      }
-    }
-    await roboto.load();
+  for (final (Barcode b, _Outcome o) in marks) {
+    final double stroke = math.max(2, image.width / 800);
+    canvas.drawPath(
+      Path()..addPolygon(b.position.corners, true),
+      Paint()
+        ..color = o.color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke,
+    );
   }
-  final File menlo = File('/System/Library/Fonts/Menlo.ttc');
-  if (menlo.existsSync()) {
-    await (FontLoader('Menlo')..addFont(
-          Future<ByteData>.value(ByteData.sublistView(menlo.readAsBytesSync())),
-        ))
-        .load();
-  }
-}
-
-/// A 96 × 96 logo: a rounded square with a white Z, like an app icon.
-Future<Uint8List> _logoPng() async {
-  final ui.PictureRecorder recorder = ui.PictureRecorder();
-  final Canvas canvas = Canvas(recorder);
-  canvas.drawRRect(
-    RRect.fromRectAndRadius(
-      const Rect.fromLTWH(0, 0, 96, 96),
-      const Radius.circular(22),
-    ),
-    Paint()..color = const Color(0xFF0B3D91),
+  final ui.Image drawn = await recorder.endRecording().toImage(
+    image.width,
+    image.height,
   );
-  canvas.drawPath(
-    Path()
-      ..moveTo(26, 26)
-      ..lineTo(70, 26)
-      ..lineTo(26, 70)
-      ..lineTo(70, 70),
-    Paint()
-      ..color = const Color(0xFFFFFFFF)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 11
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round,
-  );
-  final ui.Image image = await recorder.endRecording().toImage(96, 96);
-  final ByteData png = (await image.toByteData(
+  final ByteData png = (await drawn.toByteData(
     format: ui.ImageByteFormat.png,
   ))!;
-  image.dispose();
+  drawn.dispose();
   return png.buffer.asUint8List();
 }
 
-// Menlo has the arrows and symbols Roboto from the SDK lacks.
-const TextStyle _text = TextStyle(
-  fontFamily: 'Roboto',
-  fontFamilyFallback: <String>['Menlo'],
-  color: _ink,
-);
-const TextStyle _mono = TextStyle(
-  fontFamily: 'Menlo',
-  fontSize: 11,
-  height: 1.35,
-  color: _muted,
-);
-
-/// The code of [tile], sized to the space it has.
-Widget _code(_Tile tile, Map<String, ui.Image> images) {
-  Widget view(String data, {double? width}) => BarcodeView(
-    data,
-    format: tile.format,
-    gs1: tile.gs1,
-    errorCorrection: tile.ecc,
-    style: tile.style,
-    showText: tile.format.isLinear,
-    width: width,
+/// Draws [sheet] at one variant, writes the file, reads it and writes what
+/// reading gave next to it. At the sheet's check variant, every tile is also
+/// read on its own into [checks].
+Future<_FileResult> _drawAndRead(
+  WidgetTester tester,
+  Directory dir,
+  _Sheet sheet,
+  String label,
+  double dpr,
+  List<_Check> checks,
+) async {
+  final GlobalKey boundary = await _show(
+    tester,
+    sheet.page,
+    sheet.size,
+    dpr,
+    snap: sheet.snap,
   );
-  final Widget code;
-  if (tile.sample case final String path) {
-    final ui.Image image = images[path]!;
-    code = RawImage(
-      image: image,
-      fit: BoxFit.contain,
-      filterQuality: image.width < 250
-          ? FilterQuality.none
-          : FilterQuality.medium,
-    );
-  } else if (tile.codes case final List<String> codes) {
-    code = Wrap(
-      spacing: 22,
-      runSpacing: 6,
-      alignment: WrapAlignment.center,
-      children: <Widget>[
-        for (final String c in codes)
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              view(c, width: 100),
-              Text(
-                c.substring(0, 1),
-                style: _text.copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+  final Map<String, double?> modules = <String, double?>{
+    for (final _Placed p in sheet.placed) p.id: _moduleOf(p.key, dpr),
+  };
+  final Map<String, Rect> areas = <String, Rect>{
+    if (label == sheet.check)
+      for (final _Placed p in sheet.placed)
+        p.id: _px(tester.getRect(find.byKey(p.key)), dpr),
+  };
+  final RenderRepaintBoundary render =
+      boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+  final String stem = '${dir.path}/${sheet.name}_$label';
+  return (await tester.runAsync<_FileResult>(() async {
+    final ui.Image image = await render.toImage(pixelRatio: dpr);
+    final Uint8List png = (await image.toByteData(
+      format: ui.ImageByteFormat.png,
+    ))!.buffer.asUint8List();
+    File('$stem.png').writeAsBytesSync(png);
+    if (areas.isNotEmpty) {
+      final ByteData rgba = (await image.toByteData())!;
+      for (final _Placed p in sheet.placed) {
+        final List<Barcode> found = await _fileReader.readAllPixels(
+          PixelBuffer(
+            rgba.buffer.asUint8List(),
+            width: image.width,
+            height: image.height,
+            layout: PixelLayout.rgba,
+            crop: areas[p.id],
           ),
-      ],
+        );
+        checks.add(_Check(p.id, p.tile, found));
+      }
+    }
+    final Stopwatch watch = Stopwatch()..start();
+    final List<Barcode> found = await _fileReader.readAll(png);
+    watch.stop();
+    final (
+      List<_TileResult> tiles,
+      List<(Barcode, _Outcome)> marks,
+      List<String> stray,
+    ) = _classify(
+      sheet.placed,
+      dpr,
+      found,
+      modules,
     );
-  } else if (tile.bytes case final Uint8List bytes) {
-    code = BarcodeView.bytes(bytes, format: tile.format);
-  } else {
-    code = view(tile.data, width: tile.look == _Look.tiny ? 34 : null);
+    File(
+      '${stem}_read.png',
+    ).writeAsBytesSync(await _annotate(image, dpr, tiles, marks));
+    final _FileResult result = _FileResult(
+      sheet,
+      label,
+      image.width,
+      image.height,
+      watch.elapsedMilliseconds,
+      tiles,
+      stray,
+    );
+    image.dispose();
+    return result;
+  }))!;
+}
+
+/// How many variants [id] was read at, as "6/8".
+String _readCount(List<_FileResult> results, String id) {
+  final int read = results
+      .where((_FileResult r) => r.tile(id).outcome == _Outcome.read)
+      .length;
+  return '$read/${results.length}';
+}
+
+/// The first variant from which [id] reads at every larger one.
+String _readsFrom(List<_FileResult> results, String id) {
+  String from = '—';
+  for (final _FileResult r in results.reversed) {
+    if (r.tile(id).outcome != _Outcome.read) {
+      break;
+    }
+    from = r.label;
   }
-  return switch (tile.look) {
-    _Look.rotated => Transform.rotate(
-      angle: 0.5236,
-      child: SizedBox.square(dimension: 130, child: code),
-    ),
-    _Look.mirrored => Transform.flip(flipX: true, child: code),
-    _ => code,
-  };
+  return from;
 }
 
-Widget _tile(
-  String id,
-  _Tile tile,
-  Map<String, ui.Image> images,
-  GlobalKey key,
-) {
-  final String? note = tile.note;
-  final String data = tile.bytes != null
-      ? tile.bytes!
-            .map((int b) => b.toRadixString(16).padLeft(2, '0'))
-            .join(' ')
-      : tile.codes?.join(' · ') ?? _visible(tile.data);
-  return DecoratedBox(
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFFFFF),
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: _ink,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 2,
-                  ),
-                  child: Text(
-                    id,
-                    style: _text.copyWith(
-                      color: const Color(0xFFFFFFFF),
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Text(
-                  tile.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _text.copyWith(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              Text(
-                tile.format.displayName,
-                style: _text.copyWith(fontSize: 12, color: _muted),
-              ),
-            ],
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: KeyedSubtree(
-                key: key,
-                child: Center(child: _code(tile, images)),
-              ),
-            ),
-          ),
-          Text.rich(
-            TextSpan(
-              children: <InlineSpan>[
-                TextSpan(
-                  text: '→ ${_kindName(tile.kind)}',
-                  style: const TextStyle(
-                    color: _accent,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (note != null)
-                  TextSpan(
-                    text: '  $note',
-                    style: TextStyle(color: tile.warning ? _warn : _muted),
-                  ),
-              ],
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: _text.copyWith(fontSize: 12),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            data.isEmpty ? '(see sample)' : data,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: _mono,
-          ),
-        ],
-      ),
-    ),
-  );
+/// "m1.5" as "1.5".
+String _density(String label) =>
+    label.startsWith('m') ? label.substring(1) : label;
+
+String _md(String s) => s.replaceAll('|', r'\|').replaceAll('\n', ' ');
+
+String _secondsText(int ms) => '${(ms / 1000).toStringAsFixed(2)} s';
+
+const String _legend =
+    '✓ read · ↗ read, but zxing-cpp gives an outline off its tile · '
+    '✗ read wrong · — not found. The number is pixels per module as drawn.';
+
+/// report.md of [folder].
+String _folderReport(_Folder folder, Map<String, dynamic>? baseline) {
+  final StringBuffer md = StringBuffer()
+    ..writeln('# ${folder.title}')
+    ..writeln()
+    ..writeln(folder.about)
+    ..writeln()
+    ..writeln(
+      'Every file is read whole, once, as a file, with '
+      '`ReaderOptions(eanAddOn: EanAddOn.read)`. $_legend',
+    )
+    ..writeln();
+  if (folder.single) {
+    final List<String> labels = <String>[
+      for (final (String l, double _) in folder.sheets.first.variants) l,
+    ];
+    md
+      ..writeln(
+        '| code | ${labels.map(_density).join(' | ')} | read | reads from |',
+      )
+      ..writeln('|---|${'---|' * labels.length}---|---|');
+    for (final _Sheet s in folder.sheets) {
+      final List<_FileResult> rs = folder.results
+          .where((_FileResult r) => r.sheet == s)
+          .toList();
+      final String id = s.placed.single.id;
+      md.writeln(
+        '| **$id** ${_md(s.placed.single.tile.title)} '
+        '| ${rs.map((_FileResult r) => r.tile(id).outcome.mark).join(' | ')} '
+        '| ${_readCount(rs, id)} | ${_density(_readsFrom(rs, id))} |',
+      );
+    }
+    return md.toString();
+  }
+  for (final _Sheet s in folder.sheets) {
+    final List<_FileResult> rs = folder.results
+        .where((_FileResult r) => r.sheet == s)
+        .toList();
+    md
+      ..writeln('## ${s.title}')
+      ..writeln()
+      ..writeln(
+        '| file | pixels | read | outline off | wrong | not found | other reads | time${baseline == null ? '' : ' | baseline read'} |',
+      )
+      ..writeln(
+        '|---|---|---|---|---|---|---|---|${baseline == null ? '' : '---|'}',
+      );
+    for (final _FileResult r in rs) {
+      final Object? b =
+          ((baseline?[folder.name] as Map<String, dynamic>?)?[s.name]
+                  as Map<String, dynamic>?)?[r.label]
+              is Map<String, dynamic>
+          ? (((baseline![folder.name] as Map<String, dynamic>)[s.name]
+                    as Map<String, dynamic>)[r.label]
+                as Map<String, dynamic>)['read']
+          : null;
+      md.writeln(
+        '| [${r.label}](${folder.pathOf(s, r.readFile)}) | ${r.width} × ${r.height} '
+        '| ${r.count(_Outcome.read)}/${r.tiles.length} | ${r.count(_Outcome.offTile)} '
+        '| ${r.count(_Outcome.wrong)} | ${r.count(_Outcome.missing)} | ${r.stray.length} '
+        '| ${_secondsText(r.ms)}${baseline == null ? '' : ' | ${b ?? '—'}'} |',
+      );
+    }
+    md
+      ..writeln()
+      ..writeln(
+        '| tile | format | ${rs.map((_FileResult r) => r.label).join(' | ')} | read |',
+      )
+      ..writeln('|---|---|${'---|' * rs.length}---|');
+    for (final _Placed p in s.placed) {
+      md.writeln(
+        '| **${p.id}** ${_md(p.tile.title)} | ${p.tile.format.displayName} '
+        '| ${rs.map((_FileResult r) => r.tile(p.id).cell).join(' | ')} '
+        '| ${_readCount(rs, p.id)} |',
+      );
+    }
+    final List<String> notes = <String>[
+      for (final _FileResult r in rs) ...<String>[
+        for (final _TileResult t in r.tiles)
+          if (t.detail != null)
+            '${r.label} **${t.placed.id}**: ${_md(t.detail!)}',
+        for (final String x in r.stray)
+          '${r.label}: outside the tiles, ${_md(x)}',
+      ],
+    ];
+    if (notes.isNotEmpty) {
+      md.writeln();
+      for (final String n in notes) {
+        md.writeln('- $n');
+      }
+    }
+    md.writeln();
+  }
+  return md.toString();
 }
 
-/// What reading a tile back found.
-final class _Check {
-  const _Check(this.id, this.tile, this.found);
+/// index.html: every file next to its read, and per code how many sizes it
+/// was read at.
+String _index(List<_Folder> folders) {
+  const HtmlEscape esc = HtmlEscape();
+  String e(String s) => esc.convert(s);
+  String mark(_TileResult t) =>
+      '<td class="c" style="background:${t.outcome.css}" title="${e(t.outcome.label)}${t.detail == null ? '' : ': ${e(t.detail!)}'}">${e(t.cell)}</td>';
+  String image(String src) =>
+      '<a href="${e(src)}"><img loading="lazy" src="${e(src)}" alt=""></a>';
+  String figure(String caption, String file, String read) =>
+      '<figure><figcaption>${e(caption)}</figcaption>'
+      '<div class="two">${image(file)}${image(read)}</div></figure>';
+  final StringBuffer h = StringBuffer()
+    ..writeln('''
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check sheets</title>
+<style>
+  body { margin: 0; background: #1b1f24; color: #e8eaed; font: 14px -apple-system, system-ui, sans-serif; }
+  nav { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px; background: #1b1f24ee; }
+  nav a, a { color: #9cc7ff; }
+  nav a { text-decoration: none; padding: 4px 10px; border-radius: 6px; background: #2c323a; color: #e8eaed; }
+  section { padding: 8px 16px 24px; }
+  h2 { margin: 18px 0 4px; font-size: 20px; }
+  h3 { margin: 18px 0 6px; font-size: 16px; }
+  p { color: #aab2bd; margin: 4px 0 10px; }
+  .wrap { overflow-x: auto; }
+  table { border-collapse: collapse; margin: 6px 0 12px; font-size: 12px; }
+  th, td { border: 1px solid #333a43; padding: 3px 6px; text-align: left; white-space: nowrap; }
+  td.c { color: #fff; font-weight: 600; text-align: center; }
+  table.dense td.c, table.dense th { padding: 3px 2px; min-width: 18px; text-align: center; }
+  .pairs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 640px), 1fr)); gap: 12px; }
+  figure { margin: 0; background: #23282f; border-radius: 8px; padding: 8px; }
+  figcaption { margin-bottom: 6px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .two img { width: 100%; height: auto; background: #fff; border-radius: 4px; }
+</style></head><body>''')
+    ..writeln(
+      '<nav>${folders.map((_Folder f) => '<a href="#${e(f.name)}">${e(f.name)}</a>').join()}<a href="tiles.md">tiles.md</a></nav>',
+    )
+    ..writeln(
+      '<section><p>${e(_legend)} Each pair: the file, then what reading it found. Click an image for full size.</p></section>',
+    );
+  for (final _Folder f in folders) {
+    h.writeln(
+      '<section id="${e(f.name)}"><h2>${e(f.title)}</h2><p>${e(f.about)} <a href="${e(f.name)}/report.md">report.md</a></p>',
+    );
+    if (f.single) {
+      final List<String> labels = <String>[
+        for (final (String l, double _) in f.sheets.first.variants) l,
+      ];
+      h
+        ..writeln(
+          '<p>Pixels per module across, each code down. Click a cell for what reading that file found.</p>',
+        )
+        ..writeln(
+          '<div class="wrap"><table class="dense"><tr><th>code</th>${labels.map((String l) => '<th>${e(_density(l))}</th>').join()}<th>read</th><th>reads from</th></tr>',
+        );
+      for (final _Sheet s in f.sheets) {
+        final List<_FileResult> rs = f.results
+            .where((_FileResult r) => r.sheet == s)
+            .toList();
+        final String id = s.placed.single.id;
+        String cell(_FileResult r) {
+          final _TileResult t = r.tile(id);
+          final String title =
+              '${_density(r.label)} px · ${t.outcome.label}'
+              '${t.detail == null ? '' : ': ${t.detail!}'}';
+          final String href = '${f.name}/${f.pathOf(s, r.readFile)}';
+          final String link =
+              '<a style="color:#fff;text-decoration:none" href="${e(href)}">${e(t.outcome.mark)}</a>';
+          return '<td class="c" style="background:${t.outcome.css}" title="${e(title)}">$link</td>';
+        }
 
-  final String id;
-  final _Tile tile;
-  final List<Barcode> found;
-
-  Barcode? get first => found.isEmpty ? null : found.first;
-
-  bool get formatOk =>
-      first != null && first!.format.symbology == tile.format.symbology;
-
-  bool get kindOk =>
-      tile.kind == null || first?.content.runtimeType == tile.kind;
-
-  /// An EAN with an add-on also reads without it: any of the reads counts.
-  bool get textOk =>
-      !tile.exact ||
-      found.any((Barcode b) => b.text.trim() == tile.expectedText.trim());
-
-  bool get countOk => tile.codes == null || found.length == tile.codes!.length;
-
-  /// Not read, or read as something else: the sheet itself is wrong.
-  bool get failed => first == null || !formatOk || !kindOk || !countOk;
-
-  String get status => failed ? '✗' : (textOk ? '✓' : '≈');
+        h.writeln(
+          '<tr><td><b>${e(id)}</b> ${e(s.placed.single.tile.title)}</td>'
+          '${rs.map(cell).join()}'
+          '<td>${_readCount(rs, id)}</td><td>${e(_density(_readsFrom(rs, id)))}</td></tr>',
+        );
+      }
+      h.writeln('</table></div></section>');
+      continue;
+    }
+    for (final _Sheet s in f.sheets) {
+      final List<_FileResult> rs = f.results
+          .where((_FileResult r) => r.sheet == s)
+          .toList();
+      h
+        ..writeln('<h3>${e(s.title)}</h3><div class="wrap"><table>')
+        ..writeln(
+          '<tr><th>code</th><th>format</th>${rs.map((_FileResult r) => '<th>${e(r.label)}<br><small>${r.count(_Outcome.read)}/${r.tiles.length} · ${_secondsText(r.ms)}</small></th>').join()}<th>read</th></tr>',
+        );
+      for (final _Placed p in s.placed) {
+        h.writeln(
+          '<tr><td><b>${e(p.id)}</b> ${e(p.tile.title)}</td><td>${e(p.tile.format.displayName)}</td>'
+          '${rs.map((_FileResult r) => mark(r.tile(p.id))).join()}<td>${_readCount(rs, p.id)}</td></tr>',
+        );
+      }
+      h
+        ..writeln('</table></div>')
+        ..writeln('<div class="pairs">');
+      for (final _FileResult r in rs) {
+        final String file = '${f.name}/${f.pathOf(s, r.file)}';
+        final String read = '${f.name}/${f.pathOf(s, r.readFile)}';
+        h.writeln(
+          figure(
+            '${r.label} · ${r.width} × ${r.height} · read '
+            '${r.count(_Outcome.read)}/${r.tiles.length}'
+            '${r.stray.isEmpty ? '' : ' · ${r.stray.length} other reads'}',
+            file,
+            read,
+          ),
+        );
+      }
+      h.writeln('</div>');
+    }
+    h.writeln('</section>');
+  }
+  h.writeln('</body></html>');
+  return h.toString();
 }
 
-/// The "frames" of a page, like those of a hand-held phone: shifted by a
-/// pixel or two (in frame pixels), turned by a degree or two, and a little
-/// out of focus (the blur's sigma). The first is the page as drawn.
-const List<(Offset, double, double)> _frames = <(Offset, double, double)>[
-  (Offset.zero, 0, 0),
-  (Offset(1, 0), 0, 0),
-  (Offset(0, 1), 0, 0.8),
-  (Offset(2, 1), 1, 0),
-  (Offset(1, 3), -1, 1),
-  (Offset(3, 2), 2, 1.2),
-  (Offset(2, 2), -2, 0.6),
-  (Offset(0, 2), 3, 1.5),
-];
-
-/// The page scaled down to about the width of a camera frame.
-final double _frameWidth =
-    double.tryParse(Platform.environment['SHEETS_WIDTH'] ?? '') ?? 1280;
-
-/// The widest frame the scanner's camera gives (Full HD): the report shows
-/// how the pages read at this width too.
-const double _wideWidth = 1920;
-
-/// A page read from its file: whole, as drawn, once, with the options for
-/// files (`ReaderOptions()`). A file needs no camera's scaling or blur.
-const List<(Offset, double, double)> _fileFrames = <(Offset, double, double)>[
-  (Offset.zero, 0, 0),
-];
-
-/// What the pages are read with; SHEETS_READER tries other settings, as
-/// `tryInvert=true,minLineCount=1,binarizer=globalHistogram`.
-final ReaderOptions _readOptions = () {
-  final Map<String, String> set = <String, String>{
-    for (final String pair
-        in (Platform.environment['SHEETS_READER'] ?? '').split(','))
-      if (pair.contains('=')) pair.split('=').first: pair.split('=').last,
-  };
-  return const ReaderOptions.camera().copyWith(
-    tryInvert: set['tryInvert'] == null ? null : set['tryInvert'] == 'true',
-    minLineCount: int.tryParse(set['minLineCount'] ?? ''),
-    binarizer: set['binarizer'] == null
-        ? null
-        : Binarizer.values.byName(set['binarizer']!),
-  );
-}();
-
-/// The quad's height: the distance between the middles of its top and
-/// bottom edges.
-double _heightOf(BarcodePosition p) =>
-    (((p.bottomLeft + p.bottomRight) - (p.topLeft + p.topRight)) / 2).distance;
-
-String _keyOf(Barcode b) => '${b.format.name} ${b.text}';
+/// tiles.md: every tile once, what it holds and what reading it alone gave.
+String _tilesReport(List<(_Folder, _Sheet, List<_Check>)> checked) {
+  final StringBuffer md = StringBuffer()
+    ..writeln('# flutter_zxing 4.0 · check sheet tiles')
+    ..writeln()
+    ..writeln(
+      '✓ read back as drawn · ≈ read, text differs (expected for some formats) · ✗ broken tile. '
+      'Each tile read on its own from the file named. Scan each tile with the demo and tick the last column.',
+    )
+    ..writeln();
+  for (final (_Folder f, _Sheet s, List<_Check> checks) in checked) {
+    md
+      ..writeln(
+        '## ${s.title} (${f.name}/${f.pathOf(s, '${s.name}_${s.check}.png')})',
+      )
+      ..writeln()
+      ..writeln('| | Tile | Format | Expect | Read back | Data | Phone |')
+      ..writeln('|---|---|---|---|---|---|---|');
+    for (final _Check c in checks) {
+      final Barcode? b = c.first;
+      final String read = b == null
+          ? 'not read'
+          : '${c.status} ${b.format.displayName} · ${b.content.runtimeType}'
+                '${c.tile.codes != null ? ' · ${c.found.length} codes' : ''}'
+                '${b.ecLevel != null && b.ecLevel!.isNotEmpty ? ' · ECC ${b.ecLevel}' : ''}'
+                '${b.isMirrored ? ' · mirrored' : ''}${b.isInverted ? ' · inverted' : ''}';
+      final String data = c.tile.bytes != null
+          ? '(binary)'
+          : _visible(c.tile.data);
+      md.writeln(
+        '| **${c.id}** | ${_md(c.tile.title)}${c.tile.note != null ? '<br><sub>${_md(c.tile.note!)}</sub>' : ''} '
+        '| ${c.tile.format.displayName} | ${_kindName(c.tile.kind)} | ${_md(read)} '
+        '| `${_md(data.length > 60 ? '${data.substring(0, 60)}…' : data)}` | ☐ |',
+      );
+    }
+    md.writeln();
+  }
+  return md.toString();
+}
 
 void main() {
   setUpAll(() async {
@@ -1840,1122 +1184,282 @@ void main() {
   testWidgets(
     'check sheets',
     (WidgetTester tester) async {
-      final Directory dir = Directory(_out!)..createSync(recursive: true);
-      tester.view
-        ..physicalSize = _page
-        ..devicePixelRatio = 1;
+      final Directory root = Directory(_out!)..createSync(recursive: true);
+      // Start clean, keeping only the baseline to compare with.
+      for (final FileSystemEntity e in root.listSync()) {
+        if (e.uri.pathSegments.where((String s) => s.isNotEmpty).last !=
+            'baseline.json') {
+          e.deleteSync(recursive: true);
+        }
+      }
       addTearDown(tester.view.reset);
 
       final Uint8List logo = (await tester.runAsync(_logoPng))!;
       final List<_Section> sections = _sections(logo);
 
       // Every format the writer makes is on a sheet.
-      final Set<BarcodeFormat> drawn = <BarcodeFormat>{
-        for (final _Section s in sections)
-          for (final _Tile t in s.$4)
-            if (t.sample == null) t.format,
-      };
       expect(
-        BarcodeFormat.writable.difference(drawn),
+        BarcodeFormat.writable.difference(<BarcodeFormat>{
+          for (final _Section s in sections)
+            for (final _Tile t in s.$4)
+              if (t.sample == null) t.format,
+        }),
         isEmpty,
         reason: 'a writable format has no tile',
       );
-
-      final _Overview overview = await _drawOverview(tester, dir, sections);
+      final List<_Tile> written = _writtenTiles(sections);
+      final List<(BarcodeFormat, _Tile)> readOnly = _readOnlyTiles();
+      expect(
+        <BarcodeFormat>{
+          for (final BarcodeFormat f in BarcodeFormat.values)
+            if (f.canRead && !f.canWrite) f,
+        }.difference(<BarcodeFormat>{
+          for (final (BarcodeFormat f, _Tile _) in readOnly) f,
+        }),
+        isEmpty,
+        reason: 'a format the scanner only reads has no tile',
+      );
+      final List<_Tile> others = <_Tile>[
+        for (final (BarcodeFormat _, _Tile t) in readOnly) t,
+      ];
 
       final Map<String, ui.Image> images = <String, ui.Image>{};
       await tester.runAsync(() async {
-        for (final _Section s in sections) {
-          for (final _Tile t in s.$4) {
-            if (t.sample case final String path) {
-              images[path] = await decodeImageFromList(
-                File(path).readAsBytesSync(),
-              );
-            }
+        for (final _Tile t in <_Tile>[
+          ...others,
+          for (final _Section s in sections) ...s.$4,
+        ]) {
+          if (t.sample case final String path) {
+            images[path] ??= await decodeImageFromList(
+              File(path).readAsBytesSync(),
+            );
           }
         }
       });
 
-      final List<_Check> checks = <_Check>[];
-      final List<(String, String, String)> pages = <(String, String, String)>[
+      List<_Group> groups(bool Function(_Tile) keep) => <_Group>[
         (
-          overview.file,
-          'All formats',
-          'Every format on one sheet: made by the writer, then read only',
+          'Made by flutter_zxing',
+          'drawn by BarcodeWriter',
+          <(String, _Tile)>[
+            for (final (int i, _Tile t) in written.indexed)
+              if (keep(t)) ('W${i + 1}', t),
+          ],
+        ),
+        (
+          'Read only',
+          'the scanner reads these, the writer has no such format',
+          <(String, _Tile)>[
+            for (final (int i, _Tile t) in others.indexed)
+              if (keep(t)) ('R${i + 1}', t),
+          ],
         ),
       ];
-      // sheets.json: per page, every tile and where it is, so the camera
-      // read knows how many codes each page has.
-      final Map<String, Object> sheets = <String, Object>{
-        overview.file: overview.tiles,
+      bool all(_Tile t) => true;
+
+      // 2-single: the size of each drawn code at _singleModule.
+      final List<(String, _Tile)> singles = <(String, _Tile)>[
+        for (final _Group g in groups((_Tile t) => t.sample == null)) ...g.$3,
+      ];
+      final Map<String, Size> singleSizes = <String, Size>{};
+      for (final (String id, _Tile t) in singles) {
+        final GlobalKey key = GlobalKey();
+        await _show(
+          tester,
+          Center(child: _singleCode(t, images, key)),
+          const Size(8000, 4000),
+          1,
+        );
+        singleSizes[id] = tester.getSize(find.byKey(key));
+      }
+
+      const Set<BarcodeFormat> tall = <BarcodeFormat>{
+        BarcodeFormat.code39Extended,
+        BarcodeFormat.code93,
       };
-      int pageNumber = 0;
-      final int pageCount = sections.fold(
-        0,
-        (int n, _Section s) => n + _paginate(s.$4).length,
-      );
-      final String date = DateTime.now().toIso8601String().substring(0, 10);
-
-      for (final (String letter, String title, String about, List<_Tile> tiles)
-          in sections) {
-        final List<(int, List<_Tile>, List<Rect>)> parts = _paginate(tiles);
-        for (int part = 0; part < parts.length; part++) {
-          final (int first, List<_Tile> pageTiles, List<Rect> rects) =
-              parts[part];
-          pageNumber++;
-          final String heading = parts.length > 1
-              ? '$title (${part + 1}/${parts.length})'
-              : title;
-          final List<GlobalKey> keys = <GlobalKey>[
-            for (final _Tile _ in pageTiles) GlobalKey(),
-          ];
-          final GlobalKey boundary = GlobalKey();
-          await tester.pumpWidget(
-            Directionality(
-              textDirection: TextDirection.ltr,
-              child: DefaultTextStyle(
-                style: _text,
-                child: RepaintBoundary(
-                  key: boundary,
-                  child: ColoredBox(
-                    color: _paper,
-                    child: Stack(
-                      children: <Widget>[
-                        Positioned(
-                          left: _margin,
-                          right: _margin,
-                          top: 18,
-                          height: _header,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                '$letter  ',
-                                style: _text.copyWith(
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.bold,
-                                  color: _accent,
-                                ),
-                              ),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Text(
-                                      heading,
-                                      style: _text.copyWith(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Text(
-                                      about,
-                                      style: _text.copyWith(
-                                        fontSize: 14,
-                                        color: _muted,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Text(
-                                'flutter_zxing 4.0 · check sheet · $pageNumber / $pageCount · $date',
-                                style: _text.copyWith(
-                                  fontSize: 13,
-                                  color: _muted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        for (int i = 0; i < pageTiles.length; i++)
-                          Positioned.fromRect(
-                            rect: rects[i],
-                            child: _tile(
-                              '$letter${first + i + 1}',
-                              pageTiles[i],
-                              images,
-                              keys[i],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-
-          // BarcodeView encodes on the engine isolate and logos decode
-          // asynchronously: give both real time until every view paints.
-          await _settle(tester);
-
-          final String file =
-              '${pageNumber.toString().padLeft(2, '0')}-$letter-${title.toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '-')}'
-              '${parts.length > 1 ? '-${part + 1}' : ''}.png';
-          final RenderRepaintBoundary render =
-              boundary.currentContext!.findRenderObject()!
-                  as RenderRepaintBoundary;
-          final ByteData? rgba = await tester.runAsync<ByteData?>(() async {
-            final ui.Image image = await render.toImage(
-              pixelRatio: _pixelRatio,
-            );
-            final ByteData png = (await image.toByteData(
-              format: ui.ImageByteFormat.png,
-            ))!;
-            File(
-              '${dir.path}/$file',
-            ).writeAsBytesSync(png.buffer.asUint8List());
-            final ByteData? pixels = await image.toByteData();
-            image.dispose();
-            return pixels;
-          });
-          pages.add((file, '$letter · $heading', about));
-          sheets[file] = <Map<String, Object>>[
-            for (int i = 0; i < pageTiles.length; i++)
-              <String, Object>{
-                'id': '$letter${first + i + 1}',
-                'title': pageTiles[i].title,
-                'format': pageTiles[i].format.name,
-                'linear': pageTiles[i].format.isLinear,
-                'count': pageTiles[i].codes?.length ?? 1,
-                'rect': <double>[
-                  rects[i].left * _pixelRatio,
-                  rects[i].top * _pixelRatio,
-                  rects[i].right * _pixelRatio,
-                  rects[i].bottom * _pixelRatio,
-                ],
+      final List<_Folder> folders = <_Folder>[
+        _Folder(
+          '1-formats',
+          'Every supported format',
+          'Codes the writer makes (W) and the scanner only reads (R). '
+              'Square sheets from ${_gridSides.first} to ${_gridSides.last} px, '
+              'one code per row from ${_columnWidths.first} to ${_columnWidths.last} px wide, '
+              'and the linear and 2D codes apart.',
+          <_Sheet>[
+            _gridSheet(
+              'all-grid',
+              'all formats',
+              groups(all),
+              images,
+              columns: 7,
+              tall: tall,
+              rowStarts: const <BarcodeFormat>{
+                BarcodeFormat.code39Extended,
+                BarcodeFormat.codabar,
+                BarcodeFormat.itf,
               },
-          ];
+            ),
+            _columnSheet(
+              'all-column',
+              'all formats, one per row',
+              groups(all),
+              images,
+            ),
+            _gridSheet(
+              'linear-grid',
+              'linear formats',
+              groups((_Tile t) => t.format.isLinear),
+              images,
+              columns: 4,
+            ),
+            _gridSheet(
+              '2d-grid',
+              '2D formats',
+              groups((_Tile t) => !t.format.isLinear),
+              images,
+              columns: 4,
+            ),
+          ],
+          subfolders: true,
+        ),
+        _Folder(
+          '2-single',
+          'Each code alone',
+          'One code per file, from $_densityFrom to $_densityTo pixels per module '
+              'by $_densityStep. Each file is the code scaled exactly, not '
+              'snapped to whole pixels. Sample images (MaxiCode, QR Model 1, '
+              'EAN-5) are not drawn, so they are not here.',
+          <_Sheet>[
+            for (final (String id, _Tile t) in singles)
+              _singleSheet(id, t, singleSizes[id]!, images),
+          ],
+          subfolders: true,
+          single: true,
+        ),
+        for (final (String name, String title, String about, String letters)
+            in const <(String, String, String, String)>[
+              (
+                '3-content',
+                'Content',
+                'Real data: links, contacts, payments, documents.',
+                'EFGH',
+              ),
+              (
+                '4-templates',
+                'Scanner templates',
+                'Codes the scanner templates are made for.',
+                'IJ',
+              ),
+              (
+                '5-styles',
+                'Styles',
+                'BarcodeView styles, logos, captions and cards.',
+                'K',
+              ),
+              ('6-hard', 'Hard cases', 'Limits of the reader.', 'L'),
+            ])
+          _Folder(
+            name,
+            title,
+            '$about Pages ${_pageWidths.join(' and ')} px wide.',
+            <_Sheet>[
+              for (final _Section s in sections)
+                if (letters.contains(s.$1)) ..._sectionSheets(s, images),
+            ],
+          ),
+      ];
 
-          for (int i = 0; i < pageTiles.length; i++) {
-            final Rect area = tester.getRect(find.byKey(keys[i]));
-            final List<Barcode> found = (await tester.runAsync<List<Barcode>>(
-              () =>
-                  const BarcodeReader(
-                    options: ReaderOptions(eanAddOn: EanAddOn.read),
-                  ).readAllPixels(
-                    PixelBuffer(
-                      rgba!.buffer.asUint8List(),
-                      width: (_page.width * _pixelRatio).round(),
-                      height: (_page.height * _pixelRatio).round(),
-                      layout: PixelLayout.rgba,
-                      crop: Rect.fromLTRB(
-                        area.left * _pixelRatio,
-                        area.top * _pixelRatio,
-                        area.right * _pixelRatio,
-                        area.bottom * _pixelRatio,
-                      ),
-                    ),
-                  ),
-            ))!;
-            checks.add(_Check('$letter${first + i + 1}', pageTiles[i], found));
+      final List<(_Folder, _Sheet, List<_Check>)> checked =
+          <(_Folder, _Sheet, List<_Check>)>[];
+      for (final _Folder f in folders) {
+        for (final _Sheet s in f.sheets) {
+          final Directory dir = Directory(
+            '${root.path}/${f.name}/${f.pathOf(s, '')}'.replaceAll(
+              RegExp(r'/$'),
+              '',
+            ),
+          )..createSync(recursive: true);
+          final List<_Check> checks = <_Check>[];
+          for (final (String label, double dpr) in s.variants) {
+            f.results.add(
+              await _drawAndRead(tester, dir, s, label, dpr, checks),
+            );
           }
+          if (checks.isNotEmpty) {
+            checked.add((f, s, checks));
+          }
+          if (!f.single) {
+            // ignore: avoid_print
+            print(
+              '${f.name}/${s.name}: ${f.results.where((_FileResult r) => r.sheet == s).map((_FileResult r) => '${r.label} ${r.count(_Outcome.read)}/${r.tiles.length}').join(' · ')}',
+            );
+          }
+        }
+        if (f.single) {
+          // ignore: avoid_print
+          print(
+            '${f.name}: ${f.sheets.map((_Sheet s) => '${s.placed.single.id} from ${_readsFrom(f.results.where((_FileResult r) => r.sheet == s).toList(), s.placed.single.id)}').join(' · ')}',
+          );
         }
       }
       for (final ui.Image image in images.values) {
         image.dispose();
       }
 
-      // report.md: one row per tile, what it holds and what reading it gave.
-      String cell(String s) => s.replaceAll('|', r'\|');
-      final StringBuffer report = StringBuffer()
-        ..writeln('# flutter_zxing 4.0 · check sheets ($date)')
-        ..writeln()
-        ..writeln(
-          '✓ read back as drawn · ≈ read, text differs (expected for some formats) · ✗ broken tile',
-        )
-        ..writeln()
-        ..writeln('Scan each tile with the demo and tick the last column.')
-        ..writeln()
-        ..writeln('## All formats on one sheet (${overview.file})')
-        ..writeln()
-        ..writeln(
-          'Read tile by tile: ${overview.checks.where((_Check c) => !c.failed).length} '
-          'of ${overview.checks.length}. Read as one whole page: '
-          '${overview.checks.length - overview.missing.length} of '
-          '${overview.checks.length}'
-          '${overview.missing.isEmpty ? '' : ', not found: ${overview.missing.join(', ')}'}.',
-        )
-        ..writeln()
-        ..writeln('| | Tile | Read back |')
-        ..writeln('|---|---|---|');
-      for (final _Check c in overview.checks) {
-        report.writeln(
-          '| **${c.id}** | ${cell(c.tile.title)} | ${c.status} '
-          '${c.first == null ? 'not read' : cell(_visible(c.first!.text))} |',
-        );
-      }
-      report.writeln();
-      String? section;
-      for (final _Check c in checks) {
-        final String letter = c.id.substring(0, 1);
-        if (letter != section) {
-          section = letter;
-          final _Section s = sections.firstWhere(
-            (_Section s) => s.$1 == letter,
-          );
-          report
-            ..writeln('## $letter · ${s.$2}')
-            ..writeln()
-            ..writeln('| | Tile | Format | Expect | Read back | Data | Phone |')
-            ..writeln('|---|---|---|---|---|---|---|');
-        }
-        final Barcode? b = c.first;
-        final String read = b == null
-            ? 'not read'
-            : '${c.status} ${b.format.displayName} · ${b.content.runtimeType}'
-                  '${c.tile.codes != null ? ' · ${c.found.length} codes' : ''}'
-                  '${b.ecLevel != null && b.ecLevel!.isNotEmpty ? ' · ECC ${b.ecLevel}' : ''}'
-                  '${b.isMirrored ? ' · mirrored' : ''}${b.isInverted ? ' · inverted' : ''}';
-        final String data = c.tile.bytes != null
-            ? '(binary)'
-            : _visible(c.tile.data);
-        report.writeln(
-          '| **${c.id}** | ${cell(c.tile.title)}${c.tile.note != null ? '<br><sub>${cell(c.tile.note!)}</sub>' : ''} '
-          '| ${c.tile.format.displayName} | ${_kindName(c.tile.kind)} | ${cell(read)} '
-          '| `${cell(data.length > 60 ? '${data.substring(0, 60)}…' : data)}` | ☐ |',
-        );
-      }
-      File('${dir.path}/report.md').writeAsStringSync(report.toString());
-      File(
-        '${dir.path}/sheets.json',
-      ).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(sheets));
-
-      // index.html: all pages one under another, as one long sheet.
-      const HtmlEscape esc = HtmlEscape();
-      File('${dir.path}/index.html').writeAsStringSync('''
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Check sheets</title>
-<style>
-  body { margin: 0; background: #1b1f24; color: #e8eaed; font: 14px -apple-system, system-ui, sans-serif; }
-  nav { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px; background: #1b1f24ee; }
-  nav a { color: #e8eaed; text-decoration: none; padding: 4px 10px; border-radius: 6px; background: #2c323a; }
-  section { padding: 12px 16px 28px; }
-  h2 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
-  img { display: block; width: 100%; max-width: 1600px; height: auto; border-radius: 8px; }
-</style></head><body>
-<nav>${pages.map(((String, String, String) p) => '<a href="#${esc.convert(p.$1)}">${esc.convert(p.$2.split(' · ').first)}</a>').join()}</nav>
-${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}"><h2>${esc.convert(p.$2)}</h2><img src="${esc.convert(p.$1)}" alt="${esc.convert(p.$2)}"></section>').join('\n')}
-</body></html>
-''');
-
-      final List<_Check> failed = <_Check>[
-        ...overview.checks,
-        ...checks,
-      ].where((_Check c) => c.failed).toList();
-      // ignore: avoid_print
-      print(
-        '${overview.file}: ${overview.checks.length} codes, whole page finds '
-        '${overview.checks.length - overview.missing.length}'
-        '${overview.missing.isEmpty ? '' : '; not found: ${overview.missing.join(', ')}'}',
-      );
-      final int differs = checks
-          .where((_Check c) => !c.failed && !c.textOk)
-          .length;
-      // ignore: avoid_print
-      print(
-        '${checks.length} codes on $pageCount pages in ${dir.path}: '
-        '${checks.length - failed.length - differs} ✓, $differs ≈, ${failed.length} ✗',
-      );
-      for (final _Check c in checks.where(
-        (_Check c) => c.failed || !c.textOk,
-      )) {
-        // ignore: avoid_print
-        print(
-          '${c.status} ${c.id} ${c.tile.title}: '
-          '${c.first == null ? 'not read' : '${c.first!.format.displayName} ${c.first!.content.runtimeType} '
-                    '${c.found.length > 1 ? '(${c.found.length}) ' : ''}“${_visible(c.first!.text)}”'}',
-        );
-      }
-      expect(failed.map((_Check c) => c.id), isEmpty);
-    },
-    skip: _out == null,
-    timeout: const Timeout(Duration(minutes: 5)),
-  );
-
-  // The sheets just drawn, read whole like camera frames.
-  testWidgets(
-    'check sheets read like camera frames',
-    (WidgetTester tester) async {
-      final Directory dir = Directory(_out!);
-      final Directory out = Directory('${dir.path}/read')
-        ..createSync(recursive: true);
-      final List<File> pages =
-          dir
-              .listSync()
-              .whereType<File>()
-              .where(
-                (File f) =>
-                    RegExp(r'^\d\d-.*\.png$').hasMatch(f.uri.pathSegments.last),
-              )
-              .toList()
-            ..sort((File a, File b) => a.path.compareTo(b.path));
-      expect(pages, isNotEmpty, reason: 'run make sheets first');
-      final File sheetsFile = File('${dir.path}/sheets.json');
-      expect(sheetsFile.existsSync(), isTrue, reason: 'run make sheets first');
-      final Map<String, dynamic> sheets =
-          jsonDecode(sheetsFile.readAsStringSync()) as Map<String, dynamic>;
-
-      final StringBuffer report = StringBuffer()
-        ..writeln('# Check sheets read from the file and like camera frames')
-        ..writeln()
-        ..writeln(
-          'From the file: each page read whole, at its own size, once, with '
-          '`ReaderOptions()` (the options for files). The other columns '
-          'are the camera.',
-        )
-        ..writeln()
-        ..writeln(
-          'Each page scaled to ${_frameWidth.round()} px wide, read whole with '
-          '`ReaderOptions.camera()` ${_frames.length} times: as drawn, then '
-          'shifted by a pixel or two, turned by up to 3° and blurred a '
-          'little. Every code drawn on a page is counted, from sheets.json: '
-          'a read belongs to the tile it lies in. On the pages: the outline '
-          'of the read as drawn, thick, and of the other reads, thin; blue '
-          'for 2D, red for linear; a tile with a code not found in any frame '
-          'framed in orange.',
-        )
-        ..writeln()
-        ..writeln(
-          'A read has the right size when its outline is within '
-          '${(_sizeTolerance * 100).round()} % of the code: for a linear '
-          'code, the height and the middle of its bars, measured on the page '
-          'as drawn; for a 2D code, the corners of the read as drawn. '
-          'Heights are in frame pixels.',
-        )
-        ..writeln();
-      final _Tally linear = _Tally();
-      final _Tally matrix = _Tally();
-      // 00-all-formats.png repeats codes of the other pages, so it is counted
-      // apart and the totals stay comparable with the baseline.
-      final _Tally written = _Tally();
-      final _Tally readOnly = _Tally();
-      final StringBuffer pagesReport = StringBuffer();
-      final List<String> console = <String>[];
-
-      for (final File page in pages) {
-        final String name = page.uri.pathSegments.last;
-        final List<_SheetTile> tiles = <_SheetTile>[
-          for (final Object? m in sheets[name] as List<dynamic>? ?? <Object?>[])
-            _SheetTile.fromJson(m! as Map<String, dynamic>),
-        ];
-        expect(tiles, isNotEmpty, reason: '$name is not in sheets.json');
-        await tester.runAsync(() async {
-          final ui.Image full = await decodeImageFromList(
-            page.readAsBytesSync(),
-          );
-          final ByteData pagePixels = (await full.toByteData())!;
-          final double scale = _frameWidth / full.width;
-
-          // Per frame, each code found: its tile, key, the barcode, its
-          // corners back in page pixels and its height in frame pixels.
-          Future<List<List<_Read>>> readAt(
-            double width, {
-            List<(Offset, double, double)> frames = _frames,
-            ReaderOptions? options,
-          }) async {
-            final double scale = width / full.width;
-            final int w = width.round();
-            final int h = (full.height * scale).round();
-            final Offset center = Offset(w / 2, h / 2);
-            final List<List<_Read>> reads = <List<_Read>>[];
-            for (final (Offset shift, double degrees, double blur) in frames) {
-              final double angle = degrees * math.pi / 180;
-              final ui.PictureRecorder recorder = ui.PictureRecorder();
-              Canvas(recorder)
-                ..drawColor(const Color(0xFFFFFFFF), BlendMode.src)
-                ..translate(shift.dx + center.dx, shift.dy + center.dy)
-                ..rotate(angle)
-                ..translate(-center.dx, -center.dy)
-                ..scale(scale)
-                ..drawImage(
-                  full,
-                  Offset.zero,
-                  Paint()
-                    ..filterQuality = FilterQuality.medium
-                    ..imageFilter = blur == 0
-                        ? null
-                        : ui.ImageFilter.blur(
-                            sigmaX: blur / scale,
-                            sigmaY: blur / scale,
-                          ),
-                );
-              // Frame pixels back to page pixels.
-              Offset toPage(Offset q) {
-                final Offset d = q - shift - center;
-                final double cos = math.cos(-angle);
-                final double sin = math.sin(-angle);
-                return (Offset(
-                          d.dx * cos - d.dy * sin,
-                          d.dx * sin + d.dy * cos,
-                        ) +
-                        center) /
-                    scale;
-              }
-
-              final ui.Image frame = await recorder.endRecording().toImage(
-                w,
-                h,
-              );
-              final ByteData rgba = (await frame.toByteData())!;
-              frame.dispose();
-              final List<Barcode> barcodes =
-                  await BarcodeReader(
-                    options: options ?? _readOptions,
-                  ).readAllPixels(
-                    PixelBuffer(
-                      rgba.buffer.asUint8List(),
-                      width: w,
-                      height: h,
-                      layout: PixelLayout.rgba,
-                    ),
-                  );
-              // The tile a code lies in tells which code it is; two codes
-              // alike in one tile are told apart by the order found.
-              final Map<String, int> n = <String, int>{};
-              final List<_Read> read = <_Read>[];
-              for (final Barcode b in barcodes) {
-                final List<Offset> corners = <Offset>[
-                  for (final Offset q in b.position.corners) toPage(q),
-                ];
-                final Offset middle =
-                    (corners[0] + corners[1] + corners[2] + corners[3]) / 4;
-                final _SheetTile? tile = tiles
-                    .where((_SheetTile t) => t.rect.contains(middle))
-                    .firstOrNull;
-                final String base = '${tile?.id ?? '—'} ${_keyOf(b)}';
-                final int k = n[base] = (n[base] ?? 0) + 1;
-                read.add(
-                  _Read(
-                    k == 1 ? base : '$base #$k',
-                    tile,
-                    b,
-                    corners,
-                    _heightOf(b.position),
-                  ),
-                );
-              }
-              reads.add(read);
-            }
-            return reads;
-          }
-
-          final List<List<_Read>> reads = await readAt(_frameWidth);
-          final Map<String, List<int>> wide = _findsByTile(
-            await readAt(_wideWidth),
-            tiles,
-          );
-          final Map<String, List<int>> file = _findsByTile(
-            await readAt(
-              full.width.toDouble(),
-              frames: _fileFrames,
-              options: const ReaderOptions(),
-            ),
-            tiles,
-          );
-
-          // The truth, from the page as drawn.
-          final Map<String, _Truth> truths = <String, _Truth>{
-            for (final _Read r in reads.first)
-              if (_truthOf(r, pagePixels, full.width, full.height)
-                  case final _Truth t)
-                r.key: t,
-          };
-
-          // Every code found in any frame, and how each read went.
-          final Map<String, _Read> any = <String, _Read>{
-            for (final List<_Read> read in reads)
-              for (final _Read r in read) r.key: r,
-          };
-          final Map<String, (int, int)> verdicts = <String, (int, int)>{};
-          for (final String key in any.keys) {
-            int found = 0;
-            int sized = 0;
-            final _Truth? truth = truths[key];
-            for (final List<_Read> read in reads) {
-              final _Read? r = read
-                  .where((_Read r) => r.key == key)
-                  .firstOrNull;
-              if (r == null) {
-                continue;
-              }
-              found++;
-              if (truth != null && truth.fits(r)) {
-                sized++;
-              }
-            }
-            verdicts[key] = (found, sized);
-          }
-
-          // Per tile: the codes it should give, those found in its format
-          // (the most often found first), and anything else read in it.
-          final Map<String, List<String>> right = <String, List<String>>{};
-          final List<String> wrong = <String>[];
-          for (final MapEntry<String, _Read> e in any.entries) {
-            final _SheetTile? t = e.value.tile;
-            if (t != null &&
-                e.value.barcode.format.symbology == t.format.symbology) {
-              (right[t.id] ??= <String>[]).add(e.key);
-            } else {
-              wrong.add(e.key);
-            }
-          }
-          final _Tally pageLinear = _Tally();
-          final _Tally pageMatrix = _Tally();
-          final List<String> missing = <String>[];
-          for (final _SheetTile t in tiles) {
-            final List<String> keys = (right[t.id] ?? <String>[])
-              ..sort(
-                (String a, String b) =>
-                    verdicts[b]!.$1.compareTo(verdicts[a]!.$1),
-              );
-            final List<String> counted = keys.take(t.count).toList();
-            right[t.id] = keys;
-            final List<int> wideFinds = wide[t.id]!.take(t.count).toList();
-            final int fileFinds = math.min(t.count, file[t.id]!.length);
-            for (final _Tally tally in <_Tally>[
-              if (t.linear) pageLinear else pageMatrix,
-              if (!name.startsWith('00-'))
-                if (t.linear) linear else matrix
-              else if (t.id.startsWith('W'))
-                written
-              else
-                readOnly,
-            ]) {
-              tally
-                ..codes += t.count
-                ..found += counted.length
-                ..possible += t.count * _frames.length
-                ..wideFound += wideFinds.length
-                ..wideReads += wideFinds.fold(0, (int a, int b) => a + b)
-                ..fileFound += fileFinds;
-              for (final String key in counted) {
-                final (int found, int sized) = verdicts[key]!;
-                tally
-                  ..reads += found
-                  ..withTruth += truths.containsKey(key) ? found : 0
-                  ..sized += sized;
-              }
-            }
-            if (counted.length < t.count) {
-              missing.add(
-                t.count == 1 ? t.id : '${t.id} (${counted.length}/${t.count})',
-              );
-            }
-          }
-
-          // The page with the outlines: thin of every read, thick of the
-          // first; the truth of a linear code dashed in green; a tile with
-          // a code not found in any frame framed in orange.
-          final ui.PictureRecorder recorder = ui.PictureRecorder();
-          final Canvas canvas = Canvas(recorder)
-            ..drawImage(full, Offset.zero, Paint());
-          void label(String text, Color color, Offset at) {
-            final ui.ParagraphBuilder p =
-                ui.ParagraphBuilder(
-                    ui.ParagraphStyle(fontFamily: 'Roboto', fontSize: 22),
-                  )
-                  ..pushStyle(
-                    ui.TextStyle(
-                      color: const Color(0xFFFFFFFF),
-                      background: Paint()..color = color,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                  ..addText(' $text ');
-            final ui.Paragraph para = p.build()
-              ..layout(const ui.ParagraphConstraints(width: 900));
-            canvas.drawParagraph(
-              para,
-              Offset(at.dx, math.max(0, at.dy - para.height - 4)),
-            );
-          }
-
-          const Color missingColor = Color(0xFFEA580C);
-          for (final _SheetTile t in tiles) {
-            final int found = math.min(t.count, right[t.id]!.length);
-            if (found < t.count) {
-              canvas.drawRRect(
-                RRect.fromRectAndRadius(t.rect, const Radius.circular(28)),
-                Paint()
-                  ..color = missingColor
-                  ..style = PaintingStyle.stroke
-                  ..strokeWidth = 8,
-              );
-              label(
-                t.count == 1
-                    ? '${t.id} NOT FOUND'
-                    : '${t.id} found $found/${t.count}',
-                missingColor,
-                t.rect.bottomLeft + const Offset(8, -8),
-              );
-            }
-          }
-          Color colorOf(Barcode b) => b.format.isLinear
-              ? const Color(0xFFE11D48)
-              : const Color(0xFF2563EB);
-          for (final List<_Read> read in reads.skip(1)) {
-            for (final _Read r in read) {
-              canvas.drawPath(
-                Path()..addPolygon(r.corners, true),
-                Paint()
-                  ..color = colorOf(r.barcode).withValues(alpha: 0.7)
-                  ..style = PaintingStyle.stroke
-                  ..strokeWidth = 1.5,
-              );
-            }
-          }
-          for (final _Truth t in truths.values) {
-            if (t.bars case final Rect bars) {
-              canvas.drawRect(
-                bars,
-                Paint()
-                  ..color = const Color(0xFF16A34A)
-                  ..style = PaintingStyle.stroke
-                  ..strokeWidth = 3,
-              );
-            }
-          }
-          for (final _Read r in reads.first) {
-            final Color color = colorOf(r.barcode);
-            canvas
-              ..drawPath(
-                Path()..addPolygon(r.corners, true),
-                Paint()..color = color.withValues(alpha: 0.18),
-              )
-              ..drawPath(
-                Path()..addPolygon(r.corners, true),
-                Paint()
-                  ..color = color
-                  ..style = PaintingStyle.stroke
-                  ..strokeWidth = 4,
-              );
-            for (final Offset c in r.corners) {
-              canvas.drawCircle(c, 6, Paint()..color = color);
-            }
-            final (int found, int sized) = verdicts[r.key]!;
-            label(
-              '${r.tile?.id ?? '?'} ${r.barcode.format.name} · '
-              'h ${r.height.toStringAsFixed(0)} · '
-              'found $found/${_frames.length} · size ok $sized',
-              color,
-              Offset(
-                r.corners.map((Offset c) => c.dx).reduce(math.min),
-                r.corners.map((Offset c) => c.dy).reduce(math.min),
-              ),
-            );
-          }
-          final ui.Image drawn = await recorder.endRecording().toImage(
-            full.width,
-            full.height,
-          );
-          final ByteData png = (await drawn.toByteData(
-            format: ui.ImageByteFormat.png,
-          ))!;
-          File('${out.path}/$name').writeAsBytesSync(png.buffer.asUint8List());
-          drawn.dispose();
-          full.dispose();
-
-          final int codes = pageLinear.codes + pageMatrix.codes;
-          final int found = pageLinear.found + pageMatrix.found;
-          final String counts =
-              'from the file ${pageLinear.fileFound + pageMatrix.fileFound}/$codes · '
-              'camera: $found/$codes codes found · '
-              '2D (blue) ${pageMatrix.found}/${pageMatrix.codes} · '
-              'linear (red) ${pageLinear.found}/${pageLinear.codes} · '
-              'at ${_wideWidth.round()} px '
-              '${pageLinear.wideFound + pageMatrix.wideFound}/$codes';
-          console.add(
-            '$name: $counts'
-            '${missing.isEmpty ? '' : ' · not found: ${missing.join(' ')}'}'
-            '${wrong.isEmpty ? '' : ' · ${wrong.length} other reads'}',
-          );
-          String cell(String s) {
-            final String one = s.replaceAll('|', r'\|').replaceAll('\n', ' ');
-            return one.length > 60 ? '${one.substring(0, 59)}…' : one;
-          }
-
-          String row(String key) {
-            // Per frame: the height, or · where the code was not found.
-            final String hs = <String>[
-              for (final List<_Read> read in reads)
-                read
-                        .where((_Read r) => r.key == key)
-                        .firstOrNull
-                        ?.height
-                        .toStringAsFixed(0) ??
-                    '·',
-            ].join(' ');
-            final _Truth? truth = truths[key];
-            final (int found, int sized) = verdicts[key]!;
-            return '| ${truth == null ? '—' : '$sized/$found'} '
-                '| $hs '
-                '| ${truth?.height == null ? '—' : (truth!.height! * scale).toStringAsFixed(0)} |';
-          }
-
-          pagesReport
-            ..writeln('## $name')
-            ..writeln()
-            ..writeln('**$counts**')
-            ..writeln()
-            ..writeln(
-              missing.isEmpty
-                  ? 'Every code on the page found.'
-                  : '**Not found in any frame: ${missing.join(', ')}**',
-            )
-            ..writeln()
-            ..writeln(
-              '| tile | kind | from the file | code read | found | at ${_wideWidth.round()} px | size ok | height in each frame | truth |',
-            )
-            ..writeln('|---|---|---|---|---|---|---|---|---|');
-          for (final _SheetTile t in tiles) {
-            final List<String> keys = right[t.id]!;
-            for (int i = 0; i < math.max(t.count, keys.length); i++) {
-              final String tile = i == 0 ? '**${t.id}** ${cell(t.title)}' : '';
-              final String kind =
-                  '${t.linear ? 'linear' : '2D'} '
-                  '| ${i >= t.count
-                      ? ''
-                      : i < file[t.id]!.length
-                      ? 'yes'
-                      : '**no**'}';
-              final String atWide =
-                  '${i < wide[t.id]!.length ? wide[t.id]![i] : 0}/${_frames.length}';
-              if (i >= keys.length) {
-                pagesReport.writeln(
-                  '| $tile | $kind | **not found** (${t.format.name}) '
-                  '| **0/${_frames.length}** | $atWide | — | — | — |',
-                );
-                continue;
-              }
-              final String key = keys[i];
-              final String extra = i >= t.count ? ' (extra)' : '';
-              pagesReport.writeln(
-                '| $tile | $kind | ${cell(_keyOf(any[key]!.barcode))}$extra '
-                '| ${verdicts[key]!.$1}/${_frames.length} | $atWide ${row(key)}',
-              );
-            }
-          }
-          for (final String key in wrong..sort()) {
-            final _Read r = any[key]!;
-            pagesReport.writeln(
-              '| ${r.tile == null ? 'outside tiles' : '**${r.tile!.id}** wrong format'} '
-              '| ${r.barcode.format.isLinear ? 'linear' : '2D'} | '
-              '| ${cell(_keyOf(r.barcode))} '
-              '| ${verdicts[key]!.$1}/${_frames.length} | — ${row(key)}',
-            );
-          }
-          pagesReport.writeln();
-        });
-      }
-
-      // The totals, and how they compare with baseline.json, if there is
-      // one: copy a summary.json there to compare later runs with it.
-      final Map<String, Object> summary = <String, Object>{
-        'linear': linear.toJson(),
-        'matrix': matrix.toJson(),
-        'allFormats': <String, Object>{
-          'written': written.toJson(),
-          'readOnly': readOnly.toJson(),
-        },
-      };
-      File(
-        '${out.path}/summary.json',
-      ).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(summary));
-      final File baselineFile = File('${out.path}/baseline.json');
+      final File baselineFile = File('${root.path}/baseline.json');
       final Map<String, dynamic>? baseline = baselineFile.existsSync()
           ? jsonDecode(baselineFile.readAsStringSync()) as Map<String, dynamic>
           : null;
-      report
-        ..writeln('## Totals')
-        ..writeln()
-        ..writeln(
-          'Codes found: in at least one frame. Reads: frames in which each '
-          'code on the pages was found.',
-        )
-        ..writeln()
-        ..writeln(
-          '| kind | from the file | codes found | reads | size ok | found at ${_wideWidth.round()} px | reads at ${_wideWidth.round()} px${baseline == null ? '' : ' | baseline: found | baseline: reads | baseline: size ok'} |',
-        )
-        ..writeln(
-          '|---|---|---|---|---|---|---|${baseline == null ? '' : '---|---|---|'}',
-        );
-      for (final (String name, _Tally t) in <(String, _Tally)>[
-        ('linear (red)', linear),
-        ('2D (blue)', matrix),
-      ]) {
-        final Map<String, dynamic>? b =
-            baseline?[t == matrix ? 'matrix' : 'linear']
-                as Map<String, dynamic>?;
-        final String baseFound = b == null
-            ? ''
-            : b['found'] == null
-            ? '?'
-            : '${b['found']}/${b['codes']}';
-        report.writeln(
-          '| $name | ${t.fileFound}/${t.codes} | ${t.found}/${t.codes} '
-          '| ${t.reads}/${t.possible} '
-          '| ${t.sizedText} | ${t.wideFound}/${t.codes} '
-          '| ${t.wideReads}/${t.possible}'
-          '${b == null ? '' : ' | $baseFound | ${b['reads']}/${b['possible']} | ${b['sized']}/${b['withTruth']}'} |',
-        );
-        // ignore: avoid_print
-        print(
-          '$name: from the file ${t.fileFound}/${t.codes}, '
-          'camera: found ${t.found}/${t.codes} codes, '
-          'read ${t.reads}/${t.possible}, right size ${t.sizedText}'
-          '${b == null ? '' : ' (baseline: found $baseFound, read ${b['reads']}/${b['possible']}, right size ${b['sized']}/${b['withTruth']})'}',
+      for (final _Folder f in folders) {
+        File(
+          '${root.path}/${f.name}/report.md',
+        ).writeAsStringSync(_folderReport(f, baseline));
+      }
+      File('${root.path}/summary.json').writeAsStringSync(
+        const JsonEncoder.withIndent('  ').convert(<String, Object>{
+          for (final _Folder f in folders)
+            f.name: <String, Object>{
+              for (final _Sheet s in f.sheets)
+                s.name: <String, Object>{
+                  for (final _FileResult r in f.results.where(
+                    (_FileResult r) => r.sheet == s,
+                  ))
+                    r.label: r.toJson(),
+                },
+            },
+        }),
+      );
+      File('${root.path}/index.html').writeAsStringSync(_index(folders));
+      File('${root.path}/tiles.md').writeAsStringSync(_tilesReport(checked));
+
+      // The field test recognises the codes of all-grid by what they read as.
+      final List<_Check> grid = checked
+          .firstWhere(
+            ((_Folder, _Sheet, List<_Check>) c) => c.$2.name == 'all-grid',
+          )
+          .$3;
+      expect(
+        <String>[for (final FieldCode c in fieldCodes) c.id],
+        <String>[for (final _Check c in grid) c.id],
+        reason: 'example/lib/diagnostics/field_codes.dart is out of date',
+      );
+      for (final (int i, _Check c) in grid.indexed) {
+        expect(
+          c.found.any(
+            (Barcode b) => fieldCodes[i].matches(b.format.name, b.text),
+          ),
+          isTrue,
+          reason: '${c.id} is not what field_codes.dart expects',
         );
       }
-      // ignore: avoid_print
-      print(console.join('\n'));
-      report
-        ..writeln()
-        ..writeln('## All formats on one sheet')
-        ..writeln()
-        ..writeln(
-          '00-all-formats.png, counted apart from the totals above. Code 39 '
-          'Extended and Code 93 are drawn larger than the other linear codes: '
-          'their reads here say less about small codes on a real camera.',
-        )
-        ..writeln()
-        ..writeln(
-          '| codes | from the file | codes found | reads | size ok | found at ${_wideWidth.round()} px | reads at ${_wideWidth.round()} px |',
-        )
-        ..writeln('|---|---|---|---|---|---|---|');
-      for (final (String name, _Tally t) in <(String, _Tally)>[
-        ('made by the generator', written),
-        ('read only', readOnly),
-      ]) {
-        report.writeln(
-          '| $name | ${t.fileFound}/${t.codes} | ${t.found}/${t.codes} '
-          '| ${t.reads}/${t.possible} '
-          '| ${t.sizedText} | ${t.wideFound}/${t.codes} '
-          '| ${t.wideReads}/${t.possible} |',
-        );
-      }
-      report
-        ..writeln()
-        ..write(pagesReport);
-      File('${out.path}/report.md').writeAsStringSync(report.toString());
+      final List<String> failed = <String>[
+        for (final (_Folder f, _Sheet s, List<_Check> checks) in checked)
+          for (final _Check c in checks)
+            if (c.failed) '${f.name}/${s.name} ${c.id} ${c.tile.title}',
+      ];
+      expect(failed, isEmpty, reason: 'tiles that do not read on their own');
     },
     skip: _out == null,
-    timeout: const Timeout(Duration(minutes: 5)),
+    timeout: const Timeout(Duration(minutes: 40)),
   );
-}
-
-/// How far a read may be off the truth and still have the right size: a
-/// share of the code's height (linear) or size (2D).
-const double _sizeTolerance = 0.1;
-
-/// Per tile, in how many frames each of its codes was found, most often first.
-Map<String, List<int>> _findsByTile(
-  List<List<_Read>> reads,
-  List<_SheetTile> tiles,
-) {
-  final Map<String, Map<String, int>> byTile = <String, Map<String, int>>{};
-  for (final List<_Read> read in reads) {
-    for (final _Read r in read) {
-      final _SheetTile? t = r.tile;
-      if (t != null && r.barcode.format.symbology == t.format.symbology) {
-        final Map<String, int> finds = byTile[t.id] ??= <String, int>{};
-        finds[r.key] = (finds[r.key] ?? 0) + 1;
-      }
-    }
-  }
-  return <String, List<int>>{
-    for (final _SheetTile t in tiles)
-      t.id: (byTile[t.id]?.values.toList() ?? <int>[])
-        ..sort((int a, int b) => b.compareTo(a)),
-  };
-}
-
-/// A code found in a frame.
-final class _Read {
-  const _Read(this.key, this.tile, this.barcode, this.corners, this.height);
-
-  final String key;
-
-  /// The tile the code lies in, or null for one outside every tile.
-  final _SheetTile? tile;
-  final Barcode barcode;
-
-  /// In page pixels.
-  final List<Offset> corners;
-
-  /// The outline's height, in frame pixels.
-  final double height;
-
-  Offset get center => (corners[0] + corners[1] + corners[2] + corners[3]) / 4;
-}
-
-/// Where a code really is, in page pixels.
-final class _Truth {
-  const _Truth.linear(Rect this.bars) : corners = null;
-  const _Truth.matrix(List<Offset> this.corners) : bars = null;
-
-  /// A linear code: its bars, measured on the page.
-  final Rect? bars;
-
-  /// A 2D code: the corners of the read as drawn.
-  final List<Offset>? corners;
-
-  double? get height => bars?.height;
-
-  bool fits(_Read r) {
-    if (bars case final Rect bars) {
-      // The outline's height and middle, across the bars.
-      final double height =
-          (((r.corners[3] + r.corners[2]) - (r.corners[0] + r.corners[1])) / 2)
-              .distance;
-      return (height - bars.height).abs() <= _sizeTolerance * bars.height &&
-          (r.center.dy - bars.center.dy).abs() <= _sizeTolerance * bars.height;
-    }
-    final List<Offset> truth = corners!;
-    final double size = (truth[2] - truth[0]).distance;
-    // The same corners, in any order the engine starts them.
-    for (final Offset c in r.corners) {
-      if (!truth.any((Offset t) => (t - c).distance <= _sizeTolerance * size)) {
-        return false;
-      }
-    }
-    return true;
-  }
-}
-
-/// The truth of [r], read in the page as drawn: for a linear code lying
-/// level on the page, the bars measured in [pixels] (RGBA, [width] ×
-/// [height]); `null` for one that does not.
-_Truth? _truthOf(_Read r, ByteData pixels, int width, int height) {
-  if (!r.barcode.format.isLinear) {
-    return _Truth.matrix(r.corners);
-  }
-  if (r.barcode.format.name.contains('Stacked') ||
-      r.barcode.format == BarcodeFormat.dxFilmEdge) {
-    // Rows of bars, or a clock track beside the data: not one height.
-    return null;
-  }
-  final List<Offset> q = r.corners;
-  final Offset across = q[1] - q[0];
-  if (across.dx <= 0 || (across.dy / across.dx).abs() > 0.02) {
-    // Turned or upside down: no truth.
-    return null;
-  }
-  bool dark(int x, int y) {
-    if (x < 0 || y < 0 || x >= width || y >= height) {
-      return false;
-    }
-    final int i = (y * width + x) * 4;
-    final int lum =
-        (pixels.getUint8(i) +
-            pixels.getUint8(i + 1) +
-            pixels.getUint8(i + 2)) ~/
-        3;
-    return lum < 128;
-  }
-
-  // Every dark column on the line through the middle of the outline: the
-  // bar's top and bottom. The medians are those of the bars, not of the
-  // longer guard bars.
-  final int y = r.center.dy.round();
-  final int left = math.min(q[0].dx, q[3].dx).round();
-  final int right = math.max(q[1].dx, q[2].dx).round();
-  final List<int> tops = <int>[];
-  final List<int> bottoms = <int>[];
-  for (int x = left; x <= right; x++) {
-    if (!dark(x, y)) {
-      continue;
-    }
-    int top = y;
-    while (dark(x, top - 1)) {
-      top--;
-    }
-    int bottom = y;
-    while (dark(x, bottom + 1)) {
-      bottom++;
-    }
-    tops.add(top);
-    bottoms.add(bottom + 1);
-  }
-  if (tops.length < 8) {
-    return null;
-  }
-  int median(List<int> v) => (v..sort())[v.length ~/ 2];
-  return _Truth.linear(
-    Rect.fromLTRB(
-      left.toDouble(),
-      median(tops).toDouble(),
-      right.toDouble(),
-      median(bottoms).toDouble(),
-    ),
-  );
-}
-
-/// A tile of a page, from sheets.json.
-final class _SheetTile {
-  _SheetTile.fromJson(Map<String, dynamic> json)
-    : id = json['id'] as String,
-      title = json['title'] as String,
-      format = BarcodeFormat.values.byName(json['format'] as String),
-      linear = json['linear'] as bool,
-      count = json['count'] as int,
-      rect = _rectOf(json['rect'] as List<dynamic>);
-
-  static Rect _rectOf(List<dynamic> r) => Rect.fromLTRB(
-    (r[0] as num).toDouble(),
-    (r[1] as num).toDouble(),
-    (r[2] as num).toDouble(),
-    (r[3] as num).toDouble(),
-  );
-
-  final String id;
-  final String title;
-  final BarcodeFormat format;
-  final bool linear;
-
-  /// The codes in the tile: more than one in the pick template.
-  final int count;
-
-  /// In page pixels.
-  final Rect rect;
-}
-
-/// The reads of one kind of code over all pages: every code drawn is
-/// counted, found or not.
-final class _Tally {
-  /// Drawn on the pages.
-  int codes = 0;
-
-  /// Found in at least one frame.
-  int found = 0;
-  int reads = 0;
-  int possible = 0;
-  int withTruth = 0;
-  int sized = 0;
-
-  /// The same at [_wideWidth].
-  int wideFound = 0;
-  int wideReads = 0;
-
-  /// Found when the page is read from its file.
-  int fileFound = 0;
-
-  String get sizedText =>
-      '$sized/$withTruth'
-      '${withTruth == 0 ? '' : ' (${(100 * sized / withTruth).round()} %)'}';
-
-  Map<String, int> toJson() => <String, int>{
-    'codes': codes,
-    'found': found,
-    'reads': reads,
-    'possible': possible,
-    'withTruth': withTruth,
-    'sized': sized,
-    'wideFound': wideFound,
-    'wideReads': wideReads,
-    'fileFound': fileFound,
-  };
 }

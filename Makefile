@@ -41,11 +41,8 @@ help:
 	@echo "Development:"
 	@echo "  make test            Run the Dart tests"
 	@echo "  make analyze         Run the analyzer"
-	@echo "  make sheets          Draw every supported code on pages to scan from the"
-	@echo "                       screen and read them back (build/check_sheets/);"
-	@echo "                       read/ there: pages read like camera frames, with"
-	@echo "                       the outlines the engine found;"
-	@echo "                       WIDTH=1920  READER=tryInvert=true,minLineCount=1"
+	@echo "  make sheets          Draw every supported code into files of many sizes"
+	@echo "                       and read them back (build/check_sheets/index.html)"
 	@echo "  make accuracy        How far every code can be degraded before it stops"
 	@echo "                       reading, next to zxing-cpp's own reader"
 	@echo "                       (build/accuracy/report.md); ONLY=qrCode,ean13"
@@ -100,7 +97,7 @@ analyze:
 # FLUTTER_ROOT gives the sheets Roboto from the Flutter SDK.
 sheets:
 	FLUTTER_ROOT="$(abspath $(dir $(realpath $(shell which flutter)))..)" \
-		SHEETS=build/check_sheets SHEETS_WIDTH="$(WIDTH)" SHEETS_READER="$(READER)" \
+		SHEETS=build/check_sheets \
 		flutter test test/tool/check_sheets_test.dart
 	-open build/check_sheets/index.html
 
