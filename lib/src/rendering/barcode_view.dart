@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 import '../barcode/barcode_format.dart';
@@ -380,17 +381,20 @@ class _BarcodeViewState extends State<BarcodeView> {
           return SizedBox(
             width: w,
             height: h,
-            child: CustomPaint(
-              painter: BarcodePainter(
-                symbol: symbol,
-                layout: layout,
-                frame: frame,
-                style: widget.style,
-                devicePixelRatio: devicePixelRatio,
-                textStyle: textStyle,
-                textDirection:
-                    Directionality.maybeOf(context) ?? TextDirection.ltr,
-                logo: _logoInfo?.image,
+            child: _PixelAligned(
+              devicePixelRatio: devicePixelRatio,
+              child: CustomPaint(
+                painter: BarcodePainter(
+                  symbol: symbol,
+                  layout: layout,
+                  frame: frame,
+                  style: widget.style,
+                  devicePixelRatio: devicePixelRatio,
+                  textStyle: textStyle,
+                  textDirection:
+                      Directionality.maybeOf(context) ?? TextDirection.ltr,
+                  logo: _logoInfo?.image,
+                ),
               ),
             ),
           );
@@ -494,5 +498,52 @@ final class _SymbolCache {
     if (_symbols.length > _capacity) {
       _symbols.remove(_symbols.keys.first);
     }
+  }
+}
+
+/// Paints its child moved by less than a device pixel so that the child's
+/// origin lies on the device pixel grid. Without it, a symbol whose modules
+/// are a whole number of pixels is still blurred at every edge when its
+/// place on screen falls between two pixels (a fractional device pixel
+/// ratio, a centred widget), and thin bars stop reading.
+class _PixelAligned extends SingleChildRenderObjectWidget {
+  const _PixelAligned({required this.devicePixelRatio, super.child});
+
+  final double devicePixelRatio;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderPixelAligned(devicePixelRatio);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderPixelAligned renderObject,
+  ) => renderObject.devicePixelRatio = devicePixelRatio;
+}
+
+class _RenderPixelAligned extends RenderProxyBox {
+  _RenderPixelAligned(this._devicePixelRatio);
+
+  double _devicePixelRatio;
+  double get devicePixelRatio => _devicePixelRatio;
+  set devicePixelRatio(double value) {
+    if (value != _devicePixelRatio) {
+      _devicePixelRatio = value;
+      markNeedsPaint();
+    }
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final RenderBox? child = this.child;
+    if (child == null) {
+      return;
+    }
+    final Offset global = localToGlobal(Offset.zero);
+    double snap(double v) =>
+        (v * _devicePixelRatio).roundToDouble() / _devicePixelRatio;
+    final Offset shift = Offset(snap(global.dx), snap(global.dy)) - global;
+    context.paintChild(child, offset + shift);
   }
 }

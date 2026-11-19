@@ -130,6 +130,63 @@ void main() {
     expect(read?.text, '4006381333931');
   });
 
+  testWidgets('modules lie on the device pixel grid', (
+    WidgetTester tester,
+  ) async {
+    // A fractional pixel ratio and a place between two device pixels: the
+    // bars must still be pure black and white, not blurred at their edges.
+    const double ratio = 2.25;
+    tester.view
+      ..devicePixelRatio = ratio
+      ..physicalSize = const Size(400, 200) * ratio;
+    addTearDown(tester.view.reset);
+    final GlobalKey page = GlobalKey();
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(
+          size: Size(400, 200),
+          devicePixelRatio: ratio,
+        ),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: RepaintBoundary(
+            key: page,
+            child: const ColoredBox(
+              color: Color(0xFFFFFFFF),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(10.3, 20.7, 0, 0),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: BarcodeView(
+                    '4006381333931',
+                    format: BarcodeFormat.ean13,
+                    width: 233.3,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    final RenderRepaintBoundary boundary =
+        page.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final Uint8List rgba = (await tester.runAsync<Uint8List>(() async {
+      final ui.Image image = await boundary.toImage(pixelRatio: ratio);
+      final ByteData bytes = (await image.toByteData())!;
+      image.dispose();
+      return bytes.buffer.asUint8List();
+    }))!;
+    int grey = 0;
+    for (int i = 0; i < rgba.length; i += 4) {
+      if (rgba[i] > 30 && rgba[i] < 225) {
+        grey++;
+      }
+    }
+    expect(grey, 0);
+  });
+
   testWidgets('without a size it fills the constraints', (
     WidgetTester tester,
   ) async {

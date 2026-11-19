@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+* `BarcodeView` lines up its modules with the screen's pixels. Codes drawn at
+  a fractional pixel ratio or between two pixels are sharp and read again.
+
 ## 4.0.0-rc.2
 
 ### Breaking changes since rc.1
