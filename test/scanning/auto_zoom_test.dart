@@ -95,7 +95,7 @@ void main() {
 
     Future<ScannerController> started({bool autoZoom = true}) async {
       final ScannerController c = ScannerController(
-        pauseInBackground: false,
+        stopInBackground: false,
         autoZoom: autoZoom,
       );
       controllers.add(c);

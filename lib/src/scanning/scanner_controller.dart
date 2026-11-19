@@ -89,7 +89,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
     this.facing = CameraFacing.back,
     this.resolution = CameraResolution.hd,
     this.autoStart = true,
-    this.pauseInBackground = true,
+    this.stopInBackground = true,
     bool autoZoom = true,
   }) : _formats = formats,
        _autoZoom = autoZoom,
@@ -189,9 +189,10 @@ class ScannerController extends ValueNotifier<ScannerState> {
   /// Whether a `BarcodeScanner` starts the camera when it is shown.
   final bool autoStart;
 
-  /// Release the camera while the app is in the background and reopen it
-  /// when the app returns.
-  final bool pauseInBackground;
+  /// Release the camera while the app is in the background and open it
+  /// again when the app returns: the camera is stopped, not paused, so that
+  /// other apps can use it. A scanner paused before stays paused.
+  final bool stopInBackground;
 
   // --- internals ---------------------------------------------------------
 
@@ -230,7 +231,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
   int _widgets = 0;
   bool _startedByWidget = false;
 
-  // Background handling (pauseInBackground).
+  // Background handling (stopInBackground).
   AppLifecycleListener? _lifecycle;
   ScannerStatus? _statusBeforeHide;
 
@@ -453,7 +454,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
         value.status == ScannerStatus.paused) {
       return;
     }
-    if (pauseInBackground) {
+    if (stopInBackground) {
       _lifecycle ??= AppLifecycleListener(onHide: _onHide, onShow: _onShow);
     }
     final int session = ++_session;

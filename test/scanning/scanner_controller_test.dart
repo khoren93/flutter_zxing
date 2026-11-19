@@ -27,7 +27,7 @@ void main() {
     final ScannerController c = ScannerController(
       detection: detection,
       scanWindow: scanWindow,
-      pauseInBackground: false,
+      stopInBackground: false,
     );
     controllers.add(c);
     return c;
