@@ -45,8 +45,14 @@ final class BarcodeReader {
   /// Search strategies.
   final ReaderOptions options;
 
-  /// Finds the first barcode in an encoded image (JPEG, PNG, GIF, BMP; on
-  /// the web also anything the browser decodes, such as WebP and AVIF).
+  /// Finds the first barcode in an encoded image: any image Flutter
+  /// decodes (`ui.instantiateImageCodec`). That is JPEG, PNG, GIF, BMP,
+  /// WebP and WBMP everywhere, plus what the platform decodes for Flutter:
+  /// HEIF/HEIC on Android 9+, for one, and on the web whatever the browser
+  /// decodes. JPEG, PNG, GIF and BMP are decoded in the background by the
+  /// engine; other formats by Flutter, which takes longer and more memory.
+  /// A format Flutter cannot decode throws [ImageDecodeException]: convert
+  /// it first (e.g. `image_picker` gives HEIC photos as JPEG by default).
   ///
   /// Stops searching at the first barcode, which on large photos is often
   /// ten times faster than [readAll]. Returns `null` if there is none.
@@ -61,7 +67,8 @@ final class BarcodeReader {
       _first(await BarcodeEngine.shared.readImage(encodedImage, _options(1)));
 
   /// Finds every barcode in an encoded image, at most [maxBarcodes] if
-  /// given (the same limit as `ScannerController.maxBarcodes`).
+  /// given (the same limit as `ScannerController.maxBarcodes`). Takes the
+  /// same images as [read].
   ///
   /// ```dart
   /// const reader = BarcodeReader(formats: {BarcodeFormat.qrCode});

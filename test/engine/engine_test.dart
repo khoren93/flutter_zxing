@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
@@ -15,6 +16,12 @@ class _FakeBackend implements EngineBackend {
   final int id;
   final Completer<void> _done = Completer<void>();
   bool disposed = false;
+
+  /// readImage fails like stb_image on a format it does not know.
+  bool cannotDecode = false;
+
+  /// The buffers readPixels was called with.
+  final List<PixelBuffer> pixels = <PixelBuffer>[];
 
   void crash() => _done.complete();
 
@@ -40,18 +47,30 @@ class _FakeBackend implements EngineBackend {
   Future<EngineReadResult> readImage(
     Uint8List encodedImage,
     EngineReadOptions options,
-  ) async => const EngineReadResult(
-    barcodes: <Barcode>[],
-    imageWidth: 0,
-    imageHeight: 0,
-  );
+  ) async {
+    if (cannotDecode) {
+      throw const ImageDecodeException('Cannot decode image: unknown type');
+    }
+    return const EngineReadResult(
+      barcodes: <Barcode>[],
+      imageWidth: 0,
+      imageHeight: 0,
+    );
+  }
 
   @override
   Future<EngineReadResult> readPixels(
     PixelBuffer image,
     EngineReadOptions options, {
     bool mirrored = false,
-  }) => readImage(image.bytes, options);
+  }) async {
+    pixels.add(image);
+    return EngineReadResult(
+      barcodes: const <Barcode>[],
+      imageWidth: image.width,
+      imageHeight: image.height,
+    );
+  }
 
   @override
   Future<EngineSymbol> write(
@@ -138,6 +157,62 @@ void main() {
       await e.tryWarmUp();
       await expectLater(e.version(), throwsA(isA<EngineException>()));
       expect(await e.version(), 'fake 0');
+    });
+
+    test('an image the backend cannot decode is decoded by Flutter', () async {
+      final BarcodeEngine e = engine();
+      await e.warmUp();
+      started.single.cannotDecode = true;
+      // A 3 x 2 PNG: red, then transparent white (straight, not
+      // premultiplied: stb_image ignores alpha too).
+      final ui.PictureRecorder recorder = ui.PictureRecorder();
+      ui.Canvas(recorder)
+        ..drawRect(
+          const ui.Rect.fromLTWH(0, 0, 3, 1),
+          ui.Paint()..color = const ui.Color(0xFFFF0000),
+        )
+        ..drawRect(
+          const ui.Rect.fromLTWH(0, 1, 3, 1),
+          ui.Paint()
+            ..color = const ui.Color(0x80FFFFFF)
+            ..blendMode = ui.BlendMode.src,
+        );
+      final ui.Image image = await recorder.endRecording().toImage(3, 2);
+      final ByteData png = (await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      ))!;
+      image.dispose();
+
+      final EngineReadResult result = await e.readImage(
+        png.buffer.asUint8List(),
+        const EngineReadOptions(),
+      );
+      expect(result.imageWidth, 3);
+      expect(result.imageHeight, 2);
+      final PixelBuffer pixels = started.single.pixels.single;
+      expect(pixels.layout, PixelLayout.rgba);
+      expect(pixels.bytes.sublist(0, 4), <int>[255, 0, 0, 255]);
+      expect(pixels.bytes.sublist(12, 15), <int>[255, 255, 255]);
+    });
+
+    test("an image nobody decodes keeps the backend's exception", () async {
+      final BarcodeEngine e = engine();
+      await e.warmUp();
+      started.single.cannotDecode = true;
+      await expectLater(
+        e.readImage(
+          Uint8List.fromList(<int>[1, 2, 3]),
+          const EngineReadOptions(),
+        ),
+        throwsA(
+          isA<ImageDecodeException>().having(
+            (ImageDecodeException x) => x.message,
+            'message',
+            'Cannot decode image: unknown type',
+          ),
+        ),
+      );
+      expect(started.single.pixels, isEmpty);
     });
 
     test('shutdown disposes the backend; the next call restarts', () async {

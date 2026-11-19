@@ -2,6 +2,7 @@
 // off the UI thread, on a long-lived isolate (native platforms) or in a Web
 // Worker (web). Not exported from the package.
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 
@@ -128,13 +129,26 @@ final class BarcodeEngine {
     }
   }
 
-  /// See [EngineBackend.readImage].
+  /// See [EngineBackend.readImage]. An image the backend cannot decode
+  /// (on native platforms stb_image knows JPEG, PNG, GIF and BMP) is
+  /// decoded by Flutter, which also knows WebP and WBMP and what the
+  /// platform adds (HEIF/HEIC on Android 9+), and read as pixels. Throws the
+  /// backend's [ImageDecodeException] if Flutter cannot decode it either.
   Future<EngineReadResult> readImage(
     Uint8List encodedImage,
     EngineReadOptions options,
-  ) async => (await backend)
-      .readImage(encodedImage, options)
-      .then((EngineReadResult r) => r.asPrinted(options));
+  ) async {
+    final EngineBackend b = await backend;
+    try {
+      return (await b.readImage(encodedImage, options)).asPrinted(options);
+    } on ImageDecodeException catch (e, stack) {
+      final PixelBuffer? pixels = await decodeWithFlutter(encodedImage);
+      if (pixels == null) {
+        Error.throwWithStackTrace(e, stack);
+      }
+      return readPixels(pixels, options);
+    }
+  }
 
   /// See [EngineBackend.readPixels]. Throws [ArgumentError] if the buffer
   /// is smaller than its geometry says.
@@ -181,6 +195,39 @@ final class BarcodeEngine {
         // It never started: nothing to stop.
       }
     }
+  }
+}
+
+/// [encodedImage] decoded by Flutter's image codecs (the first frame of an
+/// animation), as straight (not premultiplied) RGBA like stb_image reads
+/// it; `null` if Flutter cannot decode it, or cannot decode at all here
+/// (a background isolate).
+Future<PixelBuffer?> decodeWithFlutter(Uint8List encodedImage) async {
+  if (encodedImage.isEmpty) {
+    return null;
+  }
+  ui.Codec? codec;
+  ui.Image? image;
+  try {
+    codec = await ui.instantiateImageCodec(encodedImage);
+    image = (await codec.getNextFrame()).image;
+    final ByteData? rgba = await image.toByteData(
+      format: ui.ImageByteFormat.rawStraightRgba,
+    );
+    if (rgba == null) {
+      return null;
+    }
+    return PixelBuffer(
+      rgba.buffer.asUint8List(rgba.offsetInBytes, rgba.lengthInBytes),
+      width: image.width,
+      height: image.height,
+      layout: PixelLayout.rgba,
+    );
+  } on Object {
+    return null;
+  } finally {
+    image?.dispose();
+    codec?.dispose();
   }
 }
 

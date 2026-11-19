@@ -39,6 +39,18 @@ void main() {
       expect(await reader.read(_sample('multi-1/qr-x4.png')), isNotNull);
     });
 
+    test('reads what Flutter decodes and the engine does not: WebP', () async {
+      final Barcode? barcode = await reader.read(_sample('code128-1/2.webp'));
+      expect(barcode?.format, BarcodeFormat.code128);
+      expect(
+        barcode?.text,
+        File(
+          'third_party/zxing-cpp/test/samples/code128-1/2.txt',
+        ).readAsStringSync(),
+      );
+      expect(await reader.readAll(_sample('code128-1/2.webp')), hasLength(1));
+    });
+
     test('throws ImageDecodeException for something else', () async {
       await expectLater(
         reader.read(Uint8List.fromList(utf8.encode('no image'))),
