@@ -7,7 +7,7 @@
 /// `scanner.dart`. `flutter_zxing.dart` exports all of them.
 library;
 
-export 'src/barcode/barcode.dart';
+export 'src/barcode/barcode.dart' hide barcodeWithMergeData, mergeDataOf;
 export 'src/barcode/barcode_format.dart' hide BarcodeFormatInternal;
 export 'src/barcode/barcode_input.dart';
 export 'src/engine/barcode_engine.dart';

@@ -166,6 +166,32 @@ void main() {
     expect(read?.bytes, data);
   });
 
+  test('ReaderOptions.characterSet decodes text that declares none', () async {
+    // "Привет" in Windows-1251, as raw bytes without an ECI (bytes are
+    // otherwise written with the binary ECI, which the reader follows).
+    final Uint8List cp1251 = Uint8List.fromList(<int>[
+      0xCF, 0xF0, 0xE8, 0xE2, 0xE5, 0xF2, //
+    ]);
+    final BarcodeSymbol symbol = await const BarcodeWriter(
+      BarcodeFormat.qrCode,
+      options: 'eci=0',
+    ).encodeBytes(cp1251);
+    final BarcodeImage image = await symbol.toImage();
+    final PixelBuffer pixels = PixelBuffer(
+      image.pixels,
+      width: image.width,
+      height: image.height,
+    );
+    final Barcode? guessed = await const BarcodeReader().readPixels(pixels);
+    expect(guessed?.bytes, cp1251);
+    expect(guessed?.text, isNot('Привет'));
+    final Barcode? told = await const BarcodeReader(
+      options: ReaderOptions(characterSet: CharacterSet.cp1251),
+    ).readPixels(pixels);
+    expect(told?.bytes, cp1251);
+    expect(told?.text, 'Привет');
+  });
+
   test('the writer shortcuts render text', () async {
     const BarcodeWriter writer = BarcodeWriter(BarcodeFormat.qrCode);
     expect(await writer.toSvg('svg'), startsWith('<svg'));

@@ -19,6 +19,7 @@ final class ReaderOptions {
     this.binarizer = Binarizer.localAverage,
     this.minLineCount = 2,
     this.eanAddOn = EanAddOn.ignore,
+    this.characterSet,
   });
 
   /// Options for live camera frames: like the defaults, without looking for
@@ -72,6 +73,12 @@ final class ReaderOptions {
   /// EAN-13 and UPC codes (the price on books, the issue on magazines).
   final EanAddOn eanAddOn;
 
+  /// The character set of barcodes that do not declare one (with an ECI),
+  /// e.g. [CharacterSet.cp1251] for old Russian labels or
+  /// [CharacterSet.shiftJis] for Japanese ones. `null`: the engine guesses
+  /// it from the bytes, which can go wrong for short texts.
+  final CharacterSet? characterSet;
+
   /// Creates a copy with the given fields replaced.
   ReaderOptions copyWith({
     bool? tryHarder,
@@ -84,6 +91,7 @@ final class ReaderOptions {
     Binarizer? binarizer,
     int? minLineCount,
     EanAddOn? eanAddOn,
+    CharacterSet? characterSet,
   }) => ReaderOptions(
     tryHarder: tryHarder ?? this.tryHarder,
     tryRotate: tryRotate ?? this.tryRotate,
@@ -96,6 +104,7 @@ final class ReaderOptions {
     binarizer: binarizer ?? this.binarizer,
     minLineCount: minLineCount ?? this.minLineCount,
     eanAddOn: eanAddOn ?? this.eanAddOn,
+    characterSet: characterSet ?? this.characterSet,
   );
 
   @override
@@ -110,7 +119,8 @@ final class ReaderOptions {
       other.validateOptionalChecksum == validateOptionalChecksum &&
       other.binarizer == binarizer &&
       other.minLineCount == minLineCount &&
-      other.eanAddOn == eanAddOn;
+      other.eanAddOn == eanAddOn &&
+      other.characterSet == characterSet;
 
   @override
   int get hashCode => Object.hash(
@@ -124,6 +134,7 @@ final class ReaderOptions {
     binarizer,
     minLineCount,
     eanAddOn,
+    characterSet,
   );
 }
 
@@ -162,4 +173,109 @@ enum Binarizer {
 
   /// Any non-zero pixel is light. For already binary images.
   boolCast,
+}
+
+/// A character set for [ReaderOptions.characterSet].
+enum CharacterSet {
+  /// US-ASCII.
+  ascii(1),
+
+  /// ISO-8859-1 (Latin-1, Western European).
+  iso8859_1(2),
+
+  /// ISO-8859-2 (Latin-2, Central European).
+  iso8859_2(3),
+
+  /// ISO-8859-3 (Latin-3, South European).
+  iso8859_3(4),
+
+  /// ISO-8859-4 (Latin-4, North European).
+  iso8859_4(5),
+
+  /// ISO-8859-5 (Cyrillic).
+  iso8859_5(6),
+
+  /// ISO-8859-6 (Arabic).
+  iso8859_6(7),
+
+  /// ISO-8859-7 (Greek).
+  iso8859_7(8),
+
+  /// ISO-8859-8 (Hebrew).
+  iso8859_8(9),
+
+  /// ISO-8859-9 (Latin-5, Turkish).
+  iso8859_9(10),
+
+  /// ISO-8859-10 (Latin-6, Nordic).
+  iso8859_10(11),
+
+  /// ISO-8859-11 (Thai).
+  iso8859_11(12),
+
+  /// ISO-8859-13 (Latin-7, Baltic).
+  iso8859_13(13),
+
+  /// ISO-8859-14 (Latin-8, Celtic).
+  iso8859_14(14),
+
+  /// ISO-8859-15 (Latin-9, Western European with €).
+  iso8859_15(15),
+
+  /// ISO-8859-16 (Latin-10, South-Eastern European).
+  iso8859_16(16),
+
+  /// Code page 437 (DOS, US).
+  cp437(17),
+
+  /// Windows-1250 (Central European).
+  cp1250(18),
+
+  /// Windows-1251 (Cyrillic).
+  cp1251(19),
+
+  /// Windows-1252 (Western European).
+  cp1252(20),
+
+  /// Windows-1256 (Arabic).
+  cp1256(21),
+
+  /// Shift_JIS (Japanese).
+  shiftJis(22),
+
+  /// Big5 (Traditional Chinese).
+  big5(23),
+
+  /// GB2312 (Simplified Chinese).
+  gb2312(24),
+
+  /// GB18030 (Chinese).
+  gb18030(25),
+
+  /// EUC-JP (Japanese).
+  eucJp(26),
+
+  /// EUC-KR (Korean).
+  eucKr(27),
+
+  /// UTF-16, big-endian.
+  utf16be(28),
+
+  /// UTF-8.
+  utf8(29),
+
+  /// UTF-16, little-endian.
+  utf16le(30),
+
+  /// UTF-32, big-endian.
+  utf32be(31),
+
+  /// UTF-32, little-endian.
+  utf32le(32);
+
+  const CharacterSet(this.engineId);
+
+  /// zxing-cpp's `CharacterSet` value.
+  @internal
+  final int engineId;
 }

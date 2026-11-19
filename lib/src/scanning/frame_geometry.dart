@@ -163,7 +163,7 @@ Rect? pixelCrop(Rect rect, Size frameSize) {
 /// [barcode] with every corner moved by [map].
 Barcode mapBarcodePosition(Barcode barcode, Offset Function(Offset) map) {
   final BarcodePosition p = barcode.position;
-  return Barcode(
+  final Barcode moved = Barcode(
     format: barcode.format,
     text: barcode.text,
     bytes: barcode.bytes,
@@ -174,7 +174,7 @@ Barcode mapBarcodePosition(Barcode barcode, Offset Function(Offset) map) {
       bottomLeft: map(p.bottomLeft),
     ),
     contentType: barcode.contentType,
-    orientation: barcode.orientation,
+    rotation: barcode.rotation,
     isMirrored: barcode.isMirrored,
     isInverted: barcode.isInverted,
     ecLevel: barcode.ecLevel,
@@ -184,6 +184,7 @@ Barcode mapBarcodePosition(Barcode barcode, Offset Function(Offset) map) {
     error: barcode.error,
     symbol: barcode.symbol,
   );
+  return barcodeWithMergeData(moved, mergeDataOf(barcode));
 }
 
 /// Clockwise degrees of [orientation] from the natural portrait orientation,

@@ -7,8 +7,13 @@ import 'barcode_input.dart';
 /// `{BarcodeFormat.eanUpc}` finds EAN-13, EAN-8, UPC-A and UPC-E. A variant
 /// matches only itself: `{BarcodeFormat.ean13}` finds EAN-13 only.
 ///
-/// **Reported format.** A found barcode reports its most specific known
-/// format, e.g. [ean13] rather than [eanUpc]. Use [symbology] to group results.
+/// **Reported format.** A found barcode reports the format its reader
+/// knows: [ean13] rather than [eanUpc], [code39Extended] rather than
+/// [code39]. Some variants are found by their filter but reported as their
+/// base format: [itf14] as [itf], [compactPdf417] as [pdf417],
+/// [dataBarStackedOmni] as [dataBarStacked], [aztecCode] and [aztecRune] as
+/// [aztec], [qrCodeModel2] as [qrCode], [code39Standard] as [code39],
+/// [telepenNumeric] as [telepenAlpha]. Use [symbology] to group results.
 ///
 /// Every value carries the zxing-cpp format id, which is derived from the
 /// ISO/IEC 15424 symbology identifier, so it is stable across versions.
@@ -123,14 +128,17 @@ enum BarcodeFormat {
   /// EAN-8.
   ean8('EAN8', 'EAN-8', 'E', '8', _linear | _read | _write),
 
-  /// EAN-5 add-on.
-  ean5('EAN5', 'EAN-5', 'E', '5', _linear | _read),
+  /// EAN-5 add-on. Not read on its own: it comes as part of the EAN-13 or
+  /// UPC-A text when `ReaderOptions.eanAddOn` reads add-ons.
+  ean5('EAN5', 'EAN-5', 'E', '5', _linear),
 
-  /// EAN-2 add-on.
-  ean2('EAN2', 'EAN-2', 'E', '2', _linear | _read),
+  /// EAN-2 add-on. Not read on its own, like [ean5].
+  ean2('EAN2', 'EAN-2', 'E', '2', _linear),
 
-  /// ISBN (an EAN-13 starting with 978/979).
-  isbn('ISBN', 'ISBN', 'E', 'i', _linear | _read | _write),
+  /// ISBN (an EAN-13 starting with 978/979). Written as such, read as
+  /// [ean13]: filter by [ean13] and check that the text starts with 978 or
+  /// 979.
+  isbn('ISBN', 'ISBN', 'E', 'i', _linear | _write),
 
   /// UPC-A.
   upcA('UPCA', 'UPC-A', 'E', 'a', _linear | _read | _write),
@@ -241,7 +249,9 @@ enum BarcodeFormat {
   /// Human readable name, e.g. `QR Code` or `EAN-13`.
   final String displayName;
 
-  /// Whether this format can be read.
+  /// Whether this format can be read: used as a filter, it finds barcodes.
+  /// False for the EAN-2/EAN-5 add-ons (read with their EAN-13 or UPC-A),
+  /// [isbn] (read as [ean13]) and [unknown].
   bool get canRead => _flags & _read != 0;
 
   /// Whether this format can be created with `BarcodeWriter`.

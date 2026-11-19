@@ -37,7 +37,7 @@ void _barcode(
   int contentType = 0,
   int errorType = 0,
   int flags = 1,
-  int orientation = 0,
+  int rotation = 0,
   List<int> position = const <int>[1, 2, 30, 2, 30, 31, 1, 31],
   int sequenceIndex = -1,
   int sequenceSize = -1,
@@ -52,6 +52,7 @@ void _barcode(
   int symbolWidth = 0,
   int symbolHeight = 0,
   List<int> symbol = const <int>[],
+  List<int> eci = const <int>[],
 }) {
   b
     ..u32(format)
@@ -59,7 +60,7 @@ void _barcode(
     ..u8(errorType)
     ..u8(flags)
     ..u8(0);
-  b.i32(orientation);
+  b.i32(rotation);
   position.forEach(b.i32);
   b
     ..i32(7) // line count
@@ -75,7 +76,8 @@ void _barcode(
     ..str(extra)
     ..i32(symbolWidth)
     ..i32(symbolHeight)
-    ..blob(symbol);
+    ..blob(symbol)
+    ..blob(eci);
 }
 
 _Buffer _header(int kind) => _Buffer()
@@ -94,7 +96,7 @@ void main() {
         format: BarcodeFormat.dataMatrix.id,
         contentType: 3, // GS1
         flags: 1 | 2 | 4,
-        orientation: 90,
+        rotation: 90,
         sequenceIndex: 1,
         sequenceSize: 3,
         sequenceId: '42',
@@ -114,7 +116,7 @@ void main() {
       expect(code.contentType, BarcodeContentType.gs1);
       expect(code.text, '(01)09501101530003');
       expect(code.bytes, <int>[0x1D, 0x30, 0x31]);
-      expect(code.orientation, 90);
+      expect(code.rotation, 90);
       expect(code.isInverted, isTrue);
       expect(code.isMirrored, isTrue);
       expect(code.symbologyIdentifier, ']d2');

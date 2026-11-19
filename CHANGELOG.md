@@ -2,10 +2,27 @@
 
 ## Unreleased
 
+### Breaking changes
+
+* `Barcode.orientation` is now `Barcode.rotation`, as in zxing-cpp 3.2.
+* `BarcodeFormat.ean2`, `ean5` and `isbn` report `canRead` false: add-ons are
+  read with their EAN-13 or UPC-A, and ISBN is read as EAN-13.
+* `Barcode.merge(parts)` is now `await reader.merge(parts)` on a
+  `BarcodeReader`.
+
+### New
+
+* `ReaderOptions.characterSet`: the character set of codes that do not
+  declare one, for example `CharacterSet.cp1251` or `CharacterSet.shiftJis`.
+
 ### Fixes
 
+* Joining a structured append sequence keeps a character set that one part
+  declares for the next, so text such as `￥` or `€` is no longer garbled.
 * `BarcodeView` lines up its modules with the screen's pixels. Codes drawn at
   a fractional pixel ratio or between two pixels are sharp and read again.
+* The `BarcodeFormat` documentation says which variants are reported as their
+  base format, such as ITF-14 as ITF and Compact PDF417 as PDF417.
 
 ## 4.0.0-rc.2
 

@@ -54,6 +54,7 @@ final class DiagSettings {
     this.binarizer = Binarizer.localAverage,
     this.minLineCount = 2,
     this.eanAddOn = EanAddOn.ignore,
+    this.characterSet = '',
     this.downscaleFactor = 0,
     this.downscaleThreshold = 0,
     this.formats = DiagFormats.all,
@@ -76,6 +77,9 @@ final class DiagSettings {
   final Binarizer binarizer;
   final int minLineCount;
   final EanAddOn eanAddOn;
+
+  /// A [CharacterSet] name; '' lets the engine guess.
+  final String characterSet;
 
   /// 2, 3 or 4; 0 is zxing-cpp's default.
   final int downscaleFactor;
@@ -109,6 +113,9 @@ final class DiagSettings {
     binarizer: binarizer,
     minLineCount: minLineCount,
     eanAddOn: eanAddOn,
+    characterSet: CharacterSet.values
+        .where((CharacterSet c) => c.name == characterSet)
+        .firstOrNull,
   );
 
   /// The engine flags outside [ReaderOptions].
@@ -151,6 +158,7 @@ final class DiagSettings {
     Binarizer? binarizer,
     int? minLineCount,
     EanAddOn? eanAddOn,
+    String? characterSet,
     int? downscaleFactor,
     int? downscaleThreshold,
     DiagFormats? formats,
@@ -172,6 +180,7 @@ final class DiagSettings {
     binarizer: binarizer ?? this.binarizer,
     minLineCount: minLineCount ?? this.minLineCount,
     eanAddOn: eanAddOn ?? this.eanAddOn,
+    characterSet: characterSet ?? this.characterSet,
     downscaleFactor: downscaleFactor ?? this.downscaleFactor,
     downscaleThreshold: downscaleThreshold ?? this.downscaleThreshold,
     formats: formats ?? this.formats,
@@ -202,6 +211,7 @@ final class DiagSettings {
       binarizer: choice('binarizer', Binarizer.values, d.binarizer),
       minLineCount: number('minLineCount', d.minLineCount),
       eanAddOn: choice('eanAddOn', EanAddOn.values, d.eanAddOn),
+      characterSet: json['characterSet'] as String? ?? d.characterSet,
       downscaleFactor: number('downscaleFactor', d.downscaleFactor),
       downscaleThreshold: number('downscaleThreshold', d.downscaleThreshold),
       formats: choice('formats', DiagFormats.values, d.formats),
@@ -227,6 +237,7 @@ final class DiagSettings {
     'binarizer': binarizer.name,
     'minLineCount': minLineCount,
     'eanAddOn': eanAddOn.name,
+    'characterSet': characterSet,
     'downscaleFactor': downscaleFactor,
     'downscaleThreshold': downscaleThreshold,
     'formats': formats.name,

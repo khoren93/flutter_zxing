@@ -1,9 +1,14 @@
+import 'dart:convert';
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 
 import '../barcode/barcode.dart';
 import '../barcode/barcode_format.dart';
 import '../engine/engine.dart';
 import '../engine/engine_protocol.dart';
+import '../engine/result_codec.dart';
 import 'pixel_buffer.dart';
 import 'reader_options.dart';
 
@@ -93,6 +98,114 @@ final class BarcodeReader {
         image,
         _options(_limit(limit)),
       )).barcodes;
+
+  /// Joins the parts of a structured append sequence (one message split
+  /// across several barcodes, see [Barcode.sequence]) into one barcode that
+  /// holds the whole message. Returns `null` until every part is there.
+  ///
+  /// Pass the barcodes in any order: as one image read them, or collected
+  /// over several camera frames. Barcodes that are not part of a sequence,
+  /// that could not be decoded or that repeat a part are skipped; if [parts]
+  /// holds several sequences, the first complete one is returned.
+  ///
+  /// ```dart
+  /// const reader = BarcodeReader();
+  /// final Barcode? message = await reader.merge(await reader.readAll(bytes));
+  /// ```
+  ///
+  /// The engine decodes the joined text: a character set one part declares
+  /// carries over to the next, and [ReaderOptions.characterSet] applies
+  /// where none is declared. The result has the bytes of all parts in
+  /// sequence order, the format and symbol details of the first part, no
+  /// [Barcode.sequence], and a [Barcode.position] that covers every part
+  /// (meaningful when the parts come from one image).
+  Future<Barcode?> merge(Iterable<Barcode> parts) async {
+    final List<Barcode>? ordered = _sequence(parts);
+    if (ordered == null) {
+      return null;
+    }
+    final Barcode first = ordered.first;
+    final Uint8List? input = mergeInput(ordered);
+    final Set<BarcodeContentType> types = ordered
+        .map((Barcode b) => b.contentType)
+        .toSet();
+    final EngineMerged merged = input != null
+        ? await BarcodeEngine.shared.merge(
+            input,
+            options.characterSet?.engineId ?? 0,
+          )
+        : _joined(ordered, types);
+    final Rect bounds = ordered
+        .map((Barcode b) => b.position.bounds)
+        .reduce((Rect a, Rect b) => a.expandToInclude(b));
+    return Barcode(
+      format: first.format,
+      text: merged.text,
+      bytes: merged.bytes,
+      position: BarcodePosition(
+        topLeft: bounds.topLeft,
+        topRight: bounds.topRight,
+        bottomRight: bounds.bottomRight,
+        bottomLeft: bounds.bottomLeft,
+      ),
+      contentType: merged.contentType,
+      rotation: first.rotation,
+      isMirrored: first.isMirrored,
+      isInverted: first.isInverted,
+      ecLevel: first.ecLevel,
+      version: first.version,
+      symbologyIdentifier: first.symbologyIdentifier,
+    );
+  }
+
+  /// The first complete sequence in [parts], in order.
+  static List<Barcode>? _sequence(Iterable<Barcode> parts) {
+    final Map<String, Map<int, Barcode>> sequences =
+        <String, Map<int, Barcode>>{};
+    for (final Barcode part in parts) {
+      final BarcodeSequence? s = part.sequence;
+      if (s == null || !part.isValid || s.index < 0) {
+        continue;
+      }
+      (sequences[s.id] ??= <int, Barcode>{}).putIfAbsent(s.index, () => part);
+    }
+    for (final Map<int, Barcode> found in sequences.values) {
+      // Some symbologies only know the size in the last part; 0 = unknown.
+      final int size = found.values
+          .map((Barcode b) => b.sequence!.size)
+          .reduce(math.max);
+      if (size > 0 &&
+          found.length == size &&
+          List<int>.generate(size, (int i) => i).every(found.containsKey)) {
+        return List<Barcode>.generate(size, (int i) => found[i]!);
+      }
+    }
+    return null;
+  }
+
+  /// Parts that did not come from the engine (built by hand): their texts
+  /// joined, or their bytes decoded as a whole if they are UTF-8 text split
+  /// between two parts.
+  static EngineMerged _joined(
+    List<Barcode> parts,
+    Set<BarcodeContentType> types,
+  ) {
+    final Uint8List bytes = Uint8List.fromList(<int>[
+      for (final Barcode b in parts) ...b.bytes,
+    ]);
+    final BarcodeContentType type = types.length == 1
+        ? types.single
+        : BarcodeContentType.mixed;
+    String text = parts.map((Barcode b) => b.text).join();
+    if (type == BarcodeContentType.text && bytes.any((int b) => b >= 0x80)) {
+      try {
+        text = utf8.decode(bytes);
+      } on FormatException {
+        // Another character set: keep the parts' texts.
+      }
+    }
+    return EngineMerged(contentType: type, text: text, bytes: bytes);
+  }
 
   EngineReadOptions _options(int maxSymbols) =>
       EngineReadOptions.from(formats, options, maxSymbols: maxSymbols);

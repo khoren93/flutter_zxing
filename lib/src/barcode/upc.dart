@@ -73,7 +73,7 @@ Barcode _with(Barcode b, BarcodeFormat format, String text) => Barcode(
   bytes: utf8.encode(text),
   position: b.position,
   contentType: b.contentType,
-  orientation: b.orientation,
+  rotation: b.rotation,
   isMirrored: b.isMirrored,
   isInverted: b.isInverted,
   ecLevel: b.ecLevel,

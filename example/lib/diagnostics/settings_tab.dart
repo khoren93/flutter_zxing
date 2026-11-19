@@ -107,6 +107,16 @@ class DiagSettingsTab extends StatelessWidget {
           (EanAddOn v) => v.name,
           (EanAddOn v) => s.copyWith(eanAddOn: v),
         ),
+        _choice<String>(
+          'Character set',
+          s.characterSet,
+          <String>[
+            '',
+            for (final CharacterSet c in CharacterSet.values) c.name,
+          ],
+          (String v) => v.isEmpty ? 'Guess' : v,
+          (String v) => s.copyWith(characterSet: v),
+        ),
         const _Header('Formats'),
         _choice<DiagFormats>(
           'Formats',

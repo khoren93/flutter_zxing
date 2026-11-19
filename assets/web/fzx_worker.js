@@ -75,7 +75,7 @@ function input(e, bytes) {
 function readRgba(e, rgba, w, h, o, crop) {
   const c = crop ?? [0, 0, 0, 0];
   return e.M._fzx_read(e.ctx, input(e, rgba), w, h, 0, FZX_PIX_RGBA, c[0], c[1], c[2], c[3],
-    formatsPtr(e, o.formats), o.flags, o.binarizer, o.maxSymbols, o.minLineCount);
+    formatsPtr(e, o.formats), o.flags, o.binarizer, o.maxSymbols, o.minLineCount, o.characterSet);
 }
 
 let canvas, g;
@@ -121,7 +121,7 @@ async function readImage(e, bytes, o) {
   }
   return {
     code: e.M._fzx_read_file(e.ctx, input(e, bytes), bytes.length, formatsPtr(e, o.formats), o.flags,
-      o.binarizer, o.maxSymbols, o.minLineCount),
+      o.binarizer, o.maxSymbols, o.minLineCount, o.characterSet),
   };
 }
 
@@ -167,13 +167,17 @@ async function handle(m) {
       const o = m.options, c = m.crop ?? [0, 0, 0, 0];
       const code = e.M._fzx_read(e.ctx, input(e, new Uint8Array(m.buffer)), m.width, m.height, m.rowStride,
         m.layout, c[0], c[1], c[2], c[3], formatsPtr(e, o.formats), o.flags, o.binarizer, o.maxSymbols,
-        o.minLineCount);
+        o.minLineCount, o.characterSet);
       return reply(m.id, e, code, t0);
     }
     case 'readBitmap':
       return reply(m.id, e, readBitmap(e, m.bitmap, m.options, m.crop), t0);
     case 'write':
       return reply(m.id, e, write(e, m).code, t0);
+    case 'merge': {
+      const data = new Uint8Array(m.buffer);
+      return reply(m.id, e, e.M._fzx_merge(e.ctx, input(e, data), data.length, m.characterSet), t0);
+    }
     default:
       throw new Error(`Unknown request ${m.type}`);
   }

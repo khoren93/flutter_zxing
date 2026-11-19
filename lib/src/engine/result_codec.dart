@@ -6,6 +6,7 @@
 // Everything returned is copied out of [buffer], so the buffer may be reused
 // as soon as the call returns.
 import 'dart:convert';
+import 'dart:typed_data' show BytesBuilder;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
@@ -18,6 +19,7 @@ import 'function_patterns.dart';
 
 const int _kindBarcodes = 1;
 const int _kindSymbol = 2;
+const int _kindMerged = 3;
 
 /// Parses a "barcodes" buffer (`fzx_read`, `fzx_read_file`).
 ///
@@ -45,7 +47,7 @@ EngineReadResult decodeBarcodes(
     final int errorType = r.u8();
     final int flags = r.u8();
     r.u8(); // reserved
-    final int orientation = r.i32();
+    final int rotation = r.i32();
     final BarcodePosition position = BarcodePosition(
       topLeft: r.point(),
       topRight: r.point(),
@@ -66,7 +68,8 @@ EngineReadResult decodeBarcodes(
     final int symbolWidth = r.i32();
     final int symbolHeight = r.i32();
     final Uint8List modules = r.bytes();
-    return Barcode(
+    final Uint8List eci = r.bytes();
+    final Barcode barcode = Barcode(
       format: format,
       text: text,
       bytes: bytes,
@@ -74,7 +77,7 @@ EngineReadResult decodeBarcodes(
       contentType: contentType < BarcodeContentType.values.length
           ? BarcodeContentType.values[contentType]
           : BarcodeContentType.binary,
-      orientation: orientation,
+      rotation: rotation,
       isInverted: flags & 2 != 0,
       isMirrored: flags & 4 != 0,
       ecLevel: ecLevel.isEmpty ? null : ecLevel,
@@ -110,6 +113,14 @@ EngineReadResult decodeBarcodes(
             )
           : null,
     );
+    // What BarcodeReader.merge hands back to the engine: whether the part
+    // declares an ECI, then its bytes with the ECI designators.
+    return barcodeWithMergeData(
+      barcode,
+      Uint8List(eci.length + 1)
+        ..[0] = flags & 8 != 0 ? 1 : 0
+        ..setRange(1, eci.length + 1, eci),
+    );
   });
   return EngineReadResult(
     barcodes: barcodes,
@@ -117,6 +128,42 @@ EngineReadResult decodeBarcodes(
     imageHeight: imageHeight,
     details: details,
   );
+}
+
+/// Parses a "merged" buffer (`fzx_merge`).
+EngineMerged decodeMerged(Uint8List buffer) {
+  final _Reader r = _Reader(buffer, _kindMerged);
+  final int contentType = r.u8();
+  return EngineMerged(
+    contentType: contentType < BarcodeContentType.values.length
+        ? BarcodeContentType.values[contentType]
+        : BarcodeContentType.binary,
+    text: r.str(),
+    bytes: r.bytes(),
+  );
+}
+
+/// The input of `fzx_merge` for [parts] in sequence order, or `null` if a
+/// part did not come from the engine.
+Uint8List? mergeInput(List<Barcode> parts) {
+  final BytesBuilder out = BytesBuilder(copy: false);
+  for (final Barcode part in parts) {
+    final Uint8List? data = mergeDataOf(part);
+    if (data == null || data.isEmpty) {
+      return null;
+    }
+    final int flags =
+        data[0] | (part.contentType == BarcodeContentType.gs1 ? 2 : 0);
+    out
+      ..addByte(flags)
+      ..add(
+        (ByteData(
+          4,
+        )..setUint32(0, data.length - 1, Endian.little)).buffer.asUint8List(),
+      )
+      ..add(Uint8List.sublistView(data, 1));
+  }
+  return out.takeBytes();
 }
 
 /// Parses a "symbol" buffer (`fzx_write`).

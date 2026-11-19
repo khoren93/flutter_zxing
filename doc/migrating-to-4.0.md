@@ -244,9 +244,9 @@ add-ons).
 | `duration` | Measure it around the call if you need it |
 | `imageBytes`, `imageWidth`, `imageHeight` | No counterpart |
 
-New in `Barcode`: `content` (below), `orientation`, `ecLevel`, `version`,
+New in `Barcode`: `content` (below), `rotation`, `ecLevel`, `version`,
 `symbologyIdentifier`, `contentType` and `sequence` (structured append; join
-the parts with `Barcode.merge`).
+the parts with `BarcodeReader.merge`).
 
 ## What is in the barcode
 

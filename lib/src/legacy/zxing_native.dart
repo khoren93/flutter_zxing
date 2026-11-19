@@ -518,6 +518,7 @@ final class _SyncEngine {
         options.binarizer,
         options.maxSymbols,
         options.minLineCount,
+        options.characterSet,
       );
       if (code < 0) {
         _fail(ctx, code);

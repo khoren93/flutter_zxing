@@ -90,10 +90,20 @@ void main() {
       );
       expect(parts, hasLength(3));
       expect(parts.map((Barcode b) => b.sequence?.size), everyElement(3));
-      expect(Barcode.merge(parts.take(2)), isNull);
-      expect(Barcode.merge(parts.reversed)?.bytes, <int>[
-        for (final Barcode part in parts) ...part.bytes,
+      expect(await reader.merge(parts.take(2)), isNull);
+      final Barcode? merged = await reader.merge(parts.reversed);
+      final List<Barcode> ordered = parts.toList()
+        ..sort(
+          (Barcode a, Barcode b) =>
+              a.sequence!.index.compareTo(b.sequence!.index),
+        );
+      expect(merged?.bytes, <int>[
+        for (final Barcode part in ordered) ...part.bytes,
       ]);
+      // A character set declared in one part carries over to the next.
+      expect(merged?.text, contains('CN:￥'));
+      expect(merged?.text, contains('DE:444,90 €'));
+      expect(merged?.text, isNot(contains('¤')));
     });
 
     test(
@@ -104,14 +114,14 @@ void main() {
         );
         expect(parts, hasLength(4));
         expect(parts.map((Barcode b) => b.sequence?.size), everyElement(4));
-        expect(Barcode.merge(parts.take(3)), isNull);
+        expect(await reader.merge(parts.take(3)), isNull);
         final List<Barcode> ordered = parts.toList()
           ..sort(
             (Barcode a, Barcode b) =>
                 a.sequence!.index.compareTo(b.sequence!.index),
           );
         expect(
-          Barcode.merge(parts.reversed)?.text,
+          (await reader.merge(parts.reversed))?.text,
           ordered.map((Barcode b) => b.text).join(),
         );
       },

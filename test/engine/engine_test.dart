@@ -31,6 +31,10 @@ class _FakeBackend implements EngineBackend {
   Future<String> version() async => 'fake $id';
 
   @override
+  Future<EngineMerged> merge(Uint8List data, int characterSet) =>
+      throw UnimplementedError();
+
+  @override
   Future<EngineReadResult> readImage(
     Uint8List encodedImage,
     EngineReadOptions options,

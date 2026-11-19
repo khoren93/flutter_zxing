@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -23,7 +22,7 @@ final class Barcode {
     required this.bytes,
     required this.position,
     this.contentType = BarcodeContentType.text,
-    this.orientation = 0,
+    this.rotation = 0,
     this.isMirrored = false,
     this.isInverted = false,
     this.ecLevel,
@@ -32,7 +31,23 @@ final class Barcode {
     this.sequence,
     this.error,
     this.symbol,
-  });
+  }) : _mergeData = null;
+
+  Barcode._withMergeData(Barcode b, this._mergeData)
+    : format = b.format,
+      text = b.text,
+      bytes = b.bytes,
+      position = b.position,
+      contentType = b.contentType,
+      rotation = b.rotation,
+      isMirrored = b.isMirrored,
+      isInverted = b.isInverted,
+      ecLevel = b.ecLevel,
+      version = b.version,
+      symbologyIdentifier = b.symbologyIdentifier,
+      sequence = b.sequence,
+      error = b.error,
+      symbol = b.symbol;
 
   /// The symbology, as specific as known (e.g. [BarcodeFormat.ean13]).
   final BarcodeFormat format;
@@ -52,7 +67,7 @@ final class Barcode {
   final BarcodeContentType contentType;
 
   /// Clockwise rotation of the symbol in degrees.
-  final int orientation;
+  final int rotation;
 
   /// Whether the symbol was found mirrored.
   final bool isMirrored;
@@ -90,104 +105,9 @@ final class Barcode {
   /// Whether the barcode was decoded successfully.
   bool get isValid => error == null;
 
-  /// The text of merged parts. A UTF-8 character can be split across two
-  /// symbols, and each part's text is decoded on its own: if the joined
-  /// bytes of a text message are valid UTF-8 beyond ASCII, they are decoded
-  /// as a whole. Otherwise (another character set, binary data) the parts'
-  /// texts are joined.
-  static String _mergedText(
-    List<Barcode> parts,
-    Uint8List bytes,
-    Set<BarcodeContentType> types,
-  ) {
-    final String joined = parts.map((Barcode b) => b.text).join();
-    if (types.length != 1 ||
-        types.single != BarcodeContentType.text ||
-        !bytes.any((int b) => b >= 0x80)) {
-      return joined;
-    }
-    try {
-      return utf8.decode(bytes);
-    } on FormatException {
-      return joined;
-    }
-  }
-
-  /// Joins the parts of a structured append sequence (one message split
-  /// across several barcodes, see [sequence]) into one barcode that holds
-  /// the whole message. Returns `null` until every part is there.
-  ///
-  /// Pass the barcodes in any order: as one image read them, or collected
-  /// over several camera frames. Barcodes that are not part of a sequence,
-  /// that could not be decoded or that repeat a part are skipped; if [parts]
-  /// holds several sequences, the first complete one is returned.
-  ///
-  /// ```dart
-  /// final List<Barcode> found = await const BarcodeReader().readAll(bytes);
-  /// final Barcode? message = Barcode.merge(found);
-  /// ```
-  ///
-  /// The result has the text and bytes of all parts in sequence order, the
-  /// format and symbol details of the first part, no [sequence], and a
-  /// [position] that covers every part (meaningful when the parts come from
-  /// one image).
-  static Barcode? merge(Iterable<Barcode> parts) {
-    final Map<String, Map<int, Barcode>> sequences =
-        <String, Map<int, Barcode>>{};
-    for (final Barcode part in parts) {
-      final BarcodeSequence? s = part.sequence;
-      if (s == null || !part.isValid || s.index < 0) {
-        continue;
-      }
-      (sequences[s.id] ??= <int, Barcode>{}).putIfAbsent(s.index, () => part);
-    }
-    for (final Map<int, Barcode> found in sequences.values) {
-      // Some symbologies only know the size in the last part; 0 = unknown.
-      final int size = found.values
-          .map((Barcode b) => b.sequence!.size)
-          .reduce(math.max);
-      if (size <= 0 ||
-          found.length != size ||
-          !List<int>.generate(size, (int i) => i).every(found.containsKey)) {
-        continue;
-      }
-      final List<Barcode> ordered = List<Barcode>.generate(
-        size,
-        (int i) => found[i]!,
-      );
-      final Barcode first = ordered.first;
-      final Rect bounds = ordered
-          .map((Barcode b) => b.position.bounds)
-          .reduce((Rect a, Rect b) => a.expandToInclude(b));
-      final Set<BarcodeContentType> types = ordered
-          .map((Barcode b) => b.contentType)
-          .toSet();
-      final Uint8List bytes = Uint8List.fromList(<int>[
-        for (final Barcode b in ordered) ...b.bytes,
-      ]);
-      return Barcode(
-        format: first.format,
-        text: _mergedText(ordered, bytes, types),
-        bytes: bytes,
-        position: BarcodePosition(
-          topLeft: bounds.topLeft,
-          topRight: bounds.topRight,
-          bottomRight: bounds.bottomRight,
-          bottomLeft: bounds.bottomLeft,
-        ),
-        contentType: types.length == 1
-            ? types.single
-            : BarcodeContentType.mixed,
-        orientation: first.orientation,
-        isMirrored: first.isMirrored,
-        isInverted: first.isInverted,
-        ecLevel: first.ecLevel,
-        version: first.version,
-        symbologyIdentifier: first.symbologyIdentifier,
-      );
-    }
-    return null;
-  }
+  // What the engine needs to join this barcode with the other parts of its
+  // sequence (BarcodeReader.merge): its bytes with their character sets.
+  final Uint8List? _mergeData;
 
   @override
   bool operator ==(Object other) =>
@@ -204,6 +124,16 @@ final class Barcode {
   @override
   String toString() => 'Barcode(${format.name}, "$text")';
 }
+
+/// [barcode] carrying the engine's [data] for `BarcodeReader.merge`.
+@internal
+Barcode barcodeWithMergeData(Barcode barcode, Uint8List? data) =>
+    data == null ? barcode : Barcode._withMergeData(barcode, data);
+
+/// The engine's data of [barcode] for `BarcodeReader.merge`, if it came from
+/// the engine.
+@internal
+Uint8List? mergeDataOf(Barcode barcode) => barcode._mergeData;
 
 /// How the payload of a [Barcode] should be interpreted.
 enum BarcodeContentType {

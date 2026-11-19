@@ -376,8 +376,8 @@ class _TechCard extends StatelessWidget {
         ),
       (
         'Orientation',
-        barcode.orientation == 0 ? 'Upright' : 'Turned ${barcode.orientation}°',
-        barcode.orientation != 0,
+        barcode.rotation == 0 ? 'Upright' : 'Turned ${barcode.rotation}°',
+        barcode.rotation != 0,
       ),
       (
         'Mirrored',

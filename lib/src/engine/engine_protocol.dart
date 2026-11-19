@@ -11,7 +11,7 @@ import '../reading/reader_options.dart';
 
 /// `FZX_ABI_VERSION` this Dart code is written against. The engine refuses
 /// to start with a library or WebAssembly module of another version.
-const int fzxExpectedAbiVersion = 2;
+const int fzxExpectedAbiVersion = 3;
 
 /// Flags for zxing-cpp's downscaleFactor and downscaleThreshold, for the
 /// example's diagnostics page. [factor] is 2, 3 or 4, [threshold] in pixels
@@ -83,6 +83,7 @@ final class EngineReadOptions {
     this.binarizer = 0,
     this.maxSymbols = 0,
     this.minLineCount = 2,
+    this.characterSet = 0,
     this.upcAsPrinted = false,
   });
 
@@ -107,6 +108,7 @@ final class EngineReadOptions {
     binarizer: options.binarizer.index,
     maxSymbols: maxSymbols,
     minLineCount: options.minLineCount,
+    characterSet: options.characterSet?.engineId ?? 0,
     upcAsPrinted: true,
   );
 
@@ -125,6 +127,9 @@ final class EngineReadOptions {
   /// Scan lines that must agree on a linear barcode.
   final int minLineCount;
 
+  /// zxing-cpp `CharacterSet` of barcodes that declare none; 0 guesses.
+  final int characterSet;
+
   /// Give UPC-A and UPC-E as printed (12 and 8 digits, UPC-A not as
   /// EAN-13): the 4.0 API. The 3.x API keeps zxing-cpp's 13 digits.
   final bool upcAsPrinted;
@@ -136,6 +141,7 @@ final class EngineReadOptions {
     binarizer: binarizer,
     maxSymbols: maxSymbols,
     minLineCount: minLineCount,
+    characterSet: characterSet,
     upcAsPrinted: upcAsPrinted,
   );
 
@@ -146,6 +152,7 @@ final class EngineReadOptions {
     binarizer: binarizer,
     maxSymbols: maxSymbols,
     minLineCount: minLineCount,
+    characterSet: characterSet,
     upcAsPrinted: upcAsPrinted,
   );
 
@@ -174,11 +181,18 @@ final class EngineReadOptions {
       other.flags == flags &&
       other.binarizer == binarizer &&
       other.maxSymbols == maxSymbols &&
-      other.minLineCount == minLineCount;
+      other.minLineCount == minLineCount &&
+      other.characterSet == characterSet;
 
   @override
-  int get hashCode =>
-      Object.hash(formats, flags, binarizer, maxSymbols, minLineCount);
+  int get hashCode => Object.hash(
+    formats,
+    flags,
+    binarizer,
+    maxSymbols,
+    minLineCount,
+    characterSet,
+  );
 }
 
 /// What the engine knows about a barcode beyond the public [Barcode], for
@@ -248,6 +262,27 @@ final class EngineReadResult {
     engineMicros: micros,
     details: details,
   );
+}
+
+/// The parts of a structured append sequence joined by the engine
+/// (`fzx_merge`).
+@immutable
+final class EngineMerged {
+  /// Creates a merged message.
+  const EngineMerged({
+    required this.contentType,
+    required this.text,
+    required this.bytes,
+  });
+
+  /// How to interpret the payload.
+  final BarcodeContentType contentType;
+
+  /// The text, decoded as zxing-cpp decodes it.
+  final String text;
+
+  /// The raw bytes of every part, in order.
+  final Uint8List bytes;
 }
 
 /// A barcode created by the engine: the module matrix and its metadata.

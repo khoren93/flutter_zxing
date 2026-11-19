@@ -40,6 +40,10 @@ abstract interface class EngineBackend {
     required String options,
   });
 
+  /// Joins the parts of a structured append sequence: [data] is
+  /// `mergeInput`, [characterSet] a zxing-cpp `CharacterSet` (0 guesses).
+  Future<EngineMerged> merge(Uint8List data, int characterSet);
+
   /// The zxing-cpp version inside the engine.
   Future<String> version();
 
@@ -144,6 +148,10 @@ final class BarcodeEngine {
     format: format,
     options: options,
   );
+
+  /// See [EngineBackend.merge].
+  Future<EngineMerged> merge(Uint8List data, int characterSet) async =>
+      (await backend).merge(data, characterSet);
 
   /// See [EngineBackend.version].
   Future<String> version() async => (await backend).version();

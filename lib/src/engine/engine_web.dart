@@ -186,6 +186,7 @@ final class WebBackend implements EngineBackend {
             'binarizer': o.binarizer,
             'maxSymbols': o.maxSymbols,
             'minLineCount': o.minLineCount,
+            'characterSet': o.characterSet,
           }.jsify()!
           as JSObject;
 
@@ -282,6 +283,17 @@ final class WebBackend implements EngineBackend {
       ..setProperty('options'.toJS, options.toJS);
     final _Message reply = await _call(request, <JSObject>[buffer]);
     return decodeSymbol(reply.buffer!.toDart.asUint8List());
+  }
+
+  @override
+  Future<EngineMerged> merge(Uint8List data, int characterSet) async {
+    final JSArrayBuffer buffer = _transferable(data);
+    final JSObject request = JSObject()
+      ..setProperty('type'.toJS, 'merge'.toJS)
+      ..setProperty('buffer'.toJS, buffer)
+      ..setProperty('characterSet'.toJS, characterSet.toJS);
+    final _Message reply = await _call(request, <JSObject>[buffer]);
+    return decodeMerged(reply.buffer!.toDart.asUint8List());
   }
 
   @override

@@ -497,7 +497,7 @@ Map<String, Object?> barcodeToJson(Barcode b) => <String, Object?>{
   if (b.ecLevel != null) 'ecLevel': b.ecLevel,
   if (b.version != null) 'version': b.version,
   'symbologyIdentifier': b.symbologyIdentifier,
-  if (b.orientation != 0) 'orientation': b.orientation,
+  if (b.rotation != 0) 'rotation': b.rotation,
   if (b.isInverted) 'inverted': true,
   if (b.isMirrored) 'mirrored': true,
   if (b.sequence != null)
@@ -572,7 +572,7 @@ String? _checkExpectation(CorpusFixture f, Barcode b) {
 String? _property(Barcode b, String key) => switch (key) {
   'contentType' => _contentTypeName(b.contentType),
   'ecLevel' => b.ecLevel ?? '',
-  'orientation' => '${b.orientation}',
+  'rotation' => '${b.rotation}',
   'symbologyIdentifier' => b.symbologyIdentifier,
   'sequenceSize' => '${b.sequence?.size ?? -1}',
   'sequenceIndex' => '${b.sequence?.index ?? -1}',

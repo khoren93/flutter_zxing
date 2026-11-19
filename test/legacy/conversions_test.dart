@@ -96,12 +96,9 @@ void main() {
       }
     });
 
-    test('every readable format has a bit, except the EAN add-ons', () {
+    test('every readable format and ISBN has a bit', () {
       for (final BarcodeFormat format in BarcodeFormat.values) {
-        final bool known =
-            format.canRead &&
-            format != BarcodeFormat.ean2 &&
-            format != BarcodeFormat.ean5;
+        final bool known = format.canRead || format == BarcodeFormat.isbn;
         expect(formatBitOf(format) != Format.none, known, reason: format.name);
       }
     });

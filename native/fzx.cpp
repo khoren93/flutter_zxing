@@ -8,15 +8,21 @@
 //   i32 count
 //   per barcode:
 //     u32 format id, u8 content type, u8 error type, u8 flags, u8 reserved
-//     i32 orientation, i32 x0 y0 x1 y1 x2 y2 x3 y3 (top-left, top-right, bottom-right, bottom-left)
+//     i32 rotation, i32 x0 y0 x1 y1 x2 y2 x3 y3 (top-left, top-right, bottom-right, bottom-left)
 //     i32 line count, i32 sequence index, i32 sequence size
 //     str text, bytes raw, str symbology identifier, str ec level, str version,
 //     str sequence id, str error message, str extra (JSON object, may be empty)
 //     i32 symbol width, i32 symbol height (in modules; 0 for linear codes)
 //     bytes symbol modules (width * height, row by row, 1 = dark, 0 = light):
 //       the grid of modules the reader sampled from a 2D code
+//     bytes eci: the raw bytes with zxing-cpp's ECI designators (bytesECI),
+//       for fzx_merge
 //   flags: 1 valid, 2 inverted, 4 mirrored, 8 has ECI, 16 reader init
 //
+// "merged" (fzx_merge)
+//   u32 abi version, u32 kind = 3
+//   u8 content type, str text, bytes raw
+
 // "symbol" (fzx_write)
 //   u32 abi version, u32 kind = 2
 //   u32 format id, i32 width, i32 height (in modules, without quiet zones)
@@ -28,6 +34,7 @@
 
 #include "fzx.h"
 
+#include "Content.h"
 #include "ReadBarcode.h"
 #include "Version.h"
 
@@ -71,7 +78,7 @@ struct fzx_ctx
 
 namespace {
 
-enum : uint32_t { KIND_BARCODES = 1, KIND_SYMBOL = 2 };
+enum : uint32_t { KIND_BARCODES = 1, KIND_SYMBOL = 2, KIND_MERGED = 3 };
 
 struct Writer
 {
@@ -258,6 +265,8 @@ void encodeBarcodes(fzx_ctx* ctx, const Barcodes& barcodes, int imageWidth, int 
 			for (int x = 0; x < sw; x++)
 				modules[static_cast<size_t>(y) * sw + x] = *symbol.data(x, y) < 128 ? 1 : 0;
 		w.blob(modules.data(), modules.size());
+		const auto eci = bc.bytesECI();
+		w.blob(eci.data(), eci.size());
 	}
 }
 
@@ -280,7 +289,7 @@ ImageFormat toImageFormat(int pix)
 }
 
 ReaderOptions readerOptions(fzx_ctx* ctx, const char* formats, uint32_t flags, int binarizer, int maxSymbols,
-							int minLineCount)
+							int minLineCount, int characterSet)
 {
 	const char* key = formats ? formats : "";
 	if (ctx->formatsKey != key) {
@@ -295,6 +304,8 @@ ReaderOptions readerOptions(fzx_ctx* ctx, const char* formats, uint32_t flags, i
 	const int eanAddOn = static_cast<int>((flags & FZX_EAN_ADD_ON_MASK) >> FZX_EAN_ADD_ON_SHIFT);
 	if (eanAddOn > static_cast<int>(EanAddOnSymbol::Require))
 		throw std::invalid_argument("Unknown EAN add-on mode " + std::to_string(eanAddOn));
+	if (characterSet < 0 || characterSet >= static_cast<int>(CharacterSet::CharsetCount))
+		throw std::invalid_argument("Unknown character set " + std::to_string(characterSet));
 	ReaderOptions o;
 	o.formats(ctx->formats)
 		.tryHarder(flags & FZX_TRY_HARDER)
@@ -308,7 +319,8 @@ ReaderOptions readerOptions(fzx_ctx* ctx, const char* formats, uint32_t flags, i
 		.maxNumberOfSymbols(maxSymbols > 0 && maxSymbols < 0xFF ? maxSymbols : 0xFF)
 		.minLineCount(minLineCount > 0 ? (minLineCount < 0xFF ? minLineCount : 0xFF) : 2)
 		.textMode(textMode ? static_cast<TextMode>(textMode - 1) : TextMode::HRI)
-		.eanAddOnSymbol(static_cast<EanAddOnSymbol>(eanAddOn));
+		.eanAddOnSymbol(static_cast<EanAddOnSymbol>(eanAddOn))
+		.characterSet(static_cast<CharacterSet>(characterSet));
 	if (const int factor = static_cast<int>((flags & FZX_DOWNSCALE_FACTOR_MASK) >> FZX_DOWNSCALE_FACTOR_SHIFT))
 		o.downscaleFactor(static_cast<uint8_t>(factor + 1));
 	if (const int threshold = static_cast<int>((flags & FZX_DOWNSCALE_THRESHOLD_MASK) >> FZX_DOWNSCALE_THRESHOLD_SHIFT))
@@ -392,12 +404,12 @@ uint8_t* fzx_input(fzx_ctx* ctx, int size)
 
 int fzx_read(fzx_ctx* ctx, const uint8_t* data, int width, int height, int row_stride, int pix_format, int crop_l,
 			 int crop_t, int crop_w, int crop_h, const char* formats, uint32_t flags, int binarizer, int max_symbols,
-			 int min_line_count)
+			 int min_line_count, int character_set)
 {
 	return guarded(ctx, FZX_ERR_ARGUMENT, [&] {
 		if (!data || width <= 0 || height <= 0)
 			throw std::invalid_argument("Empty image");
-		auto opts = readerOptions(ctx, formats, flags, binarizer, max_symbols, min_line_count);
+		auto opts = readerOptions(ctx, formats, flags, binarizer, max_symbols, min_line_count, character_set);
 		ImageView iv(data, width, height, toImageFormat(pix_format), row_stride > 0 ? row_stride : 0);
 		int dx = 0, dy = 0;
 		if (crop_w > 0 && crop_h > 0) {
@@ -413,10 +425,10 @@ int fzx_read(fzx_ctx* ctx, const uint8_t* data, int width, int height, int row_s
 }
 
 int fzx_read_file(fzx_ctx* ctx, const uint8_t* data, int size, const char* formats, uint32_t flags, int binarizer,
-				  int max_symbols, int min_line_count)
+				  int max_symbols, int min_line_count, int character_set)
 {
 	return guarded(ctx, FZX_ERR_ARGUMENT, [&] {
-		auto opts = readerOptions(ctx, formats, flags, binarizer, max_symbols, min_line_count);
+		auto opts = readerOptions(ctx, formats, flags, binarizer, max_symbols, min_line_count, character_set);
 		int w = 0, h = 0, channels = 0;
 		std::unique_ptr<stbi_uc, void (*)(void*)> pixels(
 			data && size > 0 ? stbi_load_from_memory(data, size, &w, &h, &channels, 1) : nullptr, stbi_image_free);
@@ -427,6 +439,87 @@ int fzx_read_file(fzx_ctx* ctx, const uint8_t* data, int size, const char* forma
 		auto barcodes = ReadBarcodes(iv, opts);
 		encodeBarcodes(ctx, barcodes, w, h, 0, 0, &iv);
 		return static_cast<int>(barcodes.size());
+	});
+}
+
+int fzx_merge(fzx_ctx* ctx, const uint8_t* data, int size, int character_set)
+{
+	return guarded(ctx, FZX_ERR_ARGUMENT, [&] {
+		if (character_set < 0 || character_set >= static_cast<int>(CharacterSet::CharsetCount))
+			throw std::invalid_argument("Unknown character set " + std::to_string(character_set));
+		Content merged;
+		merged.defaultCharset = static_cast<CharacterSet>(character_set);
+		const auto bad = [] { return std::invalid_argument("Malformed parts to merge"); };
+		size_t i = 0;
+		const size_t n = data && size > 0 ? static_cast<size_t>(size) : 0;
+		for (bool first = true; i < n; first = false) {
+			if (n - i < 5)
+				throw bad();
+			const uint8_t flags = data[i];
+			uint32_t len;
+			std::memcpy(&len, data + i + 1, 4);
+			i += 5;
+			if (len > n - i)
+				throw bad();
+			const uint8_t* p = data + i;
+			i += len;
+			Content part;
+			size_t j = 0;
+			// The symbology identifier, "]Q1"; the first part's names the result.
+			if (len >= 3 && p[0] == ']') {
+				if (first) {
+					merged.symbology.code = static_cast<char>(p[1]);
+					merged.symbology.modifier = static_cast<char>(p[2]);
+					merged.symbology.aiFlag = (flags & 2) ? AIFlag::GS1 : AIFlag::None;
+				}
+				j = 3;
+			}
+			if (!(flags & 1)) {
+				part.append(ByteView(p + j, len - j));
+			} else {
+				// ECI designators are a backslash and 6 digits, a literal
+				// backslash is doubled.
+				//
+				// bytesECI starts a part whose first ECI comes after some data
+				// with the default ECI 3 (ISO-8859-1). In a sequence that data
+				// is in the encoding the previous part ended with instead, as
+				// zxing-cpp's MergeStructuredAppendSequence decodes it, so a
+				// leading ECI 3 of a later part is dropped. A real ECI 3 at the
+				// very start of a later part looks the same and is dropped too,
+				// which only matters if the previous part ended in another one.
+				static constexpr char defaultEci[] = "\\000003";
+				if (!first && len - j >= 7 && std::memcmp(p + j, defaultEci, 7) == 0)
+					j += 7;
+				while (j < len) {
+					if (p[j] != '\\') {
+						part.push_back(p[j++]);
+					} else if (j + 1 < len && p[j + 1] == '\\') {
+						part.push_back('\\');
+						j += 2;
+					} else if (j + 7 <= len && std::all_of(p + j + 1, p + j + 7, [](uint8_t c) { return c >= '0' && c <= '9'; })) {
+						int eci = 0;
+						for (size_t k = j + 1; k < j + 7; k++)
+							eci = eci * 10 + (p[k] - '0');
+						part.switchEncoding(static_cast<ECI>(eci));
+						j += 7;
+					} else {
+						throw bad();
+					}
+				}
+			}
+			merged.append(part);
+		}
+		if (merged.empty())
+			throw std::invalid_argument("Nothing to merge");
+
+		ctx->out.clear();
+		Writer w{ctx->out};
+		w.u32(FZX_ABI_VERSION);
+		w.u32(KIND_MERGED);
+		w.u8(static_cast<uint8_t>(merged.type()));
+		w.str(merged.text(TextMode::HRI));
+		w.blob(merged.bytes.data(), merged.bytes.size());
+		return 0;
 	});
 }
 

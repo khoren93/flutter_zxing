@@ -31,7 +31,7 @@
 #define FZX_API __attribute__((visibility("default"))) FZX_KEEP
 #endif
 
-#define FZX_ABI_VERSION 2
+#define FZX_ABI_VERSION 3
 
 #ifdef __cplusplus
 extern "C" {
@@ -119,6 +119,8 @@ FZX_API uint8_t* fzx_input(fzx_ctx* ctx, int size);
 //                   1 stops at the first barcode, which on large photos is
 //                   often ten times faster than an exhaustive search.
 //   min_line_count  linear barcodes: scan lines that must agree (>= 1)
+//   character_set   zxing-cpp CharacterSet of barcodes that declare none;
+//                   0 (Unknown) lets zxing-cpp guess
 
 // Decodes raw pixels. `row_stride` <= 0 means tightly packed rows.
 // `crop_w`/`crop_h` <= 0 means the whole image. Positions in the result are
@@ -126,13 +128,22 @@ FZX_API uint8_t* fzx_input(fzx_ctx* ctx, int size);
 // Returns the number of barcodes (result layout "barcodes"), or an FZX_ERR_*.
 FZX_API int fzx_read(fzx_ctx* ctx, const uint8_t* data, int width, int height, int row_stride, int pix_format,
 					 int crop_l, int crop_t, int crop_w, int crop_h, const char* formats, uint32_t flags,
-					 int binarizer, int max_symbols, int min_line_count);
+					 int binarizer, int max_symbols, int min_line_count, int character_set);
 
 // Decodes an encoded image (JPEG, PNG, GIF, BMP via stb_image) at full
 // resolution, without lossy pre-scaling: zxing-cpp's tryDownscale handles
 // big images. Returns the number of barcodes or an FZX_ERR_*.
 FZX_API int fzx_read_file(fzx_ctx* ctx, const uint8_t* data, int size, const char* formats, uint32_t flags,
-						  int binarizer, int max_symbols, int min_line_count);
+						  int binarizer, int max_symbols, int min_line_count, int character_set);
+
+// Joins the parts of a structured append sequence the way zxing-cpp does: an
+// encoding declared in one part carries over to the next. `data` holds the
+// parts in sequence order, each as
+//   u8 flags (1: the part has an ECI, 2: GS1), u32 length, bytes
+// where the bytes are the part's "eci" field of the "barcodes" layout.
+// `character_set` as for fzx_read. Result layout "merged". Returns 0 or an
+// FZX_ERR_*.
+FZX_API int fzx_merge(fzx_ctx* ctx, const uint8_t* data, int size, int character_set);
 
 // Encodes `data` into a barcode symbol (result layout "symbol").
 //   binary   0: `data` is UTF-8 text, 1: raw bytes (byte mode)

@@ -32,7 +32,8 @@ const List<Type> _types = <Type>[
   SwissReferenceType, GostPaymentContent, UpiPaymentContent,
   EmvPaymentContent, EmvScheme, SpaydPaymentContent,
   // Reading
-  BarcodeReader, ReaderOptions, Binarizer, EanAddOn, PixelBuffer, PixelLayout,
+  BarcodeReader, ReaderOptions, Binarizer, EanAddOn, CharacterSet, PixelBuffer,
+  PixelLayout,
   // Writing
   BarcodeWriter, ErrorCorrection, BarcodeImage, BarcodeSymbol, BarcodeView,
   BarcodeStyle, ModuleShape, FinderShape, BarcodeLogo,

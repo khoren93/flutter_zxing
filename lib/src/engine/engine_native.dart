@@ -225,6 +225,16 @@ final class NativeBackend implements EngineBackend {
   }
 
   @override
+  Future<EngineMerged> merge(Uint8List data, int characterSet) async {
+    final Pointer<Uint8> input = await _copy(data);
+    final _Reply reply = await _call(
+      (int id) => _Merge(id, input.address, data.length, characterSet),
+      input,
+    );
+    return reply.merged!;
+  }
+
+  @override
   Future<String> version() async => (await _call(_Version.new)).text!;
 
   @override
@@ -328,6 +338,13 @@ final class _Write extends _Request {
   final String options;
 }
 
+final class _Merge extends _Request {
+  const _Merge(super.id, this.address, this.size, this.characterSet);
+  final int address;
+  final int size;
+  final int characterSet;
+}
+
 final class _Version extends _Request {
   const _Version(super.id);
 }
@@ -339,6 +356,7 @@ final class _Reply {
     this.error = '',
     this.read,
     this.symbol,
+    this.merged,
     this.text,
   });
   final int id;
@@ -346,6 +364,7 @@ final class _Reply {
   final String error;
   final EngineReadResult? read;
   final EngineSymbol? symbol;
+  final EngineMerged? merged;
   final String? text;
 }
 
@@ -411,6 +430,7 @@ final class _Engine {
         final _ReadImage r => r.address,
         final _ReadPixels r => r.address,
         final _Write r => r.address,
+        final _Merge r => r.address,
         _Version() => 0,
       };
       if (address != 0) {
@@ -433,6 +453,7 @@ final class _Engine {
             r.options.binarizer,
             r.options.maxSymbols,
             r.options.minLineCount,
+            r.options.characterSet,
           ),
         ),
         final _ReadPixels r => _read(
@@ -443,6 +464,7 @@ final class _Engine {
           mirrorWidth: r.mirrored ? r.width.toDouble() : null,
         ),
         final _Write r => _write(r),
+        final _Merge r => _merge(r),
         final _Version r => _Reply(
           r.id,
           text: fzxVersion().cast<Utf8>().toDartString(),
@@ -488,6 +510,7 @@ final class _Engine {
       r.options.binarizer,
       r.options.maxSymbols,
       r.options.minLineCount,
+      r.options.characterSet,
     );
   }
 
@@ -511,6 +534,19 @@ final class _Engine {
         mirrorWidth: mirrorWidth,
       ).withEngineMicros(micros),
     );
+  }
+
+  _Reply _merge(_Merge r) {
+    final int code = fzxMerge(
+      _ctx,
+      Pointer<Uint8>.fromAddress(r.address),
+      r.size,
+      r.characterSet,
+    );
+    if (code < 0) {
+      return _Reply(r.id, code: code, error: _error());
+    }
+    return _Reply(r.id, merged: decodeMerged(_result()));
   }
 
   _Reply _write(_Write r) {

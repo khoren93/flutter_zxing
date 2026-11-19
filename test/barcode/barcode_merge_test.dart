@@ -1,4 +1,5 @@
-// Barcode.merge: structured append sequences.
+// BarcodeReader.merge: structured append sequences built by hand (the
+// engine's own parts are tested in content_native_test.dart).
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' show Offset, Rect;
@@ -31,9 +32,11 @@ Barcode _part(
   error: error,
 );
 
+const BarcodeReader _reader = BarcodeReader();
+
 void main() {
-  test('joins the parts in sequence order', () {
-    final Barcode? merged = Barcode.merge(<Barcode>[
+  test('joins the parts in sequence order', () async {
+    final Barcode? merged = await _reader.merge(<Barcode>[
       _part('lo, ', 1, 3, x: 20),
       _part('world', 2, 3, x: 40),
       _part('Hel', 0, 3),
@@ -48,15 +51,15 @@ void main() {
     expect(merged.position.bounds, const Rect.fromLTRB(0, 0, 50, 10));
   });
 
-  test('null until every part is there', () {
+  test('null until every part is there', () async {
     expect(
-      Barcode.merge(<Barcode>[_part('a', 0, 3), _part('c', 2, 3)]),
+      await _reader.merge(<Barcode>[_part('a', 0, 3), _part('c', 2, 3)]),
       isNull,
     );
-    expect(Barcode.merge(const <Barcode>[]), isNull);
+    expect(await _reader.merge(const <Barcode>[]), isNull);
   });
 
-  test('repeated parts, plain barcodes and failed parts are skipped', () {
+  test('repeated parts, plain barcodes and failed parts are skipped', () async {
     final Barcode plain = Barcode(
       format: BarcodeFormat.ean13,
       text: '5901234123457',
@@ -64,16 +67,16 @@ void main() {
       position: _part('', 0, 1).position,
     );
     expect(
-      Barcode.merge(<Barcode>[
+      (await _reader.merge(<Barcode>[
         plain,
         _part('a', 0, 2),
         _part('a', 0, 2),
         _part('b', 1, 2),
-      ])?.text,
+      ]))?.text,
       'ab',
     );
     expect(
-      Barcode.merge(<Barcode>[
+      await _reader.merge(<Barcode>[
         _part('a', 0, 2),
         _part('b', 1, 2, error: const BarcodeError(BarcodeErrorKind.checksum)),
       ]),
@@ -81,40 +84,40 @@ void main() {
     );
   });
 
-  test('a size known only from the last part', () {
+  test('a size known only from the last part', () async {
     expect(
-      Barcode.merge(<Barcode>[
+      (await _reader.merge(<Barcode>[
         _part('a', 0, 0),
         _part('b', 1, 0),
         _part('c', 2, 3),
-      ])?.text,
+      ]))?.text,
       'abc',
     );
-    expect(Barcode.merge(<Barcode>[_part('a', 0, 0)]), isNull);
+    expect(await _reader.merge(<Barcode>[_part('a', 0, 0)]), isNull);
   });
 
-  test('the first complete sequence wins', () {
+  test('the first complete sequence wins', () async {
     expect(
-      Barcode.merge(<Barcode>[
+      (await _reader.merge(<Barcode>[
         _part('x', 0, 2, id: '1'),
         _part('a', 0, 2, id: '2'),
         _part('b', 1, 2, id: '2'),
-      ])?.text,
+      ]))?.text,
       'ab',
     );
   });
 
-  test('mixed content types become mixed', () {
+  test('mixed content types become mixed', () async {
     expect(
-      Barcode.merge(<Barcode>[
+      (await _reader.merge(<Barcode>[
         _part('a', 0, 2),
         _part('b', 1, 2, type: BarcodeContentType.binary),
-      ])?.contentType,
+      ]))?.contentType,
       BarcodeContentType.mixed,
     );
   });
 
-  test('a UTF-8 character split across two symbols comes out whole', () {
+  test('a UTF-8 character split across two symbols comes out whole', () async {
     Barcode part(List<int> bytes, String text, int index) => Barcode(
       format: BarcodeFormat.qrCode,
       text: text,
@@ -124,18 +127,18 @@ void main() {
     );
     // "aéb", the é (C3 A9) cut in half; each part decoded on its own.
     expect(
-      Barcode.merge(<Barcode>[
+      (await _reader.merge(<Barcode>[
         part(<int>[0x61, 0xC3], 'aÃ', 0),
         part(<int>[0xA9, 0x62], '©b', 1),
-      ])?.text,
+      ]))?.text,
       'aéb',
     );
     // Not UTF-8 (Latin-1 é): the parts' texts are joined.
     expect(
-      Barcode.merge(<Barcode>[
+      (await _reader.merge(<Barcode>[
         part(<int>[0xE9], 'é', 0),
         part(<int>[0x62], 'b', 1),
-      ])?.text,
+      ]))?.text,
       'éb',
     );
   });

@@ -32,6 +32,16 @@ external void fzxFree(Pointer<FzxContext> ctx);
 @Native<Pointer<Uint8> Function(Pointer<FzxContext>, Int)>(symbol: 'fzx_input')
 external Pointer<Uint8> fzxInput(Pointer<FzxContext> ctx, int size);
 
+@Native<Int Function(Pointer<FzxContext>, Pointer<Uint8>, Int, Int)>(
+  symbol: 'fzx_merge',
+)
+external int fzxMerge(
+  Pointer<FzxContext> ctx,
+  Pointer<Uint8> data,
+  int size,
+  int characterSet,
+);
+
 @Native<
   Int Function(
     Pointer<FzxContext>,
@@ -46,6 +56,7 @@ external Pointer<Uint8> fzxInput(Pointer<FzxContext> ctx, int size);
     Int,
     Pointer<Char>,
     Uint32,
+    Int,
     Int,
     Int,
     Int,
@@ -67,6 +78,7 @@ external int fzxRead(
   int binarizer,
   int maxSymbols,
   int minLineCount,
+  int characterSet,
 );
 
 @Native<
@@ -76,6 +88,7 @@ external int fzxRead(
     Int,
     Pointer<Char>,
     Uint32,
+    Int,
     Int,
     Int,
     Int,
@@ -90,6 +103,7 @@ external int fzxReadFile(
   int binarizer,
   int maxSymbols,
   int minLineCount,
+  int characterSet,
 );
 
 @Native<
