@@ -223,6 +223,9 @@ SwissQrBillContent? parseSwissQrBill(String text) {
   if (!isValidIban(iban) ||
       creditor == null ||
       type == null ||
+      // The type is known from the reference: one that disagrees is not a
+      // valid bill.
+      type != swissReferenceType(reference) ||
       (type == SwissReferenceType.qrr && !isValidQrReference(reference)) ||
       (type == SwissReferenceType.scor &&
           !isValidCreditorReference(reference.toUpperCase()))) {
@@ -234,7 +237,6 @@ SwissQrBillContent? parseSwissQrBill(String text) {
     amount: orNull(_at(l, 18)),
     currency: _at(l, 19),
     debtor: _swissAddress(l, 20),
-    referenceType: type,
     qrReference: orNull(reference),
     message: orNull(_at(l, 29)),
     billInformation: orNull(_at(l, 31)),
@@ -285,6 +287,17 @@ String _swissText(SwissQrBillContent c) {
     'EPD',
     ...tail,
   ].join('\n');
+}
+
+/// [SwissQrBillContent.referenceType].
+SwissReferenceType swissReferenceType(String? reference) {
+  final String r = (reference ?? '').replaceAll(RegExp(r'\s'), '');
+  if (r.isEmpty) {
+    return SwissReferenceType.none;
+  }
+  return r.toUpperCase().startsWith('RF')
+      ? SwissReferenceType.scor
+      : SwissReferenceType.qrr;
 }
 
 /// [SwissQrBillContent.toPayload].
@@ -393,12 +406,6 @@ List<ContentIssue> validateSwissQrBill(SwissQrBillContent c) {
           const ContentIssue(
             'iban',
             'A QR-IBAN needs a QR reference',
-            kind: ContentIssueKind.conflict,
-          ),
-        if (reference.isNotEmpty)
-          const ContentIssue(
-            'qrReference',
-            'No reference type, but a reference',
             kind: ContentIssueKind.conflict,
           ),
       ],

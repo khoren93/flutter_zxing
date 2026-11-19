@@ -452,11 +452,6 @@ enum CreateKind {
         ('CHF', 'CHF'),
         ('EUR', 'EUR'),
       ]),
-      KindChoice('referenceType', 'Reference', <(String, String)>[
-        ('none', 'None'),
-        ('qrr', 'QR reference'),
-        ('scor', 'RF creditor'),
-      ]),
     ],
     _ => const <KindChoice>[],
   };
@@ -561,7 +556,6 @@ enum CreateKind {
         ),
         amount: o('amount'),
         currency: c('currency'),
-        referenceType: SwissReferenceType.values.byName(c('referenceType')),
         qrReference: o('qrReference'),
         message: o('message'),
       ),
@@ -786,8 +780,6 @@ String contentDart(BarcodeContent content) => switch (content) {
       ),
       'amount': _qn(p.amount),
       if (p.currency != 'CHF') 'currency': _q(p.currency),
-      if (p.referenceType != SwissReferenceType.none)
-        'referenceType': 'SwissReferenceType.${p.referenceType.name}',
       'qrReference': _qn(p.qrReference),
       'message': _qn(p.message),
     },

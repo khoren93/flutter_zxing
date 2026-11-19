@@ -141,6 +141,36 @@ void main() {
       expect(bill.toPayload(), sample);
     });
 
+    test('the reference type follows from the reference', () {
+      SwissReferenceType type(String? reference) => SwissQrBillContent(
+        iban: 'CH4431999123000889012',
+        creditor: const SwissAddress(
+          name: 'x',
+          postalCode: '8001',
+          town: 'Zürich',
+          country: 'CH',
+        ),
+        qrReference: reference,
+      ).referenceType;
+      expect(type(null), SwissReferenceType.none);
+      expect(type(''), SwissReferenceType.none);
+      expect(type('210000000003139471430009017'), SwissReferenceType.qrr);
+      expect(type('21 00000 00003 13947 14300 09017'), SwissReferenceType.qrr);
+      expect(type('RF18539007547034'), SwissReferenceType.scor);
+      expect(type('rf18 5390 0754 7034'), SwissReferenceType.scor);
+    });
+
+    test('a declared type that disagrees with the reference is not a bill', () {
+      expect(
+        _parse(sample.replaceFirst('\nQRR\n', '\nSCOR\n')),
+        isA<TextContent>(),
+      );
+      expect(
+        _parse(sample.replaceFirst('\nQRR\n', '\nNON\n')),
+        isA<TextContent>(),
+      );
+    });
+
     test('a wrong QR reference check digit is not a payment', () {
       expect(
         _parse(sample.replaceFirst('430009017', '430009018')),
@@ -173,7 +203,6 @@ void main() {
           town: 'Zürich',
           country: 'CH',
         ),
-        referenceType: SwissReferenceType.scor,
         qrReference: 'RF18539007547034',
       );
       expect(bill.validate(), isEmpty);
@@ -199,7 +228,6 @@ void main() {
         const SwissQrBillContent(
           iban: 'CH9300762011623852957',
           creditor: creditor,
-          referenceType: SwissReferenceType.qrr,
           qrReference: '210000000003139471430009017',
         ).validate(),
         _issue('iban'),

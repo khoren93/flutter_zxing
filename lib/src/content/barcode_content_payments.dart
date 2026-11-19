@@ -175,7 +175,8 @@ final class SwissAddress {
   String toString() => 'SwissAddress($name, $postalCode $town, $country)';
 }
 
-/// The kind of reference on a Swiss QR-bill.
+/// The kind of reference on a Swiss QR-bill, from
+/// [SwissQrBillContent.referenceType].
 enum SwissReferenceType {
   /// A QR reference: 27 digits, only with a QR-IBAN.
   qrr,
@@ -202,7 +203,6 @@ final class SwissQrBillContent extends PaymentContent {
     this.amount,
     this.currency = 'CHF',
     this.debtor,
-    this.referenceType = SwissReferenceType.none,
     this.qrReference,
     this.message,
     this.billInformation,
@@ -228,11 +228,15 @@ final class SwissQrBillContent extends PaymentContent {
   /// Who pays, if known.
   final SwissAddress? debtor;
 
-  /// The kind of [qrReference].
-  final SwissReferenceType referenceType;
-
-  /// The QR reference (27 digits) or creditor reference (`RF…`).
+  /// The QR reference (27 digits, only with a QR-IBAN) or ISO 11649
+  /// creditor reference (`RF…`), or `null`. Spaces are left out when
+  /// building.
   final String? qrReference;
+
+  /// The kind of [qrReference], from the reference itself: `RF…` is
+  /// [SwissReferenceType.scor], no reference [SwissReferenceType.none],
+  /// anything else [SwissReferenceType.qrr].
+  SwissReferenceType get referenceType => swissReferenceType(qrReference);
 
   /// An unstructured message, up to 140 characters together with
   /// [billInformation].
@@ -269,7 +273,6 @@ final class SwissQrBillContent extends PaymentContent {
       other.amount == amount &&
       other.currency == currency &&
       other.debtor == debtor &&
-      other.referenceType == referenceType &&
       other.qrReference == qrReference &&
       other.message == message &&
       other.billInformation == billInformation &&
@@ -282,7 +285,6 @@ final class SwissQrBillContent extends PaymentContent {
     amount,
     currency,
     debtor,
-    referenceType,
     qrReference,
     message,
     billInformation,

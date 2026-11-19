@@ -150,7 +150,6 @@ void main() {
           country: 'CH',
         ),
         amount: '1949.75',
-        referenceType: SwissReferenceType.qrr,
         qrReference: '210000000003139471430009017',
         message: 'Order of 15 June 2020',
       );
