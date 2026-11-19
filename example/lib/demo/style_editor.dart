@@ -41,33 +41,6 @@ const List<(String, Color)> _grounds = <(String, Color)>[
   ('Lemon', Color(0xFFFFF6D6)),
 ];
 
-/// A style with every field given, so that a gradient or a logo can be
-/// taken away (copyWith keeps a field when given null).
-BarcodeStyle rebuildStyle(
-  BarcodeStyle s, {
-  Color? color,
-  Color? backgroundColor,
-  Gradient? Function()? gradient,
-  ModuleShape? moduleShape,
-  FinderShape? finderShape,
-  bool? quietZone,
-  BarcodeLogo? Function()? logo,
-  BarcodeCaption? Function()? title,
-  BarcodeCaption? Function()? caption,
-  BarcodeCard? Function()? card,
-}) => BarcodeStyle(
-  color: color ?? s.color,
-  backgroundColor: backgroundColor ?? s.backgroundColor,
-  gradient: gradient == null ? s.gradient : gradient(),
-  moduleShape: moduleShape ?? s.moduleShape,
-  finderShape: finderShape ?? s.finderShape,
-  quietZone: quietZone ?? s.quietZone,
-  logo: logo == null ? s.logo : logo(),
-  title: title == null ? s.title : title(),
-  caption: caption == null ? s.caption : caption(),
-  card: card == null ? s.card : card(),
-);
-
 /// A sample logo drawn in code: the demo ships no image files.
 Future<Uint8List> sampleLogoPng() async {
   const double s = 128;
@@ -137,8 +110,7 @@ class StyleEditor extends StatelessWidget {
     }
     final Uint8List bytes = await file.readAsBytes();
     onChanged(
-      rebuildStyle(
-        style,
+      style.copyWith(
         logo: () =>
             BarcodeLogo(MemoryImage(bytes), size: style.logo?.size ?? 0.24),
       ),
@@ -167,7 +139,7 @@ class StyleEditor extends StatelessWidget {
               (ModuleShape.circle, 'Dots', Icons.blur_on_rounded),
             ],
             onChanged: (ModuleShape m) =>
-                onChanged(rebuildStyle(style, moduleShape: m)),
+                onChanged(style.copyWith(moduleShape: m)),
           ),
           const SizedBox(height: 16),
         ],
@@ -187,7 +159,7 @@ class StyleEditor extends StatelessWidget {
               ),
             ],
             onChanged: (FinderShape f) =>
-                onChanged(rebuildStyle(style, finderShape: f)),
+                onChanged(style.copyWith(finderShape: f)),
           ),
           const SizedBox(height: 16),
         ],
@@ -203,8 +175,7 @@ class StyleEditor extends StatelessWidget {
               ],
               selected: <bool>{isGradient},
               onSelectionChanged: (Set<bool> s) => onChanged(
-                rebuildStyle(
-                  style,
+                style.copyWith(
                   gradient: () => s.first
                       ? LinearGradient(
                           begin: Alignment.topLeft,
@@ -228,7 +199,7 @@ class StyleEditor extends StatelessWidget {
                   label: name,
                   fill: BoxDecoration(color: c, shape: BoxShape.circle),
                   selected: style.color == c,
-                  onTap: () => onChanged(rebuildStyle(style, color: c)),
+                  onTap: () => onChanged(style.copyWith(color: c)),
                 )
             else
               for (final (String name, Color a, Color b) in _gradients)
@@ -243,8 +214,7 @@ class StyleEditor extends StatelessWidget {
                       gradient.colors[0] == a &&
                       gradient.colors[1] == b,
                   onTap: () => onChanged(
-                    rebuildStyle(
-                      style,
+                    style.copyWith(
                       gradient: () => LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -271,7 +241,7 @@ class StyleEditor extends StatelessWidget {
                   border: Border.all(color: fz.line),
                 ),
                 selected: style.backgroundColor == c,
-                onTap: () => onChanged(rebuildStyle(style, backgroundColor: c)),
+                onTap: () => onChanged(style.copyWith(backgroundColor: c)),
               ),
           ],
         ),
@@ -299,8 +269,7 @@ class StyleEditor extends StatelessWidget {
                   onPressed: () async {
                     final Uint8List png = await sampleLogoPng();
                     onChanged(
-                      rebuildStyle(
-                        style,
+                      style.copyWith(
                         logo: () => BarcodeLogo(MemoryImage(png), size: 0.24),
                       ),
                     );
@@ -318,8 +287,7 @@ class StyleEditor extends StatelessWidget {
                         '${(v * 100).round()}% of the width',
                     activeColor: fz.ink,
                     onChanged: (double v) => onChanged(
-                      rebuildStyle(
-                        style,
+                      style.copyWith(
                         logo: () => BarcodeLogo(logo.image, size: v),
                       ),
                     ),
@@ -328,8 +296,7 @@ class StyleEditor extends StatelessWidget {
                 IconButton(
                   tooltip: 'Remove the logo',
                   icon: const Icon(Icons.close_rounded),
-                  onPressed: () =>
-                      onChanged(rebuildStyle(style, logo: () => null)),
+                  onPressed: () => onChanged(style.copyWith(logo: () => null)),
                 ),
               ],
             ],
@@ -349,7 +316,7 @@ class StyleEditor extends StatelessWidget {
             style: TextStyle(color: fz.inkMuted),
           ),
           value: style.quietZone,
-          onChanged: (bool v) => onChanged(rebuildStyle(style, quietZone: v)),
+          onChanged: (bool v) => onChanged(style.copyWith(quietZone: v)),
         ),
       ],
     );
@@ -595,8 +562,7 @@ class _TextAndCardState extends State<TextAndCard> {
     final BarcodeCard? c = card == null ? widget.style.card : card();
     final double z = size ?? _size;
     widget.onChanged(
-      rebuildStyle(
-        widget.style,
+      widget.style.copyWith(
         title: () => _line(title ?? _title.text, z, c),
         caption: () => _line(caption ?? _caption.text, z, c),
         card: () => c,

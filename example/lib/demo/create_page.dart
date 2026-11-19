@@ -1625,8 +1625,7 @@ class _Presets extends StatelessWidget {
                   borderRadius: BorderRadius.circular(18),
                   // The preset's look; the logo, text and card stay.
                   onTap: () => page._setStyle(
-                    rebuildStyle(
-                      p.value,
+                    p.value.copyWith(
                       logo: () => page._style.logo,
                       title: () => page._style.title,
                       caption: () => page._style.caption,
