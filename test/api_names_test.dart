@@ -24,6 +24,7 @@ const List<Type> _types = <Type>[
   BarcodeContent, TextContent, BinaryContent, UrlContent, WifiContent,
   WifiSecurity, EmailContent, PhoneContent, SmsContent, GeoContent,
   ContactContent, ContactFormat, EventContent, Gs1Content, ContentIssue,
+  ContentIssueKind,
   CallType, OtpContent, OtpType, OtpAlgorithm, EsimContent, CryptoContent,
   CryptoCurrency, WifiDppContent, LinkService, LinkServiceInput,
   ProductContent, BoardingPassContent, BoardingPassLeg, DriverLicenseContent,

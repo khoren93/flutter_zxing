@@ -119,12 +119,61 @@ final Expando<BarcodeContent> _contents = Expando<BarcodeContent>(
   'BarcodeContent',
 );
 
+/// What kind of problem a [ContentIssue] is, so that a form can say it in
+/// its own language.
+///
+/// New values are added in minor versions: a `switch` over it needs a
+/// `default` (or `_`) case.
+enum ContentIssueKind {
+  /// A required value is missing or empty.
+  empty,
+
+  /// A text or list is longer than [ContentIssue.limit] allows.
+  tooLong,
+
+  /// A value does not have the form the field needs: not an e-mail address,
+  /// not 20 digits, a character the format cannot hold.
+  invalid,
+
+  /// Check digits or a checksum are wrong: an IBAN, an RF reference, a QR
+  /// reference.
+  checksum,
+
+  /// A number is outside the range the field allows: a latitude, a year,
+  /// the digits of a one-time password.
+  outOfRange,
+
+  /// Two fields do not go together: a reference and a text, a QR reference
+  /// without a QR-IBAN, an event that ends before it starts.
+  conflict,
+
+  /// The value is valid but cannot be built: an enterprise Wi-Fi network,
+  /// an unknown GS1 Application Identifier.
+  unsupported,
+}
+
 /// A problem that keeps [BarcodeContent.toPayload] from building a value,
 /// from [BarcodeContent.validate].
+///
+/// [message] is in English; to show the problem in another language, use
+/// [field], [kind] and [limit]:
+///
+/// ```dart
+/// String say(ContentIssue issue) => switch (issue.kind) {
+///   ContentIssueKind.empty => 'Обязательное поле',
+///   ContentIssueKind.tooLong => 'Не больше ${issue.limit} символов',
+///   _ => issue.message,
+/// };
+/// ```
 @immutable
 final class ContentIssue {
   /// Creates an issue with [field].
-  const ContentIssue(this.field, this.message);
+  const ContentIssue(
+    this.field,
+    this.message, {
+    this.kind = ContentIssueKind.invalid,
+    this.limit,
+  });
 
   /// The name of the field with the problem, as in the constructor:
   /// `ssid`, `latitude`, `emails`.
@@ -133,12 +182,23 @@ final class ContentIssue {
   /// What is wrong, in English: `Network name is empty`.
   final String message;
 
-  @override
-  bool operator ==(Object other) =>
-      other is ContentIssue && other.field == field && other.message == message;
+  /// What kind of problem it is.
+  final ContentIssueKind kind;
+
+  /// For [ContentIssueKind.tooLong], the most the field may hold: characters,
+  /// bytes or items, as [message] says; otherwise `null`.
+  final int? limit;
 
   @override
-  int get hashCode => Object.hash(field, message);
+  bool operator ==(Object other) =>
+      other is ContentIssue &&
+      other.field == field &&
+      other.message == message &&
+      other.kind == kind &&
+      other.limit == limit;
+
+  @override
+  int get hashCode => Object.hash(field, message, kind, limit);
 
   @override
   String toString() => '$field: $message';

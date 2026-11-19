@@ -26,7 +26,12 @@ ContentIssue? _lineBreak(String field, String? value, String what) =>
 
 ContentIssue? _tooLong(String field, String? value, int max, String what) =>
     value != null && value.length > max
-    ? ContentIssue(field, '$what is longer than $max characters')
+    ? ContentIssue(
+        field,
+        '$what is longer than $max characters',
+        kind: ContentIssueKind.tooLong,
+        limit: max,
+      )
     : null;
 
 final RegExp _bic = RegExp(r'^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$');
@@ -34,9 +39,18 @@ final RegExp _bic = RegExp(r'^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$');
 ContentIssue? _ibanIssue(String field, String iban) {
   final String i = compactIban(iban);
   if (i.isEmpty) {
-    return ContentIssue(field, 'IBAN is empty');
+    return ContentIssue(field, 'IBAN is empty', kind: ContentIssueKind.empty);
   }
-  return isValidIban(i) ? null : ContentIssue(field, 'Not a valid IBAN: $iban');
+  if (isValidIban(i)) {
+    return null;
+  }
+  return ContentIssue(
+    field,
+    'Not a valid IBAN: $iban',
+    kind: hasIbanShape(i)
+        ? ContentIssueKind.checksum
+        : ContentIssueKind.invalid,
+  );
 }
 
 /// A decimal amount with up to [decimals] places and at most [digits]
@@ -115,7 +129,8 @@ List<ContentIssue> validateEpc(EpcPaymentContent c) {
   final String amount = _t(c.amount);
   final String reference = _t(c.creditorReference).toUpperCase();
   return <ContentIssue>[
-    if (_t(c.name).isEmpty) const ContentIssue('name', 'Name is empty'),
+    if (_t(c.name).isEmpty)
+      const ContentIssue('name', 'Name is empty', kind: ContentIssueKind.empty),
     ?_tooLong('name', _t(c.name), 70, 'Name'),
     ?_lineBreak('name', c.name, 'Name'),
     ?_lineBreak('creditorReference', c.creditorReference, 'Reference'),
@@ -134,17 +149,27 @@ List<ContentIssue> validateEpc(EpcPaymentContent c) {
         when !RegExp(r'^[A-Z0-9]{4}$').hasMatch(p))
       const ContentIssue('purposeCode', 'Purpose code must be 4 letters'),
     if (reference.isNotEmpty && orNull(_t(c.text)) != null)
-      const ContentIssue('text', 'Give a reference or a text, not both'),
+      const ContentIssue(
+        'text',
+        'Give a reference or a text, not both',
+        kind: ContentIssueKind.conflict,
+      ),
     ?_tooLong('creditorReference', reference, 35, 'Reference'),
     if (reference.startsWith('RF') && !isValidCreditorReference(reference))
       const ContentIssue(
         'creditorReference',
         'RF reference check digits are wrong',
+        kind: ContentIssueKind.checksum,
       ),
     ?_tooLong('text', _t(c.text), 140, 'Text'),
     ?_tooLong('information', _t(c.information), 70, 'Information'),
     if (utf8.encode(_epcText(c)).length > 331)
-      const ContentIssue('text', 'The code is longer than 331 bytes'),
+      const ContentIssue(
+        'text',
+        'The code is longer than 331 bytes',
+        kind: ContentIssueKind.tooLong,
+        limit: 331,
+      ),
   ];
 }
 
@@ -283,24 +308,29 @@ ContentIssue? _swissField(String field, String? value, String what) {
       : ContentIssue(field, '$what has characters a QR-bill cannot hold');
 }
 
-List<ContentIssue> _validateAddress(String field, SwissAddress a) =>
-    <ContentIssue>[
-      ?_swissField(field, a.name, 'Name'),
-      ?_swissField(field, a.street, 'Street'),
-      ?_swissField(field, a.buildingNumber, 'Building number'),
-      ?_swissField(field, a.postalCode, 'Postal code'),
-      ?_swissField(field, a.town, 'Town'),
-      if (_t(a.name).isEmpty) ContentIssue(field, 'Name is empty'),
-      ?_tooLong(field, _t(a.name), 70, 'Name'),
-      ?_tooLong(field, _t(a.street), 70, 'Street'),
-      ?_tooLong(field, _t(a.buildingNumber), 16, 'Building number'),
-      if (_t(a.postalCode).isEmpty) ContentIssue(field, 'Postal code is empty'),
-      ?_tooLong(field, _t(a.postalCode), 16, 'Postal code'),
-      if (_t(a.town).isEmpty) ContentIssue(field, 'Town is empty'),
-      ?_tooLong(field, _t(a.town), 35, 'Town'),
-      if (!RegExp(r'^[A-Z]{2}$').hasMatch(_t(a.country).toUpperCase()))
-        ContentIssue(field, 'Country must be a two-letter code'),
-    ];
+List<ContentIssue> _validateAddress(
+  String field,
+  SwissAddress a,
+) => <ContentIssue>[
+  ?_swissField(field, a.name, 'Name'),
+  ?_swissField(field, a.street, 'Street'),
+  ?_swissField(field, a.buildingNumber, 'Building number'),
+  ?_swissField(field, a.postalCode, 'Postal code'),
+  ?_swissField(field, a.town, 'Town'),
+  if (_t(a.name).isEmpty)
+    ContentIssue(field, 'Name is empty', kind: ContentIssueKind.empty),
+  ?_tooLong(field, _t(a.name), 70, 'Name'),
+  ?_tooLong(field, _t(a.street), 70, 'Street'),
+  ?_tooLong(field, _t(a.buildingNumber), 16, 'Building number'),
+  if (_t(a.postalCode).isEmpty)
+    ContentIssue(field, 'Postal code is empty', kind: ContentIssueKind.empty),
+  ?_tooLong(field, _t(a.postalCode), 16, 'Postal code'),
+  if (_t(a.town).isEmpty)
+    ContentIssue(field, 'Town is empty', kind: ContentIssueKind.empty),
+  ?_tooLong(field, _t(a.town), 35, 'Town'),
+  if (!RegExp(r'^[A-Z]{2}$').hasMatch(_t(a.country).toUpperCase()))
+    ContentIssue(field, 'Country must be a two-letter code'),
+];
 
 /// [SwissQrBillContent.validate].
 List<ContentIssue> validateSwissQrBill(SwissQrBillContent c) {
@@ -318,6 +348,7 @@ List<ContentIssue> validateSwissQrBill(SwissQrBillContent c) {
       const ContentIssue(
         'iban',
         'The IBAN must be Swiss or from Liechtenstein',
+        kind: ContentIssueKind.conflict,
       ),
     ..._validateAddress('creditor', c.creditor),
     if (c.debtor case final SwissAddress d) ..._validateAddress('debtor', d),
@@ -332,16 +363,25 @@ List<ContentIssue> validateSwissQrBill(SwissQrBillContent c) {
     ...switch (c.referenceType) {
       SwissReferenceType.qrr => <ContentIssue>[
         if (!isQrIban(iban))
-          const ContentIssue('iban', 'A QR reference needs a QR-IBAN'),
+          const ContentIssue(
+            'iban',
+            'A QR reference needs a QR-IBAN',
+            kind: ContentIssueKind.conflict,
+          ),
         if (!isValidQrReference(reference))
           const ContentIssue(
             'qrReference',
             'QR reference must be 27 digits with a valid check digit',
+            kind: ContentIssueKind.checksum,
           ),
       ],
       SwissReferenceType.scor => <ContentIssue>[
         if (isQrIban(iban))
-          const ContentIssue('iban', 'A QR-IBAN needs a QR reference'),
+          const ContentIssue(
+            'iban',
+            'A QR-IBAN needs a QR reference',
+            kind: ContentIssueKind.conflict,
+          ),
         if (!isValidCreditorReference(reference))
           const ContentIssue(
             'qrReference',
@@ -350,11 +390,16 @@ List<ContentIssue> validateSwissQrBill(SwissQrBillContent c) {
       ],
       SwissReferenceType.none => <ContentIssue>[
         if (isQrIban(iban))
-          const ContentIssue('iban', 'A QR-IBAN needs a QR reference'),
+          const ContentIssue(
+            'iban',
+            'A QR-IBAN needs a QR reference',
+            kind: ContentIssueKind.conflict,
+          ),
         if (reference.isNotEmpty)
           const ContentIssue(
             'qrReference',
             'No reference type, but a reference',
+            kind: ContentIssueKind.conflict,
           ),
       ],
     },
@@ -362,16 +407,25 @@ List<ContentIssue> validateSwissQrBill(SwissQrBillContent c) {
       const ContentIssue(
         'message',
         'Message and bill information are longer than 140 characters',
+        kind: ContentIssueKind.tooLong,
+        limit: 140,
       ),
     if (c.alternativeSchemes.length > 2)
       const ContentIssue(
         'alternativeSchemes',
         'At most two alternative schemes',
+        kind: ContentIssueKind.tooLong,
+        limit: 2,
       ),
     for (final String scheme in c.alternativeSchemes)
       ?_tooLong('alternativeSchemes', scheme, 100, 'An alternative scheme'),
     if (_swissText(c).length > 997)
-      const ContentIssue('message', 'The code is longer than 997 characters'),
+      const ContentIssue(
+        'message',
+        'The code is longer than 997 characters',
+        kind: ContentIssueKind.tooLong,
+        limit: 997,
+      ),
   ];
 }
 
@@ -528,11 +582,17 @@ List<ContentIssue> validateGost(GostPaymentContent c) {
     'kpp': c.kpp ?? '',
   };
   return <ContentIssue>[
-    if (_t(c.name).isEmpty) const ContentIssue('name', 'Name is empty'),
+    if (_t(c.name).isEmpty)
+      const ContentIssue('name', 'Name is empty', kind: ContentIssueKind.empty),
     ?_tooLong('name', _t(c.name), 160, 'Name'),
     if (!RegExp(r'^\d{20}$').hasMatch(_t(c.personalAccount)))
       const ContentIssue('personalAccount', 'Account must be 20 digits'),
-    if (_t(c.bankName).isEmpty) const ContentIssue('bankName', 'Bank is empty'),
+    if (_t(c.bankName).isEmpty)
+      const ContentIssue(
+        'bankName',
+        'Bank is empty',
+        kind: ContentIssueKind.empty,
+      ),
     ?_tooLong('bankName', _t(c.bankName), 45, 'Bank name'),
     if (!RegExp(r'^\d{9}$').hasMatch(_t(c.bic)))
       const ContentIssue('bic', 'BIC must be 9 digits'),
@@ -736,19 +796,32 @@ List<ContentIssue> validateEmv(EmvPaymentContent c) {
     if (f['00'] != '01')
       const ContentIssue('fields', 'Payload format (00) must be 01'),
     if (f.containsKey('63'))
-      const ContentIssue('fields', 'The checksum (63) is written by toPayload'),
+      const ContentIssue(
+        'fields',
+        'The checksum (63) is written by toPayload',
+        kind: ContentIssueKind.conflict,
+      ),
     for (final MapEntry<String, String> e in f.entries)
       if (!RegExp(r'^\d{2}$').hasMatch(e.key))
         ContentIssue('fields', 'Not a two-digit id: ${e.key}')
       else if (e.value.isEmpty || e.value.length > 99)
         ContentIssue('fields', '(${e.key}) must have 1 to 99 characters'),
     for (final String id in <String>['52', '53', '58', '59', '60'])
-      if (!f.containsKey(id)) ContentIssue('fields', '($id) is missing'),
+      if (!f.containsKey(id))
+        ContentIssue(
+          'fields',
+          '($id) is missing',
+          kind: ContentIssueKind.empty,
+        ),
     if (!f.keys.any((String id) {
       final int? n = int.tryParse(id);
       return n != null && n >= 2 && n <= 51;
     }))
-      const ContentIssue('fields', 'A merchant account (02 to 51) is missing'),
+      const ContentIssue(
+        'fields',
+        'A merchant account (02 to 51) is missing',
+        kind: ContentIssueKind.empty,
+      ),
     ?_tooLong('fields', f['59'], 25, 'Merchant name (59)'),
     ?_tooLong('fields', f['60'], 15, 'Merchant city (60)'),
     if (f['54'] case final String amount

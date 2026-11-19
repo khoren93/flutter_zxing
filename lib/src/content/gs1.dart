@@ -1,3 +1,4 @@
+import 'barcode_content.dart';
 import 'gs1_table.g.dart';
 
 const int _gs = 0x1D;
@@ -99,24 +100,34 @@ final RegExp _aiDigits = RegExp(r'^\d{2,4}$');
 
 /// Why the element [ai] = [value] cannot be encoded, or `null` if it can:
 /// the identifier must be in the Application Identifier table, and the
-/// value must have its length (fixed) or fit in it (variable).
-String? gs1ElementIssue(String ai, String value) {
+/// value must have its length (fixed) or fit in it (variable). The issue is
+/// about [field].
+ContentIssue? gs1ElementIssue(String field, String ai, String value) {
   final (String, int)? info = _aiDigits.hasMatch(ai) ? _lookUp(ai, 0) : null;
   if (info == null || _aiSize(info.$1) != ai.length) {
-    return 'Unknown Application Identifier ($ai)';
+    return ContentIssue(
+      field,
+      'Unknown Application Identifier ($ai)',
+      kind: ContentIssueKind.unsupported,
+    );
   }
   if (value.isEmpty) {
-    return '($ai) is empty';
+    return ContentIssue(field, '($ai) is empty', kind: ContentIssueKind.empty);
   }
   if (value.contains('(') || value.contains(')')) {
-    return '($ai) cannot contain parentheses';
+    return ContentIssue(field, '($ai) cannot contain parentheses');
   }
   final int size = info.$2;
   if (size > 0 && value.length != size) {
-    return '($ai) must be $size characters';
+    return ContentIssue(field, '($ai) must be $size characters');
   }
   if (size < 0 && value.length > -size) {
-    return '($ai) must be at most ${-size} characters';
+    return ContentIssue(
+      field,
+      '($ai) must be at most ${-size} characters',
+      kind: ContentIssueKind.tooLong,
+      limit: -size,
+    );
   }
   return null;
 }

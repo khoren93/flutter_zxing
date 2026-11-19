@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/content.dart';
 
+const String _iban = 'DE89370400440532013000';
+
 /// [content] survives toPayload → parseText unchanged.
 void _roundTrips(BarcodeContent content, [ContactFormat? format]) {
   final String payload = content is ContactContent && format != null
@@ -515,6 +517,102 @@ void main() {
           reason: '$elements',
         );
       }
+    });
+  });
+
+  group('issue kinds', () {
+    /// The kind and limit of the issue about [field].
+    (ContentIssueKind, int?) kindOf(BarcodeContent c, String field) {
+      final ContentIssue issue = c.validate().firstWhere(
+        (ContentIssue i) => i.field == field,
+      );
+      return (issue.kind, issue.limit);
+    }
+
+    test('empty, too long with its limit, invalid', () {
+      expect(kindOf(const WifiContent(ssid: ''), 'ssid'), (
+        ContentIssueKind.empty,
+        null,
+      ));
+      expect(kindOf(WifiContent(ssid: 'a' * 33), 'ssid'), (
+        ContentIssueKind.tooLong,
+        32,
+      ));
+      expect(kindOf(const EmailContent(address: 'nope'), 'address'), (
+        ContentIssueKind.invalid,
+        null,
+      ));
+      expect(kindOf(EpcPaymentContent(name: 'a' * 71, iban: _iban), 'name'), (
+        ContentIssueKind.tooLong,
+        70,
+      ));
+      expect(kindOf(Gs1Content(<String, String>{'10': 'A' * 21}), 'elements'), (
+        ContentIssueKind.tooLong,
+        20,
+      ));
+    });
+
+    test('checksum, out of range, conflict, unsupported', () {
+      expect(
+        kindOf(
+          const EpcPaymentContent(name: 'x', iban: 'DE89370400440532013001'),
+          'iban',
+        ),
+        (ContentIssueKind.checksum, null),
+      );
+      expect(kindOf(const EpcPaymentContent(name: 'x', iban: 'DE89'), 'iban'), (
+        ContentIssueKind.invalid,
+        null,
+      ));
+      expect(kindOf(const GeoContent(latitude: 91, longitude: 0), 'latitude'), (
+        ContentIssueKind.outOfRange,
+        null,
+      ));
+      expect(
+        kindOf(
+          EventContent(
+            summary: 'x',
+            start: DateTime(2026, 2),
+            end: DateTime(2026),
+          ),
+          'end',
+        ),
+        (ContentIssueKind.conflict, null),
+      );
+      expect(
+        kindOf(
+          const WifiContent(
+            ssid: 'x',
+            password: 'p',
+            security: WifiSecurity.enterprise,
+          ),
+          'security',
+        ),
+        (ContentIssueKind.unsupported, null),
+      );
+      expect(kindOf(const Gs1Content(<String, String>{'5': 'x'}), 'elements'), (
+        ContentIssueKind.unsupported,
+        null,
+      ));
+    });
+
+    test('equality takes the kind and the limit', () {
+      expect(const ContentIssue('a', 'b').kind, ContentIssueKind.invalid);
+      expect(
+        const ContentIssue('a', 'b'),
+        isNot(const ContentIssue('a', 'b', kind: ContentIssueKind.empty)),
+      );
+      expect(
+        const ContentIssue('a', 'b', kind: ContentIssueKind.tooLong, limit: 1),
+        isNot(
+          const ContentIssue(
+            'a',
+            'b',
+            kind: ContentIssueKind.tooLong,
+            limit: 2,
+          ),
+        ),
+      );
     });
   });
 }

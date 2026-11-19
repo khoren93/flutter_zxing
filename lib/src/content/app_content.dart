@@ -104,21 +104,41 @@ List<ContentIssue> validateOtp(OtpContent c) {
   final String? issuer = orNull(c.issuer?.trim());
   return <ContentIssue>[
     if (secret.isEmpty)
-      const ContentIssue('secret', 'Secret is empty')
+      const ContentIssue(
+        'secret',
+        'Secret is empty',
+        kind: ContentIssueKind.empty,
+      )
     else if (!_base32.hasMatch(secret))
       const ContentIssue('secret', 'Secret must be Base32: A–Z and 2–7'),
     if (c.account.trim().isEmpty)
-      const ContentIssue('account', 'Account is empty')
+      const ContentIssue(
+        'account',
+        'Account is empty',
+        kind: ContentIssueKind.empty,
+      )
     else if (issuer == null && c.account.contains(':'))
       const ContentIssue('account', 'Account cannot contain a colon'),
     if (issuer != null && issuer.contains(':'))
       const ContentIssue('issuer', 'Issuer cannot contain a colon'),
     if (c.digits < 6 || c.digits > 8)
-      const ContentIssue('digits', 'Codes must have 6 to 8 digits'),
+      const ContentIssue(
+        'digits',
+        'Codes must have 6 to 8 digits',
+        kind: ContentIssueKind.outOfRange,
+      ),
     if (c.type == OtpType.totp && c.period < 1)
-      const ContentIssue('period', 'Period must be at least 1 second'),
+      const ContentIssue(
+        'period',
+        'Period must be at least 1 second',
+        kind: ContentIssueKind.outOfRange,
+      ),
     if (c.type == OtpType.hotp && c.counter < 0)
-      const ContentIssue('counter', 'Counter cannot be negative'),
+      const ContentIssue(
+        'counter',
+        'Counter cannot be negative',
+        kind: ContentIssueKind.outOfRange,
+      ),
   ];
 }
 
@@ -160,7 +180,11 @@ final RegExp _noDollarOrSpace = RegExp(r'^[^$\s]*$');
 /// [EsimContent.validate].
 List<ContentIssue> validateEsim(EsimContent c) => <ContentIssue>[
   if (c.smdpAddress.trim().isEmpty)
-    const ContentIssue('smdpAddress', 'SM-DP+ address is empty')
+    const ContentIssue(
+      'smdpAddress',
+      'SM-DP+ address is empty',
+      kind: ContentIssueKind.empty,
+    )
   else if (!_noDollarOrSpace.hasMatch(c.smdpAddress.trim()))
     const ContentIssue('smdpAddress', r'Address cannot contain $ or spaces'),
   if (!_noDollarOrSpace.hasMatch(c.matchingId?.trim() ?? ''))
@@ -302,13 +326,21 @@ List<ContentIssue> validateCrypto(CryptoContent c) {
   final bool ethereum = c.currency == CryptoCurrency.ethereum;
   return <ContentIssue>[
     if (address.isEmpty)
-      const ContentIssue('address', 'Address is empty')
+      const ContentIssue(
+        'address',
+        'Address is empty',
+        kind: ContentIssueKind.empty,
+      )
     else if (lightning && !_lightning.hasMatch(address))
       const ContentIssue('address', 'Not a Lightning invoice or LNURL')
     else if (!lightning && !_cryptoAddress.hasMatch(address))
       const ContentIssue('address', 'Address has characters it cannot have'),
     if (amount != null && lightning)
-      const ContentIssue('amount', 'A Lightning invoice carries its amount')
+      const ContentIssue(
+        'amount',
+        'A Lightning invoice carries its amount',
+        kind: ContentIssueKind.conflict,
+      )
     else if (amount != null && ethereum && !_wei.hasMatch(amount))
       const ContentIssue('amount', 'Value must be a number of wei')
     else if (amount != null && !ethereum && !_coins.hasMatch(amount))
@@ -317,13 +349,29 @@ List<ContentIssue> validateCrypto(CryptoContent c) {
         'Amount must be a number, 8 decimals at most',
       ),
     if ((ethereum || lightning) && orNull(c.label) != null)
-      ContentIssue('label', '${c.currency.name} links have no label'),
+      ContentIssue(
+        'label',
+        '${c.currency.name} links have no label',
+        kind: ContentIssueKind.conflict,
+      ),
     if ((ethereum || lightning) && orNull(c.message) != null)
-      ContentIssue('message', '${c.currency.name} links have no message'),
+      ContentIssue(
+        'message',
+        '${c.currency.name} links have no message',
+        kind: ContentIssueKind.conflict,
+      ),
     if (!ethereum && c.chainId != null)
-      const ContentIssue('chainId', 'Only Ethereum links have a chain id')
+      const ContentIssue(
+        'chainId',
+        'Only Ethereum links have a chain id',
+        kind: ContentIssueKind.conflict,
+      )
     else if (c.chainId case final int id when id < 1)
-      const ContentIssue('chainId', 'Chain id must be positive'),
+      const ContentIssue(
+        'chainId',
+        'Chain id must be positive',
+        kind: ContentIssueKind.outOfRange,
+      ),
   ];
 }
 

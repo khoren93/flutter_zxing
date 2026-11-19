@@ -24,12 +24,14 @@ String buildText(TextContent c) {
 
 /// [TextContent.validate].
 List<ContentIssue> validateText(TextContent c) => <ContentIssue>[
-  if (c.text.isEmpty) const ContentIssue('text', 'Text is empty'),
+  if (c.text.isEmpty)
+    const ContentIssue('text', 'Text is empty', kind: ContentIssueKind.empty),
 ];
 
 /// [BinaryContent.validate].
 List<ContentIssue> validateBinary(BinaryContent c) => <ContentIssue>[
-  if (c.bytes.isEmpty) const ContentIssue('bytes', 'No bytes'),
+  if (c.bytes.isEmpty)
+    const ContentIssue('bytes', 'No bytes', kind: ContentIssueKind.empty),
 ];
 
 // --- Web addresses ---------------------------------------------------------------
@@ -54,7 +56,11 @@ List<ContentIssue> validateUrl(UrlContent c) {
   final Uri url = _withScheme(c.url);
   return <ContentIssue>[
     if (url.scheme != 'http' && url.scheme != 'https')
-      const ContentIssue('url', 'Only http and https addresses are web links')
+      const ContentIssue(
+        'url',
+        'Only http and https addresses are web links',
+        kind: ContentIssueKind.unsupported,
+      )
     else if (url.host.isEmpty)
       const ContentIssue('url', 'Address has no host'),
   ];
@@ -87,18 +93,36 @@ String buildWifi(WifiContent c) {
 /// [WifiContent.validate].
 List<ContentIssue> validateWifi(WifiContent c) => <ContentIssue>[
   if (c.ssid.isEmpty)
-    const ContentIssue('ssid', 'Network name is empty')
+    const ContentIssue(
+      'ssid',
+      'Network name is empty',
+      kind: ContentIssueKind.empty,
+    )
   else if (utf8.encode(c.ssid).length > 32)
-    const ContentIssue('ssid', 'Network name is longer than 32 bytes'),
+    const ContentIssue(
+      'ssid',
+      'Network name is longer than 32 bytes',
+      kind: ContentIssueKind.tooLong,
+      limit: 32,
+    ),
   if (c.security == WifiSecurity.enterprise)
     const ContentIssue(
       'security',
       'Enterprise (EAP) networks are not supported',
+      kind: ContentIssueKind.unsupported,
     )
   else if (c.security == WifiSecurity.unknown)
-    const ContentIssue('security', 'Security type is unknown')
+    const ContentIssue(
+      'security',
+      'Security type is unknown',
+      kind: ContentIssueKind.unsupported,
+    )
   else if (c.security != WifiSecurity.none && (c.password ?? '').isEmpty)
-    const ContentIssue('password', 'Password is empty'),
+    const ContentIssue(
+      'password',
+      'Password is empty',
+      kind: ContentIssueKind.empty,
+    ),
 ];
 
 // --- E-mail, phone, SMS ----------------------------------------------------------
@@ -137,7 +161,11 @@ List<ContentIssue> validateEmail(EmailContent c) {
       if (!_emailAddress.hasMatch(a))
         ContentIssue('address', 'Not an e-mail address: $a'),
     if (to.isEmpty && _orNull(c.subject) == null && _orNull(c.body) == null)
-      const ContentIssue('address', 'Add an address, a subject or a body'),
+      const ContentIssue(
+        'address',
+        'Add an address, a subject or a body',
+        kind: ContentIssueKind.empty,
+      ),
   ];
 }
 
@@ -152,7 +180,13 @@ String _dialable(String number) =>
 List<ContentIssue> _validateNumber(String field, String number) {
   final String n = number.trim();
   if (n.isEmpty) {
-    return <ContentIssue>[ContentIssue(field, 'Phone number is empty')];
+    return <ContentIssue>[
+      ContentIssue(
+        field,
+        'Phone number is empty',
+        kind: ContentIssueKind.empty,
+      ),
+    ];
   }
   if (!_phoneCharacters.hasMatch(n) || !n.contains(RegExp(r'\d'))) {
     return <ContentIssue>[ContentIssue(field, 'Not a phone number: $n')];
@@ -202,7 +236,11 @@ List<ContentIssue> validateSms(SmsContent c) {
       .toList();
   if (numbers.isEmpty) {
     return const <ContentIssue>[
-      ContentIssue('number', 'Phone number is empty'),
+      ContentIssue(
+        'number',
+        'Phone number is empty',
+        kind: ContentIssueKind.empty,
+      ),
     ];
   }
   return <ContentIssue>[
@@ -238,9 +276,17 @@ String buildGeo(GeoContent c) {
 /// [GeoContent.validate].
 List<ContentIssue> validateGeo(GeoContent c) => <ContentIssue>[
   if (!c.latitude.isFinite || c.latitude.abs() > 90)
-    const ContentIssue('latitude', 'Latitude must be between -90 and 90'),
+    const ContentIssue(
+      'latitude',
+      'Latitude must be between -90 and 90',
+      kind: ContentIssueKind.outOfRange,
+    ),
   if (!c.longitude.isFinite || c.longitude.abs() > 180)
-    const ContentIssue('longitude', 'Longitude must be between -180 and 180'),
+    const ContentIssue(
+      'longitude',
+      'Longitude must be between -180 and 180',
+      kind: ContentIssueKind.outOfRange,
+    ),
   if (c.altitude case final double a when !a.isFinite)
     const ContentIssue('altitude', 'Altitude must be a number'),
 ];
@@ -270,12 +316,20 @@ List<ContentIssue> validateContact(ContactContent c) {
       _notEmpty(c.addresses).isEmpty;
   return <ContentIssue>[
     if (empty)
-      const ContentIssue('name', 'Add a name, a phone, an e-mail or more'),
+      const ContentIssue(
+        'name',
+        'Add a name, a phone, an e-mail or more',
+        kind: ContentIssueKind.empty,
+      ),
     for (final String e in _notEmpty(c.emails))
       if (!_emailAddress.hasMatch(e))
         ContentIssue('emails', 'Not an e-mail address: $e'),
     if (c.birthday case final DateTime b when b.year < 1 || b.year > 9999)
-      const ContentIssue('birthday', 'Year must be between 1 and 9999'),
+      const ContentIssue(
+        'birthday',
+        'Year must be between 1 and 9999',
+        kind: ContentIssueKind.outOfRange,
+      ),
   ];
 }
 
@@ -393,11 +447,23 @@ List<ContentIssue> validateEvent(EventContent c) {
   bool outOfRange(DateTime t) => t.year < 0 || t.year > 9999;
   return <ContentIssue>[
     if (outOfRange(c.start))
-      const ContentIssue('start', 'Year must be between 0 and 9999'),
+      const ContentIssue(
+        'start',
+        'Year must be between 0 and 9999',
+        kind: ContentIssueKind.outOfRange,
+      ),
     if (end != null && outOfRange(end))
-      const ContentIssue('end', 'Year must be between 0 and 9999')
+      const ContentIssue(
+        'end',
+        'Year must be between 0 and 9999',
+        kind: ContentIssueKind.outOfRange,
+      )
     else if (end != null && end.isBefore(c.start))
-      const ContentIssue('end', 'Event ends before it starts'),
+      const ContentIssue(
+        'end',
+        'Event ends before it starts',
+        kind: ContentIssueKind.conflict,
+      ),
   ];
 }
 
@@ -415,10 +481,10 @@ String buildGs1(Gs1Content c) {
 
 /// [Gs1Content.validate].
 List<ContentIssue> validateGs1(Gs1Content c) => <ContentIssue>[
-  if (c.elements.isEmpty) const ContentIssue('elements', 'No elements'),
+  if (c.elements.isEmpty)
+    const ContentIssue('elements', 'No elements', kind: ContentIssueKind.empty),
   for (final MapEntry<String, String> e in c.elements.entries)
-    if (gs1ElementIssue(e.key, e.value) case final String message)
-      ContentIssue('elements', message),
+    ?gs1ElementIssue('elements', e.key, e.value),
 ];
 
 // --- Shared helpers --------------------------------------------------------------

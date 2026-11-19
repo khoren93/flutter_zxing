@@ -21,6 +21,10 @@ bool _mod97(String value) {
   return rest == 1;
 }
 
+/// Whether [iban] (compact, upper case) has an IBAN's shape: country,
+/// check digits, 11 to 30 letters and digits.
+bool hasIbanShape(String iban) => _ibanShape.hasMatch(iban);
+
 /// Whether [iban] (compact, upper case) has an IBAN's shape and check
 /// digits.
 bool isValidIban(String iban) => _ibanShape.hasMatch(iban) && _mod97(iban);
