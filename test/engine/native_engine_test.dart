@@ -27,6 +27,13 @@ void main() {
     expect(await engine.version(), zxingCppVersion);
   });
 
+  test('warmUpBarcodeEngine(scanner: false) leaves the scanner', () async {
+    await BarcodeEngine.scanner.shutdown();
+    await warmUpBarcodeEngine(scanner: false);
+    expect(BarcodeEngine.shared.isStarted, isTrue);
+    expect(BarcodeEngine.scanner.isStarted, isFalse);
+  });
+
   test('warmUpBarcodeEngine starts the engines', () async {
     await warmUpBarcodeEngine();
     expect(await BarcodeEngine.scanner.version(), zxingCppVersion);

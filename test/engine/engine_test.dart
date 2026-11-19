@@ -120,6 +120,24 @@ void main() {
       );
     });
 
+    test('tryWarmUp never fails: the next call starts again', () async {
+      final BarcodeEngine e = engine();
+      failures.add(StateError('no library'));
+      await e.tryWarmUp();
+      expect(e.isStarted, isFalse);
+      expect(await e.version(), 'fake 0');
+    });
+
+    test('tryWarmUp leaves the reason to the first real call', () async {
+      final BarcodeEngine e = engine();
+      failures
+        ..add(StateError('no library'))
+        ..add(StateError('still no library'));
+      await e.tryWarmUp();
+      await expectLater(e.version(), throwsA(isA<EngineException>()));
+      expect(await e.version(), 'fake 0');
+    });
+
     test('shutdown disposes the backend; the next call restarts', () async {
       final BarcodeEngine e = engine();
       await e.warmUp();

@@ -110,9 +110,22 @@ final class BarcodeEngine {
     }
   }
 
+  /// Whether a backend is running or starting.
+  bool get isStarted => _backend != null;
+
   /// Starts the backend ahead of the first call.
   Future<void> warmUp() async {
     await backend;
+  }
+
+  /// Starts the backend ahead of the first call, never failing: if it
+  /// cannot start, the first real call starts it again and reports why.
+  Future<void> tryWarmUp() async {
+    try {
+      await backend;
+    } on Object {
+      // Left for the first real call to report.
+    }
   }
 
   /// See [EngineBackend.readImage].
