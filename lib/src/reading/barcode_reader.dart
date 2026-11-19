@@ -33,6 +33,13 @@ final class BarcodeReader {
 
   /// Formats to look for; `null` means all. Fewer formats read faster.
   /// A base symbology includes its variants, see [BarcodeFormat].
+  ///
+  /// Every read throws [ArgumentError] if the set is empty (pass `null` to
+  /// read every format) or holds a format that cannot be read
+  /// ([BarcodeFormat.canRead]: not [BarcodeFormat.isbn], which is read as
+  /// [BarcodeFormat.ean13], nor the EAN-2/EAN-5 add-ons, which come with
+  /// their EAN-13 or UPC-A, see [ReaderOptions.eanAddOn]). The message
+  /// names the formats as they are written in code (`BarcodeFormat.isbn`).
   final Set<BarcodeFormat>? formats;
 
   /// Search strategies.

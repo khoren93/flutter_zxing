@@ -372,7 +372,7 @@ class _CreatePageState extends State<CreatePage> {
         final Barcode? read = await BarcodeReader(
           formats: <BarcodeFormat>{
             for (final BarcodeFormat f in BarcodeFormat.values)
-              if (f.symbology == format.symbology) f,
+              if (f.symbology == format.symbology && f.canRead) f,
           },
         ).read(png);
         // Formats with a restricted value may read back normalized: with

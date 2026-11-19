@@ -111,11 +111,15 @@ class ScannerController extends ValueNotifier<ScannerState> {
 
   /// Formats to look for; `null` means all. Fewer formats decode faster.
   /// Can be changed while scanning.
+  ///
+  /// Throws [ArgumentError] (here and in the constructor) for an empty set
+  /// and for formats that cannot be read, like `BarcodeReader.formats`.
   Set<BarcodeFormat>? get formats => _formats;
   set formats(Set<BarcodeFormat>? value) {
     if (setEquals(value, _formats)) {
       return;
     }
+    EngineReadOptions.formatsToEngine(value);
     _formats = value;
     _onConfigChanged();
   }

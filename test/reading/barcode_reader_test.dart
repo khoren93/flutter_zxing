@@ -46,6 +46,21 @@ void main() {
       );
     });
 
+    test('rejects an empty or unreadable format filter', () async {
+      await expectLater(
+        const BarcodeReader(
+          formats: <BarcodeFormat>{},
+        ).read(_sample('qrcode-1/1.png')),
+        throwsArgumentError,
+      );
+      await expectLater(
+        const BarcodeReader(
+          formats: <BarcodeFormat>{BarcodeFormat.isbn},
+        ).readAll(_sample('qrcode-1/1.png')),
+        throwsArgumentError,
+      );
+    });
+
     test('applies the format filter', () async {
       const BarcodeReader ean = BarcodeReader(
         formats: <BarcodeFormat>{BarcodeFormat.ean13},

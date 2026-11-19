@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing/src/barcode/barcode_format.dart'
+    show BarcodeFormatInternal;
 import 'package:flutter_zxing/src/engine/engine.dart';
 import 'package:flutter_zxing/src/engine/engine_protocol.dart';
 
@@ -216,23 +218,65 @@ void main() {
       );
     });
 
-    test('an empty format set means all formats', () {
+    test('null means all formats', () {
+      expect(EngineReadOptions.from(null, const ReaderOptions()).formats, '');
+    });
+
+    test('rejects an empty format set', () {
       expect(
-        EngineReadOptions.from(
+        () => EngineReadOptions.from(
           const <BarcodeFormat>{},
           const ReaderOptions(),
-        ).formats,
-        '',
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (ArgumentError e) => e.message,
+            'message',
+            contains('Pass null to read every format'),
+          ),
+        ),
       );
     });
 
-    test('rejects BarcodeFormat.unknown', () {
-      expect(
-        () => EngineReadOptions.from(const <BarcodeFormat>{
-          BarcodeFormat.unknown,
-        }, const ReaderOptions()),
-        throwsArgumentError,
-      );
+    test('rejects every format that cannot be read', () {
+      for (final BarcodeFormat format in BarcodeFormat.values) {
+        if (format.canRead) {
+          expect(
+            EngineReadOptions.formatsToEngine(<BarcodeFormat>{format}),
+            format.zxingName,
+          );
+        } else {
+          expect(
+            () => EngineReadOptions.formatsToEngine(<BarcodeFormat>{format}),
+            throwsA(
+              isA<ArgumentError>().having(
+                (ArgumentError e) => e.message,
+                'message',
+                contains('BarcodeFormat.${format.name} cannot be'),
+              ),
+            ),
+            reason: format.name,
+          );
+        }
+      }
+    });
+
+    test('says how to read what cannot be read', () {
+      String why(BarcodeFormat format) {
+        try {
+          EngineReadOptions.formatsToEngine(<BarcodeFormat>{
+            BarcodeFormat.qrCode,
+            format,
+          });
+        } on ArgumentError catch (e) {
+          return e.message as String;
+        }
+        fail('${format.name} accepted');
+      }
+
+      expect(why(BarcodeFormat.isbn), contains('BarcodeFormat.ean13'));
+      expect(why(BarcodeFormat.ean5), contains('ReaderOptions.eanAddOn'));
+      expect(why(BarcodeFormat.unknown), contains('cannot be searched for'));
     });
   });
 

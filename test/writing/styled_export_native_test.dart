@@ -81,7 +81,7 @@ void main() {
           final BarcodeReader reader = BarcodeReader(
             formats: <BarcodeFormat>{
               for (final BarcodeFormat f in BarcodeFormat.values)
-                if (f.symbology == format.symbology) f,
+                if (f.symbology == format.symbology && f.canRead) f,
             },
           );
           final BarcodeWriter writer = BarcodeWriter(format);

@@ -158,20 +158,49 @@ final class EngineReadOptions {
 
   /// The engine form of a format filter: `null` (all formats) becomes `''`.
   ///
-  /// Throws [ArgumentError] for [BarcodeFormat.unknown], which only ever
-  /// describes results.
+  /// The one check of a format filter, for `BarcodeReader` and
+  /// `ScannerController` alike. Throws [ArgumentError] for an empty set
+  /// (a filter that finds nothing is a mistake: `null` means all formats)
+  /// and for formats that cannot be read ([BarcodeFormat.canRead]): the
+  /// EAN-2/EAN-5 add-ons, [BarcodeFormat.isbn] and [BarcodeFormat.unknown].
+  /// The message names each format as it is written in code.
   static String formatsToEngine(Set<BarcodeFormat>? formats) {
-    if (formats == null || formats.isEmpty) {
+    if (formats == null) {
       return '';
     }
-    if (formats.contains(BarcodeFormat.unknown)) {
+    if (formats.isEmpty) {
       throw ArgumentError.value(
         formats,
         'formats',
-        'BarcodeFormat.unknown cannot be searched for',
+        'Empty: no barcode would ever be found. Pass null to read every '
+            'format',
+      );
+    }
+    final List<BarcodeFormat> unreadable = <BarcodeFormat>[
+      for (final BarcodeFormat f in formats)
+        if (!f.canRead) f,
+    ];
+    if (unreadable.isNotEmpty) {
+      throw ArgumentError.value(
+        formats,
+        'formats',
+        unreadable.map(_whyUnreadable).join('; '),
       );
     }
     return formats.map((BarcodeFormat f) => f.zxingName).join(',');
+  }
+
+  static String _whyUnreadable(BarcodeFormat format) {
+    final String name = 'BarcodeFormat.${format.name}';
+    return switch (format) {
+      BarcodeFormat.unknown => '$name cannot be searched for',
+      BarcodeFormat.isbn =>
+        '$name cannot be read: ISBNs are read as BarcodeFormat.ean13',
+      BarcodeFormat.ean2 || BarcodeFormat.ean5 =>
+        '$name cannot be read on its own: add-ons come with their EAN-13 or '
+            'UPC-A, see ReaderOptions.eanAddOn',
+      _ => '$name cannot be read',
+    };
   }
 
   @override

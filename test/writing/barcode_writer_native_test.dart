@@ -13,7 +13,7 @@ import 'package:flutter_zxing/flutter_zxing.dart';
 BarcodeReader _readerFor(BarcodeFormat format) => BarcodeReader(
   formats: <BarcodeFormat>{
     for (final BarcodeFormat f in BarcodeFormat.values)
-      if (f.symbology == format.symbology) f,
+      if (f.symbology == format.symbology && f.canRead) f,
   },
 );
 

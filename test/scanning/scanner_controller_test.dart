@@ -207,6 +207,27 @@ void main() {
       c.formats = <BarcodeFormat>{BarcodeFormat.ean13};
       expect(c.formats, <BarcodeFormat>{BarcodeFormat.ean13});
     });
+
+    test('an empty or unreadable format set throws and changes nothing', () {
+      expect(
+        () => ScannerController(formats: const <BarcodeFormat>{}),
+        throwsArgumentError,
+      );
+      expect(
+        () => ScannerController(
+          formats: const <BarcodeFormat>{BarcodeFormat.isbn},
+        ),
+        throwsArgumentError,
+      );
+      final ScannerController c = create();
+      c.formats = <BarcodeFormat>{BarcodeFormat.qrCode};
+      expect(() => c.formats = <BarcodeFormat>{}, throwsArgumentError);
+      expect(
+        () => c.formats = <BarcodeFormat>{BarcodeFormat.ean2},
+        throwsArgumentError,
+      );
+      expect(c.formats, <BarcodeFormat>{BarcodeFormat.qrCode});
+    });
   });
 
   group('scan window', () {
