@@ -75,6 +75,10 @@ final class OtpContent extends BarcodeContent {
   @override
   List<ContentIssue> validate() => validateOtp(this);
 
+  /// `otpauth://…`, as [toPayload]: authenticator apps add the account.
+  @override
+  Uri? get uri => payloadUri(this);
+
   @override
   bool operator ==(Object other) =>
       other is OtpContent &&
@@ -237,6 +241,11 @@ final class CryptoContent extends BarcodeContent {
 
   @override
   List<ContentIssue> validate() => validateCrypto(this);
+
+  /// `bitcoin:…`, `ethereum:…`, `litecoin:…` or `lightning:…`, as
+  /// [toPayload]: wallet apps open it.
+  @override
+  Uri? get uri => payloadUri(this);
 
   @override
   bool operator ==(Object other) =>

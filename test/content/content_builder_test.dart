@@ -615,4 +615,94 @@ void main() {
       );
     });
   });
+
+  group('links', () {
+    test('web addresses, with https:// when they have no scheme', () {
+      expect(
+        UrlContent(Uri.parse('https://pub.dev/x')).uri,
+        Uri.parse('https://pub.dev/x'),
+      );
+      expect(
+        UrlContent(Uri.parse('example.com/a'), title: 'Ex').uri,
+        Uri.parse('https://example.com/a'),
+      );
+      expect(UrlContent(Uri.parse('ftp://x.org')).uri, isNull);
+    });
+
+    test('mailto with the subject and body', () {
+      final Uri uri = const EmailContent(
+        address: 'a@example.com,b@example.com',
+        subject: 'Hello there',
+        body: 'Line 1\nA & B',
+      ).uri!;
+      expect(uri.scheme, 'mailto');
+      expect(uri.path, 'a@example.com,b@example.com');
+      expect(
+        uri.toString(),
+        'mailto:a@example.com,b@example.com'
+        '?subject=Hello%20there&body=Line%201%0AA%20%26%20B',
+      );
+      expect(const EmailContent(address: 'nope').uri, isNull);
+    });
+
+    test('tel, FaceTime, sms with the body, geo', () {
+      expect(
+        const PhoneContent('+1 (212) 555-1234').uri,
+        Uri.parse('tel:+12125551234'),
+      );
+      expect(
+        const PhoneContent('user@icloud.com', type: CallType.faceTime).uri,
+        Uri.parse('facetime:user@icloud.com'),
+      );
+      expect(
+        const SmsContent(number: '+1 212 555 1234', message: 'Hi there').uri,
+        Uri.parse('sms:+12125551234?body=Hi%20there'),
+      );
+      expect(
+        const SmsContent(number: '+12125551234').uri,
+        Uri.parse('sms:+12125551234'),
+      );
+      expect(
+        const GeoContent(latitude: 40.7, longitude: -74, query: 'Cafe').uri,
+        Uri.parse('geo:40.7,-74?q=Cafe'),
+      );
+      expect(const GeoContent(latitude: 91, longitude: 0).uri, isNull);
+    });
+
+    test('wallets, UPI and authenticators', () {
+      expect(
+        const CryptoContent(
+          currency: CryptoCurrency.bitcoin,
+          address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
+          amount: '0.0015',
+        ).uri,
+        Uri.parse(
+          'bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?amount=0.0015',
+        ),
+      );
+      expect(
+        const UpiPaymentContent(address: 'shop@okbank', amount: '10').uri,
+        Uri.parse('upi://pay?pa=shop@okbank&am=10&cu=INR'),
+      );
+      expect(
+        const OtpContent(secret: 'JBSWY3DPEHPK3PXP', account: 'me').uri?.scheme,
+        'otpauth',
+      );
+    });
+
+    test('kinds without a link', () {
+      for (final BarcodeContent content in <BarcodeContent>[
+        const TextContent('hello'),
+        const WifiContent(ssid: 'Cafe'),
+        const ContactContent(name: 'Sean Owen'),
+        EventContent(summary: 'x', start: DateTime(2026)),
+        const Gs1Content(<String, String>{'01': '09501101530003'}),
+        const EpcPaymentContent(name: 'x', iban: _iban),
+        const EsimContent(smdpAddress: 'smdp.example.com'),
+        BinaryContent(Uint8List.fromList(<int>[1])),
+      ]) {
+        expect(content.uri, isNull, reason: '$content');
+      }
+    });
+  });
 }

@@ -31,7 +31,7 @@ final class Described {
   /// Label and value pairs.
   final List<(String, String)> fields;
 
-  /// What the primary action opens, if anything.
+  /// What the primary action opens, if anything: `BarcodeContent.uri`.
   final Uri? open;
   final String? openLabel;
   final IconData? openIcon;
@@ -51,7 +51,7 @@ Described describe(Barcode barcode) {
       icon: Icons.link_rounded,
       title: or(title, url.host.isEmpty ? url.toString() : url.host),
       fields: <(String, String)>[('Address', url.toString())],
-      open: url,
+      open: content.uri,
       openLabel: 'Open',
       openIcon: Icons.open_in_new_rounded,
     ),
@@ -81,7 +81,7 @@ Described describe(Barcode barcode) {
         ('To', address),
         if (subject != null) ('Subject', subject),
       ],
-      open: Uri(scheme: 'mailto', path: address),
+      open: content.uri,
       openLabel: 'Write',
       openIcon: Icons.edit_outlined,
     ),
@@ -89,7 +89,7 @@ Described describe(Barcode barcode) {
       kind: 'Phone',
       icon: Icons.call_outlined,
       title: number,
-      open: Uri(scheme: 'tel', path: number),
+      open: content.uri,
       openLabel: 'Call',
       openIcon: Icons.call_outlined,
     ),
@@ -101,7 +101,7 @@ Described describe(Barcode barcode) {
         ('To', number),
         if (message != null) ('Message', message),
       ],
-      open: Uri(scheme: 'sms', path: number),
+      open: content.uri,
       openLabel: 'Message',
       openIcon: Icons.sms_outlined,
     ),
@@ -109,7 +109,7 @@ Described describe(Barcode barcode) {
       kind: 'Location',
       icon: Icons.place_outlined,
       title: '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}',
-      open: Uri.parse('geo:$latitude,$longitude'),
+      open: content.uri,
       openLabel: 'Map',
       openIcon: Icons.map_outlined,
     ),
@@ -128,7 +128,7 @@ Described describe(Barcode barcode) {
           for (final String p in phones) ('Phone', p),
           for (final String e in emails) ('Email', e),
         ],
-        open: phones.isEmpty ? null : Uri(scheme: 'tel', path: phones.first),
+        open: phones.isEmpty ? null : PhoneContent(phones.first).uri,
         openLabel: 'Call',
         openIcon: Icons.call_outlined,
       ),
@@ -174,6 +174,10 @@ Described describe(Barcode barcode) {
         if (payment case GostPaymentContent(:final String bankName))
           ('Bank', bankName),
       ],
+      // Only UPI payments are links; the others are read by bank apps.
+      open: payment.uri,
+      openLabel: 'Pay',
+      openIcon: Icons.payments_outlined,
     ),
     OtpContent otp => Described(
       kind: 'One-time password',
@@ -190,6 +194,9 @@ Described describe(Barcode barcode) {
       ],
       // The secret only behind its own copy button, never in the list.
       secret: otp.secret,
+      open: otp.uri,
+      openLabel: 'Add',
+      openIcon: Icons.add_rounded,
     ),
     EsimContent esim => Described(
       kind: 'eSIM',
@@ -218,6 +225,9 @@ Described describe(Barcode barcode) {
         if (crypto.message != null) ('Message', crypto.message!),
         if (crypto.chainId != null) ('Chain id', '${crypto.chainId}'),
       ],
+      open: crypto.uri,
+      openLabel: 'Pay',
+      openIcon: Icons.account_balance_wallet_outlined,
     ),
     WifiDppContent dpp => Described(
       kind: 'Wi‑Fi device',

@@ -470,6 +470,10 @@ final class UpiPaymentContent extends PaymentContent {
   @override
   List<ContentIssue> validate() => validateUpi(this);
 
+  /// `upi://pay?…`, as [toPayload]: UPI apps open it.
+  @override
+  Uri? get uri => payloadUri(this);
+
   @override
   bool operator ==(Object other) =>
       other is UpiPaymentContent &&

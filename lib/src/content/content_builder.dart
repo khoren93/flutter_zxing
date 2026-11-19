@@ -487,6 +487,34 @@ List<ContentIssue> validateGs1(Gs1Content c) => <ContentIssue>[
     ?gs1ElementIssue('elements', e.key, e.value),
 ];
 
+// --- Links -----------------------------------------------------------------------
+
+/// The `uri` of a kind whose payload is itself a link: the payload, or
+/// `null` if the value has problems.
+Uri? payloadUri(BarcodeContent c) =>
+    c.validate().isEmpty ? Uri.tryParse(c.toPayload()) : null;
+
+/// [UrlContent.uri].
+Uri? urlUri(UrlContent c) => validateUrl(c).isEmpty ? _withScheme(c.url) : null;
+
+/// [SmsContent.uri].
+Uri? smsUri(SmsContent c) {
+  if (validateSms(c).isNotEmpty) {
+    return null;
+  }
+  final String numbers = c.number
+      .split(',')
+      .map(_dialable)
+      .where((String n) => n.isNotEmpty)
+      .join(',');
+  final String? message = _orNull(c.message?.trim());
+  return Uri.tryParse(
+    message == null
+        ? 'sms:$numbers'
+        : 'sms:$numbers?body=${Uri.encodeComponent(message)}',
+  );
+}
+
 // --- Shared helpers --------------------------------------------------------------
 
 String? _orNull(String? value) => value == null || value.isEmpty ? null : value;

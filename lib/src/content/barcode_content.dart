@@ -88,6 +88,31 @@ abstract final class BarcodeContent {
   /// [ContentIssue.field].
   List<ContentIssue> validate();
 
+  /// A link that opens this content in the app made for it, for
+  /// `launchUrl` of package:url_launcher; `null` when there is none.
+  ///
+  /// | Content | Link |
+  /// |---|---|
+  /// | [UrlContent] | the address, with `https://` if it has no scheme |
+  /// | [EmailContent] | `mailto:address?subject=…&body=…` |
+  /// | [PhoneContent] | `tel:`, `facetime:`, `facetime-audio:` |
+  /// | [SmsContent] | `sms:number?body=…` (RFC 5724) |
+  /// | [GeoContent] | `geo:latitude,longitude?q=…` |
+  /// | [CryptoContent] | `bitcoin:…`, `ethereum:…`, `litecoin:…`, `lightning:…` |
+  /// | [UpiPaymentContent] | `upi://pay?…` |
+  /// | [OtpContent] | `otpauth://…` |
+  ///
+  /// Other kinds, such as Wi-Fi networks, contacts, events, most payments
+  /// and product numbers, have no such link and give `null`; so does a
+  /// value [validate] finds problems in.
+  ///
+  /// ```dart
+  /// if (barcode.content.uri case final Uri uri) {
+  ///   await launchUrl(uri);
+  /// }
+  /// ```
+  Uri? get uri => null;
+
   /// Parses the payload of [barcode]. `barcode.content` calls this once per
   /// barcode and keeps the result.
   static BarcodeContent parse(Barcode barcode) => parseBarcodeContent(barcode);
@@ -291,6 +316,10 @@ final class UrlContent extends BarcodeContent {
   @override
   List<ContentIssue> validate() => validateUrl(this);
 
+  /// [url], with `https://` if it has no scheme.
+  @override
+  Uri? get uri => urlUri(this);
+
   @override
   bool operator ==(Object other) =>
       other is UrlContent && other.url == url && other.title == title;
@@ -409,6 +438,10 @@ final class EmailContent extends BarcodeContent {
   @override
   List<ContentIssue> validate() => validateEmail(this);
 
+  /// `mailto:address?subject=…&body=…`, as [toPayload].
+  @override
+  Uri? get uri => payloadUri(this);
+
   @override
   bool operator ==(Object other) =>
       other is EmailContent &&
@@ -456,6 +489,10 @@ final class PhoneContent extends BarcodeContent {
   @override
   List<ContentIssue> validate() => validatePhone(this);
 
+  /// `tel:`, `facetime:` or `facetime-audio:`, as [toPayload].
+  @override
+  Uri? get uri => payloadUri(this);
+
   @override
   bool operator ==(Object other) =>
       other is PhoneContent && other.number == number && other.type == type;
@@ -487,6 +524,12 @@ final class SmsContent extends BarcodeContent {
 
   @override
   List<ContentIssue> validate() => validateSms(this);
+
+  /// `sms:number?body=message` (RFC 5724), which messaging apps open with
+  /// the message filled in; [toPayload] is the `SMSTO:` form camera apps
+  /// read.
+  @override
+  Uri? get uri => smsUri(this);
 
   @override
   bool operator ==(Object other) =>
@@ -527,6 +570,10 @@ final class GeoContent extends BarcodeContent {
 
   @override
   List<ContentIssue> validate() => validateGeo(this);
+
+  /// `geo:latitude,longitude?q=query`, as [toPayload].
+  @override
+  Uri? get uri => payloadUri(this);
 
   @override
   bool operator ==(Object other) =>
