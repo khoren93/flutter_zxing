@@ -1801,6 +1801,12 @@ final double _frameWidth =
 /// how the pages read at this width too.
 const double _wideWidth = 1920;
 
+/// A page read from its file: whole, as drawn, once, with the options for
+/// files (`ReaderOptions()`). A file needs no camera's scaling or blur.
+const List<(Offset, double, double)> _fileFrames = <(Offset, double, double)>[
+  (Offset.zero, 0, 0),
+];
+
 /// What the pages are read with; SHEETS_READER tries other settings, as
 /// `tryInvert=true,minLineCount=1,binarizer=globalHistogram`.
 final ReaderOptions _readOptions = () {
@@ -2194,7 +2200,13 @@ ${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}">
           jsonDecode(sheetsFile.readAsStringSync()) as Map<String, dynamic>;
 
       final StringBuffer report = StringBuffer()
-        ..writeln('# Check sheets read like camera frames')
+        ..writeln('# Check sheets read from the file and like camera frames')
+        ..writeln()
+        ..writeln(
+          'From the file: each page read whole, at its own size, once, with '
+          '`ReaderOptions()` (the options for files). The other columns '
+          'are the camera.',
+        )
         ..writeln()
         ..writeln(
           'Each page scaled to ${_frameWidth.round()} px wide, read whole with '
@@ -2240,13 +2252,17 @@ ${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}">
 
           // Per frame, each code found: its tile, key, the barcode, its
           // corners back in page pixels and its height in frame pixels.
-          Future<List<List<_Read>>> readAt(double width) async {
+          Future<List<List<_Read>>> readAt(
+            double width, {
+            List<(Offset, double, double)> frames = _frames,
+            ReaderOptions? options,
+          }) async {
             final double scale = width / full.width;
             final int w = width.round();
             final int h = (full.height * scale).round();
             final Offset center = Offset(w / 2, h / 2);
             final List<List<_Read>> reads = <List<_Read>>[];
-            for (final (Offset shift, double degrees, double blur) in _frames) {
+            for (final (Offset shift, double degrees, double blur) in frames) {
               final double angle = degrees * math.pi / 180;
               final ui.PictureRecorder recorder = ui.PictureRecorder();
               Canvas(recorder)
@@ -2287,7 +2303,9 @@ ${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}">
               final ByteData rgba = (await frame.toByteData())!;
               frame.dispose();
               final List<Barcode> barcodes =
-                  await BarcodeReader(options: _readOptions).readAllPixels(
+                  await BarcodeReader(
+                    options: options ?? _readOptions,
+                  ).readAllPixels(
                     PixelBuffer(
                       rgba.buffer.asUint8List(),
                       width: w,
@@ -2328,6 +2346,14 @@ ${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}">
           final List<List<_Read>> reads = await readAt(_frameWidth);
           final Map<String, List<int>> wide = _findsByTile(
             await readAt(_wideWidth),
+            tiles,
+          );
+          final Map<String, List<int>> file = _findsByTile(
+            await readAt(
+              full.width.toDouble(),
+              frames: _fileFrames,
+              options: const ReaderOptions(),
+            ),
             tiles,
           );
 
@@ -2389,6 +2415,7 @@ ${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}">
             final List<String> counted = keys.take(t.count).toList();
             right[t.id] = keys;
             final List<int> wideFinds = wide[t.id]!.take(t.count).toList();
+            final int fileFinds = math.min(t.count, file[t.id]!.length);
             for (final _Tally tally in <_Tally>[
               if (t.linear) pageLinear else pageMatrix,
               if (!name.startsWith('00-'))
@@ -2403,7 +2430,8 @@ ${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}">
                 ..found += counted.length
                 ..possible += t.count * _frames.length
                 ..wideFound += wideFinds.length
-                ..wideReads += wideFinds.fold(0, (int a, int b) => a + b);
+                ..wideReads += wideFinds.fold(0, (int a, int b) => a + b)
+                ..fileFound += fileFinds;
               for (final String key in counted) {
                 final (int found, int sized) = verdicts[key]!;
                 tally
@@ -2534,7 +2562,8 @@ ${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}">
           final int codes = pageLinear.codes + pageMatrix.codes;
           final int found = pageLinear.found + pageMatrix.found;
           final String counts =
-              '$found/$codes codes found · '
+              'from the file ${pageLinear.fileFound + pageMatrix.fileFound}/$codes · '
+              'camera: $found/$codes codes found · '
               '2D (blue) ${pageMatrix.found}/${pageMatrix.codes} · '
               'linear (red) ${pageLinear.found}/${pageLinear.codes} · '
               'at ${_wideWidth.round()} px '
@@ -2579,14 +2608,20 @@ ${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}">
             )
             ..writeln()
             ..writeln(
-              '| tile | kind | code read | found | at ${_wideWidth.round()} px | size ok | height in each frame | truth |',
+              '| tile | kind | from the file | code read | found | at ${_wideWidth.round()} px | size ok | height in each frame | truth |',
             )
-            ..writeln('|---|---|---|---|---|---|---|---|');
+            ..writeln('|---|---|---|---|---|---|---|---|---|');
           for (final _SheetTile t in tiles) {
-            final String kind = t.linear ? 'linear' : '2D';
             final List<String> keys = right[t.id]!;
             for (int i = 0; i < math.max(t.count, keys.length); i++) {
               final String tile = i == 0 ? '**${t.id}** ${cell(t.title)}' : '';
+              final String kind =
+                  '${t.linear ? 'linear' : '2D'} '
+                  '| ${i >= t.count
+                      ? ''
+                      : i < file[t.id]!.length
+                      ? 'yes'
+                      : '**no**'}';
               final String atWide =
                   '${i < wide[t.id]!.length ? wide[t.id]![i] : 0}/${_frames.length}';
               if (i >= keys.length) {
@@ -2608,7 +2643,7 @@ ${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}">
             final _Read r = any[key]!;
             pagesReport.writeln(
               '| ${r.tile == null ? 'outside tiles' : '**${r.tile!.id}** wrong format'} '
-              '| ${r.barcode.format.isLinear ? 'linear' : '2D'} '
+              '| ${r.barcode.format.isLinear ? 'linear' : '2D'} | '
               '| ${cell(_keyOf(r.barcode))} '
               '| ${verdicts[key]!.$1}/${_frames.length} | — ${row(key)}',
             );
@@ -2643,10 +2678,10 @@ ${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}">
         )
         ..writeln()
         ..writeln(
-          '| kind | codes found | reads | size ok | found at ${_wideWidth.round()} px | reads at ${_wideWidth.round()} px${baseline == null ? '' : ' | baseline: found | baseline: reads | baseline: size ok'} |',
+          '| kind | from the file | codes found | reads | size ok | found at ${_wideWidth.round()} px | reads at ${_wideWidth.round()} px${baseline == null ? '' : ' | baseline: found | baseline: reads | baseline: size ok'} |',
         )
         ..writeln(
-          '|---|---|---|---|---|---|${baseline == null ? '' : '---|---|---|'}',
+          '|---|---|---|---|---|---|---|${baseline == null ? '' : '---|---|---|'}',
         );
       for (final (String name, _Tally t) in <(String, _Tally)>[
         ('linear (red)', linear),
@@ -2661,14 +2696,16 @@ ${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}">
             ? '?'
             : '${b['found']}/${b['codes']}';
         report.writeln(
-          '| $name | ${t.found}/${t.codes} | ${t.reads}/${t.possible} '
+          '| $name | ${t.fileFound}/${t.codes} | ${t.found}/${t.codes} '
+          '| ${t.reads}/${t.possible} '
           '| ${t.sizedText} | ${t.wideFound}/${t.codes} '
           '| ${t.wideReads}/${t.possible}'
           '${b == null ? '' : ' | $baseFound | ${b['reads']}/${b['possible']} | ${b['sized']}/${b['withTruth']}'} |',
         );
         // ignore: avoid_print
         print(
-          '$name: found ${t.found}/${t.codes} codes, '
+          '$name: from the file ${t.fileFound}/${t.codes}, '
+          'camera: found ${t.found}/${t.codes} codes, '
           'read ${t.reads}/${t.possible}, right size ${t.sizedText}'
           '${b == null ? '' : ' (baseline: found $baseFound, read ${b['reads']}/${b['possible']}, right size ${b['sized']}/${b['withTruth']})'}',
         );
@@ -2686,15 +2723,16 @@ ${pages.map(((String, String, String) p) => '<section id="${esc.convert(p.$1)}">
         )
         ..writeln()
         ..writeln(
-          '| codes | codes found | reads | size ok | found at ${_wideWidth.round()} px | reads at ${_wideWidth.round()} px |',
+          '| codes | from the file | codes found | reads | size ok | found at ${_wideWidth.round()} px | reads at ${_wideWidth.round()} px |',
         )
-        ..writeln('|---|---|---|---|---|---|');
+        ..writeln('|---|---|---|---|---|---|---|');
       for (final (String name, _Tally t) in <(String, _Tally)>[
         ('made by the generator', written),
         ('read only', readOnly),
       ]) {
         report.writeln(
-          '| $name | ${t.found}/${t.codes} | ${t.reads}/${t.possible} '
+          '| $name | ${t.fileFound}/${t.codes} | ${t.found}/${t.codes} '
+          '| ${t.reads}/${t.possible} '
           '| ${t.sizedText} | ${t.wideFound}/${t.codes} '
           '| ${t.wideReads}/${t.possible} |',
         );
@@ -2902,6 +2940,9 @@ final class _Tally {
   int wideFound = 0;
   int wideReads = 0;
 
+  /// Found when the page is read from its file.
+  int fileFound = 0;
+
   String get sizedText =>
       '$sized/$withTruth'
       '${withTruth == 0 ? '' : ' (${(100 * sized / withTruth).round()} %)'}';
@@ -2915,5 +2956,6 @@ final class _Tally {
     'sized': sized,
     'wideFound': wideFound,
     'wideReads': wideReads,
+    'fileFound': fileFound,
   };
 }
