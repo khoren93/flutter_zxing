@@ -72,10 +72,18 @@ class Stats {
 /// One run of the benchmark on [controller].
 class ScanBenchmark {
   /// Creates a run that stops after [target] frames with a barcode.
-  ScanBenchmark(this.controller, {this.target = 1000, this.warmup = 20});
+  ScanBenchmark(
+    this.controller, {
+    this.target = 1000,
+    this.warmup = 20,
+    this.reader,
+  });
 
   /// The scanner being measured.
   final ScannerController controller;
+
+  /// The reader settings of the run, saved with the result.
+  final Object? reader;
 
   /// Frames with a barcode to collect.
   final int target;
@@ -92,8 +100,8 @@ class ScanBenchmark {
   Size? _frameSize;
   final Stopwatch _clock = Stopwatch();
   StreamSubscription<ScannerFrameSample>? _samples;
-  final Completer<Map<String, Object?>> _done =
-      Completer<Map<String, Object?>>();
+  final Completer<Map<String, Object?>?> _done =
+      Completer<Map<String, Object?>?>();
 
   /// Frames with a barcode so far.
   int get collected => _found.length;
@@ -108,8 +116,9 @@ class ScanBenchmark {
     }
   }
 
-  /// Runs until [target] frames with a barcode were decoded.
-  Future<Map<String, Object?>> run() {
+  /// Runs until [target] frames with a barcode were decoded; `null` when
+  /// [cancel] stopped it.
+  Future<Map<String, Object?>?> run() {
     SchedulerBinding.instance.addTimingsCallback(_onTimings);
     _samples = controller.frameSamples.listen((ScannerFrameSample s) {
       if (_skipped < warmup) {
@@ -133,11 +142,15 @@ class ScanBenchmark {
     return _done.future;
   }
 
-  /// Stops without a result.
+  /// Stops without a result: [run] completes with `null`.
   void cancel() {
     SchedulerBinding.instance.removeTimingsCallback(_onTimings);
     unawaited(_samples?.cancel());
     _samples = null;
+    _clock.stop();
+    if (!_done.isCompleted) {
+      _done.complete(null);
+    }
   }
 
   void _finish() {
@@ -169,7 +182,7 @@ class ScanBenchmark {
           ? null
           : '${frame.width.toInt()}x${frame.height.toInt()}',
       'scan_window': 'LTWH 0.2, 0.1, 0.6, 0.8 of the preview',
-      'reader': 'ReaderOptions.camera() (tryHarder), first barcode',
+      'reader': reader,
       'found_frames': _found.length,
       'all_frames': _frames,
       'camera_frames': kIsWeb ? null : delivered,

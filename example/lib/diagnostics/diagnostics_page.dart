@@ -93,6 +93,7 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
 
   @override
   void dispose() {
+    _benchmark?.cancel();
     _abTimer?.cancel();
     unawaited(_fieldReads?.cancel());
     _field.dispose();
@@ -122,20 +123,32 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     if (newCamera) {
       await _reopen();
     } else if (_editing == _live) {
-      _active.applyTo(_controller);
+      _apply();
     }
     _metrics.reset(_editing);
   }
 
+  /// Applies the live side's settings, unless a benchmark holds the scanner:
+  /// it applies them when it ends.
+  void _apply() {
+    if (_benchmark == null) {
+      _active.applyTo(_controller);
+    }
+  }
+
   /// A new resolution needs a new camera.
   Future<void> _reopen() async {
+    // The benchmark measures the camera that closes now.
+    _benchmark?.cancel();
     setState(() => _reopening = true);
     final ScannerController old = _controller;
     await old.stop();
-    old.dispose();
-    if (!mounted) {
+    if (!mounted || _controller != old) {
+      // Gone, or another reopen came first and opened the camera with the
+      // newest resolution.
       return;
     }
+    old.dispose();
     setState(() {
       _controller = _newController();
       _active.applyTo(_controller);
@@ -157,13 +170,18 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
         _abTimer = null;
         _editing = 'A';
         _live = 'A';
-        _a.applyTo(_controller);
+        _apply();
         _metrics.switchTo('A');
       }
     });
+    // B starts from nothing: no frames or first read of an earlier run.
+    _metrics.reset('B');
   }
 
   void _turn() {
+    if (_benchmark != null) {
+      return; // The benchmark runs with one side.
+    }
     setState(() => _live = _live == 'A' ? 'B' : 'A');
     _active.applyTo(_controller);
     _metrics.switchTo(_live);
@@ -200,21 +218,29 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
   Future<void> _runBenchmark() async {
     final ScanBenchmark? running = _benchmark;
     if (running != null) {
-      running.cancel();
-      setState(() => _benchmark = null);
+      running.cancel(); // The run below puts the settings back.
       return;
     }
-    _controller
+    final ScannerController controller = _controller;
+    controller
       ..scanWindow = benchmarkWindow
       ..detection = DetectionMode.continuous;
-    final ScanBenchmark benchmark = ScanBenchmark(_controller);
+    final ScanBenchmark benchmark = ScanBenchmark(
+      controller,
+      reader: _active.toJson(),
+    );
     setState(() => _benchmark = benchmark);
-    final Map<String, Object?> result = await benchmark.run();
-    _active.applyTo(_controller);
+    final Map<String, Object?>? result = await benchmark.run();
     if (!mounted) {
-      return;
+      return; // Cancelled by dispose; the controller is gone.
     }
     setState(() => _benchmark = null);
+    if (controller == _controller) {
+      _active.applyTo(controller);
+    }
+    if (result == null) {
+      return;
+    }
     await _report(
       'Benchmark',
       (result['summary']! as List<Object?>).join('\n'),

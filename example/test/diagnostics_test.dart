@@ -21,6 +21,7 @@ import 'package:flutter_zxing_example/diagnostics/diag_settings.dart';
 import 'package:flutter_zxing_example/diagnostics/diagnostics_page.dart';
 import 'package:flutter_zxing_example/diagnostics/frame_recorder.dart';
 import 'package:flutter_zxing_example/diagnostics/recording.dart';
+import 'package:flutter_zxing_example/diagnostics/scan_benchmark.dart';
 import 'package:flutter_zxing_example/diagnostics/settings_tab.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -193,6 +194,43 @@ void main() {
     });
   });
 
+  group('benchmark', () {
+    setUp(() => ScannerControllerDebug.cameraFactory = FakeCamera.new);
+    tearDown(() => ScannerControllerDebug.cameraFactory = null);
+
+    test('stopped, it ends without a result', () async {
+      final ScannerController controller = ScannerController();
+      addTearDown(controller.dispose);
+      final ScanBenchmark benchmark = ScanBenchmark(controller);
+      final Future<Map<String, Object?>?> run = benchmark.run();
+      benchmark.cancel();
+      expect(await run, isNull);
+    });
+
+    test('the result names the settings it ran with', () async {
+      final FakeCamera camera = FakeCamera();
+      ScannerControllerDebug.cameraFactory = () => camera;
+      final ScannerController controller = ScannerController(
+        detection: DetectionMode.continuous,
+      );
+      addTearDown(controller.dispose);
+      await controller.start();
+      final Map<String, Object> reader = const DiagSettings(
+        tryInvert: true,
+      ).toJson();
+      final Future<Map<String, Object?>?> run = ScanBenchmark(
+        controller,
+        target: 1,
+        warmup: 0,
+        reader: reader,
+      ).run();
+      camera.push(<Barcode>[
+        fakeBarcode('code', const Rect.fromLTWH(200, 200, 80, 80)),
+      ]);
+      expect((await run)!['reader'], reader);
+    });
+  });
+
   group('page', () {
     late FakeCamera camera;
 
@@ -342,6 +380,55 @@ void main() {
       await tester.tap(find.byIcon(Icons.compare_arrows));
       await tester.pump();
       expect(find.text('Edit B'), findsNothing);
+      await close(tester);
+    });
+
+    testWidgets('a new A/B run starts side B from nothing', (
+      WidgetTester tester,
+    ) async {
+      await open(tester);
+      final Finder ab = find.byIcon(Icons.compare_arrows);
+      await tester.tap(ab);
+      await tester.pump(const Duration(seconds: 3)); // B is live.
+      await tester.runAsync(() async {
+        for (int i = 0; i < 6; i++) {
+          camera.push(<Barcode>[
+            fakeBarcode('code', const Rect.fromLTWH(200, 200, 80, 80)),
+          ]);
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+      });
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('100%'), findsOneWidget);
+      await tester.tap(ab);
+      await tester.pump();
+      await tester.tap(ab);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('100%'), findsNothing);
+      await close(tester);
+    });
+
+    testWidgets('a stopped benchmark gives the settings back', (
+      WidgetTester tester,
+    ) async {
+      await open(tester);
+      Future<Rect?> crop() async {
+        late FakeFrame frame;
+        await tester.runAsync(() async {
+          frame = camera.push();
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        });
+        return frame.crop;
+      }
+
+      final Rect? before = await crop();
+      await tester.tap(find.byIcon(Icons.speed));
+      await tester.pump();
+      expect(await crop(), isNot(before));
+      await tester.tap(find.byIcon(Icons.stop));
+      await tester.pump();
+      expect(find.byIcon(Icons.speed), findsOneWidget);
+      expect(await crop(), before);
       await close(tester);
     });
 
