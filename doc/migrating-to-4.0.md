@@ -103,7 +103,7 @@ and `tryRotate`, so most 3.x scanner settings have no counterpart to set.
 | `ReaderWidget` | 4.0 |
 |---|---|
 | `codeFormat` | `ScannerController(formats:)` |
-| `tryHarder`, `tryInverted`, `tryRotate`, `tryDownscale` | `ScannerController(options: ReaderOptions(...))` |
+| `tryHarder`, `tryInverted`, `tryRotate`, `tryDownscale` | `ScannerController(options: ReaderOptions.camera().copyWith(...))`: plain `ReaderOptions()` is the preset for files, with `tryInvert` on |
 | `cropPercent`, `horizontalCropOffset`, `verticalCropOffset` | `ScannerController(scanWindow: ScanWindow.centered(...))` or `ScanWindow.fromRect(...)` |
 | `scanDelay`, `scanDelaySuccess` | `ScannerController(detection: DetectionMode.distinct)` (each code once, again after it has left the frame), `.continuous` or `.once` |
 | `maxNumberOfSymbols`, `isMultiScan` | `ScannerController(maxBarcodes:)`: 1 by default, `null` for all |
@@ -194,7 +194,12 @@ final List<Barcode> barcodes = await const BarcodeReader().readAll(bytes);
 JPEG, PNG, GIF and BMP files are decoded by the engine, and WebP and the
 other formats Flutter decodes are read too. "Not found" is
 `null` (or an empty list), not a `Code` with `isValid == false`; a file that
-is not an image throws `ImageDecodeException`.
+is not an image throws `ImageDecodeException`. TIFF, TGA, PSD, PNM, EXR
+and the other formats 3.x read through package:image are not decoded: decode
+them yourself (for example with package:image) and pass the pixels to
+`readPixels`. 3.x applied `cropLeft`, `cropTop`, `cropWidth` and
+`cropHeight` to image files too; 4.0 (and the 3.x API in it) reads files
+whole, so crop the pixels with `PixelBuffer(crop:)` instead.
 
 `readBarcodeImageUrl` has no counterpart: download the bytes with your HTTP
 client and pass them to `read`.
@@ -239,8 +244,8 @@ const BarcodeReader reader = BarcodeReader(
 | `DecodeParams` | 4.0 |
 |---|---|
 | `format` | `BarcodeReader(formats:)`; `null` reads every format |
-| `tryHarder`, `tryRotate`, `tryDownscale` | `ReaderOptions` fields of the same name |
-| `tryInverted` | `ReaderOptions(tryInvert:)` |
+| `tryHarder`, `tryRotate`, `tryDownscale` | `ReaderOptions` fields of the same name, all on by default (3.x: `tryHarder` and `tryDownscale` off) |
+| `tryInverted` | `ReaderOptions(tryInvert:)`, on by default (3.x: off) |
 | `maxNumberOfSymbols` | `readAll(maxBarcodes:)`; `read` returns the first |
 | `maxSize` | Not needed: images are read at full resolution, `tryDownscale` handles large ones |
 | `imageFormat`, `width`, `height`, `crop...` | `PixelBuffer` |
