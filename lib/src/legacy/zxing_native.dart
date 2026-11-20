@@ -15,6 +15,7 @@ import 'dart:ui' show Rect;
 
 import 'package:camera/camera.dart' show CameraImage, Plane, XFile;
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart' show NetworkAssetBundle;
 import 'package:image/image.dart' as imglib;
 
@@ -451,32 +452,48 @@ PixelBuffer? _decodeWithImagePackage(Uint8List bytes) {
   }
 }
 
-/// fzx on the calling isolate, for the synchronous 3.x calls. One per
-/// isolate (globals are per isolate), kept for the isolate's lifetime.
+/// fzx on the calling isolate, for the synchronous 3.x calls.
 final _SyncEngine _syncEngine = _SyncEngine();
 
-final class _SyncEngine {
-  Pointer<FzxContext>? _context;
+/// fzx contexts of the synchronous calls not freed yet: 0 between calls.
+@visibleForTesting
+int get debugOpenSyncContexts => _openContexts;
+int _openContexts = 0;
 
-  Pointer<FzxContext> get _ctx {
-    if (_context case final Pointer<FzxContext> ctx) {
-      return ctx;
-    }
-    final int abi = fzxAbiVersion();
-    if (abi != fzxExpectedAbiVersion) {
-      throw EngineException(
-        'The barcode engine library has ABI version $abi, this version of '
-        'flutter_zxing needs $fzxExpectedAbiVersion. Run `flutter clean`.',
-      );
+final class _SyncEngine {
+  /// Whether the library's ABI was checked, once per isolate.
+  bool _checked = false;
+
+  /// Runs [call] with a new fzx context and frees it after, as 3.x freed
+  /// its buffers after each call: a context kept per isolate would outlive
+  /// the short-lived isolates (`compute`, `Isolate.run`) that the
+  /// synchronous calls are run on, with an input buffer the size of the
+  /// image each.
+  T _withContext<T>(T Function(Pointer<FzxContext> ctx) call) {
+    if (!_checked) {
+      final int abi = fzxAbiVersion();
+      if (abi != fzxExpectedAbiVersion) {
+        throw EngineException(
+          'The barcode engine library has ABI version $abi, this version of '
+          'flutter_zxing needs $fzxExpectedAbiVersion. Run `flutter clean`.',
+        );
+      }
+      _checked = true;
     }
     final Pointer<FzxContext> ctx = fzxNew();
     if (ctx == nullptr) {
       throw const EngineException('The barcode engine is out of memory');
     }
-    return _context = ctx;
+    _openContexts++;
+    try {
+      return call(ctx);
+    } finally {
+      fzxFree(ctx);
+      _openContexts--;
+    }
   }
 
-  /// [bytes] in the context's reusable input buffer.
+  /// [bytes] in the context's input buffer.
   Pointer<Uint8> _input(Pointer<FzxContext> ctx, Uint8List bytes) {
     if (bytes.isEmpty) {
       return nullptr;
@@ -497,7 +514,16 @@ final class _SyncEngine {
 
   EngineReadResult read(PixelBuffer image, EngineReadOptions options) {
     checkPixelBuffer(image);
-    final Pointer<FzxContext> ctx = _ctx;
+    return _withContext(
+      (Pointer<FzxContext> ctx) => _read(ctx, image, options),
+    );
+  }
+
+  EngineReadResult _read(
+    Pointer<FzxContext> ctx,
+    PixelBuffer image,
+    EngineReadOptions options,
+  ) {
     final Pointer<Uint8> input = _input(ctx, image.bytes);
     final Pointer<Utf8> formats = options.formats.toNativeUtf8();
     try {
@@ -529,8 +555,17 @@ final class _SyncEngine {
     }
   }
 
-  EngineSymbol write(String contents, String format, String options) {
-    final Pointer<FzxContext> ctx = _ctx;
+  EngineSymbol write(String contents, String format, String options) =>
+      _withContext(
+        (Pointer<FzxContext> ctx) => _write(ctx, contents, format, options),
+      );
+
+  EngineSymbol _write(
+    Pointer<FzxContext> ctx,
+    String contents,
+    String format,
+    String options,
+  ) {
     final Uint8List data = utf8.encode(contents);
     final Pointer<Uint8> input = _input(ctx, data);
     final Pointer<Utf8> formatName = format.toNativeUtf8();

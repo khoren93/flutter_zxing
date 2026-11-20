@@ -11,6 +11,8 @@ import 'dart:typed_data';
 import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing/src/legacy/zxing_native.dart'
+    show debugOpenSyncContexts;
 import 'package:image/image.dart' as imglib;
 
 /// A QR code of [text] as one byte per pixel, [size] x [size].
@@ -257,6 +259,32 @@ void main() {
           .text;
     });
     expect(text, 'isolate');
+  });
+
+  test('the synchronous calls free their engine memory', () async {
+    // 3.x freed its buffers after each call; an engine context kept per
+    // isolate would leak one input buffer the size of the image for every
+    // short-lived isolate (compute, Isolate.run) these calls run on.
+    final int open = await Isolate.run(() {
+      final Encode qr = zx.encodeBarcode(
+        contents: 'freed',
+        params: EncodeParams(margin: 10),
+      );
+      final DecodeParams params = DecodeParams(
+        width: qr.width!,
+        height: qr.height!,
+      );
+      zx
+        ..readBarcode(qr.data!, params)
+        ..readBarcodes(qr.data!, params)
+        // A failing call frees it too.
+        ..encodeBarcode(
+          contents: 'not digits',
+          params: EncodeParams(format: Format.ean13),
+        );
+      return debugOpenSyncContexts;
+    });
+    expect(open, 0);
   });
 
   test('every format 3.x could create is created and read back', () {
