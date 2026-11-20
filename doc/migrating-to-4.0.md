@@ -420,3 +420,17 @@ of them; this table gives the new form.
 | `ProductContent.gtin` as printed | `ProductContent.number`; `gtin` is a GTIN-14 |
 | `CryptoContent.amount` in wei (Ethereum) | `amount` in ether; wei in `value` |
 | An exhaustive `switch` on `BarcodeContent` | add a `default`: new kinds come in minor versions |
+
+Behaviour that changed without a compile error:
+
+- `barcode.rotation` of camera captures is in screen orientation, like the
+  corners.
+- Images over 128 megapixels or 65535 pixels a side throw
+  `ImageDecodeException`; a `PixelBuffer.crop` outside the image finds
+  nothing.
+- `zxingOptions` that zxing-cpp cannot parse throw `ArgumentError`.
+- Phone numbers with letters, EPC codes with a wrong RF reference and SPAYD
+  codes with a wrong `CRC32` are `TextContent`; contacts keep only http and
+  https web addresses.
+- `ScannerFrameSample.dropped` counts only frames the decoder could not keep
+  up with.

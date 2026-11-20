@@ -27,7 +27,20 @@ Upgrading from rc.2: see
   side.
 * `copyWith` of `BarcodeStyle` and `ScannerTemplate` takes a function for
   fields that can be empty: `copyWith(logo: () => null)` removes the logo. A
-  callback needs two: `copyWith(onClose: () => () {})`.
+  callback needs two: `copyWith(onClose: () => () {})`; `onClose: () {}` no
+  longer compiles instead of clearing it.
+* `Barcode.rotation` of camera captures is in screen orientation, like the
+  corners.
+* Images over 128 megapixels or 65535 pixels a side throw
+  `ImageDecodeException`. A `PixelBuffer.crop` outside the image finds
+  nothing instead of reading the whole image.
+* `zxingOptions` that zxing-cpp cannot parse, unknown `eci` names and an
+  `ecLevel` of another format throw `ArgumentError`.
+* Content is stricter: phone numbers with letters, EPC codes with a wrong RF
+  reference and SPAYD codes with a wrong `CRC32` read as text; contacts keep
+  only http and https web addresses.
+* `ScannerFrameSample.dropped` counts only frames the decoder could not keep
+  up with.
 * `ScannerController(pauseInBackground:)` is now `stopInBackground`.
 * `ScannerResultBuilder` and `ScannerActionsBuilder` get a `ScannerResult`
   instead of the barcode and `scanAgain`.
@@ -88,6 +101,33 @@ Upgrading from rc.2: see
   was turned on in the settings, the scanner starts when the app returns.
 * Scanner buttons are at least 48 pixels to tap, titles grow with the text
   size, and right-to-left layouts are mirrored.
+* Stopping and starting the scanner quickly, leaving the page while the
+  camera opens or changes lens, or opening it twice on the web no longer
+  leaves the camera on or the preview black. A hidden scanner no longer opens
+  the camera when the app returns, and a pause made in the background is kept.
+* The torch follows a lens change, shows as unavailable on Android phones
+  without a flash, and tap to focus on iOS focuses where tapped.
+* A barcode on a transparent background reads, including a PNG exported
+  without a background. Very wide images no longer throw `ArgumentError`.
+* Structured append sequences with Kanji or other segments without ECI join
+  correctly. A mirrored QR symbol no longer has a wrong format module.
+* `BarcodeView` works inside an `AlertDialog`, `IntrinsicWidth` or `Table`
+  and stays sharp after scrolling. PNG and SVG exports draw gradients, EAN
+  digits and spaces in text as on screen; several inline SVGs no longer share
+  gradients.
+* The result sheet names a profile only for profile links, shows dates and
+  Wi-Fi Enterprise through `ScannerStrings` (new `wifiEnterprise`), and
+  screen readers announce it (`ScannerSheet(liveRegion:)`).
+* `ScanVerdict.warn` in single and pick mode shows as a warning.
+  `closeOnResult` keeps scanning where the screen cannot close, and
+  `resume()` with `showResult: false` is no longer lost.
+* Content: EPC codes and vCard 2.1 fields are read in the character set they
+  name, EMVCo amounts take three decimals, `sms:` in the iOS form and Matter
+  codes with several payloads are read, and `Gs1Content.validate()` checks
+  check digits and dates.
+* 3.x API: synchronous `zx` calls no longer leak memory on short-lived
+  isolates; Aztec and PDF417 get the error correction they had in 3.x.
+* The example from pub.dev builds again.
 
 ## 4.0.0-rc.2
 
