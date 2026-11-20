@@ -55,6 +55,10 @@ abstract final class FzxFlags {
   static const int returnErrors = 1 << 5;
   static const int validateOptionalChecksum = 1 << 6;
 
+  /// Read without alpha, as zxing-cpp does: the 3.x API. Otherwise pixels
+  /// that are not opaque are put on white.
+  static const int ignoreAlpha = 1 << 7;
+
   /// zxing-cpp `TextMode::Plain` instead of the default HRI. Engine
   /// internal: the corpus tests compare text the way zxing-cpp's do.
   static const int textPlain = (0 + 1) << 8;

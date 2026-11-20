@@ -327,23 +327,23 @@ inline uint8_t onWhite(int lum, int alpha)
 }
 
 // zxing-cpp ignores alpha, so a transparent background, (0, 0, 0, 0) in most
-// files, would read as black. If any pixel of [iv] (RGBA or BGRA) is not
-// opaque, [lum] receives the pixels put on white as luminance, with the
+// files, would read as black. If the pixels of [iv] (RGBA or BGRA) are partly
+// transparent, [lum] receives them put on white as luminance, with the
 // weights zxing-cpp uses, and the result views it. Opaque pixels (camera
-// frames) are read as they are.
+// frames) are read as they are, and so are pixels that are all alpha 0: a
+// fourth byte that is not alpha (BGRX).
 ImageView onWhite(const ImageView& iv, std::vector<uint8_t>& lum)
 {
 	const int w = iv.width(), h = iv.height();
-	bool opaque = true;
-	for (int y = 0; y < h && opaque; y++) {
+	bool anyTransparent = false, anyVisible = false;
+	for (int y = 0; y < h && !(anyTransparent && anyVisible); y++) {
 		const uint8_t* p = iv.data(0, y);
-		for (int x = 0; x < w; x++, p += 4)
-			if (p[3] != 255) {
-				opaque = false;
-				break;
-			}
+		for (int x = 0; x < w; x++, p += 4) {
+			anyTransparent |= p[3] != 255;
+			anyVisible |= p[3] != 0;
+		}
 	}
-	if (opaque)
+	if (!anyTransparent || !anyVisible)
 		return iv;
 	const ImageFormat f = iv.format();
 	const int r = RedIndex(f), g = GreenIndex(f), b = BlueIndex(f);
@@ -507,7 +507,7 @@ int fzx_read(fzx_ctx* ctx, const uint8_t* data, int size, int width, int height,
 			iv = iv.cropped(crop_l, crop_t, crop_w, crop_h);
 		}
 		std::vector<uint8_t> lum;
-		if (format == ImageFormat::RGBA || format == ImageFormat::BGRA)
+		if ((format == ImageFormat::RGBA || format == ImageFormat::BGRA) && !(flags & FZX_IGNORE_ALPHA))
 			iv = onWhite(iv, lum);
 		auto barcodes = ReadBarcodes(iv, opts);
 		encodeBarcodes(ctx, barcodes, width, height, dx, dy, &iv);
@@ -533,7 +533,7 @@ int fzx_read_file(fzx_ctx* ctx, const uint8_t* data, int size, const char* forma
 							+ " pixels, at most 128 megapixels and 65535 pixels a side are read");
 		// With alpha, as gray and alpha to put on white; stb_image would
 		// drop the alpha.
-		const bool alpha = channels == 2 || channels == 4;
+		const bool alpha = (channels == 2 || channels == 4) && !(flags & FZX_IGNORE_ALPHA);
 		std::unique_ptr<stbi_uc, void (*)(void*)> pixels(
 			stbi_load_from_memory(data, size, &w, &h, &channels, alpha ? 2 : 1), stbi_image_free);
 		if (!pixels)

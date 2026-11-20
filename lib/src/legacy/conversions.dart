@@ -252,7 +252,9 @@ EngineReadOptions readOptionsOf(
       (params.tryRotate ? FzxFlags.tryRotate : 0) |
       (params.tryInverted ? FzxFlags.tryInvert : 0) |
       (params.tryDownscale || downscale ? FzxFlags.tryDownscale : 0) |
-      (returnErrors ? FzxFlags.returnErrors : 0),
+      (returnErrors ? FzxFlags.returnErrors : 0) |
+      // As 3.x read pixels: the fourth byte of a 3.x frame need not be alpha.
+      FzxFlags.ignoreAlpha,
   maxSymbols: maxSymbols,
 );
 

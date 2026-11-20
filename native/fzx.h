@@ -55,6 +55,9 @@ enum {
 	FZX_IS_PURE = 1 << 4,
 	FZX_RETURN_ERRORS = 1 << 5,
 	FZX_VALIDATE_OPTIONAL_CHECKSUM = 1 << 6,
+	// Read RGBA, BGRA and image files as zxing-cpp does, without alpha: the
+	// 3.x API. Otherwise pixels that are not opaque are put on white.
+	FZX_IGNORE_ALPHA = 1 << 7,
 	// Bits 8-11: zxing-cpp TextMode + 1 for the barcode text; 0 is the
 	// default, TextMode::HRI. The corpus tests use TextMode::Plain to compare
 	// with zxing-cpp's expected results the way its own blackbox tests do.

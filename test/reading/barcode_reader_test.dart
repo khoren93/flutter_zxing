@@ -335,6 +335,25 @@ void main() {
         'alpha',
       );
     });
+
+    test('not in pixels whose fourth byte is 0 everywhere (BGRX)', () async {
+      final BarcodeImage image = await symbol.toImage(moduleSize: 4);
+      final Uint8List bgrx = Uint8List(image.pixels.length * 4);
+      for (int i = 0; i < image.pixels.length; i++) {
+        bgrx.fillRange(i * 4, i * 4 + 3, image.pixels[i]);
+      }
+      expect(
+        (await reader.readPixels(
+          PixelBuffer(
+            bgrx,
+            width: image.width,
+            height: image.height,
+            layout: PixelLayout.bgra,
+          ),
+        ))?.text,
+        'alpha',
+      );
+    });
   });
 
   group('an image too large to read', () {
