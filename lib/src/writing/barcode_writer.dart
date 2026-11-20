@@ -90,10 +90,11 @@ final class BarcodeWriter {
   /// The keys zxing-cpp knows (case and underscores do not matter):
   ///
   /// - `ecLevel`: error correction in the format's own terms: `L`, `M`,
-  ///   `Q`, `H` for QR, a percentage for Aztec (`23%`), a security level
-  ///   0–8 for PDF417.
-  /// - `eci`: the character set to declare, by name (`UTF-8`,
-  ///   `ISO-8859-5`) or ECI number; `eci=0` declares none.
+  ///   `Q`, `H` (or a percentage) for QR, Micro QR and rMQR, a percentage
+  ///   for Aztec (`23%`), a security level 0–8 for PDF417.
+  /// - `eci`: the character set to declare, by a name zxing-cpp knows
+  ///   (`UTF-8`, `ISO-8859-5`, `Shift_JIS`) or ECI number (0–999999);
+  ///   `eci=0` declares none.
   /// - `gs1`: the same as [gs1].
   /// - `readerInit`: mark the symbol for reader programming.
   /// - `forceSquare`: Data Matrix in a square size only.
@@ -103,8 +104,11 @@ final class BarcodeWriter {
   /// - `version`: the same as [version].
   /// - `dataMask`: the mask pattern of a QR code (0–7) or Micro QR (0–3).
   ///
-  /// Encoding throws [ArgumentError] for any other key and for a value of
-  /// the wrong kind (`version=abc`, `ecLevel=Z`).
+  /// Numbers are written plainly (`-?[0-9]+`, as zxing-cpp parses them:
+  /// no `+`, no hex). Encoding throws [ArgumentError] for any other key
+  /// and for a value of the wrong kind (`version=abc`, `ecLevel=Z`,
+  /// `ecLevel=L` for Aztec, an `eci` name zxing-cpp does not know,
+  /// `columns=0`).
   final String? zxingOptions;
 
   /// Encodes text into the module matrix (UTF-8, or the character set the

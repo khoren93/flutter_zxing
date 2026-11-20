@@ -97,9 +97,35 @@ const Set<String> _boolKeys = <String>{
 
 const Set<String> _boolValues = <String>{'', 'true', 'false', '1', '0'};
 
+/// The character set names zxing-cpp knows for `eci` (`NAME_TO_CHARSET` in
+/// CharacterSet.cpp), compared as zxing-cpp compares them: without case,
+/// `_`, `-` and spaces.
+const Set<String> _charsetNames = <String>{
+  'cp437', 'iso88591', 'iso88592', 'iso88593', 'iso88594', 'iso88595', //
+  'iso88596', 'iso88597', 'iso88598', 'iso88599', 'iso885910', //
+  'iso885911', 'iso885913', 'iso885914', 'iso885915', 'iso885916', //
+  'sjis', 'shiftjis', 'cp1250', 'windows1250', 'cp1251', 'windows1251', //
+  'cp1252', 'windows1252', 'cp1256', 'windows1256', 'utf16be', 'utf16le', //
+  'utf32be', 'utf32le', 'unicodebigunmarked', 'unicodebig', 'utf8', //
+  'ascii', 'usascii', 'big5', 'gb2312', 'gb18030', 'euccn', 'gbk', //
+  'euckr', 'binary',
+};
+
+/// [name] as zxing-cpp compares character set names.
+String charsetKey(String name) =>
+    name.toLowerCase().replaceAll(RegExp('[-_ ]'), '');
+
+/// Whether zxing-cpp knows [name] as a character set for `eci`.
+bool isCharsetName(String name) => _charsetNames.contains(charsetKey(name));
+
 /// Throws [ArgumentError] if [writer]'s version is outside its format's
 /// range, or its `zxingOptions` hold a key zxing-cpp does not know or a
 /// value it cannot take.
+///
+/// zxing-cpp reads most values in getters that cannot report an error: a
+/// value it cannot parse (`version=+5`, `rows=3000000000`, `eci=\`) ends
+/// the process. Every value is checked here first, in zxing-cpp's syntax
+/// (`std::from_chars`, not Dart's `int.parse`).
 void checkWriter(BarcodeWriter writer) {
   if (writer.version case final int version) {
     _checkVersion(writer.format, version, 'version');
@@ -125,23 +151,53 @@ void checkWriter(BarcodeWriter writer) {
       fail('Unknown option "$name"; known: ${_keys.values.join(', ')}');
     }
     if (_intKeys.contains(key)) {
-      final int? n = value == null ? null : int.tryParse(value);
-      if (n == null) {
+      // What std::from_chars reads into an int, whole: no sign but `-`, no
+      // hex, no overflow.
+      if (value == null || !RegExp(r'^-?\d{1,9}$').hasMatch(value)) {
         fail('$key takes a whole number: "$pair"');
       }
-      if (key == 'version') {
-        _checkVersion(writer.format, n, 'zxingOptions');
+      final int n = int.parse(value);
+      switch (key) {
+        case 'version':
+          _checkVersion(writer.format, n, 'zxingOptions');
+        case 'dataMask' when n < 0 || n > 7:
+          fail('dataMask is 0 to 7: "$pair"');
+        case 'columns' || 'rows' when n < 1:
+          fail('$key is at least 1: "$pair"');
       }
     } else if (_boolKeys.contains(key)) {
       if (value != null && !_boolValues.contains(value.toLowerCase())) {
         fail('$key is true or false: "$pair"');
       }
     } else if (key == 'ecLevel') {
-      if (value == null || !RegExp(r'^(?:[LMQH]|\d+%?)$').hasMatch(value)) {
+      if (value == null || !RegExp(r'^(?:[LMQH]|\d{1,9}%?)$').hasMatch(value)) {
         fail('ecLevel is L, M, Q, H, a number or a percentage: "$pair"');
+      }
+      final bool qr = writer.format.symbology == BarcodeFormat.qrCode;
+      final bool aztec =
+          writer.format == BarcodeFormat.aztec ||
+          writer.format == BarcodeFormat.aztecCode;
+      if (RegExp('^[LMQH]').hasMatch(value) && !qr) {
+        fail(
+          'ecLevel L, M, Q and H are for QR codes; '
+          'BarcodeFormat.${writer.format.name} takes a number: "$pair"',
+        );
+      }
+      if (value.endsWith('%') && !qr && !aztec) {
+        fail(
+          'ecLevel percentages are for QR codes and Aztec; '
+          'BarcodeFormat.${writer.format.name} takes a number: "$pair"',
+        );
       }
     } else if (value == null || value.isEmpty) {
       fail('$key takes a value: "$pair"');
+    } else if (key == 'eci' &&
+        !RegExp(r'^\d{1,6}$').hasMatch(value) &&
+        !isCharsetName(value)) {
+      fail(
+        'eci is an ECI number (0 to 999999) or a character set zxing-cpp '
+        'knows (UTF-8, ISO-8859-5, Shift_JIS...): "$pair"',
+      );
     }
   }
 }

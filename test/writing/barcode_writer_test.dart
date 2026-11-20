@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -172,6 +173,64 @@ void main() {
         ),
       );
       ok(const BarcodeWriter(BarcodeFormat.qrCode, zxingOptions: ' , '));
+      for (final String options in <String>[
+        'eci=26',
+        'eci=0',
+        'eci=shift_jis',
+        'eci=ISO 8859 5',
+        'ecLevel=50%',
+        'ecLevel=2',
+        'dataMask=7',
+      ]) {
+        ok(BarcodeWriter(BarcodeFormat.qrCode, zxingOptions: options));
+      }
+      ok(
+        const BarcodeWriter(
+          BarcodeFormat.microQrCode,
+          zxingOptions: 'ecLevel=Q, dataMask=3',
+        ),
+      );
+    });
+
+    test('zxingOptions zxing-cpp cannot parse are rejected', () {
+      // zxing-cpp parses these in getters that cannot throw: they would end
+      // the process.
+      for (final (BarcodeFormat format, String options, String message)
+          in <(BarcodeFormat, String, String)>[
+            (BarcodeFormat.qrCode, 'version=+5', 'version takes a whole'),
+            (BarcodeFormat.pdf417, 'columns=0x4', 'columns takes a whole'),
+            (BarcodeFormat.pdf417, 'rows=3000000000', 'rows takes a whole'),
+            (BarcodeFormat.qrCode, 'dataMask=12345678', 'dataMask is 0 to 7'),
+            (BarcodeFormat.pdf417, 'columns=0', 'columns is at least 1'),
+            (BarcodeFormat.qrCode, r'eci=\', 'eci is an ECI number'),
+            (BarcodeFormat.qrCode, r'eci=\q', 'eci is an ECI number'),
+            (BarcodeFormat.qrCode, 'eci=1234567', 'eci is an ECI number'),
+            // Ignored by zxing-cpp before.
+            (BarcodeFormat.qrCode, 'eci=UTF8x', 'eci is an ECI number'),
+            (BarcodeFormat.pdf417, 'ecLevel=23%', 'percentages are for'),
+            // A BarcodeWriteException from zxing-cpp before.
+            (BarcodeFormat.aztec, 'ecLevel=L', 'L, M, Q and H are for'),
+          ]) {
+        expect(
+          () => checkWriter(BarcodeWriter(format, zxingOptions: options)),
+          fails(message),
+          reason: options,
+        );
+      }
+    });
+
+    test('the eci names are the ones zxing-cpp knows', () {
+      final String source = File(
+        'third_party/zxing-cpp/core/src/CharacterSet.cpp',
+      ).readAsStringSync();
+      final List<String> names = RegExp(
+        r'\{"([^"]+)",\s*CharacterSet::',
+      ).allMatches(source).map((RegExpMatch m) => m[1]!).toList();
+      expect(names, hasLength(greaterThan(30)));
+      for (final String name in names) {
+        expect(isCharsetName(name), isTrue, reason: name);
+      }
+      expect(isCharsetName('UTF-7'), isFalse);
     });
 
     test('zxingOptions reject unknown keys and wrong values', () {
