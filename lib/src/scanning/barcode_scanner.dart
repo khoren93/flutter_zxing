@@ -658,6 +658,8 @@ Future<Barcode?> scanBarcode(
     },
     showResult: false,
     closeOnResult: true,
+    // It counts the codes of a scanner that keeps scanning.
+    counter: false,
   );
   // The route is built under the navigator: take the caller's scope along.
   final ScannerScope? around = context

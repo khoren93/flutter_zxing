@@ -161,6 +161,29 @@ void main() {
       expect(result?.text, 'one');
     });
 
+    testWidgets('a check-in template shows no counter for one code', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      await tester.pumpWidget(
+        _app(
+          (BuildContext context) => GestureDetector(
+            onTap: () => scanBarcode(
+              context,
+              template: ScannerTemplate.checkIn(
+                check: (Barcode b) => const ScanVerdict.accept(title: 'In'),
+              ),
+            ),
+            child: const Text('scan'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('scan'));
+      await tester.pump();
+      await wait(tester, 400);
+      expect(find.text('0 checked in'), findsNothing);
+    });
+
     testWidgets('takes the theme and texts of the scope around the caller', (
       WidgetTester tester,
     ) async {
