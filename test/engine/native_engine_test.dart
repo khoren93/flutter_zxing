@@ -237,13 +237,23 @@ void main() {
   test('a shut down engine restarts on the next call', () async {
     final BarcodeEngine e = BarcodeEngine('restart test');
     await e.warmUp();
-    // A large image, so that the call is still running at shutdown.
+    // Under a megabyte, so it is copied without a pause and sent before the
+    // shutdown: the engine fails the call it was already given.
     final Future<EngineReadResult> pending = e.readPixels(
-      PixelBuffer(Uint8List(4000 * 3000), width: 4000, height: 3000),
+      PixelBuffer(Uint8List(1000 * 1000), width: 1000, height: 1000),
       const EngineReadOptions(),
     );
     await e.shutdown();
-    await expectLater(pending, throwsA(isA<EngineException>()));
+    await expectLater(
+      pending,
+      throwsA(
+        isA<EngineException>().having(
+          (EngineException e) => e.message,
+          'message',
+          'The barcode engine was shut down',
+        ),
+      ),
+    );
     expect(await e.version(), zxingCppVersion);
     await e.shutdown();
   });
