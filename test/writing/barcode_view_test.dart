@@ -3,9 +3,14 @@
 @Tags(<String>['native'])
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+// material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
+// which needs Flutter 3.47; this package still supports Flutter 3.41.
+// ignore: deprecated_member_use
+import 'package:flutter/material.dart' show AlertDialog, MaterialApp;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -89,6 +94,50 @@ Future<Uint8List> _logoPng() async {
 Finder get _paint => find.descendant(
   of: find.byType(BarcodeView),
   matching: find.byType(CustomPaint),
+);
+
+/// Pixels of [boundary] at [ratio] neither near black nor near white:
+/// blurred edges.
+Future<int> _greyPixels(
+  WidgetTester tester,
+  GlobalKey boundary,
+  double ratio,
+) async {
+  final RenderRepaintBoundary b =
+      boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+  final Uint8List rgba = (await tester.runAsync<Uint8List>(() async {
+    final ui.Image image = await b.toImage(pixelRatio: ratio);
+    final ByteData bytes = (await image.toByteData())!;
+    image.dispose();
+    return bytes.buffer.asUint8List();
+  }))!;
+  int grey = 0;
+  for (int i = 0; i < rgba.length; i += 4) {
+    if (rgba[i] > 30 && rgba[i] < 225) {
+      grey++;
+    }
+  }
+  return grey;
+}
+
+/// [child] on a white page of 400 x 200 at a pixel [ratio], captured by
+/// [page].
+Widget _page(GlobalKey page, double ratio, Widget child) => MediaQuery(
+  data: MediaQueryData(size: const Size(400, 200), devicePixelRatio: ratio),
+  child: Directionality(
+    textDirection: TextDirection.ltr,
+    child: RepaintBoundary(
+      key: page,
+      child: ColoredBox(color: const Color(0xFFFFFFFF), child: child),
+    ),
+  ),
+);
+
+/// An EAN-13 without text, 233.3 wide: bars only, which must not blur.
+const BarcodeView _bars = BarcodeView(
+  '4006381333931',
+  writer: BarcodeWriter(BarcodeFormat.ean13, showText: false),
+  width: 233.3,
 );
 
 void main() {
@@ -200,6 +249,146 @@ void main() {
     );
     await _settle(tester);
     expect(tester.getSize(_paint), const Size(180, 180));
+  });
+
+  testWidgets('works where intrinsic sizes are asked: IntrinsicWidth, Table', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const IntrinsicWidth(child: BarcodeView(url, width: 200)),
+            Table(
+              defaultColumnWidth: const IntrinsicColumnWidth(),
+              children: const <TableRow>[
+                TableRow(children: <Widget>[BarcodeView(url, height: 50)]),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    await _settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(tester.getSize(_paint.first), const Size(200, 200));
+    expect(tester.getSize(_paint.last), const Size(50, 50));
+  });
+
+  testWidgets('in an AlertDialog', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AlertDialog(content: BarcodeView('in a dialog', width: 200)),
+      ),
+    );
+    await _settle(tester);
+    expect(tester.takeException(), isNull);
+    // The dialog's minimum width may widen the box; the code keeps its size.
+    expect(tester.getSize(_paint).height, 200);
+  });
+
+  testWidgets('stays on the pixel grid after a list scrolls', (
+    WidgetTester tester,
+  ) async {
+    const double ratio = 2.25;
+    tester.view
+      ..devicePixelRatio = ratio
+      ..physicalSize = const Size(400, 200) * ratio;
+    addTearDown(tester.view.reset);
+    final GlobalKey page = GlobalKey();
+    final ScrollController scroll = ScrollController();
+    addTearDown(scroll.dispose);
+    await tester.pumpWidget(
+      _page(
+        page,
+        ratio,
+        ListView(
+          controller: scroll,
+          children: const <Widget>[
+            SizedBox(height: 10.3),
+            Align(alignment: Alignment.topLeft, child: _bars),
+            SizedBox(height: 400),
+          ],
+        ),
+      ),
+    );
+    await _settle(tester);
+    expect(await _greyPixels(tester, page, ratio), 0);
+    scroll.jumpTo(7.3);
+    await tester.pump();
+    expect(await _greyPixels(tester, page, ratio), 0);
+  });
+
+  testWidgets('stays on the pixel grid after a route transition', (
+    WidgetTester tester,
+  ) async {
+    const double ratio = 2.25;
+    tester.view
+      ..devicePixelRatio = ratio
+      ..physicalSize = const Size(400, 200) * ratio;
+    addTearDown(tester.view.reset);
+    final GlobalKey page = GlobalKey();
+    final GlobalKey<NavigatorState> navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      _page(
+        page,
+        ratio,
+        Navigator(
+          key: navigator,
+          onGenerateRoute: (RouteSettings settings) => PageRouteBuilder<void>(
+            pageBuilder: (_, _, _) =>
+                const Align(alignment: Alignment.topLeft, child: _bars),
+          ),
+        ),
+      ),
+    );
+    // Encoded now, so that the next one paints in its first frame.
+    await _settle(tester);
+    unawaited(
+      navigator.currentState!.push(
+        PageRouteBuilder<void>(
+          pageBuilder: (_, _, _) => const ColoredBox(
+            color: Color(0xFFFFFFFF),
+            child: Align(alignment: Alignment.topLeft, child: _bars),
+          ),
+          transitionsBuilder: (_, Animation<double> a, _, Widget child) =>
+              SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.5013, 0.3017),
+                  end: Offset.zero,
+                ).animate(a),
+                child: child,
+              ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(await _greyPixels(tester, page, ratio), 0);
+  });
+
+  testWidgets('a new logo does not assert before its symbol arrives', (
+    WidgetTester tester,
+  ) async {
+    final Uint8List png = (await tester.runAsync(_logoPng))!;
+    await tester.pumpWidget(_host(const BarcodeView('logo later', width: 200)));
+    await _settle(tester);
+    await tester.pumpWidget(
+      _host(
+        BarcodeView(
+          'logo later',
+          width: 200,
+          style: BarcodeStyle(logo: BarcodeLogo(MemoryImage(png), size: 0.25)),
+        ),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 200)),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('holds a square space while the first symbol is encoded', (
