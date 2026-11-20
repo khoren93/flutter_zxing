@@ -1,5 +1,8 @@
 // What the parsers accept and the builders write, held to the specification
 // of each format. Every case that a parser accepts must build again.
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
@@ -197,6 +200,52 @@ void main() {
         ).validate(),
         isEmpty,
       );
+    });
+  });
+
+  group('charsets the data names', () {
+    Barcode barcode(String text, List<int> bytes) => Barcode(
+      format: BarcodeFormat.qrCode,
+      text: text,
+      bytes: Uint8List.fromList(bytes),
+      position: const BarcodePosition(
+        topLeft: Offset.zero,
+        topRight: Offset.zero,
+        bottomRight: Offset.zero,
+        bottomLeft: Offset.zero,
+      ),
+    );
+
+    test('EPC line 3: 1 is UTF-8 (EPC069-12)', () {
+      const String text =
+          'BCD\n002\n1\nSCT\n\nZoë Müller\nDE89370400440532013000\nEUR1';
+      final List<int> bytes = utf8.encode(text);
+      // A reader without an ECI that guessed Latin-1.
+      final EpcPaymentContent epc =
+          barcode(latin1.decode(bytes), bytes).content as EpcPaymentContent;
+      expect(epc.name, 'Zoë Müller');
+    });
+
+    test('EPC line 3: 2 is ISO 8859-1 (EPC069-12)', () {
+      const String text =
+          'BCD\n002\n2\nSCT\n\nZoë Müller\nDE89370400440532013000\nEUR1';
+      final List<int> bytes = latin1.encode(text);
+      // A reader that guessed UTF-8 and replaced the bytes it could not read.
+      final EpcPaymentContent epc =
+          barcode(utf8.decode(bytes, allowMalformed: true), bytes).content
+              as EpcPaymentContent;
+      expect(epc.name, 'Zoë Müller');
+    });
+
+    test('vCard 2.1 quoted-printable in CHARSET=WINDOWS-1251 (2.1.5)', () {
+      final ContactContent c =
+          BarcodeContent.parseText(
+                'BEGIN:VCARD\nVERSION:2.1\n'
+                'N;CHARSET=WINDOWS-1251;ENCODING=QUOTED-PRINTABLE:=C8=E2=E0=ED\n'
+                'END:VCARD',
+              )
+              as ContactContent;
+      expect(c.name, 'Иван');
     });
   });
 }

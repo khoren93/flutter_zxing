@@ -69,6 +69,13 @@ BarcodeContent parseBarcodeContent(Barcode barcode) {
           return payment;
         }
       }
+      // EPC codes name their charset on line 3; without an ECI a reader
+      // may have guessed another one.
+      if (decodeEpcBytes(barcode.bytes) case final String epc) {
+        if (parseEpc(epc) case final EpcPaymentContent payment) {
+          return payment;
+        }
+      }
       final BarcodeContent content =
           parseProduct(barcode) ?? parseTextContent(barcode.text);
       // VINs are printed in Code 39, often without a valid check digit
@@ -1022,6 +1029,22 @@ bool _isQuotedPrintable(String line) {
 final RegExp _qpByte = RegExp(r'^[0-9A-Fa-f]{2}$');
 
 String _decodeQuotedPrintable(String value, String charset) {
+  // vCard 2.1 2.1.5: CHARSET names the charset of the decoded bytes.
+  if (decodeCyrillic(const <int>[], charset) != null) {
+    final StringBuffer out = StringBuffer();
+    for (int i = 0; i < value.length; i++) {
+      if (value[i] == '=' && i + 2 < value.length) {
+        final String hex = value.substring(i + 1, i + 3);
+        if (_qpByte.hasMatch(hex)) {
+          out.write(decodeCyrillic(<int>[int.parse(hex, radix: 16)], charset));
+          i += 2;
+          continue;
+        }
+      }
+      out.write(value[i]);
+    }
+    return out.toString();
+  }
   final bool latin = switch (charset) {
     'ISO-8859-1' || 'LATIN1' || 'WINDOWS-1252' => true,
     _ => false,

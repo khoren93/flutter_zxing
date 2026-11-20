@@ -534,9 +534,10 @@ String? decodeGostBytes(List<int> bytes) {
     0x33 => _koi8r,
     _ => null,
   };
-  if (table == null) {
-    return null;
-  }
+  return table == null ? null : _decodeTable(bytes, table);
+}
+
+String _decodeTable(List<int> bytes, String table) {
   final StringBuffer out = StringBuffer();
   for (final int b in bytes) {
     if (b < 0x80) {
@@ -546,6 +547,45 @@ String? decodeGostBytes(List<int> bytes) {
     }
   }
   return out.toString();
+}
+
+/// [bytes] in the Cyrillic [charset] (`WINDOWS-1251`, `CP1251`, `KOI8-R`,
+/// upper case), or `null` for another charset.
+String? decodeCyrillic(List<int> bytes, String charset) => switch (charset) {
+  'WINDOWS-1251' || 'CP1251' => _decodeTable(bytes, _cp1251),
+  'KOI8-R' => _decodeTable(bytes, _koi8r),
+  _ => null,
+};
+
+/// An EPC code's text from its [bytes] in the character set its third
+/// line names (EPC069-12: 1 UTF-8, 2 ISO 8859-1), which a reader without
+/// an ECI may have guessed wrong; `null` if the bytes are no EPC code or
+/// name another set (3 to 8, ISO 8859-2 and others, are left to the
+/// reader).
+String? decodeEpcBytes(List<int> bytes) {
+  if (bytes.length < 8 ||
+      latin1.decode(bytes.sublist(0, 3), allowInvalid: true) != 'BCD') {
+    return null;
+  }
+  final List<String> head = latin1
+      .decode(bytes.take(16).toList(), allowInvalid: true)
+      .replaceAll('\r\n', '\n')
+      .replaceAll('\r', '\n')
+      .split('\n');
+  if (head.length < 4) {
+    return null;
+  }
+  switch (head[2].trim()) {
+    case '1':
+      try {
+        return utf8.decode(bytes);
+      } on FormatException {
+        return null;
+      }
+    case '2':
+      return latin1.decode(bytes);
+  }
+  return null;
 }
 
 // The upper halves of Windows-1251 and KOI8-R; `?` for bytes no payment
