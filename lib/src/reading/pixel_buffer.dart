@@ -40,7 +40,8 @@ final class PixelBuffer {
   final int? rowStride;
 
   /// Only search this region, in pixels. Positions in the result are still
-  /// relative to the whole buffer.
+  /// relative to the whole buffer. The part outside the image is left out:
+  /// a region outside the image, or an empty one, finds nothing.
   final Rect? crop;
 }
 

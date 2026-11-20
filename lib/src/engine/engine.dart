@@ -5,6 +5,9 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart' show Rect;
+
+import '../barcode/barcode.dart';
 
 import '../errors.dart';
 import '../reading/pixel_buffer.dart';
@@ -156,13 +159,37 @@ final class BarcodeEngine {
   }
 
   /// See [EngineBackend.readPixels]. Throws [ArgumentError] if the buffer
-  /// is smaller than its geometry says.
+  /// is smaller than its geometry says. A crop is cut to the image; one
+  /// outside it, or empty, finds nothing.
   Future<EngineReadResult> readPixels(
     PixelBuffer image,
     EngineReadOptions options, {
     bool mirrored = false,
   }) async {
     checkPixelBuffer(image);
+    final Rect? crop = image.crop;
+    if (crop != null) {
+      final Rect inside = crop.intersect(
+        Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+      );
+      if (inside.width <= 0 || inside.height <= 0) {
+        return EngineReadResult(
+          barcodes: const <Barcode>[],
+          imageWidth: image.width,
+          imageHeight: image.height,
+        );
+      }
+      if (inside != crop) {
+        image = PixelBuffer(
+          image.bytes,
+          width: image.width,
+          height: image.height,
+          layout: image.layout,
+          rowStride: image.rowStride,
+          crop: inside,
+        );
+      }
+    }
     return (await backend)
         .readPixels(image, options, mirrored: mirrored)
         .then((EngineReadResult r) => r.asPrinted(options));

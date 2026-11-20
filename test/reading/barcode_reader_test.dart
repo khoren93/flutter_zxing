@@ -221,6 +221,33 @@ void main() {
       expect(await reader.readAllPixels(empty), isEmpty);
     });
 
+    test('a crop is cut to the image, not moved into it', () async {
+      PixelBuffer cropped(Rect crop) => PixelBuffer(
+        image.bytes,
+        width: image.width,
+        height: image.height,
+        crop: crop,
+      );
+      final double w = image.width.toDouble(), h = image.height.toDouble();
+      // Left of the image: nothing there, not the image's left part.
+      expect(
+        await reader.readPixels(cropped(Rect.fromLTWH(-w, 0, w, h))),
+        isNull,
+      );
+      // Empty: nothing, not the whole image.
+      expect(
+        await reader.readAllPixels(cropped(const Rect.fromLTWH(10, 10, 0, 0))),
+        isEmpty,
+      );
+      // Larger than the image: all of it.
+      expect(
+        (await reader.readPixels(
+          cropped(Rect.fromLTWH(-10, -10, w + 20, h + 20)),
+        ))?.text,
+        'pixels',
+      );
+    });
+
     test('readAllPixels finds it too', () async {
       expect(await reader.readAllPixels(image), hasLength(1));
     });
