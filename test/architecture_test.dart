@@ -80,9 +80,10 @@ List<String> _uris(File file) {
   return uris;
 }
 
-/// The layer of a path relative to `lib/src/`, or `null` outside it.
+/// The layer of a path relative to `lib/src/`, or `null` outside it. The
+/// path may use `\` (Windows) or `/`.
 String? _layer(String relative) {
-  final String first = relative.split('/').first;
+  final String first = relative.split(RegExp(r'[/\\]')).first;
   return _layerOf[first];
 }
 
@@ -108,6 +109,11 @@ void main() {
       .map((File f) => f.absolute)
       .toList();
   final String src = Directory('lib/src').absolute.uri.toFilePath();
+
+  test('a path with Windows separators finds its layer', () {
+    expect(_layer(r'engine\engine.dart'), isNotNull);
+    expect(_layer(r'engine\engine.dart'), _layer('engine/engine.dart'));
+  });
 
   test('every file in lib/src belongs to a layer', () {
     final List<String> orphans = <String>[
