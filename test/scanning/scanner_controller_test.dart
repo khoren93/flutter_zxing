@@ -648,6 +648,25 @@ void main() {
       expect(samples.single.failed, 1);
       expect(samples.single.found, isTrue);
     });
+
+    test('frames sent during a pause are not counted as dropped', () async {
+      final ScannerController c = create();
+      final List<ScannerFrameSample> samples = <ScannerFrameSample>[];
+      c.frameSamples.listen(samples.add);
+      await c.start();
+      camera.push().dropped = 2;
+      await pumpEventQueue();
+      await c.pause();
+      camera.push(); // taken while paused, and not decoded
+      await pumpEventQueue();
+      await c.resume();
+      camera.push().dropped = 30;
+      await pumpEventQueue();
+      expect(
+        <int>[for (final ScannerFrameSample s in samples) s.dropped],
+        <int>[2, 0],
+      );
+    });
   });
 
   group('initial zoom and torch', () {

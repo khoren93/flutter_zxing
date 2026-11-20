@@ -226,7 +226,8 @@ abstract class CameraFrame {
   int get arrivalMicros;
 
   /// Frames the camera delivered since the previous frame handed out, that
-  /// were replaced before they could be decoded (0 where unknown).
+  /// were replaced before they could be decoded (0 where unknown); counted
+  /// anew for each camera opened.
   int get dropped;
 
   /// Decodes [crop] of the frame (pixels of the delivered frame, `null` for

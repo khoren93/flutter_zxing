@@ -167,6 +167,9 @@ final class NativeCameraSource implements CameraSource {
       if (_ios) {
         await camera.lockCaptureOrientation(_ui);
       }
+      // A new camera counts its frames anew.
+      _received = 0;
+      _taken = 0;
       await camera.startImageStream(_onImage);
     } on CameraException catch (e) {
       await camera.dispose();

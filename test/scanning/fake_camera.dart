@@ -54,7 +54,7 @@ final class FakeFrame extends CameraFrame {
   final int arrivalMicros = cameraClock.elapsedMicroseconds;
 
   @override
-  int get dropped => 0;
+  int dropped = 0;
 
   /// The frame's pixels, for cut-outs; none by default.
   @override

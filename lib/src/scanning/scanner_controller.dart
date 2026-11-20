@@ -934,8 +934,12 @@ class ScannerController extends ValueNotifier<ScannerState> {
   // --- decoding ------------------------------------------------------------
 
   Future<void> _loop(int session, CameraSource source) async {
+    // Whether the decoder waited since the last frame it decoded: the
+    // frames the camera sent meanwhile are not frames it missed.
+    bool waited = false;
     while (session == _session && !_disposed) {
       if (value.status == ScannerStatus.paused) {
+        waited = true;
         await (_resumed ??= Completer<void>()).future;
         continue;
       }
@@ -1009,7 +1013,14 @@ class ScannerController extends ValueNotifier<ScannerState> {
         continue; // paused while it was decoded: nothing more is reported
       }
       _lastFrame = (frame, crop);
-      _onFrame(frame, result, crop, clock.elapsedMicroseconds);
+      _onFrame(
+        frame,
+        result,
+        crop,
+        clock.elapsedMicroseconds,
+        dropped: waited ? 0 : frame.dropped,
+      );
+      waited = false;
       _autoZoomStep(source);
       final Duration? interval = _debugReadInterval;
       if (interval != null && clock.elapsed < interval) {
@@ -1095,8 +1106,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
     CameraFrame camera,
     EngineReadResult result,
     Rect? crop,
-    int micros,
-  ) {
+    int micros, {
+    required int dropped,
+  }) {
     final FrameTransform frame = camera.transform;
     final Size display = frame.displaySize;
     final List<Barcode> found = <Barcode>[
@@ -1114,7 +1126,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
           engineMicros: result.engineMicros,
           roundTripMicros: micros,
           latencyMicros: cameraClock.elapsedMicroseconds - camera.arrivalMicros,
-          dropped: camera.dropped,
+          dropped: dropped,
           frameSize: frame.frameSize,
           crop: crop,
           failed: result.barcodes.length - found.length,
@@ -1446,7 +1458,10 @@ final class ScannerFrameSample {
   /// latency of the prototype's benchmark).
   final int latencyMicros;
 
-  /// Frames the camera delivered before this one that were not decoded.
+  /// Frames the camera delivered while the frame before this one was
+  /// decoded, replaced by newer ones before they could be: the frames the
+  /// decoder could not keep up with. Frames sent while the scanner was
+  /// paused, or by the camera before it opened again, are not counted.
   final int dropped;
 
   /// Size of the frame as delivered.
