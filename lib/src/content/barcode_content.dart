@@ -628,7 +628,9 @@ final class ContactContent extends BarcodeContent {
   /// E-mail addresses.
   final List<String> emails;
 
-  /// Web addresses. One without a scheme gets `https://`.
+  /// Web addresses, `http` and `https` only: a code's addresses with other
+  /// schemes (`javascript:`, `file:`, `intent:`) are left out, and
+  /// [validate] reports them. One without a scheme gets `https://`.
   final List<Uri> urls;
 
   /// Postal addresses, one string each, components separated by commas.

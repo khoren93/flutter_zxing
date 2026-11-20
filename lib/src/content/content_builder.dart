@@ -36,13 +36,34 @@ List<ContentIssue> validateBinary(BinaryContent c) => <ContentIssue>[
 
 // --- Web addresses ---------------------------------------------------------------
 
-/// [url] with `https://` if it has no scheme (`example.com/a`).
-Uri _withScheme(Uri url) => url.hasScheme ? url : Uri.parse('https://$url');
+/// [url] with `https://` if it has no scheme (`example.com/a`); `null` if
+/// it is no address even then (`a@b@c.com`).
+Uri? _withScheme(Uri url) =>
+    url.hasScheme ? url : Uri.tryParse('https://$url');
+
+/// Why [url] is no web address, or `null` if it is one.
+ContentIssue? _webUrlIssue(String field, Uri url) {
+  final Uri? u = _withScheme(url);
+  if (u == null) {
+    return ContentIssue(field, 'Not a web address: $url');
+  }
+  if (u.scheme != 'http' && u.scheme != 'https') {
+    return ContentIssue(
+      field,
+      'Only http and https addresses are web links',
+      kind: ContentIssueKind.unsupported,
+    );
+  }
+  if (u.host.isEmpty) {
+    return ContentIssue(field, 'Address has no host');
+  }
+  return null;
+}
 
 /// [UrlContent.toPayload].
 String buildUrl(UrlContent c) {
   _check(validateUrl(c));
-  final String url = _withScheme(c.url).toString();
+  final String url = _withScheme(c.url)!.toString();
   final String? title = _orNull(c.title);
   if (title == null) {
     return url;
@@ -52,19 +73,9 @@ String buildUrl(UrlContent c) {
 }
 
 /// [UrlContent.validate].
-List<ContentIssue> validateUrl(UrlContent c) {
-  final Uri url = _withScheme(c.url);
-  return <ContentIssue>[
-    if (url.scheme != 'http' && url.scheme != 'https')
-      const ContentIssue(
-        'url',
-        'Only http and https addresses are web links',
-        kind: ContentIssueKind.unsupported,
-      )
-    else if (url.host.isEmpty)
-      const ContentIssue('url', 'Address has no host'),
-  ];
-}
+List<ContentIssue> validateUrl(UrlContent c) => <ContentIssue>[
+  ?_webUrlIssue('url', c.url),
+];
 
 // --- Wi-Fi -----------------------------------------------------------------------
 
@@ -324,6 +335,7 @@ List<ContentIssue> validateContact(ContactContent c) {
     for (final String e in _notEmpty(c.emails))
       if (!_emailAddress.hasMatch(e))
         ContentIssue('emails', 'Not an e-mail address: $e'),
+    for (final Uri url in c.urls) ?_webUrlIssue('urls', url),
     if (c.birthDate case final DateTime b when b.year < 1 || b.year > 9999)
       const ContentIssue(
         'birthDate',
@@ -364,7 +376,7 @@ String _vCard(ContactContent c) {
       'TITLE:${text(title)}',
     for (final String phone in _notEmpty(c.phones)) 'TEL:${text(phone)}',
     for (final String email in _notEmpty(c.emails)) 'EMAIL:${text(email)}',
-    for (final Uri url in c.urls) 'URL:${_withScheme(url)}',
+    for (final Uri url in c.urls) 'URL:${_withScheme(url)!}',
     for (final String address in _notEmpty(c.addresses))
       'ADR:;;${text(address)};;;;',
     if (_orNull(c.note?.trim()) case final String note) 'NOTE:${text(note)}',
@@ -399,7 +411,7 @@ String _meCard(ContactContent c) {
   }
   for (final Uri url in c.urls) {
     // Readers split a field at its first colon only: the URL keeps its own.
-    out.write('URL:${_escape(_withScheme(url).toString(), r'\;')};');
+    out.write('URL:${_escape(_withScheme(url)!.toString(), r'\;')};');
   }
   for (final String address in _notEmpty(c.addresses)) {
     out.write(field('ADR', address));

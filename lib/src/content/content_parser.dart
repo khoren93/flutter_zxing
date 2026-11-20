@@ -174,8 +174,8 @@ UrlContent? _webAddress(String t) {
   return null;
 }
 
-/// A field known to hold an address (vCard URL, MEBKM): any scheme, and a
-/// bare domain gets `https://`.
+/// A field known to hold an address: any scheme, and a bare domain gets
+/// `https://`.
 Uri? _fieldUrl(String value) {
   final String v = value.trim();
   if (v.isEmpty || v.contains(_whitespace)) {
@@ -188,10 +188,14 @@ Uri? _fieldUrl(String value) {
   return url != null && url.host.contains('.') ? url : null;
 }
 
-/// [_fieldUrl] of a bookmark, which is a web address and nothing else.
-Uri? _bookmarkUrl(String value) {
+/// [_fieldUrl] of a bookmark or a contact, which is a web address and
+/// nothing else: `javascript:`, `file:` or `intent:` from a stranger's code
+/// is not passed on as one.
+Uri? _webUrl(String value) {
   final Uri? url = _fieldUrl(value);
-  return url != null && (url.isScheme('http') || url.isScheme('https'))
+  return url != null &&
+          (url.isScheme('http') || url.isScheme('https')) &&
+          url.host.isNotEmpty
       ? url
       : null;
 }
@@ -207,7 +211,7 @@ UrlContent? _meBookmark(String body) {
       case 'TITLE':
         title = _orNull(_unescape(raw));
       case 'URL':
-        url = _bookmarkUrl(_unescape(raw));
+        url = _webUrl(_unescape(raw));
     }
   }
   return url == null ? null : UrlContent(url, title: title);
@@ -219,7 +223,7 @@ UrlContent? _urlTo(String body) {
   if (colon < 0) {
     return null;
   }
-  final Uri? url = _bookmarkUrl(body.substring(colon + 1));
+  final Uri? url = _webUrl(body.substring(colon + 1));
   return url == null
       ? null
       : UrlContent(url, title: _orNull(body.substring(0, colon).trim()));
@@ -318,7 +322,7 @@ ContactContent? _meCard(String body) {
       case 'EMAIL':
         _addNotEmpty(emails, _unescape(raw));
       case 'URL':
-        final Uri? url = _fieldUrl(_unescape(raw));
+        final Uri? url = _webUrl(_unescape(raw));
         if (url != null) {
           urls.add(url);
         }
@@ -385,7 +389,7 @@ ContactContent? _vCard(String text) {
       case 'EMAIL':
         _addNotEmpty(emails, _stripScheme(line.text, 'mailto:'));
       case 'URL':
-        final Uri? url = _fieldUrl(line.text);
+        final Uri? url = _webUrl(line.text);
         if (url != null) {
           urls.add(url);
         }
