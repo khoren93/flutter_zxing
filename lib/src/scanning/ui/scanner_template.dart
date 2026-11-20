@@ -944,7 +944,9 @@ final class ScannerTemplate {
   /// Accepts, flags or refuses each code before anything else happens.
   /// With [ScannerMode.single] and [ScannerMode.pick], a refused code
   /// flashes the window in [ScannerTheme.dangerColor] with the verdict's
-  /// text, and scanning goes on; with [ScannerMode.collect], a refused code
+  /// text, and scanning goes on; a flagged one is taken like an accepted
+  /// one, after a flash in [ScannerTheme.warningColor] with the verdict's
+  /// text; with [ScannerMode.collect], a refused code
   /// stays out of the list and a flagged one goes in, each with the
   /// verdict's text; with [ScannerMode.continuous], every verdict shows for
   /// [resumeAfter]. `null` accepts every code.

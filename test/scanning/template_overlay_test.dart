@@ -2,7 +2,7 @@
 // close the screen or wait for the app.
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
@@ -157,6 +157,40 @@ void main() {
     // The new sheet comes in while the one before leaves.
     expect(find.byType(ScannerSheet), findsNWidgets(2));
     await t.pump(const Duration(seconds: 3));
+    await close(t);
+  });
+
+  testWidgets('a flagged code shows its verdict and is taken', (
+    WidgetTester t,
+  ) async {
+    final List<String> haptics = <String>[];
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (MethodCall call) async {
+        if (call.method == 'HapticFeedback.vibrate') {
+          haptics.add('${call.arguments}');
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await open(
+      t,
+      ScannerTemplate.minimal(
+        check: (_) =>
+            const ScanVerdict.warn(title: 'Ticket used', message: 'at 9:30'),
+      ),
+    );
+    await code(t);
+    await _settle(t, 6);
+    expect(find.text('Ticket used · at 9:30'), findsOneWidget);
+    expect(haptics, <String>['HapticFeedbackType.heavyImpact']);
+    expect(find.byType(BarcodeResultSheet), findsOneWidget);
     await close(t);
   });
 }

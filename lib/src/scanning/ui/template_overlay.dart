@@ -361,6 +361,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     if (_busy) {
       return;
     }
+    ScanVerdict? warning;
     if (_template.check != null) {
       final int run = _run;
       final ScanVerdict? verdict = await _judge(barcode);
@@ -386,11 +387,26 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       if (_settled || _result != null) {
         return;
       }
+      if (verdict.kind == ScanVerdictKind.warn) {
+        warning = verdict;
+      }
     }
     if (_template.mode == ScannerMode.pick) {
       _template.onPick?.call(barcode, capture);
     }
-    _feedback(ScanVerdictKind.accept);
+    if (warning != null) {
+      // Taken, with the verdict's text in the warning color.
+      _feedback(ScanVerdictKind.warn);
+      _flashFor(ScanVerdictKind.warn);
+      _showNotice(
+        <String>[
+          warning.title ?? ScannerStrings.of(context).needsAttention,
+          ?warning.message,
+        ].join(' · '),
+      );
+    } else {
+      _feedback(ScanVerdictKind.accept);
+    }
     final ScannerController controller = widget.layout.controller;
     unawaited(_takeIn(capture, barcode, ++_lock, from: from));
     if (_template.closeOnResult) {
