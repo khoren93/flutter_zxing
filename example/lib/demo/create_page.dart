@@ -433,12 +433,11 @@ class _CreatePageState extends State<CreatePage> {
           name: '$_fileName.png',
         ),
       };
-      HistoryStore.instance.addCreated(data, _format, _preset ?? 'custom');
       if (!mounted) {
         return;
       }
       final RenderBox? box = context.findRenderObject() as RenderBox?;
-      await SharePlus.instance.share(
+      final ShareResult shared = await SharePlus.instance.share(
         ShareParams(
           files: <XFile>[file],
           fileNameOverrides: <String>[name],
@@ -447,6 +446,16 @@ class _CreatePageState extends State<CreatePage> {
               : box.localToGlobal(Offset.zero) & box.size,
         ),
       );
+      if (shared.status != ShareResultStatus.dismissed) {
+        HistoryStore.instance.addCreated(
+          data,
+          writer.format,
+          _preset ?? 'custom',
+          errorCorrection: writer.errorCorrection,
+          gs1: writer.gs1,
+          showText: writer.showText,
+        );
+      }
     } on BarcodeWriteException catch (e) {
       _toast(e.message);
     } on UnsupportedError catch (e) {

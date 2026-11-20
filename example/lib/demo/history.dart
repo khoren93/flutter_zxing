@@ -23,6 +23,8 @@ final class HistoryItem {
     required this.time,
     this.source = 'camera',
     this.preset,
+    this.errorCorrection,
+    this.showText,
     this.cutOutPng,
   });
 
@@ -40,6 +42,18 @@ final class HistoryItem {
   /// The style preset of a created code.
   final String? preset;
 
+  /// The writer settings of a created code; GS1 is its content type.
+  final ErrorCorrection? errorCorrection;
+  final bool? showText;
+
+  /// The writer that draws a created code again as it was made.
+  BarcodeWriter get writer => BarcodeWriter(
+    barcode.format,
+    errorCorrection: errorCorrection,
+    gs1: barcode.contentType == BarcodeContentType.gs1,
+    showText: showText,
+  );
+
   /// The camera's cut-out of a scan whose picture cannot be drawn again.
   final Uint8List? cutOutPng;
 
@@ -47,6 +61,7 @@ final class HistoryItem {
 
   Map<String, Object?> toJson() {
     final BarcodeSymbol? symbol = barcode.symbol;
+    final BarcodeSequence? sequence = barcode.sequence;
     return <String, Object?>{
       'id': id,
       'format': barcode.format.name,
@@ -54,10 +69,23 @@ final class HistoryItem {
       'bytes': base64Encode(barcode.bytes),
       'contentType': barcode.contentType.name,
       'sid': barcode.symbologyIdentifier,
+      'rotation': barcode.rotation,
+      'mirrored': barcode.isMirrored,
+      'inverted': barcode.isInverted,
+      'ec': barcode.ecLevel,
+      'version': barcode.version,
+      if (sequence != null)
+        'sequence': <String, Object?>{
+          'i': sequence.index,
+          'n': sequence.size,
+          'id': sequence.id,
+        },
       'origin': origin.name,
       'time': time.millisecondsSinceEpoch,
       'source': source,
       'preset': preset,
+      'ecc': errorCorrection?.name,
+      'showText': showText,
       if (symbol != null)
         'symbol': <String, Object?>{
           'w': symbol.width,
@@ -78,6 +106,8 @@ final class HistoryItem {
     }
     final Map<String, Object?>? s = (json['symbol'] as Map<Object?, Object?>?)
         ?.cast<String, Object?>();
+    final Map<String, Object?>? sequence =
+        (json['sequence'] as Map<Object?, Object?>?)?.cast<String, Object?>();
     return HistoryItem(
       id: json['id']! as String,
       barcode: Barcode(
@@ -90,6 +120,18 @@ final class HistoryItem {
           orElse: () => BarcodeContentType.text,
         ),
         symbologyIdentifier: json['sid'] as String? ?? '',
+        rotation: json['rotation'] as int? ?? 0,
+        isMirrored: json['mirrored'] as bool? ?? false,
+        isInverted: json['inverted'] as bool? ?? false,
+        ecLevel: json['ec'] as String?,
+        version: json['version'] as String?,
+        sequence: sequence == null
+            ? null
+            : BarcodeSequence(
+                index: sequence['i']! as int,
+                size: sequence['n']! as int,
+                id: sequence['id'] as String? ?? '',
+              ),
         symbol: s == null
             ? null
             : BarcodeSymbol(
@@ -104,6 +146,10 @@ final class HistoryItem {
       time: DateTime.fromMillisecondsSinceEpoch(json['time']! as int),
       source: json['source'] as String? ?? 'camera',
       preset: json['preset'] as String?,
+      errorCorrection: ErrorCorrection.values
+          .where((ErrorCorrection e) => e.name == json['ecc'])
+          .firstOrNull,
+      showText: json['showText'] as bool?,
       cutOutPng: json['cut'] == null
           ? null
           : base64Decode(json['cut']! as String),
@@ -119,12 +165,14 @@ const BarcodePosition _noPosition = BarcodePosition(
 );
 
 /// A code created in the demo, as a [Barcode] for thumbnails and results.
-Barcode createdBarcode(String text, BarcodeFormat format) => Barcode(
-  format: format,
-  text: text,
-  bytes: Uint8List.fromList(utf8.encode(text)),
-  position: _noPosition,
-);
+Barcode createdBarcode(String text, BarcodeFormat format, {bool gs1 = false}) =>
+    Barcode(
+      format: format,
+      text: text,
+      bytes: Uint8List.fromList(utf8.encode(text)),
+      position: _noPosition,
+      contentType: gs1 ? BarcodeContentType.gs1 : BarcodeContentType.text,
+    );
 
 /// The history, newest first.
 final class HistoryStore extends ChangeNotifier {
@@ -200,15 +248,36 @@ final class HistoryStore extends ChangeNotifier {
     return item;
   }
 
-  /// Adds a created code.
-  HistoryItem addCreated(String text, BarcodeFormat format, String preset) {
+  /// Adds a created code with the writer settings it was made with. The
+  /// same code exported again (PNG, then SVG) is not added twice.
+  HistoryItem addCreated(
+    String text,
+    BarcodeFormat format,
+    String preset, {
+    ErrorCorrection? errorCorrection,
+    bool gs1 = false,
+    bool? showText,
+  }) {
+    final HistoryItem? last = _items.firstOrNull;
+    if (last != null &&
+        last.origin == HistoryOrigin.created &&
+        last.barcode.text == text &&
+        last.barcode.format == format &&
+        last.preset == preset &&
+        last.errorCorrection == errorCorrection &&
+        last.writer.gs1 == gs1 &&
+        last.showText == showText) {
+      return last;
+    }
     final DateTime now = DateTime.now();
     final HistoryItem item = HistoryItem(
       id: '${now.microsecondsSinceEpoch}',
-      barcode: createdBarcode(text, format),
+      barcode: createdBarcode(text, format, gs1: gs1),
       origin: HistoryOrigin.created,
       time: now,
       preset: preset,
+      errorCorrection: errorCorrection,
+      showText: showText,
     );
     _insert(item);
     return item;
@@ -271,7 +340,7 @@ class HistoryPicture extends StatelessWidget {
               padding: EdgeInsets.all(size * 0.06),
               child: BarcodeView(
                 item.barcode.text,
-                writer: BarcodeWriter(item.barcode.format),
+                writer: item.writer,
                 style: style.copyWith(quietZone: false),
                 semanticLabel: '',
               ),
