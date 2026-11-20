@@ -368,6 +368,11 @@ Future<void> openUri(BuildContext context, Uri uri) async {
   }
 }
 
+/// A Dart string literal of [s]: single quotes, with `\`, `'`, `$` and line
+/// breaks escaped.
+String dartString(String s) =>
+    "'${s.replaceAll(r'\', r'\\').replaceAll("'", r"\'").replaceAll(r'$', r'\$').replaceAll('\n', r'\n').replaceAll('\r', r'\r')}'";
+
 /// [style] for [data] in [format] as a BarcodeView in Dart, for "Copy as
 /// Dart". [content] is the Dart that builds the content, when the code
 /// was made from a form: the view then gets its `.toPayload()`.
@@ -383,10 +388,8 @@ String dartCode(
 }) {
   String hex(Color c) =>
       'Color(0x${c.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()})';
-  String quoted(String s) =>
-      "'${s.replaceAll(r'\', r'\\').replaceAll("'", r"\'").replaceAll('\n', r'\n')}'";
   final String first = content == null
-      ? quoted(data)
+      ? dartString(data)
       : '${content.split('\n').join('\n  ')}.toPayload()';
   final StringBuffer b = StringBuffer('BarcodeView(\n  $first,\n');
   final List<String> writer = <String>[
@@ -417,10 +420,8 @@ String dartCode(
         "BarcodeLogo(AssetImage('assets/logo.png'), "
             'size: ${logo.size.toStringAsFixed(2)})',
       ),
-    if (style.title case final BarcodeCaption t)
-      ('title', _captionDart(t, quoted)),
-    if (style.caption case final BarcodeCaption c)
-      ('caption', _captionDart(c, quoted)),
+    if (style.title case final BarcodeCaption t) ('title', _captionDart(t)),
+    if (style.caption case final BarcodeCaption c) ('caption', _captionDart(c)),
     if (style.card case final BarcodeCard card) ('card', _cardDart(card, hex)),
   ];
   if (identical(style, BarcodeStyle.swissQrBill)) {
@@ -500,9 +501,9 @@ String contentClassName(BarcodeContent content) => switch (content) {
 };
 
 /// `BarcodeCaption('…', size: …)`, with what differs from the defaults.
-String _captionDart(BarcodeCaption c, String Function(String) quoted) {
+String _captionDart(BarcodeCaption c) {
   final List<String> args = <String>[
-    quoted(c.text),
+    dartString(c.text),
     if (c.size != 0.09) 'size: ${c.size}',
     if (c.letterSpacing != 0) 'letterSpacing: ${c.letterSpacing}',
     if (c.style?.color case final Color color)

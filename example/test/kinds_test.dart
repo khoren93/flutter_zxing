@@ -2,6 +2,7 @@
 // prints as Dart.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing_example/demo/content.dart';
 import 'package:flutter_zxing_example/demo/kinds.dart';
 
 Map<String, String> _examples(List<KindField> fields) => <String, String>{
@@ -76,5 +77,13 @@ OtpContent(
   account: 'anna@example.com',
   secret: 'JBSWY3DPEHPK3PXP',
 )''');
+  });
+
+  test('Dart of a value with a dollar sign', () {
+    expect(dartString("AB\$12 'x'\\\r\n"), r"'AB\$12 \'x\'\\\r\n'");
+    expect(
+      dartCode(r'AB$12', BarcodeFormat.code128, BarcodeStyle.classic),
+      contains(r"'AB\$12'"),
+    );
   });
 }

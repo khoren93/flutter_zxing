@@ -8,6 +8,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
+import 'content.dart' show dartString;
+
 /// The groups of the kind picker.
 enum KindGroup {
   basics('Basics'),
@@ -619,17 +621,17 @@ enum CreateKind {
     return switch (this) {
       service => _call(
         'LinkService.${linkService.name}.link',
-        <Object>[_q(v('value'))],
+        <Object>[dartString(v('value'))],
         <String, Object?>{
           if (linkService == LinkService.whatsApp && v('message').isNotEmpty)
-            'message': _q(v('message')),
+            'message': dartString(v('message')),
         },
       ),
       pix => _call('EmvPaymentContent.pix', const <Object>[], <String, Object?>{
-        'key': _q(v('key')),
-        'name': _q(v('name')),
-        'city': _q(v('city')),
-        if (v('amount').isNotEmpty) 'amount': _q(v('amount')),
+        'key': dartString(v('key')),
+        'name': dartString(v('name')),
+        'city': dartString(v('city')),
+        if (v('amount').isNotEmpty) 'amount': dartString(v('amount')),
       }),
       _ => null,
     };
@@ -687,10 +689,12 @@ const KindField whatsAppMessage = KindField(
 
 /// [content] as the Dart that builds it.
 String contentDart(BarcodeContent content) => switch (content) {
-  TextContent(:final String text) => _call('TextContent', <Object>[_q(text)]),
+  TextContent(:final String text) => _call('TextContent', <Object>[
+    dartString(text),
+  ]),
   UrlContent(:final Uri url, :final String? title) => _call(
     'UrlContent',
-    <Object>['Uri.parse(${_q('$url')})'],
+    <Object>['Uri.parse(${dartString('$url')})'],
     <String, Object?>{'title': _qn(title)},
   ),
   WifiContent(
@@ -700,7 +704,7 @@ String contentDart(BarcodeContent content) => switch (content) {
     :final bool hidden,
   ) =>
     _call('WifiContent', const <Object>[], <String, Object?>{
-      'ssid': _q(ssid),
+      'ssid': dartString(ssid),
       'password': _qn(password),
       // Without `security:`, a network with a password is WPA, one
       // without is open.
@@ -715,21 +719,21 @@ String contentDart(BarcodeContent content) => switch (content) {
     _call('ContactContent', const <Object>[], <String, Object?>{
       'name': _qn(c.name),
       'organization': _qn(c.organization),
-      if (c.phones.isNotEmpty) 'phones': _list(c.phones.map(_q)),
-      if (c.emails.isNotEmpty) 'emails': _list(c.emails.map(_q)),
+      if (c.phones.isNotEmpty) 'phones': _list(c.phones.map(dartString)),
+      if (c.emails.isNotEmpty) 'emails': _list(c.emails.map(dartString)),
     }),
   EmailContent e => _call('EmailContent', const <Object>[], <String, Object?>{
-    'address': _q(e.address),
+    'address': dartString(e.address),
     'subject': _qn(e.subject),
     'body': _qn(e.body),
   }),
   PhoneContent(:final String number) => _call('PhoneContent', <Object>[
-    _q(number),
+    dartString(number),
   ]),
   SmsContent(:final String number, :final String? message) => _call(
     'SmsContent',
     const <Object>[],
-    <String, Object?>{'number': _q(number), 'message': _qn(message)},
+    <String, Object?>{'number': dartString(number), 'message': _qn(message)},
   ),
   GeoContent g => _call('GeoContent', const <Object>[], <String, Object?>{
     'latitude': '${g.latitude}',
@@ -737,27 +741,29 @@ String contentDart(BarcodeContent content) => switch (content) {
     'query': _qn(g.query),
   }),
   EventContent e => _call('EventContent', const <Object>[], <String, Object?>{
-    'summary': _q(e.summary),
+    'summary': dartString(e.summary),
     'start': _date(e.start),
     if (e.end case final DateTime end) 'end': _date(end),
     'location': _qn(e.location),
   }),
   OtpContent o => _call('OtpContent', const <Object>[], <String, Object?>{
     'issuer': _qn(o.issuer),
-    'account': _q(o.account),
+    'account': dartString(o.account),
     // As toPayload writes it: Base32 without spaces or padding.
-    'secret': _q(o.secret.replaceAll(RegExp(r'[\s=]'), '').toUpperCase()),
+    'secret': dartString(
+      o.secret.replaceAll(RegExp(r'[\s=]'), '').toUpperCase(),
+    ),
     if (o.digits != 6) 'digits': '${o.digits}',
     if (o.period != 30) 'period': '${o.period}',
   }),
   EsimContent e => _call('EsimContent', const <Object>[], <String, Object?>{
-    'smdpAddress': _q(e.smdpAddress),
+    'smdpAddress': dartString(e.smdpAddress),
     'matchingId': _qn(e.matchingId),
   }),
   EpcPaymentContent p =>
     _call('EpcPaymentContent', const <Object>[], <String, Object?>{
-      'name': _q(p.name),
-      'iban': _q(p.iban),
+      'name': dartString(p.name),
+      'iban': dartString(p.iban),
       'bic': _qn(p.bic),
       'amount': _qn(p.amount),
       'message': _qn(p.message),
@@ -766,52 +772,52 @@ String contentDart(BarcodeContent content) => switch (content) {
     'SwissQrBillContent',
     const <Object>[],
     <String, Object?>{
-      'iban': _q(p.iban),
+      'iban': dartString(p.iban),
       'creditor': _Code(
         _call('SwissAddress', const <Object>[], <String, Object?>{
-          'name': _q(p.creditor.name),
+          'name': dartString(p.creditor.name),
           'street': _qn(p.creditor.street),
           'buildingNumber': _qn(p.creditor.buildingNumber),
-          'postalCode': _q(p.creditor.postalCode),
-          'town': _q(p.creditor.town),
-          'country': _q(p.creditor.country),
+          'postalCode': dartString(p.creditor.postalCode),
+          'town': dartString(p.creditor.town),
+          'country': dartString(p.creditor.country),
         }),
       ),
       'amount': _qn(p.amount),
-      if (p.currency != 'CHF') 'currency': _q(p.currency),
+      if (p.currency != 'CHF') 'currency': dartString(p.currency),
       'creditorReference': _qn(p.creditorReference),
       'message': _qn(p.message),
     },
   ),
   GostPaymentContent p =>
     _call('GostPaymentContent', const <Object>[], <String, Object?>{
-      'name': _q(p.name),
-      'personalAccount': _q(p.personalAccount),
-      'bankName': _q(p.bankName),
-      'bic': _q(p.bic),
-      'correspondentAccount': _q(p.correspondentAccount),
+      'name': dartString(p.name),
+      'personalAccount': dartString(p.personalAccount),
+      'bankName': dartString(p.bankName),
+      'bic': dartString(p.bic),
+      'correspondentAccount': dartString(p.correspondentAccount),
       'amount': _qn(p.amount),
       'purpose': _qn(p.purpose),
       'payeeInn': _qn(p.payeeInn),
     }),
   UpiPaymentContent p =>
     _call('UpiPaymentContent', const <Object>[], <String, Object?>{
-      'address': _q(p.address),
+      'address': dartString(p.address),
       'name': _qn(p.name),
       'amount': _qn(p.amount),
       'note': _qn(p.note),
     }),
   SpaydPaymentContent p =>
     _call('SpaydPaymentContent', const <Object>[], <String, Object?>{
-      'iban': _q(p.iban),
+      'iban': dartString(p.iban),
       'amount': _qn(p.amount),
-      if (p.currency != 'CZK') 'currency': _q(p.currency),
+      if (p.currency != 'CZK') 'currency': dartString(p.currency),
       'recipientName': _qn(p.recipientName),
       'message': _qn(p.message),
     }),
   CryptoContent c => _call('CryptoContent', const <Object>[], <String, Object?>{
     'currency': 'CryptoCurrency.${c.currency.name}',
-    'address': _q(c.address),
+    'address': dartString(c.address),
     'amount': _qn(c.amount),
     'label': _qn(c.label),
   }),
@@ -821,17 +827,15 @@ String contentDart(BarcodeContent content) => switch (content) {
     _Code(
       elements.isEmpty
           ? '{}'
-          : '{\n${elements.entries.map((MapEntry<String, String> e) => '  ${_q(e.key)}: ${_q(e.value)},').join('\n')}\n}',
+          : '{\n${elements.entries.map((MapEntry<String, String> e) => '  ${dartString(e.key)}: ${dartString(e.value)},').join('\n')}\n}',
     ),
   ]),
-  _ => _call('BarcodeContent.parseText', <Object>[_q(content.toPayload())]),
+  _ => _call('BarcodeContent.parseText', <Object>[
+    dartString(content.toPayload()),
+  ]),
 };
 
-/// A Dart string literal of [s].
-String _q(String s) =>
-    "'${s.replaceAll(r'\', r'\\').replaceAll("'", r"\'").replaceAll(r'$', r'\$').replaceAll('\n', r'\n')}'";
-
-String? _qn(String? s) => s == null ? null : _q(s);
+String? _qn(String? s) => s == null ? null : dartString(s);
 
 String _list(Iterable<String> items) => '[${items.join(', ')}]';
 
