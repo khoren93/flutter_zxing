@@ -470,9 +470,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
     if (source == null || !value.status.hasCamera) {
       return;
     }
+    int session = _session;
     if (lens != _lens) {
-      final bool torch = value.torch == TorchState.on;
-      final int session = ++_session;
+      session = ++_session;
       _wakeUp();
       _clearResults();
       source.previewTransform.removeListener(_onPreviewChanged);
@@ -503,11 +503,12 @@ class ScannerController extends ValueNotifier<ScannerState> {
         return;
       }
       source.previewTransform.addListener(_onPreviewChanged);
-      if (torch) {
-        try {
-          await source.setTorch(true);
-        } on Object {
-          _set(value.copyWith(torch: TorchState.off));
+      // The torch as chosen now: setTorch may have been called meanwhile,
+      // and reached the camera that closed.
+      if (_torch && value.torch != TorchState.unavailable) {
+        await _setTorch(source, true);
+        if (session != _session || _disposed) {
+          return;
         }
       }
       _set(
@@ -521,7 +522,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
       math.max(1.0, _lensMaxZoom),
     );
     await source.setZoom(physical);
-    _set(value.copyWith(zoom: physical * lensZoom));
+    if (session == _session) {
+      _set(value.copyWith(zoom: physical * lensZoom));
+    }
   }
 
   void _set(ScannerState state) {
@@ -761,12 +764,18 @@ class ScannerController extends ValueNotifier<ScannerState> {
   }
 
   Future<void> _setTorch(CameraSource source, bool enabled) async {
+    final int session = _session;
+    TorchState state;
     try {
       await source.setTorch(enabled);
-      _set(value.copyWith(torch: enabled ? TorchState.on : TorchState.off));
+      state = enabled ? TorchState.on : TorchState.off;
     } on Object {
       // The camera says it has no torch after all.
-      _set(value.copyWith(torch: TorchState.unavailable));
+      state = TorchState.unavailable;
+    }
+    // A camera closed meanwhile has no torch to report.
+    if (session == _session) {
+      _set(value.copyWith(torch: state));
     }
   }
 
@@ -827,8 +836,11 @@ class ScannerController extends ValueNotifier<ScannerState> {
       ));
       return;
     }
+    final int session = _session;
     await source.setZoom(clamped);
-    _set(value.copyWith(zoom: clamped));
+    if (session == _session) {
+      _set(value.copyWith(zoom: clamped));
+    }
   }
 
   /// Focuses and meters exposure at [point], given as fractions of the

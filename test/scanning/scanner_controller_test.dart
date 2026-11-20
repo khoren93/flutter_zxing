@@ -535,6 +535,25 @@ void main() {
         expect(c.value.zoom, 2);
       });
 
+      test('the torch switched while a lens opens comes on there', () async {
+        camera.capabilities = const CameraCapabilities(
+          hasTorch: true,
+          maxZoom: 10,
+          ultraWide: 0.5,
+        );
+        final ScannerController c = create();
+        await c.start();
+        camera.closeGate = Completer<void>();
+        final Future<void> zoomed = c.setZoom(0.5);
+        await pumpEventQueue();
+        await c.setTorch(true);
+        camera.closeGate!.complete();
+        await zoomed;
+        expect(camera.lenses.last, CameraLens.ultraWide);
+        expect(camera.torch, isTrue);
+        expect(c.value.torch, TorchState.on);
+      });
+
       test('zooms sent while a lens opens: only the last one', () async {
         camera.capabilities = const CameraCapabilities(
           maxZoom: 10,
@@ -669,6 +688,18 @@ void main() {
       expect(c.value.zoom, 2);
       await c.setZoom(1.5);
       expect(c.value.autoZoom, AutoZoomState.off, reason: 'zoomed by hand');
+    });
+
+    test('a stop while the torch comes on leaves the closed state', () async {
+      final ScannerController c = make(torch: true);
+      camera.torchGate = Completer<void>();
+      final Future<void> started = c.start();
+      await pumpEventQueue();
+      await c.stop();
+      camera.torchGate!.complete();
+      await started;
+      expect(c.value.status, ScannerStatus.idle);
+      expect(c.value.torch, const ScannerState().torch);
     });
 
     test('the torch comes on at every start and keeps the choice', () async {
