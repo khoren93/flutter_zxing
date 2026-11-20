@@ -129,10 +129,19 @@ The web engine is tested in headless Chrome: see the `web` job in
 ## Updating zxing-cpp
 
 ```bash
-cd third_party/zxing-cpp && git fetch && git checkout <tag> && cd -
+cd third_party/zxing-cpp && git fetch --tags && git checkout <tag> && cd -
+git submodule update --init --recursive   # zxing-cpp's own zint submodule
 make sources      # regenerate the source lists in hook/build.dart and the GS1 table
-make fixtures     # regenerate the corpus, then run the tests
+make fixtures     # regenerate the corpus
+UPDATE_CORPUS=1 flutter test test/engine/corpus_test.dart   # record what it reads now
+flutter test      # then the whole suite
 ```
+
+Look through the change of `example/assets/fixtures/corpus_expected.json`
+before committing it: every difference is a code the new zxing-cpp reads
+differently. Update the version in `zxingCppVersion`
+(`lib/src/engine/barcode_engine.dart`, the engine tests compare it) and in
+the "Engine:" line of `README.md`.
 
 ## License
 

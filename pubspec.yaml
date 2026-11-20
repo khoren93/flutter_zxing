@@ -60,5 +60,4 @@ flutter:
 # git-ignored, and without it the released package does not work on the web --
 # then publishes.
 
-# Update zxing-cpp submodule
-# git submodule update --remote
+# Update zxing-cpp: see "Updating zxing-cpp" in CONTRIBUTING.md.
