@@ -384,12 +384,25 @@ final class _Summary {
         :final String? password,
         :final WifiSecurity security,
       ):
+        // An unknown kind of security is left out, not named.
+        final String? secured = switch (security) {
+          WifiSecurity.none || WifiSecurity.unknown => null,
+          WifiSecurity.wep => 'WEP',
+          WifiSecurity.wpa => 'WPA',
+          WifiSecurity.wpa3 => 'WPA3',
+          WifiSecurity.enterprise => strings.wifiEnterprise,
+        };
         final String detail = security == WifiSecurity.none
             ? strings.wifiOpen
-            : password == null
-            ? security.name.toUpperCase()
-            : '${security.name.toUpperCase()} · ${strings.wifiPassword}';
-        return _Summary(ssid, detail: detail, payload: text);
+            : <String>[
+                ?secured,
+                if (password != null) strings.wifiPassword,
+              ].join(' · ');
+        return _Summary(
+          ssid,
+          detail: detail.isEmpty ? null : detail,
+          payload: text,
+        );
       case ContactContent(
         :final String? name,
         :final String? organization,
@@ -415,8 +428,9 @@ final class _Summary {
         :final String? location,
       ):
         final String when = end == null
-            ? _dateTime(start)
-            : '${_dateTime(start)} – ${_sameDay(start, end) ? _time(end) : _dateTime(end)}';
+            ? _dateTime(start, strings)
+            : '${_dateTime(start, strings)} – '
+                  '${_sameDay(start, end) ? _time(end) : _dateTime(end, strings)}';
         return _Summary(
           summary,
           detail: location == null ? when : '$when · $location',
@@ -666,8 +680,8 @@ final class _Summary {
 
   static String _time(DateTime t) => '${_two(t.hour)}:${_two(t.minute)}';
 
-  static String _dateTime(DateTime t) {
-    final String date = '${t.year}-${_two(t.month)}-${_two(t.day)}';
+  static String _dateTime(DateTime t, ScannerStrings strings) {
+    final String date = strings.fullDate(t);
     return t.hour == 0 && t.minute == 0 ? date : '$date ${_time(t)}';
   }
 

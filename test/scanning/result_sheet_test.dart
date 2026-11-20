@@ -163,4 +163,44 @@ void main() {
       await expectLink(tester, facebook, 'l.facebook.com', payload: facebook);
     });
   });
+  group('texts come from ScannerStrings', () {
+    const ScannerStrings de = ScannerStrings(
+      wifiPassword: 'Passwort im Code',
+      wifiEnterprise: 'Unternehmen',
+      fullDate: _germanDate,
+    );
+
+    testWidgets('the security of a Wi‑Fi network', (WidgetTester tester) async {
+      await _show(
+        tester,
+        _barcode('WIFI:S:Corp;T:WPA2-EAP;P:secret12;;'),
+        strings: de,
+      );
+      expect(find.text('Unternehmen · Passwort im Code'), findsOneWidget);
+      expect(find.textContaining('ENTERPRISE'), findsNothing);
+      await _show(
+        tester,
+        _barcode('WIFI:S:Lab;T:XYZ;P:secret12;;'),
+        strings: de,
+      );
+      expect(find.text('Passwort im Code'), findsOneWidget);
+      expect(find.textContaining('UNKNOWN'), findsNothing);
+      await _show(tester, _barcode('WIFI:S:Lab;T:XYZ;;'), strings: de);
+      expect(find.textContaining('UNKNOWN'), findsNothing);
+    });
+
+    testWidgets('the date of an event', (WidgetTester tester) async {
+      await _show(
+        tester,
+        _barcode(
+          'BEGIN:VEVENT\nSUMMARY:Launch\nDTSTART:20261114T093000\n'
+          'DTEND:20261115T110000\nEND:VEVENT',
+        ),
+        strings: de,
+      );
+      expect(find.text('14.11.2026 09:30 – 15.11.2026 11:00'), findsOneWidget);
+    });
+  });
 }
+
+String _germanDate(DateTime d) => '${d.day}.${d.month}.${d.year}';

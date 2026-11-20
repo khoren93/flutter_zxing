@@ -61,6 +61,7 @@ final class ScannerStrings {
     this.wifi = 'Wi‑Fi network',
     this.wifiOpen = 'Open network',
     this.wifiPassword = 'password in the code',
+    this.wifiEnterprise = 'Enterprise',
     this.contact = 'Contact',
     this.event = 'Event',
     this.email = 'Email',
@@ -287,6 +288,9 @@ final class ScannerStrings {
 
   /// A Wi‑Fi network whose password is in the code.
   final String wifiPassword;
+
+  /// A Wi‑Fi network secured with WPA2/WPA3 Enterprise (EAP).
+  final String wifiEnterprise;
 
   /// The kind of a [ContactContent].
   final String contact;
@@ -669,6 +673,7 @@ final class ScannerStrings {
     String? wifi,
     String? wifiOpen,
     String? wifiPassword,
+    String? wifiEnterprise,
     String? contact,
     String? event,
     String? email,
@@ -818,6 +823,7 @@ final class ScannerStrings {
     wifi: wifi ?? this.wifi,
     wifiOpen: wifiOpen ?? this.wifiOpen,
     wifiPassword: wifiPassword ?? this.wifiPassword,
+    wifiEnterprise: wifiEnterprise ?? this.wifiEnterprise,
     contact: contact ?? this.contact,
     event: event ?? this.event,
     email: email ?? this.email,
@@ -1001,6 +1007,7 @@ final class ScannerStrings {
       other.wifi == wifi &&
       other.wifiOpen == wifiOpen &&
       other.wifiPassword == wifiPassword &&
+      other.wifiEnterprise == wifiEnterprise &&
       other.contact == contact &&
       other.event == event &&
       other.email == email &&
@@ -1152,6 +1159,7 @@ final class ScannerStrings {
     wifi,
     wifiOpen,
     wifiPassword,
+    wifiEnterprise,
     contact,
     event,
     email,

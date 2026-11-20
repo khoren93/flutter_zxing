@@ -2234,7 +2234,7 @@ void main() {
         ),
       );
       expect(find.text('Launch'), findsOneWidget);
-      expect(find.text('2026-11-14 09:30 – 11:00 · Zurich'), findsOneWidget);
+      expect(find.text('14 Nov 2026 09:30 – 11:00 · Zurich'), findsOneWidget);
     });
 
     testWidgets('e-mail, phone, SMS and a location', (
