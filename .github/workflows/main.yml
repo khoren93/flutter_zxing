@@ -35,7 +35,7 @@ jobs:
   lint:
     name: "Lint and Format Dart Code"
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       # Checkout the repository. With zxing-cpp: `flutter test` runs the
       # package's build hook even for tests that never call the engine.
@@ -71,10 +71,48 @@ jobs:
       # Unit and widget tests of the plugin itself. They mock the camera and
       # never call into FFI, so they need no native build and run in seconds.
       # The tests tagged `native` run the real engine; the `engine` job runs
-      # them on every desktop OS. example/ and zxscanner/ only hold
-      # placeholder test files, so they are deliberately not run here.
+      # them on every desktop OS. zxscanner/ only holds a placeholder test.
       - name: Run unit tests
         run: flutter test --exclude-tags native
+
+      # The demo's and the diagnostics page's widget tests, on a fake camera.
+      - name: Run the example's tests
+        run: cd example && flutter test
+
+      # The first failure stops the whole run: the other jobs would only burn
+      # CI minutes on a run that has already failed.
+      - name: Cancel the run
+        if: failure()
+        shell: bash
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # The package as pub.dev gets it: `pub publish --dry-run` validates it, and
+  # the example builds from the files it would upload, so a file .pubignore
+  # leaves out but the package or its example needs fails here.
+  package:
+    name: "Package"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: "stable"
+          cache: true
+
+      - name: Validate and pack the package
+        run: |
+          flutter pub get
+          cd tool && dart pub get --enforce-lockfile
+          dart run pack_package.dart ../build/package
+
+      - name: Build the example from the package
+        run: cd build/package/example && flutter pub get && flutter build bundle
 
       # The first failure stops the whole run: the other jobs would only burn
       # CI minutes on a run that has already failed.
