@@ -36,6 +36,9 @@ class DecodeParams {
   format; // Specify a set of BarcodeFormats that should be searched for, the default is all supported formats.
   int width; // The width of the image to scan, in pixels.
   int height; // The height of the image to scan, in pixels.
+  // The area of the image to scan, in pixels: for readBarcode, readBarcodes
+  // and camera frames. Since 4.0, image files and URLs (readBarcodeImage*,
+  // readBarcodesImage*) are read whole.
   int cropLeft; // The left of the area of the image to scan, in pixels.
   int cropTop; // The top of the area of the image to scan, in pixels.
   int
@@ -49,7 +52,7 @@ class DecodeParams {
   int
   maxNumberOfSymbols; // The maximum number of symbols (barcodes) to detect / look for in the image with ReadBarcodes
   int
-  maxSize; // Resize the image to a smaller size before scanning to improve performance. Default is 768.
+  maxSize; // Since 4.0 image files are read at full resolution: any value above 0 turns on tryDownscale for them, the size itself is not used. Default is 768.
   bool isMultiScan; // Whether to scan multiple barcodes
 
   /// Returns a copy of these params with the given fields replaced.
