@@ -145,17 +145,21 @@ class _ScanPageState extends State<ScanPage> {
   }
 
   /// The camera stays open while the template changes: its settings go to
-  /// the controller in place.
-  ScannerController _configure(ScannerController c) => c
-    ..formats = _template.formats
-    ..scanWindow = _template.scanWindow
-    ..detection = _template.detection
-    ..maxBarcodes = _template.maxBarcodes
-    ..initialZoom = _template.initialZoom;
+  /// the controller in place, and the camera turns to the template's side.
+  void _configure(ScannerController c) {
+    c
+      ..formats = _template.formats
+      ..scanWindow = _template.scanWindow
+      ..detection = _template.detection
+      ..maxBarcodes = _template.maxBarcodes
+      ..initialZoom = _template.initialZoom;
+    unawaited(c.switchCamera(_template.facing ?? CameraFacing.back));
+  }
 
   void _pick(DemoTemplate t) {
     setState(() {
       _checkedIn.clear();
+      _savedFromList.clear();
       _picked = t;
       _template = _build(t);
       _menu = false;
@@ -246,12 +250,21 @@ class _ScanPageState extends State<ScanPage> {
     if (!_checkedIn.add(barcode.text)) {
       return ScanVerdict.warn(title: title, message: 'Already checked in');
     }
+    // Only a ticket let in goes to the history.
+    unawaited(HistoryStore.instance.addScan(barcode));
     return ScanVerdict.accept(title: title, message: 'Welcome in');
   }
 
+  /// The codes of the list already saved: the list keeps them after Done,
+  /// and the next Done brings them again.
+  final Set<(BarcodeFormat, String)> _savedFromList =
+      <(BarcodeFormat, String)>{};
+
   void _saveAll(List<CollectedBarcode> items) {
     for (final CollectedBarcode b in items) {
-      unawaited(HistoryStore.instance.addScan(b.barcode, cutOut: b.cutOut));
+      if (_savedFromList.add((b.barcode.format, b.barcode.text))) {
+        unawaited(HistoryStore.instance.addScan(b.barcode, cutOut: b.cutOut));
+      }
     }
   }
 
@@ -288,9 +301,11 @@ class _ScanPageState extends State<ScanPage> {
       );
 
   Future<void> _onDetect(BarcodeCapture capture) async {
-    // Retail keeps its own list, onDone saves it; onPick saves a picked code.
+    // Retail keeps its own list, onDone saves it; onPick saves a picked code;
+    // a check saves the codes it lets in, onDetect sees the rejected ones too.
     if (_template.mode == ScannerMode.collect ||
-        _template.mode == ScannerMode.pick) {
+        _template.mode == ScannerMode.pick ||
+        _template.check != null) {
       return;
     }
     await _save(capture.barcode, capture);
