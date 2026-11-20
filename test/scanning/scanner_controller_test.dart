@@ -773,6 +773,21 @@ void main() {
       });
     });
 
+    test('let go of when the camera stops or switches', () async {
+      final ScannerController c = create();
+      PixelBuffer pixels() =>
+          PixelBuffer(Uint8List(640 * 480), width: 640, height: 480);
+      await c.start();
+      camera.push(const <Barcode>[], null, false, pixels());
+      await pumpEventQueue();
+      await c.switchCamera();
+      expect(await c.lastFrameImage(), isNull, reason: 'another camera');
+      camera.push(const <Barcode>[], null, false, pixels());
+      await pumpEventQueue();
+      await c.stop();
+      expect(await c.lastFrameImage(), isNull, reason: 'stopped');
+    });
+
     test('null where frames are not in memory', () async {
       final ScannerController c = create();
       await c.start();

@@ -622,6 +622,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
     _pauseWhenStarted = false;
     _wakeUp();
     _clearResults();
+    _lastFrame = null;
     final CameraSource? source = _source;
     source?.previewTransform.removeListener(_onPreviewChanged);
     _set(_closed);
@@ -720,9 +721,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
   /// ```
   ///
   /// Each call makes a new image, which the caller disposes. `null` before
-  /// the first decoded frame, and on the web, where frames are not kept in
-  /// memory. For one barcode, cut out and straightened, use
-  /// [BarcodeCapture.snapshot].
+  /// the first decoded frame, after [stop] and [switchCamera] until the
+  /// next one, and on the web, where frames are not kept in memory. For one
+  /// barcode, cut out and straightened, use [BarcodeCapture.snapshot].
   Future<ui.Image?> lastFrameImage() async {
     final CameraFrame? frame = _lastFrame?.$1;
     final FrameColors? colors = frame?.colors;
@@ -908,6 +909,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
     }
     _session++;
     _wakeUp();
+    _lastFrame = null;
     _lifecycle?.dispose();
     final CameraSource? source = _source;
     source?.previewTransform.removeListener(_onPreviewChanged);
@@ -1219,6 +1221,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
     }
     _session++;
     _clearResults();
+    _lastFrame = null;
     final CameraSource? source = _source;
     source?.previewTransform.removeListener(_onPreviewChanged);
     _set(_closed.copyWith(status: ScannerStatus.error, error: error));
