@@ -202,7 +202,7 @@ void main() {
         caption: BarcodeCaption('Scan to join & <play>', size: 0.04),
         card: BarcodeCard(radius: 0.1, elevation: 0.04),
       ).encodeSvg(qr, url);
-      expect(svg, contains('<filter id="shadow"'));
+      expect(svg, contains('<filter id="shadow-'));
       expect(svg, contains(' rx="'));
       expect(svg, contains('<g transform="translate('));
       expect(svg, contains("font-family=\"'Instrument Sans', sans-serif\""));

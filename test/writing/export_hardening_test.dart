@@ -114,6 +114,118 @@ void main() {
     });
   });
 
+  test('a PNG with a caption has no translucent last row', () async {
+    final BarcodeSymbol symbol = await const BarcodeWriter(
+      BarcodeFormat.qrCode,
+    ).encode('HELLO');
+    final Uint8List png = await const BarcodeStyle(
+      caption: BarcodeCaption('@x'),
+    ).toPng(symbol);
+    final ui.Codec codec = await ui.instantiateImageCodec(png);
+    final ui.Image image = (await codec.getNextFrame()).image;
+    codec.dispose();
+    final ByteData rgba = (await image.toByteData())!;
+    final int width = image.width;
+    final int height = image.height;
+    image.dispose();
+    final List<int> alpha = <int>[
+      for (int x = 0; x < width; x++)
+        rgba.getUint8(((height - 1) * width + x) * 4 + 3),
+    ];
+    expect(alpha.toSet(), <int>{255});
+  });
+
+  group('SVG of an EAN-13 with a gradient and no quiet zone', () {
+    const LinearGradient gradient = LinearGradient(
+      colors: <Color>[Color(0xFFFF0000), Color(0xFF0000FF)],
+    );
+    Future<String> svg() async {
+      final BarcodeSymbol symbol = await const BarcodeWriter(
+        BarcodeFormat.ean13,
+        showText: true,
+      ).encode('4006381333931');
+      return const BarcodeStyle(
+        gradient: gradient,
+        quietZone: false,
+      ).toSvg(symbol);
+    }
+
+    test('the gradient spans the bars', () async {
+      // The bars start 7 modules in, after the room for the first digit.
+      expect(await svg(), contains(RegExp(r'<linearGradient [^>]*x1="7" ')));
+    });
+
+    test('the digits take the first color of the gradient', () async {
+      final List<String> fills = <String>[
+        for (final RegExpMatch m in RegExp(
+          r'<text [^>]*fill="([^"]*)"',
+        ).allMatches(await svg()))
+          m.group(1)!,
+      ];
+      expect(fills, hasLength(13));
+      expect(fills.toSet(), <String>{'#f00'});
+    });
+  });
+
+  test('SVG text keeps runs of spaces', () async {
+    final BarcodeSymbol symbol = await const BarcodeWriter(
+      BarcodeFormat.code128,
+      showText: true,
+    ).encode('A  B');
+    final String svg = await const BarcodeStyle(
+      caption: BarcodeCaption('Wi-Fi   guest'),
+    ).toSvg(symbol);
+    final List<String> texts = <String>[
+      for (final RegExpMatch m in RegExp(r'<text [^>]*>').allMatches(svg))
+        m.group(0)!,
+    ];
+    expect(texts, hasLength(2));
+    for (final String t in texts) {
+      expect(t, contains('white-space:pre'));
+    }
+    expect(svg, contains('A  B'));
+    expect(svg, contains('Wi-Fi   guest'));
+  });
+
+  test('SVG ids differ between gradients and shadows', () async {
+    final BarcodeSymbol symbol = await const BarcodeWriter(
+      BarcodeFormat.qrCode,
+    ).encode('HELLO');
+    Future<Set<String>> ids(BarcodeStyle style) async {
+      final String svg = await style.toSvg(symbol);
+      final Set<String> defined = <String>{
+        for (final RegExpMatch m in RegExp(r' id="([^"]*)"').allMatches(svg))
+          m.group(1)!,
+      };
+      final Set<String> used = <String>{
+        for (final RegExpMatch m in RegExp(r'url\(#([^)]*)\)').allMatches(svg))
+          m.group(1)!,
+      };
+      expect(used, defined);
+      return defined;
+    }
+
+    final Set<String> a = await ids(
+      const BarcodeStyle(
+        gradient: LinearGradient(
+          colors: <Color>[Color(0xFFFF0000), Color(0xFF0000FF)],
+        ),
+        card: BarcodeCard(elevation: 0.04),
+      ),
+    );
+    final Set<String> b = await ids(
+      const BarcodeStyle(
+        gradient: LinearGradient(
+          colors: <Color>[Color(0xFF00FF00), Color(0xFF0000FF)],
+        ),
+        card: BarcodeCard(elevation: 0.08),
+      ),
+    );
+    expect(a, hasLength(2));
+    expect(b, hasLength(2));
+    expect(a.intersection(b), isEmpty);
+  });
+
   test('SVG numbers do not end in a dot', () async {
     final BarcodeSymbol symbol = await const BarcodeWriter(
       BarcodeFormat.qrCode,

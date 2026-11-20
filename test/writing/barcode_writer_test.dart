@@ -467,18 +467,21 @@ void main() {
           tileMode: TileMode.mirror,
         ),
       ).toSvg(qr);
+      final String id = RegExp(
+        r'<linearGradient id="(ink-[0-9a-f]{8})"',
+      ).firstMatch(linear)!.group(1)!;
       expect(
         linear,
         contains(
           <String>[
-            '<linearGradient id="ink" gradientUnits="userSpaceOnUse" ',
+            '<linearGradient id="$id" gradientUnits="userSpaceOnUse" ',
             'x1="1" y1="11.5" x2="22" y2="11.5" spreadMethod="reflect">',
             '<stop offset="0" stop-color="#0b3d91"/>',
             '<stop offset="1" stop-color="#00735d"/></linearGradient>',
           ].join(),
         ),
       );
-      expect(linear, contains('fill="url(#ink)"'));
+      expect(linear, contains('fill="url(#$id)"'));
       final String radial = await const BarcodeStyle(
         gradient: RadialGradient(
           colors: <Color>[Color(0xFF000000), Color(0xFF333333)],

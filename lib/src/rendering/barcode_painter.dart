@@ -194,7 +194,7 @@ final class BarcodePainter extends CustomPainter {
       text: TextSpan(
         text: run.text,
         style: textStyle.copyWith(
-          color: style.color,
+          color: textColorOf(style),
           fontSize: fontSize,
           height: 1,
         ),

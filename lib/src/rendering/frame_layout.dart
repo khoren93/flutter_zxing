@@ -9,6 +9,12 @@ import 'package:flutter/painting.dart';
 import '../writing/symbol_layout.dart';
 import 'barcode_style.dart';
 
+/// The color of text drawn with [style] (the digits under EAN/UPC, a title
+/// or caption without a color of its own): the first color of its
+/// gradient, else its color.
+Color textColorOf(BarcodeStyle style) =>
+    style.gradient?.colors.first ?? style.color;
+
 /// Line height of captions, as a multiple of the font size.
 const double captionLineHeight = 1.25;
 
@@ -143,7 +149,7 @@ final class FrameLayout {
     final double width = unit + 2 * side;
     final double textLeft = card == null ? 0 : pad;
     final double textWidth = width - 2 * textLeft;
-    final Color ink = style.gradient?.colors.first ?? style.color;
+    final Color ink = textColorOf(style);
 
     FrameText? title;
     double contentTop;

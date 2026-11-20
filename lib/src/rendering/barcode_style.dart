@@ -121,7 +121,9 @@ final class BarcodeStyle {
   /// Background color. Keep enough contrast with [color].
   final Color backgroundColor;
 
-  /// Paints the dark modules with a gradient instead of [color].
+  /// Paints the dark modules with a gradient instead of [color]. Text drawn
+  /// with the code (the digits under EAN/UPC, a [title] or [caption]
+  /// without a color of its own) takes its first color.
   ///
   /// SVG has no sweep gradient: a [SweepGradient] is drawn by `BarcodeView`
   /// and [toPng], while [toSvg] throws an [UnsupportedError] for it.
@@ -413,11 +415,13 @@ final class BarcodeLogo {
 ///
 /// Sizes are fractions of the code's width without its quiet zone, so a
 /// 1024-pixel export looks like the screen. The text keeps out of the quiet
-/// zone: a gap smaller than it grows to it.
+/// zone above and below the code: a gap smaller than it grows to it.
 @immutable
 final class BarcodeCaption {
   /// Creates a caption. [text] may hold line breaks; longer lines wrap to
-  /// the code's width, up to [maxLines].
+  /// the width of the code with its quiet zone (inside a [BarcodeCard], to
+  /// the card's width without its padding), up to [maxLines], and [align]
+  /// aligns to that width.
   const BarcodeCaption(
     this.text, {
     this.size = 0.09,
@@ -450,7 +454,7 @@ final class BarcodeCaption {
   /// closer.
   final double letterSpacing;
 
-  /// Alignment within the code's width.
+  /// Alignment within the width the text wraps to (see [BarcodeCaption.new]).
   final TextAlign align;
 
   /// Space between the text and the code, as a fraction of the code's

@@ -97,10 +97,10 @@ Future<Uint8List> styledPng(
     final double outset = outsetAt(m);
     final ui.PictureRecorder recorder = ui.PictureRecorder();
     final ui.Canvas canvas = ui.Canvas(recorder);
-    // The margin [size] leaves: the background, transparent around a card.
-    if (frame.card == null &&
-        style.backgroundColor.a > 0 &&
-        (cw != pixels.width || ch != pixels.height)) {
+    // The whole image, the margin [size] leaves included, and the last row
+    // the frame covers only in part: the background, transparent around a
+    // card.
+    if (frame.card == null && style.backgroundColor.a > 0) {
       canvas.drawColor(style.backgroundColor, ui.BlendMode.src);
     }
     canvas.translate(
@@ -190,7 +190,15 @@ Future<String> styledSvg(
 
   final String w = _n(frame.width + 2 * o);
   final String h = _n(frame.height + 2 * o);
-  final String fill = gradient == null ? _color(style.color) : 'url(#ink)';
+  // Ids named after their definition: SVGs inlined in one HTML page share
+  // one id space, and a fixed id would make them all use the first one's.
+  final String? gradientDef = gradient == null
+      ? null
+      : _gradient(gradient, shapes.symbolArea);
+  final String ink = 'ink-${_hash(gradientDef ?? '')}';
+  final String sigma = _n(Shadow.convertRadiusToSigma(frame.shadowBlur));
+  final String shadowId = 'shadow-${_hash(sigma)}';
+  final String fill = gradient == null ? _color(style.color) : 'url(#$ink)';
   final String opacity = gradient == null ? _opacity('fill', style.color) : '';
   final StringBuffer svg = StringBuffer()
     ..write('<svg xmlns="http://www.w3.org/2000/svg" ');
@@ -203,13 +211,12 @@ Future<String> styledSvg(
   final bool shadow = frame.shadowBlur > 0;
   if (gradient != null || shadow) {
     svg.write('<defs>');
-    if (gradient != null) {
-      svg.write(_gradient(gradient, shapes.symbolArea));
+    if (gradientDef != null) {
+      svg.write(gradientDef.replaceFirst('id="ink"', 'id="$ink"'));
     }
     if (shadow) {
-      final String sigma = _n(Shadow.convertRadiusToSigma(frame.shadowBlur));
       svg.write(
-        '<filter id="shadow" x="-50%" y="-50%" width="200%" height="200%"> '
+        '<filter id="$shadowId" x="-50%" y="-50%" width="200%" height="200%"> '
         '<feGaussianBlur stdDeviation="$sigma"/></filter>',
       );
     }
@@ -224,7 +231,7 @@ Future<String> styledSvg(
       svg.write(
         '<rect y="${_n(frame.shadowOffset)}" $size '
         'fill="${_color(FrameLayout.shadowColor)}"'
-        '${_opacity('fill', FrameLayout.shadowColor)} filter="url(#shadow)"/>',
+        '${_opacity('fill', FrameLayout.shadowColor)} filter="url(#$shadowId)"/>',
       );
     }
     if (cardColor.a > 0) {
@@ -278,14 +285,16 @@ Future<String> styledSvg(
       'xlink:href="data:image/png;base64,$logoPng"/>',
     );
   }
+  final Color digits = textColorOf(style);
   for (final TextRun t in layout.textRuns) {
     svg
       ..write('<text x="${_n(t.x)}" ')
       ..write('y="${_n(t.top + t.fontSize)}" ')
       ..write('font-family="monospace" ')
       ..write('font-size="${_n(t.fittedSize(layout.width))}" ')
-      ..write('text-anchor="middle" fill="${_color(style.color)}"')
-      ..write('${_opacity('fill', style.color)}>')
+      ..write('$_preserveSpaces ')
+      ..write('text-anchor="middle" fill="${_color(digits)}"')
+      ..write('${_opacity('fill', digits)}>')
       ..write(xmlEscape(t.text))
       ..write('</text>');
   }
@@ -298,6 +307,10 @@ Future<String> styledSvg(
   svg.write('</svg>');
   return svg.toString();
 }
+
+/// Keeps runs of spaces in `<text>`, as the screen and the PNG show them:
+/// SVG collapses them otherwise.
+const String _preserveSpaces = 'xml:space="preserve" style="white-space:pre"';
 
 /// [t] as `<text>` lines: SVG does not wrap, so each line as laid out.
 void _caption(StringBuffer svg, FrameText t) {
@@ -315,7 +328,8 @@ void _caption(StringBuffer svg, FrameText t) {
     'sans-serif',
   ].map((String f) => f.contains(' ') ? "'$f'" : f).join(', ');
   svg
-    ..write('<text font-family="${xmlEscape(family)}" ')
+    ..write('<text $_preserveSpaces ')
+    ..write('font-family="${xmlEscape(family)}" ')
     ..write('font-size="${_n(t.fontSize)}" ')
     ..write('font-weight="${(s.fontWeight ?? FontWeight.w700).value}" ');
   if (s.fontStyle == FontStyle.italic) {
@@ -385,6 +399,15 @@ final class _SvgSink implements ShapeSink {
 
   @override
   String toString() => _d.toString();
+}
+
+/// 32-bit FNV-1a of [s] in hex: the same on every platform and run.
+String _hash(String s) {
+  int h = 0x811c9dc5;
+  for (final int unit in s.codeUnits) {
+    h = ((h ^ unit) * 0x01000193) & 0xFFFFFFFF;
+  }
+  return h.toRadixString(16).padLeft(8, '0');
 }
 
 /// A number for SVG: whole numbers without a fraction, others to three

@@ -82,8 +82,10 @@ final class SymbolShapes {
   /// The symbol without its quiet zone, in module units: what a gradient
   /// spans.
   Rect get symbolArea => Rect.fromLTWH(
-    symbol.quietZone.toDouble(),
-    symbol.quietZone.toDouble(),
+    // Where the layout puts it: EAN/UPC without a quiet zone keep room for
+    // their digits outside.
+    layout.marginX.toDouble(),
+    layout.quietZone.toDouble(),
     symbol.width.toDouble(),
     symbol.height.toDouble(),
   );
