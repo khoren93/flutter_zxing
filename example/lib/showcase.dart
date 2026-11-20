@@ -1,9 +1,10 @@
-// The scanner templates, each with its theme, and the codes to try them
-// with. Run it with
+// Five scanner templates with their own result sheets, each in several
+// themes, and the codes to try them with (the demo in lib/main.dart has
+// every template). Run it with
 //   flutter run -t lib/showcase.dart
 // Show the test codes on a second screen (a tablet, a laptop, an emulator:
 // --dart-define=PAGE=codes opens them directly) and scan them with the
-// phone. The demo app of stage 8 replaces this launcher.
+// phone.
 import 'dart:ui' show FrameTiming;
 
 // material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
@@ -47,17 +48,31 @@ void main() {
           ? const TestCodesPage()
           : direct == null
           ? const ShowcasePage()
-          : Builder(
-              builder: (BuildContext context) => ColoredBox(
-                color: Colors.black,
-                child: BarcodeScanner(
-                  template: _templates(context)[direct]!.$3,
-                  theme: look.theme,
-                ),
-              ),
-            ),
+          : ShowcaseTemplate(direct, theme: look.theme),
     ),
   );
+}
+
+/// The template named [name] full screen; the list of templates when there
+/// is none by that name.
+class ShowcaseTemplate extends StatelessWidget {
+  /// Shows the template [name].
+  const ShowcaseTemplate(this.name, {super.key, this.theme});
+
+  final String name;
+  final ScannerTheme? theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final ScannerTemplate? template = _templates(context)[name]?.$3;
+    if (template == null) {
+      return const ShowcasePage();
+    }
+    return ColoredBox(
+      color: Colors.black,
+      child: BarcodeScanner(template: template, theme: theme),
+    );
+  }
 }
 
 /// Logs every 5 s how many frames took longer than 16 ms to build or to
