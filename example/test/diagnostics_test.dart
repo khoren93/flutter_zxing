@@ -14,6 +14,7 @@ import 'package:flutter_zxing/src/engine/engine_protocol.dart';
 // ignore: implementation_imports
 import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
     show ScannerControllerDebug;
+import 'package:flutter_zxing_example/diagnostics/cpu_usage.dart';
 import 'package:flutter_zxing_example/diagnostics/diag_metrics.dart';
 import 'package:flutter_zxing_example/diagnostics/diag_runs.dart';
 import 'package:flutter_zxing_example/diagnostics/diag_settings.dart';
@@ -79,6 +80,10 @@ void main() {
 
     test('nothing decoded yet', () {
       expect(DiagSnapshot.of(const <DiagSample>[]).reads, 0);
+    });
+
+    test('one CPU meter for every page', () {
+      expect(identical(CpuMeter(), CpuMeter()), isTrue);
     });
 
     test('the share of the device needs the number of cores', () {

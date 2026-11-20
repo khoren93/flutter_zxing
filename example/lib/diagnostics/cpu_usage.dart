@@ -9,8 +9,13 @@ typedef _GetRusage = Int32 Function(Int32 who, Pointer<Uint8> usage);
 typedef _GetRusageDart = int Function(int who, Pointer<Uint8> usage);
 
 /// Measures the app's CPU use between calls to [sample].
+///
+/// One meter for the app: its native buffers are never freed.
 final class CpuMeter {
-  CpuMeter() {
+  /// The app's meter.
+  factory CpuMeter() => _instance;
+
+  CpuMeter._() {
     try {
       final DynamicLibrary libc = DynamicLibrary.process();
       _getrusage = libc.lookupFunction<_GetRusage, _GetRusageDart>('getrusage');
@@ -27,6 +32,8 @@ final class CpuMeter {
       _threads = _MachThreads.load();
     }
   }
+
+  static final CpuMeter _instance = CpuMeter._();
 
   _MachThreads? _threads;
   Map<int, (String, int)> _lastThreads = <int, (String, int)>{};
