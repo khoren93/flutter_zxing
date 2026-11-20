@@ -53,7 +53,8 @@ class ScanFieldButton extends StatelessWidget {
   /// The field's controller, which gets the code.
   final TextEditingController controller;
 
-  /// The formats the scanner reads; `null` reads all.
+  /// The formats the scanner reads; `null` reads the [template]'s formats,
+  /// or all without one.
   final Set<BarcodeFormat>? formats;
 
   /// Accepts or refuses each code.
