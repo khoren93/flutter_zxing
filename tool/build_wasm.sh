@@ -13,9 +13,11 @@
 # the build is skipped when it matches, unless --force is given.
 #
 # Emscripten is pinned (tool/wasm_config.sh). The script uses `emcc` from
-# PATH if it is that version, otherwise the emsdk in $EMSDK, otherwise it
-# installs one (about 1 GB) into ~/.cache/flutter_zxing/emsdk, outside the
-# repository so that `flutter clean` does not remove it.
+# PATH if it is that version, otherwise the emsdk in $EMSDK if that version
+# is installed there, otherwise its own emsdk in ~/.cache/flutter_zxing/emsdk
+# (installed on first use, about 1 GB; outside the repository so that
+# `flutter clean` does not remove it). Another emsdk is never changed: the
+# version is put on PATH for this build only, not activated.
 #
 # usage: tool/build_wasm.sh [--force]
 set -euo pipefail
@@ -33,18 +35,29 @@ fi
 
 emcc_version() { emcc --version 2>/dev/null | head -1 | sed -E 's/.* ([0-9]+\.[0-9]+\.[0-9]+) .*/\1/'; }
 
+installed() { # <emsdk dir>
+  [ -x "$1/emsdk" ] && "$1/emsdk" list 2>/dev/null | grep -qE "^\s*$FZX_EMSCRIPTEN_VERSION\s+INSTALLED"
+}
+
 if [ "$(emcc_version)" != "$FZX_EMSCRIPTEN_VERSION" ]; then
-  EMSDK="${EMSDK:-${XDG_CACHE_HOME:-$HOME/.cache}/flutter_zxing/emsdk}"
-  mkdir -p "$(dirname "$EMSDK")"
-  if [ ! -x "$EMSDK/emsdk" ]; then
-    git clone -q https://github.com/emscripten-core/emsdk.git "$EMSDK"
+  OWN="${XDG_CACHE_HOME:-$HOME/.cache}/flutter_zxing/emsdk"
+  if [ -n "${EMSDK:-}" ] && [ "$EMSDK" != "$OWN" ] && installed "$EMSDK"; then
+    # Another emsdk with the version: its tools on PATH for this build,
+    # without `emsdk activate`, which would change that emsdk's active
+    # version for every other project.
+    export EM_CONFIG="$EMSDK/.emscripten"
+    export PATH="$EMSDK/upstream/emscripten:$PATH"
+  else
+    mkdir -p "$(dirname "$OWN")"
+    if [ ! -x "$OWN/emsdk" ]; then
+      git clone -q https://github.com/emscripten-core/emsdk.git "$OWN"
+    fi
+    installed "$OWN" || "$OWN/emsdk" install "$FZX_EMSCRIPTEN_VERSION"
+    # Our own emsdk: activating it changes nothing else.
+    "$OWN/emsdk" activate "$FZX_EMSCRIPTEN_VERSION" >/dev/null
+    # shellcheck disable=SC1091
+    source "$OWN/emsdk_env.sh" >/dev/null 2>&1
   fi
-  if ! "$EMSDK/emsdk" list 2>/dev/null | grep -qE "^\s*$FZX_EMSCRIPTEN_VERSION\s+INSTALLED"; then
-    "$EMSDK/emsdk" install "$FZX_EMSCRIPTEN_VERSION"
-  fi
-  "$EMSDK/emsdk" activate "$FZX_EMSCRIPTEN_VERSION" >/dev/null
-  # shellcheck disable=SC1091
-  source "$EMSDK/emsdk_env.sh" >/dev/null 2>&1
 fi
 [ "$(emcc_version)" = "$FZX_EMSCRIPTEN_VERSION" ] || { echo "error: need Emscripten $FZX_EMSCRIPTEN_VERSION, have $(emcc_version)" >&2; exit 1; }
 
