@@ -27,6 +27,38 @@ void main() {
     );
   });
 
+  test('puts the dark module of a mirrored code where it is read', () {
+    // Finders where a QR code has them, all else light.
+    final Uint8List modules = grid(21, (int x, int y) {
+      for (final (int fx, int fy) in <(int, int)>[(0, 0), (14, 0), (0, 14)]) {
+        final int dx = (x - fx - 3).abs(), dy = (y - fy - 3).abs();
+        if (dx <= 3 && dy <= 3) {
+          final int ring = dx > dy ? dx : dy;
+          return ring == 2 ? 0 : 1;
+        }
+      }
+      return 0;
+    });
+    final Uint8List plain = withQrFunctionPatterns(
+      BarcodeFormat.qrCode,
+      21,
+      21,
+      modules,
+    );
+    expect(plain[13 * 21 + 8], 1);
+    expect(plain[8 * 21 + 13], 0);
+    // Transposed: (13, 8) is the dark module, (8, 13) a format bit.
+    final Uint8List mirrored = withQrFunctionPatterns(
+      BarcodeFormat.qrCode,
+      21,
+      21,
+      modules,
+      mirrored: true,
+    );
+    expect(mirrored[8 * 21 + 13], 1);
+    expect(mirrored[13 * 21 + 8], 0);
+  });
+
   test('leaves a grid without finders alone', () {
     final Uint8List modules = grid(21, (int x, int y) => (x * 7 + y * 3) % 2);
     expect(

@@ -14,14 +14,18 @@ import '../barcode/barcode_format.dart';
 /// but the sampled grid has holes where the code has none. These modules
 /// never carry data, so drawing them again gives the code as written.
 ///
+/// A [mirrored] code is sampled as it is seen, transposed: its dark module
+/// is in the top-right finder's column, not the bottom-left finder's row.
+///
 /// Returns [modules] unchanged for other formats, sizes that are no QR
 /// version, or a grid whose finders do not look like finders.
 Uint8List withQrFunctionPatterns(
   BarcodeFormat format,
   int width,
   int height,
-  Uint8List modules,
-) {
+  Uint8List modules, {
+  bool mirrored = false,
+}) {
   if (format != BarcodeFormat.qrCode && format != BarcodeFormat.qrCodeModel2) {
     return modules;
   }
@@ -99,8 +103,13 @@ Uint8List withQrFunctionPatterns(
     }
   }
 
-  // The dark module beside the bottom-left finder.
-  set(8, size - 8, true);
+  // The dark module beside the bottom-left finder (the top-right one in
+  // the transposed grid of a mirrored code).
+  if (mirrored) {
+    set(size - 8, 8, true);
+  } else {
+    set(8, size - 8, true);
+  }
 
   final Uint8List out = Uint8List.fromList(modules);
   fixed.forEach((int i, bool dark) => out[i] = dark ? 1 : 0);

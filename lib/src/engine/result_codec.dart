@@ -109,6 +109,7 @@ EngineReadResult decodeBarcodes(
                 symbolWidth,
                 symbolHeight,
                 modules,
+                mirrored: flags & 4 != 0,
               ),
               quietZone: readQuietZone(format),
               errorCorrection: errorCorrectionOf(format, ecLevel),
