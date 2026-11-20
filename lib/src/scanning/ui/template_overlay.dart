@@ -934,6 +934,9 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         template.photoButton ||
         template.zoomButtons ||
         template.switchCameraButton;
+    // Room for a button at each side, so that the zoom stays in the middle.
+    final bool sideButtons =
+        template.photoButton || template.switchCameraButton;
     final Color? flash = _flashColor(theme);
     final String? title = template.largeHint
         ? null
@@ -1265,24 +1268,39 @@ class _TemplateOverlayState extends State<TemplateOverlay>
                           ),
                         ),
                       )
+                    // The zoom in the middle, made smaller where it would
+                    // run into the buttons at the sides.
                     : SizedBox(
                         height: 48,
-                        child: Stack(
+                        child: Row(
+                          spacing: 8,
                           children: <Widget>[
-                            if (template.photoButton)
-                              Align(
-                                alignment: AlignmentDirectional.centerStart,
-                                child: PickImageButton(
-                                  controller,
-                                  onResult: _photoRead,
-                                ),
+                            if (sideButtons)
+                              SizedBox.square(
+                                dimension: 48,
+                                child: template.photoButton
+                                    ? PickImageButton(
+                                        controller,
+                                        onResult: _photoRead,
+                                      )
+                                    : null,
                               ),
-                            if (template.zoomButtons)
-                              Align(child: ZoomButtons(controller)),
-                            if (template.switchCameraButton)
-                              Align(
-                                alignment: AlignmentDirectional.centerEnd,
-                                child: SwitchCameraButton(controller),
+                            Expanded(
+                              child: template.zoomButtons
+                                  ? Center(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: ZoomButtons(controller),
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                            if (sideButtons)
+                              SizedBox.square(
+                                dimension: 48,
+                                child: template.switchCameraButton
+                                    ? SwitchCameraButton(controller)
+                                    : null,
                               ),
                           ],
                         ),

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing/src/scanning/camera/camera_source.dart';
 import 'package:flutter_zxing/src/scanning/frame_geometry.dart';
 import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
     show ScannerControllerDebug;
@@ -23,8 +24,12 @@ PixelBuffer _pixels() {
   return PixelBuffer(b, width: 720, height: 1280);
 }
 
-Widget _host(Widget child, {EdgeInsets safe = EdgeInsets.zero}) => MediaQuery(
-  data: MediaQueryData(size: _phone, padding: safe, viewPadding: safe),
+Widget _host(
+  Widget child, {
+  EdgeInsets safe = EdgeInsets.zero,
+  Size size = _phone,
+}) => MediaQuery(
+  data: MediaQueryData(size: size, padding: safe, viewPadding: safe),
   child: Directionality(textDirection: TextDirection.ltr, child: child),
 );
 
@@ -56,15 +61,17 @@ void main() {
     ScannerTemplate template, {
     ValueChanged<BarcodeCapture>? onDetect,
     EdgeInsets safe = EdgeInsets.zero,
+    Size size = _phone,
   }) async {
     t.view
-      ..physicalSize = _phone
+      ..physicalSize = size
       ..devicePixelRatio = 1;
     addTearDown(t.view.reset);
     await t.pumpWidget(
       _host(
         BarcodeScanner(controller: c, template: template, onDetect: onDetect),
         safe: safe,
+        size: size,
       ),
     );
     await t.pump();
@@ -100,6 +107,35 @@ void main() {
     final Rect label = t.getRect(find.text('A'));
     // The top bar ends 60 below the safe area.
     expect(label.top, greaterThanOrEqualTo(notch.top + 60));
+    await close(t);
+  });
+
+  testWidgets('four zoom presets fit between the bottom buttons', (
+    WidgetTester t,
+  ) async {
+    // An Android camera that zooms out: 0.6×, 1×, 2×, 4×.
+    camera.capabilities = const CameraCapabilities(
+      minZoom: 0.6,
+      maxZoom: 10,
+      hasOtherFacing: true,
+    );
+    await open(
+      t,
+      const ScannerTemplate(
+        photoButton: true,
+        zoomButtons: true,
+        switchCameraButton: true,
+      ),
+      size: const Size(360, 780),
+    );
+    await t.pump();
+    expect(find.text('0.6×'), findsOneWidget);
+    final Rect zoom = t.getRect(find.byType(ZoomButtons));
+    final Rect photo = t.getRect(find.byType(PickImageButton));
+    final Rect flip = t.getRect(find.byType(SwitchCameraButton));
+    expect(zoom.left, greaterThanOrEqualTo(photo.right));
+    expect(zoom.right, lessThanOrEqualTo(flip.left));
+    expect(zoom.center.dx, moreOrLessEquals(180, epsilon: 0.5));
     await close(t);
   });
 }
