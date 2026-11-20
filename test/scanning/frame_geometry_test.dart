@@ -95,6 +95,50 @@ void main() {
       expect(moved.position.topLeft, _near(const Offset(470, 10)));
       expect(moved.position.bottomLeft, _near(const Offset(460, 10)));
     });
+
+    test('turns the barcode rotation as the corners turn', () {
+      // A code upright on screen, as the engine sees it in a frame of an
+      // Android back camera: turned a quarter counterclockwise.
+      Barcode turned(int rotation) => Barcode(
+        format: BarcodeFormat.qrCode,
+        text: 'x',
+        bytes: Uint8List(0),
+        position: const BarcodePosition(
+          topLeft: Offset(100, 380),
+          topRight: Offset(100, 280),
+          bottomRight: Offset(200, 280),
+          bottomLeft: Offset(200, 380),
+        ),
+        rotation: rotation,
+      );
+      const FrameTransform back = FrameTransform(frame, rotation: 90);
+      expect(back.barcodeToDisplay(turned(-90)).rotation, 0);
+      expect(back.barcodeToDisplay(turned(90)).rotation, 180);
+      expect(back.barcodeToDisplay(turned(180)).rotation, -90);
+      expect(
+        const FrameTransform(
+          frame,
+          rotation: 270,
+        ).barcodeToDisplay(turned(0)).rotation,
+        -90,
+      );
+      // Mirrored, the left-to-right line points the other way.
+      const FrameTransform front = FrameTransform(
+        frame,
+        rotation: 90,
+        mirrored: true,
+      );
+      expect(front.barcodeToDisplay(turned(-90)).rotation, 180);
+      expect(front.barcodeToDisplay(turned(0)).rotation, 90);
+      // Check by the corners: the line from the left side to the right one.
+      final Barcode shown = back.barcodeToDisplay(turned(-90));
+      final Offset line =
+          shown.position.topRight +
+          shown.position.bottomRight -
+          shown.position.topLeft -
+          shown.position.bottomLeft;
+      expect(line.direction, 0);
+    });
   });
 
   group('PreviewFit', () {

@@ -70,9 +70,23 @@ final class FrameTransform {
 
   /// [barcode] with its corners moved from the delivered frame into the
   /// display frame. The corners keep their meaning (the symbol's top-left
-  /// stays `topLeft`).
-  Barcode barcodeToDisplay(Barcode barcode) =>
-      mapBarcodePosition(barcode, toDisplay);
+  /// stays `topLeft`), and [Barcode.rotation] is turned with them.
+  Barcode barcodeToDisplay(Barcode barcode) {
+    // The engine's angle is that of the line from the symbol's left side to
+    // its right side, clockwise: turned by the rotation, and mirrored.
+    final int turned = barcode.rotation + rotation;
+    return mapBarcodePosition(
+      barcode,
+      toDisplay,
+      rotation: _engineAngle(mirrored ? 180 - turned : turned),
+    );
+  }
+
+  /// [degrees] in the engine's range, -179 to 180.
+  static int _engineAngle(int degrees) {
+    final int a = degrees % 360;
+    return a > 180 ? a - 360 : a;
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -160,8 +174,13 @@ Rect? pixelCrop(Rect rect, Size frameSize) {
   return Rect.fromLTRB(left, top, right, bottom);
 }
 
-/// [barcode] with every corner moved by [map].
-Barcode mapBarcodePosition(Barcode barcode, Offset Function(Offset) map) {
+/// [barcode] with every corner moved by [map], and its [Barcode.rotation]
+/// replaced by [rotation] if given.
+Barcode mapBarcodePosition(
+  Barcode barcode,
+  Offset Function(Offset) map, {
+  int? rotation,
+}) {
   final BarcodePosition p = barcode.position;
   final Barcode moved = Barcode(
     format: barcode.format,
@@ -174,7 +193,7 @@ Barcode mapBarcodePosition(Barcode barcode, Offset Function(Offset) map) {
       bottomLeft: map(p.bottomLeft),
     ),
     contentType: barcode.contentType,
-    rotation: barcode.rotation,
+    rotation: rotation ?? barcode.rotation,
     isMirrored: barcode.isMirrored,
     isInverted: barcode.isInverted,
     ecLevel: barcode.ecLevel,
