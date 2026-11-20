@@ -120,14 +120,11 @@ enum DemoTemplate {
 }
 
 class ScanPage extends StatefulWidget {
-  const ScanPage({super.key, this.bottomInset = 0, required this.onOpen});
+  const ScanPage({super.key, this.bottomInset = 0});
 
   /// The gap between the template's sheet and the tab bar. The tab bar's
   /// own height comes from the Scaffold, as the body's bottom padding.
   final double bottomInset;
-
-  /// Opens a history item.
-  final ValueChanged<HistoryItem> onOpen;
 
   @override
   State<ScanPage> createState() => _ScanPageState();

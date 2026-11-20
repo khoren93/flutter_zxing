@@ -24,7 +24,6 @@ final class HistoryItem {
     this.source = 'camera',
     this.preset,
     this.cutOutPng,
-    this.decodeMillis,
   });
 
   final String id;
@@ -43,9 +42,6 @@ final class HistoryItem {
 
   /// The camera's cut-out of a scan whose picture cannot be drawn again.
   final Uint8List? cutOutPng;
-
-  /// How long reading took, when known.
-  final int? decodeMillis;
 
   BarcodeContent get content => barcode.content;
 
@@ -70,7 +66,6 @@ final class HistoryItem {
           'm': base64Encode(symbol.modules),
         },
       if (cutOutPng != null) 'cut': base64Encode(cutOutPng!),
-      'ms': decodeMillis,
     };
   }
 
@@ -112,7 +107,6 @@ final class HistoryItem {
       cutOutPng: json['cut'] == null
           ? null
           : base64Decode(json['cut']! as String),
-      decodeMillis: json['ms'] as int?,
     );
   }
 }

@@ -82,15 +82,11 @@ class StyleEditor extends StatelessWidget {
     required this.style,
     required this.onChanged,
     required this.format,
-    this.compact = false,
   });
 
   final BarcodeStyle style;
   final ValueChanged<BarcodeStyle> onChanged;
   final BarcodeFormat format;
-
-  /// Segmented rows instead of tiles (the desktop column).
-  final bool compact;
 
   bool get _shapes => switch (format) {
     BarcodeFormat.qrCode ||
@@ -131,7 +127,6 @@ class StyleEditor extends StatelessWidget {
           const FzLabel('Modules'),
           const SizedBox(height: 8),
           _Options<ModuleShape>(
-            compact: compact,
             value: style.moduleShape,
             options: const <(ModuleShape, String, IconData)>[
               (ModuleShape.square, 'Square', Icons.grid_view_sharp),
@@ -147,7 +142,6 @@ class StyleEditor extends StatelessWidget {
           const FzLabel('Eyes'),
           const SizedBox(height: 8),
           _Options<FinderShape>(
-            compact: compact,
             value: style.finderShape,
             options: const <(FinderShape, String, IconData)>[
               (FinderShape.square, 'Square', Icons.crop_square_rounded),
@@ -328,28 +322,15 @@ class _Options<T> extends StatelessWidget {
     required this.value,
     required this.options,
     required this.onChanged,
-    required this.compact,
   });
 
   final T value;
   final List<(T, String, IconData)> options;
   final ValueChanged<T> onChanged;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final Fz fz = Fz.of(context);
-    if (compact) {
-      return SegmentedButton<T>(
-        showSelectedIcon: false,
-        segments: <ButtonSegment<T>>[
-          for (final (T v, String label, IconData _) in options)
-            ButtonSegment<T>(value: v, label: Text(label)),
-        ],
-        selected: <T>{value},
-        onSelectionChanged: (Set<T> s) => onChanged(s.first),
-      );
-    }
     return Row(
       children: <Widget>[
         for (final (int i, (T v, String label, IconData icon))

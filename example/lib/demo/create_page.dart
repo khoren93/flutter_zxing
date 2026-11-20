@@ -1588,7 +1588,6 @@ class _ShareMenu extends StatelessWidget {
     icon: const Icon(Icons.ios_share_rounded, size: 22),
     onSelected: (String v) => unawaited(page._export(v)),
     itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-      const PopupMenuItem<String>(value: 'png', child: Text('Share')),
       const PopupMenuItem<String>(value: 'png', child: Text('PNG')),
       PopupMenuItem<String>(
         value: 'svg',

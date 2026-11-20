@@ -68,7 +68,7 @@ class _DemoShellState extends State<DemoShell> {
   );
 
   Widget _page(_Tab tab, {required bool wide}) => switch (tab) {
-    _Tab.scan => ScanPage(bottomInset: wide ? 0 : 12, onOpen: _open),
+    _Tab.scan => ScanPage(bottomInset: wide ? 0 : 12),
     _Tab.create => CreatePage(wide: wide),
     _Tab.history => HistoryPage(onOpen: _open, builtWith: !wide),
   };
