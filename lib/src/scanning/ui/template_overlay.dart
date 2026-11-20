@@ -1703,7 +1703,9 @@ class _PickLabel extends StatelessWidget {
       ContactContent(:final String? name) when name != null => name,
       _ => barcodeLabel(barcode).trim().split('\n').first,
     };
-    return text.length > 28 ? '${text.substring(0, 27)}…' : text;
+    // By characters: an emoji is never cut in half.
+    final Characters chars = text.characters;
+    return chars.length > 28 ? '${chars.take(27)}…' : text;
   }
 
   @override
