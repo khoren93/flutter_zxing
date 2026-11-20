@@ -1,5 +1,6 @@
 // Builds benchmark/BENCHMARKS.md from benchmark/scan/*.json, one row per
-// run of the example's scan benchmark (example/lib/scan_benchmark.dart).
+// run of the example's scan benchmark
+// (example/lib/diagnostics/scan_benchmark.dart).
 //
 //   cd tool && dart run scanbench_report.dart
 import 'dart:convert';

@@ -5,8 +5,8 @@
 //
 // The result is printed in numbered pieces, `[scanbench 1/3] ...` (collected
 // from the `flutter run` log; Android cuts longer lines), and saved as JSON
-// in the app's temporary directory. benchmark/BENCHMARKS.md is built from such files with
-// `dart run tool/scanbench_report.dart` (in tool/).
+// in the app's temporary directory. benchmark/BENCHMARKS.md is built from such
+// files with `cd tool && dart run scanbench_report.dart`.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
