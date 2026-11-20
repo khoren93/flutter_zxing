@@ -23,6 +23,8 @@ dependencies:
   # camera2 implementation crashed inside `io.flutter.plugins.camera.Camera`
   # on a number of devices, and nothing in this plugin can work around that.
   camera: ">=0.11.2 <0.13.0"
+  # The camera's errors as a stream: CameraController keeps only the first.
+  camera_platform_interface: ^2.10.0
   # Build hooks (hook/build.dart). Ranges, not the latest only: on Flutter
   # 3.41, which pins meta 1.17, pub resolves code_assets 1.2.1, hooks 2.0.2
   # and native_toolchain_c 0.19.2 (0.19.3+ and hooks 2.1 need meta ^1.19),
@@ -39,8 +41,6 @@ dependencies:
   web: ^1.1.0
 
 dev_dependencies:
-  # Used by the tests to build synthetic camera frames.
-  camera_platform_interface: ^2.10.0
   flutter_lints: ">=4.0.0 <7.0.0"
   flutter_test:
     sdk: flutter

@@ -7,6 +7,8 @@
 import 'dart:async';
 
 import 'package:camera/camera.dart';
+import 'package:camera_platform_interface/camera_platform_interface.dart'
+    show CameraErrorEvent, CameraPlatform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart'
     show DeviceOrientation, MissingPluginException;
@@ -150,6 +152,11 @@ final class NativeCameraSource implements CameraSource {
         cameras.isEmpty ? 'No camera available' : 'No ${facing.name} camera',
       );
     }
+    if (!CameraPlatform.instance.supportsImageStreaming()) {
+      throw const CameraUnsupportedException(
+        'The camera plugin of this platform sends no frames to scan',
+      );
+    }
     final CameraController camera = CameraController(
       description,
       switch (resolution) {
@@ -186,6 +193,17 @@ final class NativeCameraSource implements CameraSource {
     camera.addListener(_updateOrientation);
     camera.addListener(_checkError);
     _failure = null;
+    try {
+      // Every error, not only the first one the controller keeps.
+      _errors = CameraPlatform.instance
+          .onCameraError(camera.cameraId)
+          .listen(
+            (CameraErrorEvent e) => _onError(e.description),
+            onError: (Object _) {},
+          );
+    } on Object {
+      // Not offered: the controller's first error is all there is.
+    }
     _updatePreview();
     double minZoom = 1;
     double maxZoom = 1;
@@ -271,6 +289,8 @@ final class NativeCameraSource implements CameraSource {
     final CameraController? camera = _camera;
     _camera = null;
     _description = null;
+    unawaited(_errors?.cancel());
+    _errors = null;
     _lens?.release();
     _lens = null;
     _latest = null;
@@ -296,9 +316,22 @@ final class NativeCameraSource implements CameraSource {
   /// Android another app taking the camera. Thrown by [nextFrame].
   ScannerException? _failure;
 
+  /// The camera's errors, and how many came.
+  StreamSubscription<CameraErrorEvent>? _errors;
+  int _errorCount = 0;
+
+  /// The first error, as the controller keeps it: where the platform offers
+  /// no stream of errors.
   void _checkError() {
     final String? error = _camera?.value.errorDescription;
-    if (error == null || _failure != null) {
+    if (error != null && _errors == null) {
+      _onError(error);
+    }
+  }
+
+  void _onError(String error) {
+    _errorCount++;
+    if (_failure != null) {
       return;
     }
     final ScannerException failure = cameraError('cameraError', error);
@@ -409,10 +442,19 @@ final class NativeCameraSource implements CameraSource {
     if (camera == null) {
       return;
     }
+    final int errors = _errorCount;
     try {
       await camera.setFlashMode(on ? FlashMode.torch : FlashMode.off);
     } on CameraException catch (e) {
       throw cameraError(e.code, e.description);
+    }
+    if (on && _android) {
+      // CameraX reports a torch it could not switch only as a camera error,
+      // which arrives after the call.
+      await Future<void>.delayed(Duration.zero);
+      if (_errorCount != errors) {
+        throw const CameraUnsupportedException('The camera has no torch');
+      }
     }
   }
 
@@ -420,8 +462,9 @@ final class NativeCameraSource implements CameraSource {
   Future<void> setZoom(double zoom) async {
     try {
       await _camera?.setZoomLevel(zoom);
-    } on CameraException {
-      // The camera rejected the value: keep the current zoom.
+    } on Object {
+      // The camera rejected the value, or cannot zoom: keep the current
+      // zoom.
     }
   }
 
