@@ -10,8 +10,66 @@ import 'dart:convert';
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_zxing/flutter_zxing.dart';
 
 import 'corpus/corpus_harness.dart';
+
+/// The errors the engine reports in the browser: each must arrive as the
+/// exception the API documents. Returns what did not.
+Future<List<String>> _errorChecks() async {
+  final List<String> failed = <String>[];
+  Future<void> expectThrows<T extends Object>(
+    String what,
+    Future<Object?> Function() call,
+  ) async {
+    try {
+      await call();
+      failed.add('$what: no $T');
+    } on T {
+      // As documented.
+    } on Object catch (e) {
+      failed.add('$what: $e instead of $T');
+    }
+  }
+
+  const BarcodeReader reader = BarcodeReader();
+  await expectThrows<ImageDecodeException>(
+    'reading a file that is not an image',
+    () => reader.read(Uint8List.fromList(utf8.encode('no image'))),
+  );
+  // A PNG header that declares 20000 x 20000 pixels.
+  await expectThrows<ImageDecodeException>(
+    'reading an image too large',
+    () => reader.read(
+      Uint8List.fromList(<int>[
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, //
+        0x49, 0x48, 0x44, 0x52, 0, 0, 0x4E, 0x20, 0, 0, 0x4E, 0x20, //
+        8, 0, 0, 0, 0, 0xC6, 0x1B, 0x19, 0xE5, 0, 0, 0, 0, //
+        0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+      ]),
+    ),
+  );
+  await expectThrows<BarcodeWriteException>(
+    'encoding letters as EAN-13',
+    () => const BarcodeWriter(BarcodeFormat.ean13).encode('letters'),
+  );
+  await expectThrows<BarcodeWriteException>(
+    'encoding nothing',
+    () => const BarcodeWriter(BarcodeFormat.qrCode).encode(''),
+  );
+  // A code on a transparent background reads.
+  final BarcodeSymbol symbol = await const BarcodeWriter(
+    BarcodeFormat.qrCode,
+  ).encode('alpha');
+  final Uint8List png = await const BarcodeStyle(
+    backgroundColor: Color(0x00000000),
+  ).toPng(symbol, moduleSize: 4);
+  final String? text = (await reader.read(png))?.text;
+  if (text != 'alpha') {
+    failed.add('a code on a transparent background: $text');
+  }
+  return failed;
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,10 +96,11 @@ Future<void> main() async {
       report,
       await rootBundle.loadString('assets/fixtures/corpus_expected.json'),
     );
+    final List<String> errors = await _errorChecks();
     outcome = jsonEncode(<String, Object>{
-      'ok': report.problems.isEmpty && diffs.isEmpty,
+      'ok': report.problems.isEmpty && diffs.isEmpty && errors.isEmpty,
       'summary': '${report.summary}, ${stopwatch.elapsedMilliseconds} ms',
-      'problems': report.problems,
+      'problems': <String>[...report.problems, ...errors],
       'diffs': diffs,
     });
   } on Object catch (e, stack) {
