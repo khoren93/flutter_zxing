@@ -393,7 +393,7 @@ of them; this table gives the new form.
 | `formats: {BarcodeFormat.isbn}`, `ean2`, `ean5` | `ean13`; add-ons with `ReaderOptions(eanAddOn:)` |
 | `style.copyWith(logo: null)` kept the logo | `style.copyWith(logo: () => null)` removes it |
 | `template.copyWith(title: 'Pay')` | `template.copyWith(title: () => 'Pay')` |
-| `template.copyWith(onClose: () {})` | `template.copyWith(onClose: () => () {})`: `() {}` alone now clears `onClose` |
+| `template.copyWith(onClose: () {})` | `template.copyWith(onClose: () => () {})`; `() {}` alone does not compile, and `onClose`/`onOpenSettings` cannot be cleared |
 | `ScannerController(pauseInBackground:)` | `ScannerController(stopInBackground:)` |
 | `resultBuilder: (context, barcode, scanAgain) => ...` | `resultBuilder: (context, result) => ...`, with `result.barcode`, `result.scanAgain` |
 | `actionsBuilder: (context, barcode, scanAgain) => [...]` | `actionsBuilder: (context, result) => [...result.defaultActions, ...]` |

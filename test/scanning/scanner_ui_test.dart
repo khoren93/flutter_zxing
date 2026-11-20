@@ -1034,13 +1034,15 @@ void main() {
         title: () => null,
         formats: () => null,
         check: () => null,
-        onClose: () => null,
         resumeAfter: () => const Duration(seconds: 1),
       );
       expect(cleared.title, isNull);
       expect(cleared.formats, isNull);
       expect(cleared.check, isNull);
-      expect(cleared.onClose, isNull);
+      // A callback that is the field's new value, not a function that
+      // clears it.
+      void leave() {}
+      expect(base.copyWith(onClose: () => leave).onClose, leave);
       expect(cleared.resumeAfter, const Duration(seconds: 1));
       // Left out: kept.
       final ScannerTemplate kept = base.copyWith(torchButton: true);

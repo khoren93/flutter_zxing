@@ -1023,12 +1023,23 @@ final class ScannerTemplate {
 
   /// A copy with the given fields replaced.
   ///
-  /// Fields that may be `null` take a function, so that they can be
-  /// cleared as well as set:
+  /// Fields that may be `null` take a function that returns the new value,
+  /// so that they can be cleared as well as set:
   ///
   /// ```dart
-  /// template.copyWith(hint: () => 'Scan the label', check: () => null)
+  /// template.copyWith(
+  ///   hint: () => 'Scan the label',
+  ///   formats: () => null, // every format
+  ///   check: () => null, // no check
+  ///   onDone: () => (items) => save(items),
+  /// )
   /// ```
+  ///
+  /// For [title] and [hint], `null` is the preset's text; `''` shows none.
+  /// [onClose] and [onOpenSettings] take a function that returns the
+  /// callback, as in `onClose: () => () => leave()`, and cannot be
+  /// cleared: `onClose: () {}` would be read as the callback itself, so it
+  /// does not compile.
   ScannerTemplate copyWith({
     ScannerTheme? theme,
     ScanWindow? scanWindow,
@@ -1038,8 +1049,8 @@ final class ScannerTemplate {
     ValueGetter<ScannerIconData?>? hintIcon,
     bool? largeHint,
     bool? closeButton,
-    ValueGetter<VoidCallback?>? onClose,
-    ValueGetter<VoidCallback?>? onOpenSettings,
+    ValueGetter<VoidCallback>? onClose,
+    ValueGetter<VoidCallback>? onOpenSettings,
     bool? torchButton,
     bool? photoButton,
     bool? zoomButtons,

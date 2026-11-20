@@ -206,7 +206,9 @@ Each preset has the mode it needs, and `copyWith` changes it:
 BarcodeScanner(
   template: const ScannerTemplate.minimal().copyWith(
     mode: ScannerMode.collect,
-    // A field that can be empty takes a function: () => null clears it.
+    // A field that can be empty takes a function that returns the new
+    // value, here the callback; () => null clears a field, but gives back
+    // the preset's text for title and hint (use '' for none).
     onDone: () => (items) => print(items.length),
   ),
 )
