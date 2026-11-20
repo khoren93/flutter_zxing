@@ -83,20 +83,18 @@ final class NativeCameraSource implements CameraSource {
   /// scanner rebuilt in a new place (a phone turned to landscape) opens
   /// the camera while the old one is still closing it, and on iOS the
   /// camera plugin's `initialize` then never finishes.
-  static Future<void> _cameraQueue = Future<void>.value();
-
-  static Future<T> _oneAtATime<T>(Future<T> Function() task) {
-    final Future<T> result = _cameraQueue.then((_) => task());
-    _cameraQueue = result.then<void>((_) {}, onError: (Object _) {});
-    return result;
-  }
+  static final CameraTurns _turns = CameraTurns();
 
   @override
   Future<CameraCapabilities> open(
     CameraFacing facing,
     CameraResolution resolution, {
     CameraLens lens = CameraLens.main,
-  }) => _oneAtATime(() => _open(facing, resolution, lens));
+  }) => _turns.run(() async {
+    // A camera still open is not left behind.
+    await _close();
+    return _open(facing, resolution, lens);
+  });
 
   /// How much of the main camera's view an iPhone's ultra-wide camera shows
   /// at zoom 1: Apple's multi-camera devices switch between them at zoom 2.
@@ -259,8 +257,12 @@ final class NativeCameraSource implements CameraSource {
     final Completer<void>? waiter = _waiter;
     _waiter = null;
     waiter?.complete();
-    return _oneAtATime(_close);
+    return _turns.run(_close);
   }
+
+  // Nothing besides the camera.
+  @override
+  void dispose() {}
 
   Future<void> _close() async {
     final CameraController? camera = _camera;

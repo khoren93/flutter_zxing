@@ -25,6 +25,32 @@ import 'frame_colors.dart';
 /// controller (microseconds since the first use).
 final Stopwatch cameraClock = Stopwatch()..start();
 
+/// Runs the opening and closing of a camera one after the other, in the
+/// order they were asked for: a [CameraSource.close] asked for while the
+/// camera opens closes the camera that open brings, and an open asked for
+/// while it closes waits until it is closed.
+final class CameraTurns {
+  /// The last task asked for; `null` once it is done.
+  Future<void>? _last;
+
+  /// Runs [task] after the tasks asked for before it: at once if there are
+  /// none.
+  Future<T> run<T>(Future<T> Function() task) {
+    final Future<void>? last = _last;
+    final Future<T> result = last == null ? task() : last.then((_) => task());
+    final Future<void> done = result.then<void>((_) {}, onError: (Object _) {});
+    _last = done;
+    unawaited(
+      done.then((_) {
+        if (identical(_last, done)) {
+          _last = null;
+        }
+      }),
+    );
+    return result;
+  }
+}
+
 /// What an opened camera can do.
 @immutable
 final class CameraCapabilities {
@@ -115,14 +141,23 @@ abstract class CameraSource {
   /// frames: its [lens] where a side has several (see
   /// [CameraCapabilities.ultraWide] and [CameraCapabilities.telephoto]).
   /// Throws a [ScannerException] if it cannot.
+  ///
+  /// Opens and closes run one after the other in the order they were asked
+  /// for ([CameraTurns]); a camera still open is closed first.
   Future<CameraCapabilities> open(
     CameraFacing facing,
     CameraResolution resolution, {
     CameraLens lens = CameraLens.main,
   });
 
-  /// Releases the camera. A pending [nextFrame] completes with `null`.
+  /// Releases the camera: also the one an [open] asked for before brings.
+  /// A pending [nextFrame] completes with `null` at once.
   Future<void> close();
+
+  /// Lets go of what the source holds besides the camera (the web's
+  /// `<video>` element), after the last [close]. The source is not used
+  /// again.
+  void dispose();
 
   /// A frame newer than the last one handed out; waits for the camera.
   /// `null` once the camera is closed. Throws a [ScannerException] when the

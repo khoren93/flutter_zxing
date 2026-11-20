@@ -478,13 +478,18 @@ class ScannerController extends ValueNotifier<ScannerState> {
       source.previewTransform.removeListener(_onPreviewChanged);
       try {
         await source.close();
+        if (session != _session || _disposed) {
+          // Stopped while the camera closed: its close came before this
+          // open, so nothing would close the camera opened now.
+          return;
+        }
         final CameraCapabilities capabilities = await source.open(
           _facing,
           resolution,
           lens: lens,
         );
         if (session != _session || _disposed) {
-          return; // stopped meanwhile: stop() closes the camera
+          return; // stopped meanwhile: its close comes after this open
         }
         _lens = lens;
         _lensMaxZoom = capabilities.maxZoom;
@@ -557,7 +562,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
         resolution,
       );
       if (session != _session || _disposed) {
-        await source.close();
+        // Stopped meanwhile: the stop asked the camera to close after this
+        // open. A close asked for now would come after a newer open, and
+        // close that camera.
         return;
       }
       _capabilities = capabilities;
@@ -892,7 +899,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
     _lifecycle?.dispose();
     final CameraSource? source = _source;
     source?.previewTransform.removeListener(_onPreviewChanged);
-    unawaited(source?.close());
+    if (source != null) {
+      unawaited(source.close().whenComplete(source.dispose));
+    }
     _disposed = true;
     unawaited(_barcodes.close());
     unawaited(_samples.close());

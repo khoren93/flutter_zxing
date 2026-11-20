@@ -41,19 +41,47 @@ final class WebCameraSource implements CameraSource {
       // The widget lays the element out at the video's own aspect ratio.
       ..objectFit = 'fill'
       ..pointerEvents = 'none';
-    _viewType = 'flutter-zxing-camera-${_nextView++}';
-    ui_web.platformViewRegistry.registerViewFactory(
-      _viewType,
-      (int _) => _video,
-    );
-    _video.addEventListener('resize', ((web.Event _) => _updatePreview()).toJS);
+    _onResize = ((web.Event _) => _updatePreview()).toJS;
+    _video.addEventListener('resize', _onResize);
+    if (!_registered) {
+      _registered = true;
+      ui_web.platformViewRegistry.registerViewFactory(
+        _viewType,
+        (int _, {Object? params}) =>
+            _videos[params] ?? web.document.createElement('div'),
+      );
+    }
+    _videos[_id] = _video;
   }
 
-  static int _nextView = 0;
+  /// One view type for all sources: the view of each shows the `<video>`
+  /// of the source whose number it is given, while that source lives.
+  static const String _viewType = 'flutter-zxing-camera';
+  static bool _registered = false;
+  static final Map<Object?, web.HTMLVideoElement> _videos =
+      <Object?, web.HTMLVideoElement>{};
+  static int _nextId = 0;
+  final int _id = _nextId++;
+
+  /// Opening and closing, one at a time across all sources: the browser
+  /// gives the camera to one of them.
+  static final CameraTurns _turns = CameraTurns();
 
   late final web.HTMLVideoElement _video;
-  late final String _viewType;
+  late final web.EventListener _onResize;
   web.MediaStream? _stream;
+
+  /// Counts the calls of [close], at once when called: an open or a frame
+  /// waited for gives up when it changes.
+  int _closes = 0;
+
+  /// The frame [nextFrame] waits for; completed by [close].
+  Completer<void>? _presented;
+
+  /// Set when the camera ended on its own (unplugged, access taken back):
+  /// thrown by [nextFrame].
+  ScannerException? _failure;
+  web.EventListener? _onEnded;
   bool _front = false;
   Orientation _uiShape = Orientation.portrait;
   final ValueNotifier<FrameTransform?> _preview =
@@ -77,7 +105,17 @@ final class WebCameraSource implements CameraSource {
     CameraFacing facing,
     CameraResolution resolution, {
     CameraLens lens = CameraLens.main,
-  }) async {
+  }) => _turns.run(() async {
+    // A camera still open is not left behind.
+    await _close();
+    return _open(facing, resolution, _closes);
+  });
+
+  Future<CameraCapabilities> _open(
+    CameraFacing facing,
+    CameraResolution resolution,
+    int closes,
+  ) async {
     final (int width, int height) = switch (resolution) {
       CameraResolution.sd => (640, 480),
       CameraResolution.hd => (1280, 720),
@@ -117,20 +155,48 @@ final class WebCameraSource implements CameraSource {
       throw cameraError(_errorName(e), '$e');
     }
     _stream = stream;
+    _failure = null;
+    final web.MediaStreamTrack? track = _track;
+    if (track != null) {
+      final web.EventListener ended = ((web.Event _) => _ended(stream)).toJS;
+      _onEnded = ended;
+      track.addEventListener('ended', ended);
+    }
     _front = facing == CameraFacing.front;
     _video.style.transform = _front ? 'scaleX(-1)' : '';
     _video.srcObject = stream;
     try {
       await _video.play().toDart;
     } on Object catch (e) {
-      await close();
+      await _close();
       throw cameraError(_errorName(e), '$e');
     }
-    while (_video.videoWidth == 0 && _stream != null) {
+    // Closed meanwhile: the close that follows releases the stream.
+    while (_video.videoWidth == 0 && closes == _closes) {
       await Future<void>.delayed(const Duration(milliseconds: 16));
     }
     _updatePreview();
     return _capabilities(hasOtherFacing: await _severalCameras(devices));
+  }
+
+  /// The camera's track ended without [close]: unplugged, or access taken
+  /// back.
+  void _ended(web.MediaStream stream) {
+    if (stream != _stream) {
+      return;
+    }
+    _failure = const CameraFailureException(
+      'The camera stopped: it was disconnected or access was taken back',
+    );
+    _wake();
+  }
+
+  void _wake() {
+    final Completer<void>? presented = _presented;
+    _presented = null;
+    if (presented != null && !presented.isCompleted) {
+      presented.complete();
+    }
   }
 
   /// Whether the browser lists more than one camera. Browsers do not say
@@ -194,45 +260,78 @@ final class WebCameraSource implements CameraSource {
   }
 
   @override
-  Future<void> close() async {
+  Future<void> close() {
+    // Frames stop being waited for at once; the camera closes in turn.
+    _closes++;
+    _wake();
+    return _turns.run(_close);
+  }
+
+  Future<void> _close() async {
     _held?._release();
     _held = null;
+    final web.MediaStream? stream = _stream;
+    _stream = null;
+    final web.EventListener? ended = _onEnded;
+    _onEnded = null;
     for (final web.MediaStreamTrack track
-        in _stream?.getTracks().toDart ?? const <web.MediaStreamTrack>[]) {
+        in stream?.getTracks().toDart ?? const <web.MediaStreamTrack>[]) {
+      if (ended != null) {
+        track.removeEventListener('ended', ended);
+      }
       track.stop();
     }
-    _stream = null;
     _video.srcObject = null;
     _preview.value = null;
+    _wake();
+  }
+
+  @override
+  void dispose() {
+    _video.removeEventListener('resize', _onResize);
+    _videos.remove(_id);
+    _video.remove();
+    _canvas = null;
   }
 
   /// Resolves on the next frame the video presents:
   /// requestVideoFrameCallback where the browser has it (never the same
   /// frame twice), animation frames otherwise.
   Future<void> _nextVideoFrame() {
-    final Completer<void> presented = Completer<void>();
+    final Completer<void> presented = _presented = Completer<void>();
+    void done() {
+      if (!presented.isCompleted) {
+        presented.complete();
+      }
+    }
+
     if (_video.has('requestVideoFrameCallback')) {
       _video.callMethod(
         'requestVideoFrameCallback'.toJS,
-        ((JSAny? _, JSAny? _) => presented.complete()).toJS,
+        ((JSAny? _, JSAny? _) => done()).toJS,
       );
     } else {
-      web.window.requestAnimationFrame(
-        ((JSNumber _) => presented.complete()).toJS,
-      );
+      web.window.requestAnimationFrame(((JSNumber _) => done()).toJS);
     }
     return presented.future;
   }
 
   @override
   Future<CameraFrame?> nextFrame() async {
+    final int closes = _closes;
     if (_stream == null) {
       return null;
     }
-    await _nextVideoFrame();
+    if (_failure == null) {
+      await _nextVideoFrame();
+    }
+    final ScannerException? failure = _failure;
+    if (failure != null && closes == _closes) {
+      throw failure;
+    }
     final int arrivalMicros = cameraClock.elapsedMicroseconds;
     final FrameTransform? transform = _preview.value;
-    if (_stream == null || transform == null) {
+    if (_stream == null || transform == null || closes != _closes) {
       return null;
     }
     // The previous frame's codes were cut out, if they were reported.
@@ -256,7 +355,8 @@ final class WebCameraSource implements CameraSource {
           as web.CanvasRenderingContext2D;
 
   @override
-  Widget buildPreview() => HtmlElementView(viewType: _viewType);
+  Widget buildPreview() =>
+      HtmlElementView(viewType: _viewType, creationParams: _id);
 
   Future<void> _constrain(String name, JSAny value) async {
     final web.MediaStreamTrack? track = _track;
@@ -384,21 +484,19 @@ final class _WebFrame extends CameraFrame {
       (web.ImageBitmap b) => b,
       onError: (Object _) => null,
     );
-    final web.ImageBitmap bitmap;
-    try {
-      bitmap = await forEngine;
-    } on Object {
-      unawaited(forCut.then((web.ImageBitmap? b) => b?.close()));
-      rethrow;
-    }
-    final EngineBackend backend = await engine.backend;
+    web.ImageBitmap? bitmap;
     final EngineReadResult result;
     try {
+      bitmap = await forEngine;
+      final EngineBackend backend = await engine.backend;
       result = (await (backend as WebBackend).readBitmap(
         bitmap,
         options,
       )).asPrinted(options);
     } on Object {
+      // Not handed to the worker, or failed there: closing a bitmap the
+      // worker took does nothing.
+      bitmap?.close();
       unawaited(forCut.then((web.ImageBitmap? b) => b?.close()));
       rethrow;
     }

@@ -178,37 +178,69 @@ final class FakeCamera implements CameraSource {
     CameraFacing facing,
     CameraResolution resolution, {
     CameraLens lens = CameraLens.main,
-  }) async {
+  }) {
     opened.add(facing);
     lenses.add(lens);
-    if (openGate != null) {
-      await openGate!.future;
-    }
-    final ScannerException? error = openError;
-    if (error != null) {
-      openError = null;
-      throw error;
-    }
-    if (missing.contains(facing)) {
-      throw CameraNotFoundException('No ${facing.name} camera');
-    }
-    _open = true;
-    if (!previewOnFirstFrame) {
-      _preview.value = transform;
-    }
-    return capabilities;
+    // Like the real cameras: opens and closes one after the other, in the
+    // order asked for.
+    return _turns.run(() async {
+      if (openGate != null) {
+        await openGate!.future;
+      }
+      final ScannerException? error = openError;
+      if (error != null) {
+        openError = null;
+        throw error;
+      }
+      if (missing.contains(facing)) {
+        throw CameraNotFoundException('No ${facing.name} camera');
+      }
+      if (_open) {
+        // A camera still open is closed first.
+        _closeNow();
+      }
+      _open = true;
+      if (!previewOnFirstFrame) {
+        _preview.value = transform;
+      }
+      return capabilities;
+    });
   }
 
+  final CameraTurns _turns = CameraTurns();
+
   @override
-  Future<void> close() async {
+  Future<void> close() {
+    final Completer<void>? waiter = _waiter;
+    _waiter = null;
+    waiter?.complete();
+    return _turns.run(() async {
+      if (closeGate != null) {
+        await closeGate!.future;
+      }
+      _closeNow();
+    });
+  }
+
+  /// While set, [close] waits for it.
+  Completer<void>? closeGate;
+
+  void _closeNow() {
     closed++;
     _open = false;
+    torch = null;
     _frames.clear();
     _preview.value = null;
     final Completer<void>? waiter = _waiter;
     _waiter = null;
     waiter?.complete();
   }
+
+  /// Whether the controller let go of the source.
+  bool disposed = false;
+
+  @override
+  void dispose() => disposed = true;
 
   @override
   Future<CameraFrame?> nextFrame() async {
@@ -257,11 +289,20 @@ final class FakeCamera implements CameraSource {
 
   @override
   Future<void> setTorch(bool on) async {
+    if (torchGate != null) {
+      await torchGate!.future;
+    }
     if (torchError != null) {
       throw torchError!;
     }
-    torch = on;
+    // Like the real cameras: a closed camera has no torch to switch.
+    if (_open) {
+      torch = on;
+    }
   }
+
+  /// While set, [setTorch] waits for it.
+  Completer<void>? torchGate;
 
   @override
   Future<void> setZoom(double zoom) async => this.zoom = zoom;

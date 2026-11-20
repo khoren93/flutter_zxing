@@ -160,6 +160,108 @@ void main() {
       expect(camera.opened, <CameraFacing>[CameraFacing.front]);
     });
 
+    group('while the camera opens', () {
+      test('dispose leaves no camera open', () async {
+        final ScannerController c = ScannerController(stopInBackground: false);
+        camera.openGate = Completer<void>();
+        final Future<void> started = c.start();
+        c.dispose();
+        camera.openGate!.complete();
+        await started;
+        await pumpEventQueue();
+        expect(camera.isOpen, isFalse);
+        expect(camera.closed, greaterThanOrEqualTo(1));
+        expect(camera.disposed, isTrue);
+        final FakeFrame frame = camera.push();
+        await pumpEventQueue();
+        expect(frame.wasRead, isFalse);
+      });
+
+      test('stop leaves the camera closed', () async {
+        final ScannerController c = create();
+        camera.openGate = Completer<void>();
+        final Future<void> started = c.start();
+        final Future<void> stopped = c.stop();
+        camera.openGate!.complete();
+        await started;
+        await stopped;
+        expect(c.value.status, ScannerStatus.idle);
+        expect(camera.isOpen, isFalse);
+      });
+
+      test('switchCamera opens the other camera', () async {
+        final ScannerController c = create();
+        camera.openGate = Completer<void>();
+        final Future<void> started = c.start();
+        final Future<void> switched = c.switchCamera();
+        camera.openGate!.complete();
+        await started;
+        await switched;
+        expect(camera.opened, <CameraFacing>[
+          CameraFacing.back,
+          CameraFacing.front,
+        ]);
+        expect(c.value.status, ScannerStatus.running);
+        expect(c.value.facing, CameraFacing.front);
+        expect(camera.isOpen, isTrue);
+      });
+
+      test('a stop and a start keep the camera of the start', () async {
+        final ScannerController c = create();
+        camera.openGate = Completer<void>();
+        final Future<void> first = c.start();
+        unawaited(c.stop());
+        final Future<void> second = c.start();
+        camera.openGate!.complete();
+        await first;
+        await second;
+        await pumpEventQueue();
+        expect(c.value.status, ScannerStatus.running);
+        expect(camera.isOpen, isTrue);
+        final FakeFrame frame = camera.push(<Barcode>[qr]);
+        await pumpEventQueue();
+        expect(frame.wasRead, isTrue);
+      });
+    });
+
+    group('while a lens switch closes the camera', () {
+      setUp(() {
+        camera.capabilities = const CameraCapabilities(
+          maxZoom: 10,
+          ultraWide: 0.5,
+        );
+      });
+
+      test('stop leaves the camera closed', () async {
+        final ScannerController c = create();
+        await c.start();
+        camera.closeGate = Completer<void>();
+        final Future<void> zoomed = c.setZoom(0.5);
+        await pumpEventQueue();
+        final Future<void> stopped = c.stop();
+        camera.closeGate!.complete();
+        await zoomed;
+        await stopped;
+        await pumpEventQueue();
+        expect(c.value.status, ScannerStatus.idle);
+        expect(camera.isOpen, isFalse);
+        expect(camera.lenses, <CameraLens>[CameraLens.main]);
+      });
+
+      test('dispose leaves the camera closed', () async {
+        final ScannerController c = ScannerController(stopInBackground: false);
+        await c.start();
+        camera.closeGate = Completer<void>();
+        final Future<void> zoomed = c.setZoom(0.5);
+        await pumpEventQueue();
+        c.dispose();
+        camera.closeGate!.complete();
+        await zoomed;
+        await pumpEventQueue();
+        expect(camera.isOpen, isFalse);
+      });
+    });
+
     test('an engine that keeps failing stops the scanner', () async {
       final ScannerController c = create();
       await c.start();
