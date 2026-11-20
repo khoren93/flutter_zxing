@@ -1,5 +1,7 @@
 // The Settings tab of the diagnostics page: every setting of the engine, the
 // camera and the scanner, applied at once.
+import 'dart:async';
+
 // material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
 // which needs Flutter 3.47; the example still supports Flutter 3.41.
 // ignore: deprecated_member_use
@@ -148,7 +150,14 @@ class DiagSettingsTab extends StatelessWidget {
                     value: state.zoom.clamp(state.minZoom, state.maxZoom),
                     min: state.minZoom,
                     max: state.maxZoom,
-                    onChanged: controller.setZoom,
+                    // Zooming by hand turns the automatic zoom off; the
+                    // settings say so, or the next apply turns it on again.
+                    onChanged: (double zoom) {
+                      unawaited(controller.setZoom(zoom));
+                      if (s.autoZoom) {
+                        onChanged(s.copyWith(autoZoom: false));
+                      }
+                    },
                   )
                 : null,
           ),

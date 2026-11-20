@@ -21,6 +21,7 @@ import 'package:flutter_zxing_example/diagnostics/diag_settings.dart';
 import 'package:flutter_zxing_example/diagnostics/diagnostics_page.dart';
 import 'package:flutter_zxing_example/diagnostics/frame_recorder.dart';
 import 'package:flutter_zxing_example/diagnostics/recording.dart';
+import 'package:flutter_zxing_example/diagnostics/settings_tab.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // The package's own fake camera.
@@ -243,6 +244,31 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 20));
       });
       expect(frame.options!.flags & FzxFlags.tryInvert, FzxFlags.tryInvert);
+      await close(tester);
+    });
+
+    testWidgets('zooming by hand turns the automatic zoom off', (
+      WidgetTester tester,
+    ) async {
+      await open(tester);
+      SwitchListTile autoZoom() => tester.widget<SwitchListTile>(
+        find.widgetWithText(SwitchListTile, 'Automatic zoom'),
+      );
+      await tester.scrollUntilVisible(
+        find.byType(Slider),
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byType(DiagSettingsTab),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.pump();
+      expect(autoZoom().value, isTrue);
+      tester.widget<Slider>(find.byType(Slider)).onChanged!(2);
+      await tester.pump();
+      expect(autoZoom().value, isFalse);
       await close(tester);
     });
 
