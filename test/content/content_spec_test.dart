@@ -282,4 +282,38 @@ void main() {
       );
     });
   });
+
+  group('GS1 element values (General Specifications 3.2–3.7, 7.9.1)', () {
+    List<String> issues(Map<String, String> elements) =>
+        _messages(Gs1Content(elements));
+
+    test('numeric identifiers hold digits', () {
+      expect(issues(<String, String>{'01': 'ABCDEFGHIJKLMN'}), <String>[
+        '(01) must be digits',
+      ]);
+      expect(issues(<String, String>{'3103': '00012A'}), <String>[
+        '(3103) must be digits',
+      ]);
+    });
+
+    test('SSCC, GTIN and GLN have a mod 10 check digit', () {
+      expect(issues(<String, String>{'01': '09501101530004'}), <String>[
+        '(01) check digit is wrong',
+      ]);
+      expect(issues(<String, String>{'01': '09501101530003'}), isEmpty);
+      expect(issues(<String, String>{'00': '106141411234567897'}), isEmpty);
+      expect(issues(<String, String>{'414': '9501101020917'}), isEmpty);
+    });
+
+    test('dates are YYMMDD, day 00 allowed', () {
+      expect(issues(<String, String>{'17': '991399'}), <String>[
+        '(17) must be a date, YYMMDD',
+      ]);
+      expect(issues(<String, String>{'17': '270100'}), isEmpty);
+    });
+
+    test('text identifiers keep any characters', () {
+      expect(issues(<String, String>{'10': 'ABC-123'}), isEmpty);
+    });
+  });
 }

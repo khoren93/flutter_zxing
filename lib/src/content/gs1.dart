@@ -100,7 +100,10 @@ final RegExp _aiDigits = RegExp(r'^\d{2,4}$');
 
 /// Why the element [ai] = [value] cannot be encoded, or `null` if it can:
 /// the identifier must be in the Application Identifier table, and the
-/// value must have its length (fixed) or fit in it (variable). The issue is
+/// value must have its length (fixed) or fit in it (variable). For the
+/// common identifiers also (GS1 General Specifications 3.2–3.7): digits
+/// only where the format is numeric, the check digit of SSCC, GTIN and GLN
+/// (00–03, 410–417, 7.9.1), and a `YYMMDD` date (11–17). The issue is
 /// about [field].
 ContentIssue? gs1ElementIssue(String field, String ai, String value) {
   final (String, int)? info = _aiDigits.hasMatch(ai) ? _lookUp(ai, 0) : null;
@@ -129,7 +132,53 @@ ContentIssue? gs1ElementIssue(String field, String ai, String value) {
       limit: -size,
     );
   }
+  if (_numeric(ai) && !_digits.hasMatch(value)) {
+    return ContentIssue(field, '($ai) must be digits');
+  }
+  if (_checkDigit(ai) && !_validCheckDigit(value)) {
+    return ContentIssue(
+      field,
+      '($ai) check digit is wrong',
+      kind: ContentIssueKind.checksum,
+    );
+  }
+  if (_dates.contains(ai) && gs1Date(value) == null) {
+    return ContentIssue(field, '($ai) must be a date, YYMMDD');
+  }
   return null;
+}
+
+final RegExp _digits = RegExp(r'^\d+$');
+
+const Set<String> _dates = <String>{'11', '12', '13', '15', '16', '17'};
+
+/// Identifiers whose value is a check-digited key: SSCC, GTIN, GLN.
+bool _checkDigit(String ai) =>
+    ai == '00' ||
+    ai == '01' ||
+    ai == '02' ||
+    ai == '03' ||
+    (ai.length == 3 && ai.compareTo('410') >= 0 && ai.compareTo('417') <= 0);
+
+/// Identifiers with a numeric (N) format: the keys, dates, counts and the
+/// measures 31nn–36nn and 39nn.
+bool _numeric(String ai) =>
+    _checkDigit(ai) ||
+    _dates.contains(ai) ||
+    ai == '20' ||
+    ai == '30' ||
+    ai == '37' ||
+    (ai.length == 4 && ai[0] == '3' && '1234569'.contains(ai[1]));
+
+/// The GS1 mod 10 check digit (General Specifications 7.9.1): weights 3
+/// and 1 from the right, the last digit makes the sum a multiple of 10.
+bool _validCheckDigit(String digits) {
+  int sum = 0;
+  for (int i = digits.length - 2, weight = 3; i >= 0; i--) {
+    sum += (digits.codeUnitAt(i) - 0x30) * weight;
+    weight = 4 - weight;
+  }
+  return (10 - sum % 10) % 10 == digits.codeUnitAt(digits.length - 1) - 0x30;
 }
 
 final RegExp _gs1DateDigits = RegExp(r'^\d{6}$');
