@@ -5,7 +5,7 @@ Linux, Windows and the web, with [zxing-cpp](https://github.com/zxing-cpp/zxing-
 built into your app.
 
 - **A complete scanner screen in one line**, or just the camera and your own UI.
-- **39 formats to read, 30 to create**, the same on every platform.
+- **32 formats to read, 30 to create**, the same on every platform.
 - **Barcodes as widgets:** sharp at any size, styled, exported to PNG and SVG.
 - **Knows what is inside:** URLs, Wi-Fi, contacts, events, GS1 data, as Dart types.
 - **No ML Kit, no Google Play services, no network.**
