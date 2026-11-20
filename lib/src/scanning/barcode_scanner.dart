@@ -283,6 +283,13 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
       _pausedBeforeStop =
           status == ScannerStatus.paused || controller._pauseWhenStarted;
       unawaited(controller.stop());
+    } else if (controller._statusBeforeHide case final ScannerStatus before) {
+      // The app went to the background first, and the controller stopped
+      // the camera itself: it opens again when this scanner shows, not when
+      // the app returns.
+      controller._statusBeforeHide = null;
+      _stoppedByHiding = true;
+      _pausedBeforeStop = before == ScannerStatus.paused;
     }
   }
 

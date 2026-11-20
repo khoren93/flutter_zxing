@@ -616,8 +616,14 @@ class ScannerController extends ValueNotifier<ScannerState> {
     }
   }
 
-  /// Stops decoding and releases the camera.
-  Future<void> stop() async {
+  /// Stops decoding and releases the camera. Stopped in the background, the
+  /// camera stays closed when the app returns.
+  Future<void> stop() {
+    _statusBeforeHide = null;
+    return _stop();
+  }
+
+  Future<void> _stop() async {
     _session++;
     _pauseWhenStarted = false;
     _wakeUp();
@@ -637,6 +643,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
       _set(value.copyWith(status: ScannerStatus.paused));
     } else if (value.status == ScannerStatus.starting) {
       _pauseWhenStarted = true;
+    } else if (_statusBeforeHide != null) {
+      // In the background: the camera comes back paused.
+      _statusBeforeHide = ScannerStatus.paused;
     }
   }
 
@@ -884,18 +893,17 @@ class ScannerController extends ValueNotifier<ScannerState> {
     _facing = target;
     final ScannerStatus status = value.status;
     if (status.hasCamera || status == ScannerStatus.starting) {
-      await stop();
-      await start();
+      final bool paused = _pausedNow;
+      if (!await _restart(paused)) {
+        return;
+      }
       if (value.status == ScannerStatus.error &&
           value.error is CameraNotFoundException &&
           _facing == target) {
         // No camera there after all: back to the one that worked.
         _missing.add(target);
         _facing = previous;
-        await start();
-      }
-      if (status == ScannerStatus.paused) {
-        await pause();
+        await _startUnlessHidden(paused);
       }
     } else {
       _set(value.copyWith(facing: target));
@@ -1011,16 +1019,39 @@ class ScannerController extends ValueNotifier<ScannerState> {
   }
 
   /// Opens the camera again, keeping a paused scanner paused.
-  Future<void> _reopen() async {
-    final bool paused = value.status == ScannerStatus.paused;
-    await stop();
-    if (_disposed) {
+  Future<void> _reopen() => _restart(_pausedNow);
+
+  /// Whether the scanner is paused, or starts paused.
+  bool get _pausedNow =>
+      value.status == ScannerStatus.paused ||
+      (value.status == ScannerStatus.starting && _pauseWhenStarted);
+
+  /// Closes the camera and opens it again ([paused]: paused), for
+  /// [switchCamera] and a stalled camera. Returns `false` if it gave up:
+  /// the camera was stopped meanwhile by someone else ([stop], the
+  /// background, [dispose]).
+  Future<bool> _restart(bool paused) async {
+    final Future<void> stopped = _stop();
+    final int session = _session;
+    await stopped;
+    if (session != _session || _disposed) {
+      return false;
+    }
+    await _startUnlessHidden(paused);
+    return true;
+  }
+
+  /// [start] ([paused]: paused); in the background, where [stop] would
+  /// close the camera again, it opens when the app returns.
+  Future<void> _startUnlessHidden(bool paused) async {
+    final AppLifecycleState? app = WidgetsBinding.instance.lifecycleState;
+    if (stopInBackground &&
+        (app == AppLifecycleState.hidden || app == AppLifecycleState.paused)) {
+      _statusBeforeHide = paused ? ScannerStatus.paused : ScannerStatus.running;
       return;
     }
+    _pauseWhenStarted = paused;
     await start();
-    if (paused) {
-      await pause();
-    }
   }
 
   /// The pixels of [frame] to decode: the scan window as the user sees it.
@@ -1262,10 +1293,11 @@ class ScannerController extends ValueNotifier<ScannerState> {
     final ScannerStatus status = value.status;
     if (stopInBackground &&
         (status.hasCamera || status == ScannerStatus.starting)) {
-      _statusBeforeHide = status == ScannerStatus.paused
-          ? ScannerStatus.paused
-          : ScannerStatus.running;
-      unawaited(stop());
+      final bool paused =
+          status == ScannerStatus.paused ||
+          (status == ScannerStatus.starting && _pauseWhenStarted);
+      unawaited(_stop());
+      _statusBeforeHide = paused ? ScannerStatus.paused : ScannerStatus.running;
     }
   }
 

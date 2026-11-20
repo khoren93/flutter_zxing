@@ -1,5 +1,7 @@
 // BarcodeScanner on a fake camera: the preview, the overlay layout in widget
 // coordinates, gestures and errors.
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
@@ -334,5 +336,152 @@ void main() {
     expect(captures.single.barcode.text, 'after');
     await tester.pumpWidget(host(const SizedBox()));
     await tester.pump();
+  });
+
+  group('the background', () {
+    // Each test returns from the background before it ends.
+    Future<ScannerController> shown(
+      WidgetTester tester, {
+      bool hidden = false,
+    }) async {
+      final ScannerController controller = ScannerController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        host(
+          TickerMode(
+            enabled: !hidden,
+            child: BarcodeScanner(controller: controller),
+          ),
+        ),
+      );
+      await tester.pump();
+      return controller;
+    }
+
+    testWidgets('a scanner hidden before keeps the camera closed on return', (
+      WidgetTester tester,
+    ) async {
+      final ScannerController controller = await shown(tester);
+      expect(camera.isOpen, isTrue);
+      await tester.pumpWidget(
+        host(
+          TickerMode(
+            enabled: false,
+            child: BarcodeScanner(controller: controller),
+          ),
+        ),
+      );
+      expect(controller.value.status, ScannerStatus.paused);
+      // To the background before the hidden scanner lets the camera go.
+      appLifecycle(tester, leave);
+      await tester.pump();
+      expect(camera.isOpen, isFalse);
+      await tester.pump(const Duration(seconds: 5));
+      appLifecycle(tester, back);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 5));
+      expect(camera.isOpen, isFalse);
+      expect(controller.value.status, ScannerStatus.idle);
+      // Shown again, it goes on.
+      await tester.pumpWidget(
+        host(
+          TickerMode(
+            enabled: true,
+            child: BarcodeScanner(controller: controller),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(controller.value.status, ScannerStatus.running);
+      expect(camera.isOpen, isTrue);
+      await tester.pumpWidget(host(const SizedBox()));
+      await tester.pump();
+    });
+
+    testWidgets('a camera stopped in the background stays stopped', (
+      WidgetTester tester,
+    ) async {
+      final ScannerController controller = await shown(tester);
+      appLifecycle(tester, leave);
+      await tester.pump();
+      await controller.stop();
+      appLifecycle(tester, back);
+      await tester.pump();
+      expect(controller.value.status, ScannerStatus.idle);
+      expect(camera.opened, hasLength(1));
+      await tester.pumpWidget(host(const SizedBox()));
+      await tester.pump();
+    });
+
+    testWidgets('a pause in the background holds on return', (
+      WidgetTester tester,
+    ) async {
+      final ScannerController controller = await shown(tester);
+      appLifecycle(tester, leave);
+      await tester.pump();
+      await controller.pause();
+      appLifecycle(tester, back);
+      await tester.pump();
+      expect(controller.value.status, ScannerStatus.paused);
+      await tester.pumpWidget(host(const SizedBox()));
+      await tester.pump();
+    });
+
+    testWidgets('a pause while starting holds through the background', (
+      WidgetTester tester,
+    ) async {
+      camera.openGate = Completer<void>();
+      final ScannerController controller = await shown(tester);
+      expect(controller.value.status, ScannerStatus.starting);
+      await controller.pause();
+      appLifecycle(tester, leave);
+      camera.openGate!.complete();
+      await tester.pump();
+      expect(camera.isOpen, isFalse);
+      appLifecycle(tester, back);
+      await tester.pump();
+      expect(controller.value.status, ScannerStatus.paused);
+      await tester.pumpWidget(host(const SizedBox()));
+      await tester.pump();
+    });
+
+    testWidgets('switchCamera in the background opens on return', (
+      WidgetTester tester,
+    ) async {
+      final ScannerController controller = await shown(tester);
+      camera.closeGate = Completer<void>();
+      final Future<void> switched = controller.switchCamera();
+      appLifecycle(tester, leave);
+      camera.closeGate!.complete();
+      await switched;
+      await tester.pump();
+      expect(camera.isOpen, isFalse);
+      expect(camera.opened, <CameraFacing>[CameraFacing.back]);
+      appLifecycle(tester, back);
+      await tester.pump();
+      expect(camera.isOpen, isTrue);
+      expect(camera.opened, <CameraFacing>[
+        CameraFacing.back,
+        CameraFacing.front,
+      ]);
+      expect(controller.value.status, ScannerStatus.running);
+      await tester.pumpWidget(host(const SizedBox()));
+      await tester.pump();
+    });
+
+    testWidgets('switchCamera keeps a scanner paused while starting', (
+      WidgetTester tester,
+    ) async {
+      camera.openGate = Completer<void>();
+      final ScannerController controller = await shown(tester);
+      expect(controller.value.status, ScannerStatus.starting);
+      await controller.pause();
+      final Future<void> switched = controller.switchCamera();
+      camera.openGate!.complete();
+      await switched;
+      expect(controller.value.status, ScannerStatus.paused);
+      await tester.pumpWidget(host(const SizedBox()));
+      await tester.pump();
+    });
   });
 }
