@@ -957,7 +957,11 @@ final class ScannerTemplate {
   final bool counter;
 
   /// With one result at a time: pause and show a result sheet. Without it,
-  /// the brackets lock onto the code and the app handles `onDetect`.
+  /// the brackets lock onto the code, the scanner pauses as well, and the
+  /// app handles `onDetect` and calls `ScannerController.resume` to scan
+  /// the next code. `onDetect` runs before the template takes the code:
+  /// resume after an `await` there (such as once the code is handled), as
+  /// a resume before the template paused is lost.
   final bool showResult;
 
   /// What the default result sheet shows next to its title

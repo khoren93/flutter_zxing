@@ -234,4 +234,63 @@ void main() {
     expect(found, <String>['A', 'B']);
     await close(t);
   });
+
+  group('without a sheet the app resumes the scanner', () {
+    late int checks;
+    ScannerTemplate template() => ScannerTemplate(
+      scanWindow: const ScanWindow.full(),
+      showResult: false,
+      check: (_) {
+        checks++;
+        return const ScanVerdict.accept();
+      },
+    );
+
+    setUp(() => checks = 0);
+
+    Future<void> twoCodes(WidgetTester t) async {
+      await code(t);
+      await _settle(t);
+      expect(checks, 1);
+      expect(c.value.status, ScannerStatus.running);
+      await code(t, 'B', _a.shift(const Offset(0, 320)));
+      await _settle(t);
+      expect(checks, 2);
+    }
+
+    testWidgets('a moment after the code', (WidgetTester t) async {
+      await open(
+        t,
+        template(),
+        onDetect: (_) => unawaited(
+          Future<void>.delayed(const Duration(milliseconds: 1), c.resume),
+        ),
+      );
+      await twoCodes(t);
+      await close(t);
+    });
+
+    testWidgets('after an await in onDetect', (WidgetTester t) async {
+      await open(
+        t,
+        template(),
+        onDetect: (_) async {
+          await null;
+          await c.resume();
+        },
+      );
+      await twoCodes(t);
+      await close(t);
+    });
+
+    testWidgets('at once, with DetectionMode.once', (WidgetTester t) async {
+      c = ScannerController(
+        scanWindow: const ScanWindow.full(),
+        detection: DetectionMode.once,
+      );
+      await open(t, template(), onDetect: (_) => unawaited(c.resume()));
+      await twoCodes(t);
+      await close(t);
+    });
+  });
 }

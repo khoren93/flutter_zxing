@@ -142,8 +142,13 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   /// dropped.
   int _run = 0;
 
+  /// Without a sheet: a code was taken and the scanner waits paused for
+  /// the app to resume it.
+  bool _holding = false;
+
   /// A code is being judged or shown: the next one waits.
   bool get _busy =>
+      _holding ||
       _result != null ||
       _showResult != null ||
       _after != null ||
@@ -176,21 +181,12 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       }
       _dropPhoto();
     }
-    // Without a sheet the app resumes the scanner: the next code starts anew.
-    if (oldWidget.layout.state.status == ScannerStatus.paused &&
-        widget.layout.state.status == ScannerStatus.running &&
-        _settled &&
-        _result == null &&
-        _showResult == null &&
-        !_template.showResult &&
-        !_template.closeOnResult) {
-      _clearResult();
-    }
   }
 
   @override
   void dispose() {
     unawaited(_captures?.cancel());
+    _controller?.removeListener(_onState);
     _showResult?.cancel();
     _hideNotice?.cancel();
     _hideVerdict?.cancel();
@@ -212,8 +208,20 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       return;
     }
     unawaited(_captures?.cancel());
+    _controller?.removeListener(_onState);
     _controller = controller;
     _captures = controller.barcodes.listen(_onCapture);
+    controller.addListener(_onState);
+  }
+
+  /// Without a sheet the app resumes the scanner: the next code starts
+  /// anew, also when the code taken is still flying in.
+  void _onState() {
+    if (_holding &&
+        mounted &&
+        _controller?.value.status == ScannerStatus.running) {
+      setState(_clearResult);
+    }
   }
 
   void _onCapture(BarcodeCapture capture) {
@@ -361,6 +369,18 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     if (_busy) {
       return;
     }
+    final ScannerController controller = widget.layout.controller;
+    // Without a sheet the app resumes the scanner. It pauses now, before
+    // the check, so that a resume of the app while the check runs counts;
+    // with DetectionMode.once it paused by itself.
+    final bool hold = !_template.showResult && !_template.closeOnResult;
+    final bool pausedHere =
+        hold &&
+        controller.detection != DetectionMode.once &&
+        controller.value.status == ScannerStatus.running;
+    if (pausedHere) {
+      unawaited(controller.pause());
+    }
     ScanVerdict? warning;
     if (_template.check != null) {
       final int run = _run;
@@ -369,7 +389,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         return;
       }
       if (verdict == null) {
-        _scanOn(capture);
+        _scanOn(capture, pausedHere: pausedHere);
         return;
       }
       if (verdict.kind == ScanVerdictKind.reject) {
@@ -381,7 +401,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
             ?verdict.message,
           ].join(' · '),
         );
-        _scanOn(capture);
+        _scanOn(capture, pausedHere: pausedHere);
         return;
       }
       if (_settled || _result != null) {
@@ -407,7 +427,13 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     } else {
       _feedback(ScanVerdictKind.accept);
     }
-    final ScannerController controller = widget.layout.controller;
+    if (hold) {
+      // The app resumed the scanner already: nothing to hold.
+      if (controller.value.status != ScannerStatus.paused) {
+        return;
+      }
+      _holding = true;
+    }
     unawaited(_takeIn(capture, barcode, ++_lock, from: from));
     if (_template.closeOnResult) {
       unawaited(controller.pause());
@@ -418,10 +444,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       );
       return;
     }
-    if (!_template.showResult) {
-      if (_template.detection != DetectionMode.once) {
-        unawaited(controller.pause());
-      }
+    if (hold) {
       return;
     }
     unawaited(controller.pause());
@@ -444,9 +467,10 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   }
 
   /// A code was not taken: a photo or a paused camera scans on.
-  void _scanOn(BarcodeCapture capture) {
+  void _scanOn(BarcodeCapture capture, {bool pausedHere = false}) {
     if (_photo == null &&
-        (capture.source == CaptureSource.image ||
+        (pausedHere ||
+            capture.source == CaptureSource.image ||
             widget.layout.controller.detection == DetectionMode.once)) {
       unawaited(widget.layout.controller.resume());
     }
@@ -633,6 +657,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     _result = null;
     _resultCapture = null;
     _settled = false;
+    _holding = false;
   }
 
   /// Hides the result of the code found.
