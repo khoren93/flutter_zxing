@@ -999,9 +999,12 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     final bool sideButtons =
         template.photoButton || template.switchCameraButton;
     final Color? flash = _flashColor(theme);
+    // The counter counts codes let in one after another: continuous only.
+    final bool counter =
+        template.counter && template.mode == ScannerMode.continuous;
     final String? title = template.largeHint
         ? null
-        : template.counter
+        : counter
         ? strings.checkedIn(_accepted)
         : pick && layout.barcodes.isNotEmpty
         ? strings.codesInView(layout.barcodes.length)
@@ -1263,8 +1266,8 @@ class _TemplateOverlayState extends State<TemplateOverlay>
                       padding: const EdgeInsets.symmetric(horizontal: 60),
                       child: ScannerHint(
                         title,
-                        icon: template.counter ? ScannerIcons.person : null,
-                        liveRegion: template.counter,
+                        icon: counter ? ScannerIcons.person : null,
+                        liveRegion: counter,
                       ),
                     ),
                   ),

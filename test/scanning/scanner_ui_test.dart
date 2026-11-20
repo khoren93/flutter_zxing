@@ -1122,6 +1122,24 @@ void main() {
       await wait(tester, 3000);
     });
 
+    testWidgets('check-in in single mode shows no counter', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      await tester.pumpWidget(
+        _host(
+          BarcodeScanner(
+            template: ScannerTemplate.checkIn(
+              check: (Barcode b) => const ScanVerdict.accept(),
+            ).copyWith(mode: ScannerMode.single),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('0 checked in'), findsNothing);
+      expect(find.text('Point at the ticket'), findsOneWidget);
+    });
+
     testWidgets('check-in: verdicts, colors and the counter', (
       WidgetTester tester,
     ) async {
