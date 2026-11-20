@@ -15,19 +15,31 @@ int minimumLogoVersion(double size) => size <= 0.18
     ? 3
     : 4;
 
+/// Whether [writer]'s `zxingOptions` set [key] (`ecLevel`, `version`),
+/// which wins over its typed field. Without case, as zxing-cpp matches keys.
+bool _setsOption(BarcodeWriter writer, String key) {
+  final String? options = writer.zxingOptions;
+  return options != null &&
+      RegExp(
+        '(?:^|,)[\\s"\'{]*$key[\\s"\']*[:=]',
+        caseSensitive: false,
+      ).hasMatch(options);
+}
+
 /// [writer] as a [logo] needs it: a QR code gets the error correction the
 /// logo needs ([BarcodeLogo.neededErrorCorrection]) unless the writer sets
-/// its own.
+/// its own, typed or in `zxingOptions`.
 BarcodeWriter writerUnderLogo(BarcodeWriter writer, BarcodeLogo? logo) =>
     logo != null &&
         writer.errorCorrection == null &&
+        !_setsOption(writer, 'ecLevel') &&
         hasFinderPatterns(writer.format)
     ? writer.copyWith(errorCorrection: logo.neededErrorCorrection)
     : writer;
 
 /// Encodes with [encode], in a larger symbol if a QR code would be too small
-/// for a logo of [logoSize]. A version set on [writer] stays. Give it the
-/// writer of [writerUnderLogo].
+/// for a logo of [logoSize]. A version set on [writer], typed or in
+/// `zxingOptions`, stays. Give it the writer of [writerUnderLogo].
 Future<BarcodeSymbol> encodeUnderLogo(
   BarcodeWriter writer,
   double? logoSize,
@@ -36,7 +48,8 @@ Future<BarcodeSymbol> encodeUnderLogo(
   final BarcodeSymbol symbol = await encode(writer);
   if (logoSize == null ||
       writer.format != BarcodeFormat.qrCode ||
-      writer.version != null) {
+      writer.version != null ||
+      _setsOption(writer, 'version')) {
     return symbol;
   }
   final int version = minimumLogoVersion(logoSize);
@@ -61,5 +74,5 @@ String logoFitsMessage(BarcodeSymbol symbol, BarcodeLogo logo) =>
     'too little for a logo of size ${logo.size}, which needs '
     '${logo.neededErrorCorrection.name}: it may not scan. Encode it with '
     'style.encode(writer, data), or BarcodeView(data, writer: ...) without '
-    'errorCorrection; to keep a lower level on purpose, set '
-    'BarcodeLogo.errorCorrection.';
+    'errorCorrection and without ecLevel in zxingOptions; to keep a lower '
+    'level on purpose, set BarcodeLogo.errorCorrection.';

@@ -10,6 +10,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:flutter_zxing/src/rendering/frame_layout.dart';
+import 'package:flutter_zxing/src/rendering/logo_symbol.dart';
 import 'package:flutter_zxing/src/writing/symbol_layout.dart';
 
 /// A [size] × [size] PNG: a dark square, like an app icon.
@@ -123,6 +124,35 @@ void main() {
         wifi,
       );
       expect(symbol.errorCorrection, ErrorCorrection.quartile);
+    });
+
+    test('zxingOptions set the level and version as the typed fields do', () {
+      final BarcodeLogo logo = withLogo.logo!;
+      expect(
+        writerUnderLogo(
+          const BarcodeWriter(BarcodeFormat.qrCode, zxingOptions: 'ecLevel=L'),
+          logo,
+        ).errorCorrection,
+        isNull,
+      );
+      expect(
+        writerUnderLogo(qr, logo).errorCorrection,
+        logo.neededErrorCorrection,
+      );
+    });
+
+    test('a version in zxingOptions stays: encoded once', () async {
+      int calls = 0;
+      final BarcodeSymbol small = await qr.encode('a');
+      await encodeUnderLogo(
+        const BarcodeWriter(BarcodeFormat.qrCode, zxingOptions: 'Version:1'),
+        0.25,
+        (BarcodeWriter w) async {
+          calls++;
+          return small;
+        },
+      );
+      expect(calls, 1);
     });
 
     test('a short text gets a symbol large enough for the logo', () async {
