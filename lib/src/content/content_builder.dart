@@ -8,18 +8,11 @@ import 'gs1.dart';
 // writes what the parser reads back, so that
 // `parseText(content.toPayload()) == content` for values in normal form.
 
-/// Throws the problems [validate] found.
-void _check(List<ContentIssue> issues) {
-  if (issues.isNotEmpty) {
-    throw ArgumentError(issues.join('; '));
-  }
-}
-
 // --- Text, binary ----------------------------------------------------------------
 
 /// [TextContent.toPayload].
 String buildText(TextContent c) {
-  _check(validateText(c));
+  checkIssues(validateText(c));
   return c.text;
 }
 
@@ -62,9 +55,9 @@ ContentIssue? _webUrlIssue(String field, Uri url) {
 
 /// [UrlContent.toPayload].
 String buildUrl(UrlContent c) {
-  _check(validateUrl(c));
+  checkIssues(validateUrl(c));
   final String url = _withScheme(c.url)!.toString();
-  final String? title = _orNull(c.title);
+  final String? title = orNull(c.title);
   if (title == null) {
     return url;
   }
@@ -81,7 +74,7 @@ List<ContentIssue> validateUrl(UrlContent c) => <ContentIssue>[
 
 /// [WifiContent.toPayload].
 String buildWifi(WifiContent c) {
-  _check(validateWifi(c));
+  checkIssues(validateWifi(c));
   const String special = r'\;,:"';
   final StringBuffer out = StringBuffer('WIFI:');
   out.write(switch (c.security) {
@@ -138,8 +131,6 @@ List<ContentIssue> validateWifi(WifiContent c) => <ContentIssue>[
 
 // --- E-mail, phone, SMS ----------------------------------------------------------
 
-final RegExp _emailAddress = RegExp(r'^[^@\s,]+@[^@\s,]+$');
-
 List<String> _addresses(String value) => value
     .split(',')
     .map((String a) => a.trim())
@@ -148,12 +139,12 @@ List<String> _addresses(String value) => value
 
 /// [EmailContent.toPayload].
 String buildEmail(EmailContent c) {
-  _check(validateEmail(c));
+  checkIssues(validateEmail(c));
   final String to = _addresses(
     c.address,
   ).map((String a) => Uri.encodeComponent(a).replaceAll('%40', '@')).join(',');
-  final String? subject = _orNull(c.subject);
-  final String? body = _orNull(c.body);
+  final String? subject = orNull(c.subject);
+  final String? body = orNull(c.body);
   return <String>[
     'mailto:$to',
     if (subject != null || body != null) '?',
@@ -169,9 +160,9 @@ List<ContentIssue> validateEmail(EmailContent c) {
   final List<String> to = _addresses(c.address);
   return <ContentIssue>[
     for (final String a in to)
-      if (!_emailAddress.hasMatch(a))
+      if (!emailAddress.hasMatch(a))
         ContentIssue('address', 'Not an e-mail address: $a'),
-    if (to.isEmpty && _orNull(c.subject) == null && _orNull(c.body) == null)
+    if (to.isEmpty && orNull(c.subject) == null && orNull(c.body) == null)
       const ContentIssue(
         'address',
         'Add an address, a subject or a body',
@@ -210,7 +201,7 @@ List<ContentIssue> _validateNumber(
 
 /// [PhoneContent.toPayload].
 String buildPhone(PhoneContent c) {
-  _check(validatePhone(c));
+  checkIssues(validatePhone(c));
   final String scheme = switch (c.type) {
     CallType.voice => 'tel',
     CallType.faceTime => 'facetime',
@@ -218,7 +209,7 @@ String buildPhone(PhoneContent c) {
   };
   final String number = c.number.trim();
   // FaceTime also calls Apple accounts by e-mail address.
-  final String target = _emailAddress.hasMatch(number)
+  final String target = emailAddress.hasMatch(number)
       ? number
       : _dialable(number).replaceAll('#', '%23');
   return '$scheme:$target';
@@ -226,19 +217,19 @@ String buildPhone(PhoneContent c) {
 
 /// [PhoneContent.validate].
 List<ContentIssue> validatePhone(PhoneContent c) =>
-    c.type != CallType.voice && _emailAddress.hasMatch(c.number.trim())
+    c.type != CallType.voice && emailAddress.hasMatch(c.number.trim())
     ? const <ContentIssue>[]
     : _validateNumber('number', c.number, call: c.type == CallType.voice);
 
 /// [SmsContent.toPayload].
 String buildSms(SmsContent c) {
-  _check(validateSms(c));
+  checkIssues(validateSms(c));
   final String numbers = c.number
       .split(',')
       .map(_dialable)
       .where((String n) => n.isNotEmpty)
       .join(',');
-  final String? message = _orNull(c.message?.trim());
+  final String? message = orNull(c.message?.trim());
   return message == null ? 'SMSTO:$numbers' : 'SMSTO:$numbers:$message';
 }
 
@@ -279,9 +270,9 @@ String _decimal(double v) {
 
 /// [GeoContent.toPayload].
 String buildGeo(GeoContent c) {
-  _check(validateGeo(c));
+  checkIssues(validateGeo(c));
   final double? altitude = c.altitude;
-  final String? query = _orNull(c.query);
+  final String? query = orNull(c.query);
   return 'geo:${_decimal(c.latitude)},${_decimal(c.longitude)}'
       '${altitude == null ? '' : ',${_decimal(altitude)}'}'
       '${query == null ? '' : '?q=${Uri.encodeQueryComponent(query)}'}';
@@ -309,7 +300,7 @@ List<ContentIssue> validateGeo(GeoContent c) => <ContentIssue>[
 
 /// [ContactContent.toPayload].
 String buildContact(ContactContent c, ContactFormat format) {
-  _check(validateContact(c));
+  checkIssues(validateContact(c));
   return switch (format) {
     ContactFormat.vCard => _vCard(c),
     ContactFormat.meCard => _meCard(c),
@@ -319,10 +310,10 @@ String buildContact(ContactContent c, ContactFormat format) {
 /// [ContactContent.validate].
 List<ContentIssue> validateContact(ContactContent c) {
   final bool empty =
-      _orNull(c.name?.trim()) == null &&
-      _orNull(c.organization?.trim()) == null &&
-      _orNull(c.title?.trim()) == null &&
-      _orNull(c.note?.trim()) == null &&
+      orNull(c.name?.trim()) == null &&
+      orNull(c.organization?.trim()) == null &&
+      orNull(c.title?.trim()) == null &&
+      orNull(c.note?.trim()) == null &&
       c.birthDate == null &&
       _notEmpty(c.phones).isEmpty &&
       _notEmpty(c.emails).isEmpty &&
@@ -336,7 +327,7 @@ List<ContentIssue> validateContact(ContactContent c) {
         kind: ContentIssueKind.empty,
       ),
     for (final String e in _notEmpty(c.emails))
-      if (!_emailAddress.hasMatch(e))
+      if (!emailAddress.hasMatch(e))
         ContentIssue('emails', 'Not an e-mail address: $e'),
     for (final Uri url in c.urls) ?_webUrlIssue('urls', url),
     if (c.birthDate case final DateTime b when b.year < 1 || b.year > 9999)
@@ -363,7 +354,7 @@ List<String> _notEmpty(List<String> values) => <String>[
 
 String _vCard(ContactContent c) {
   String text(String value) => _escapeText(value.trim());
-  final String? name = _orNull(c.name?.trim());
+  final String? name = orNull(c.name?.trim());
   final (String family, String given) = name == null
       ? ('', '')
       : _splitName(name);
@@ -373,16 +364,15 @@ String _vCard(ContactContent c) {
     'VERSION:3.0',
     'N:${text(family)};${text(given)};;;',
     'FN:${name == null ? '' : text(name)}',
-    if (_orNull(c.organization?.trim()) case final String org)
+    if (orNull(c.organization?.trim()) case final String org)
       'ORG:${text(org)}',
-    if (_orNull(c.title?.trim()) case final String title)
-      'TITLE:${text(title)}',
+    if (orNull(c.title?.trim()) case final String title) 'TITLE:${text(title)}',
     for (final String phone in _notEmpty(c.phones)) 'TEL:${text(phone)}',
     for (final String email in _notEmpty(c.emails)) 'EMAIL:${text(email)}',
     for (final Uri url in c.urls) 'URL:${_withScheme(url)!}',
     for (final String address in _notEmpty(c.addresses))
       'ADR:;;${text(address)};;;;',
-    if (_orNull(c.note?.trim()) case final String note) 'NOTE:${text(note)}',
+    if (orNull(c.note?.trim()) case final String note) 'NOTE:${text(note)}',
     if (birthDate != null)
       'BDAY:${_year(birthDate)}-${_two(birthDate.month)}-${_two(birthDate.day)}',
     'END:VCARD',
@@ -393,17 +383,17 @@ String _meCard(ContactContent c) {
   const String special = r'\;:,';
   String field(String key, String value) => '$key:${_escape(value, special)};';
   final StringBuffer out = StringBuffer('MECARD:');
-  if (_orNull(c.name?.trim()) case final String name) {
+  if (orNull(c.name?.trim()) case final String name) {
     final (String family, String given) = _splitName(name);
     out.write(
       'N:${_escape(family, special)}'
       '${given.isEmpty ? '' : ',${_escape(given, special)}'};',
     );
   }
-  if (_orNull(c.organization?.trim()) case final String org) {
+  if (orNull(c.organization?.trim()) case final String org) {
     out.write(field('ORG', org));
   }
-  if (_orNull(c.title?.trim()) case final String title) {
+  if (orNull(c.title?.trim()) case final String title) {
     out.write(field('TITLE', title));
   }
   for (final String phone in _notEmpty(c.phones)) {
@@ -419,7 +409,7 @@ String _meCard(ContactContent c) {
   for (final String address in _notEmpty(c.addresses)) {
     out.write(field('ADR', address));
   }
-  if (_orNull(c.note?.trim()) case final String note) {
+  if (orNull(c.note?.trim()) case final String note) {
     out.write(field('NOTE', note.replaceAll('\r\n', '\n')));
   }
   if (c.birthDate case final DateTime b) {
@@ -433,7 +423,7 @@ String _meCard(ContactContent c) {
 
 /// [EventContent.toPayload].
 String buildEvent(EventContent c) {
-  _check(validateEvent(c));
+  checkIssues(validateEvent(c));
   String text(String value) => _escapeText(value.trim());
   String time(String property, DateTime t) => c.allDay
       ? '$property;VALUE=DATE:${_date(t)}'
@@ -447,9 +437,9 @@ String buildEvent(EventContent c) {
     if (c.summary.trim().isNotEmpty) 'SUMMARY:${text(c.summary)}',
     time('DTSTART', c.start),
     if (end != null) time('DTEND', end),
-    if (_orNull(c.location?.trim()) case final String location)
+    if (orNull(c.location?.trim()) case final String location)
       'LOCATION:${text(location)}',
-    if (_orNull(c.description?.trim()) case final String description)
+    if (orNull(c.description?.trim()) case final String description)
       'DESCRIPTION:${text(description)}',
     'END:VEVENT',
     'END:VCALENDAR',
@@ -488,7 +478,7 @@ String _date(DateTime t) => '${_year(t)}${_two(t.month)}${_two(t.day)}';
 
 /// [Gs1Content.toPayload].
 String buildGs1(Gs1Content c) {
-  _check(validateGs1(c));
+  checkIssues(validateGs1(c));
   return c.elements.entries
       .map((MapEntry<String, String> e) => '(${e.key})${e.value}')
       .join();
@@ -522,7 +512,7 @@ Uri? smsUri(SmsContent c) {
       .map(_dialable)
       .where((String n) => n.isNotEmpty)
       .join(',');
-  final String? message = _orNull(c.message?.trim());
+  final String? message = orNull(c.message?.trim());
   return Uri.tryParse(
     message == null
         ? 'sms:$numbers'
@@ -531,8 +521,6 @@ Uri? smsUri(SmsContent c) {
 }
 
 // --- Shared helpers --------------------------------------------------------------
-
-String? _orNull(String? value) => value == null || value.isEmpty ? null : value;
 
 String _two(int v) => v.toString().padLeft(2, '0');
 

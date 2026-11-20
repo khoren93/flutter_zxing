@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../writing/barcode_writer.dart';
 import 'barcode_content.dart';
+import 'content_util.dart';
 
 /// `writer.encodeContent(content)`: encodes a [BarcodeContent] the way its
 /// kind needs. Lives in the content layer, so the core writer does not
@@ -26,10 +27,7 @@ extension BarcodeWriterContent on BarcodeWriter {
   Future<BarcodeSymbol> encodeContent(BarcodeContent content) =>
       switch (content) {
         BinaryContent(:final Uint8List bytes) => () {
-          final List<ContentIssue> issues = content.validate();
-          if (issues.isNotEmpty) {
-            throw ArgumentError(issues.join('; '));
-          }
+          checkIssues(content.validate());
           return encodeBytes(bytes);
         }(),
         Gs1Content() => (gs1 ? this : copyWith(gs1: true)).encode(

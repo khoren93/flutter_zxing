@@ -93,9 +93,7 @@ BarcodeContent parseTextContent(String text) {
   final String t = text.trim();
   // Compare the prefix only: upper-casing the whole text can change its
   // length ('ﬆ' → 'ST' on the web), and the text is sliced afterwards.
-  bool has(String prefix) =>
-      t.length >= prefix.length &&
-      t.substring(0, prefix.length).toUpperCase() == prefix;
+  bool has(String prefix) => hasPrefix(t, prefix);
   final BarcodeContent? content;
   if (has('WIFI:')) {
     content = _wifi(t.substring(5));
@@ -217,7 +215,7 @@ UrlContent? _meBookmark(String body) {
   for (final (String key, String raw) in _fields(body)) {
     switch (key) {
       case 'TITLE':
-        title = _orNull(_unescape(raw));
+        title = orNull(_unescape(raw));
       case 'URL':
         url = _webUrl(_unescape(raw));
     }
@@ -234,7 +232,7 @@ UrlContent? _urlTo(String body) {
   final Uri? url = _webUrl(body.substring(colon + 1));
   return url == null
       ? null
-      : UrlContent(url, title: _orNull(body.substring(0, colon).trim()));
+      : UrlContent(url, title: orNull(body.substring(0, colon).trim()));
 }
 
 // --- Wi-Fi ---------------------------------------------------------------------
@@ -282,7 +280,7 @@ WifiContent? _wifi(String body) {
   };
   return WifiContent(
     ssid: ssid,
-    password: security == WifiSecurity.none ? null : _orNull(password),
+    password: security == WifiSecurity.none ? null : orNull(password),
     security: security,
     hidden: hidden,
   );
@@ -319,7 +317,7 @@ ContactContent? _meCard(String body) {
       case 'N':
         // "Last,First" per the MeCard specification.
         final List<String> parts = _split(raw, ',');
-        name = _orNull(
+        name = orNull(
           <String>[...parts.skip(1), parts.first]
               .map((String p) => p.trim())
               .where((String p) => p.isNotEmpty)
@@ -337,11 +335,11 @@ ContactContent? _meCard(String body) {
       case 'ADR':
         _addNotEmpty(addresses, _joinParts(_split(raw, ',')));
       case 'ORG':
-        organization = _orNull(_unescape(raw).trim());
+        organization = orNull(_unescape(raw).trim());
       case 'TITLE':
-        title = _orNull(_unescape(raw).trim());
+        title = orNull(_unescape(raw).trim());
       case 'NOTE':
-        note = _orNull(_unescape(raw).trim());
+        note = orNull(_unescape(raw).trim());
       case 'BDAY':
         birthDate = _birthday(_unescape(raw));
     }
@@ -374,12 +372,12 @@ ContactContent? _vCard(String text) {
   for (final _Line line in _contentLines(text)) {
     switch (line.name) {
       case 'FN':
-        formattedName = _orNull(line.text.trim());
+        formattedName = orNull(line.text.trim());
       case 'N':
         // Family; Given; Additional; Prefix; Suffix.
         final List<String> p = line.parts;
         String at(int i) => i < p.length ? p[i].trim() : '';
-        structuredName = _orNull(
+        structuredName = orNull(
           <String>[
             at(3),
             at(1),
@@ -389,9 +387,9 @@ ContactContent? _vCard(String text) {
           ].where((String s) => s.isNotEmpty).join(' '),
         );
       case 'ORG':
-        organization = _orNull(_joinParts(line.parts));
+        organization = orNull(_joinParts(line.parts));
       case 'TITLE':
-        title = _orNull(line.text.trim());
+        title = orNull(line.text.trim());
       case 'TEL':
         _addNotEmpty(phones, _stripScheme(line.text, 'tel:'));
       case 'EMAIL':
@@ -404,7 +402,7 @@ ContactContent? _vCard(String text) {
       case 'ADR':
         _addNotEmpty(addresses, _joinParts(line.parts));
       case 'NOTE':
-        note = _orNull(line.text.trim());
+        note = orNull(line.text.trim());
       case 'BDAY':
         birthDate = _birthday(line.text);
     }
@@ -536,9 +534,9 @@ EventContent? _vEvent(String text) {
       case 'SUMMARY':
         summary = value.trim();
       case 'LOCATION':
-        location = _orNull(value.trim());
+        location = orNull(value.trim());
       case 'DESCRIPTION':
-        description = _orNull(value.trim());
+        description = orNull(value.trim());
       case 'DTSTART':
         start = _calendarTime(value);
         allDay = start != null && _calendarDate.hasMatch(value.trim());
@@ -644,8 +642,8 @@ Duration? _calendarDuration(String value) {
 EmailContent? _mailto(String body) {
   final int q = body.indexOf('?');
   final List<String> to = <String>[
-    if (_decode(q < 0 ? body : body.substring(0, q)).trim() case final String a
-        when a.isNotEmpty)
+    if (decodeComponent(q < 0 ? body : body.substring(0, q)).trim()
+        case final String a when a.isNotEmpty)
       a,
   ];
   String? subject;
@@ -654,19 +652,21 @@ EmailContent? _mailto(String body) {
     for (final String pair in body.substring(q + 1).split('&')) {
       final int eq = pair.indexOf('=');
       final String key = (eq < 0 ? pair : pair.substring(0, eq)).toLowerCase();
-      final String value = eq < 0 ? '' : _decode(pair.substring(eq + 1));
+      final String value = eq < 0
+          ? ''
+          : decodeComponent(pair.substring(eq + 1));
       switch (key) {
         case 'to':
           _addNotEmpty(to, value);
         case 'subject':
-          subject = _orNull(value);
+          subject = orNull(value);
         case 'body':
-          text = _orNull(value);
+          text = orNull(value);
       }
     }
   }
   final String address = to.join(',');
-  if (address.isNotEmpty && !_emailAddress.hasMatch(address)) {
+  if (address.isNotEmpty && !_emailList.hasMatch(address)) {
     return null;
   }
   return EmailContent(address: address, subject: subject, body: text);
@@ -682,13 +682,13 @@ EmailContent? _matmsg(String body) {
       case 'TO':
         to = _unescape(raw).trim();
       case 'SUB':
-        subject = _orNull(_unescape(raw));
+        subject = orNull(_unescape(raw));
       case 'BODY':
-        text = _orNull(_unescape(raw));
+        text = orNull(_unescape(raw));
     }
   }
   // The address follows the rule of mailto: (RFC 6068).
-  if (to != null && to.isNotEmpty && !_emailAddress.hasMatch(to)) {
+  if (to != null && to.isNotEmpty && !_emailList.hasMatch(to)) {
     return null;
   }
   return to == null && subject == null && text == null
@@ -700,13 +700,13 @@ EmailContent? _matmsg(String body) {
 EmailContent? _smtp(String body) {
   final List<String> parts = body.split(':');
   final String to = parts.first.trim();
-  if (!_emailAddress.hasMatch(to)) {
+  if (!_emailList.hasMatch(to)) {
     return null;
   }
   return EmailContent(
     address: to,
-    subject: parts.length > 1 ? _orNull(parts[1]) : null,
-    body: parts.length > 2 ? _orNull(parts.skip(2).join(':')) : null,
+    subject: parts.length > 1 ? orNull(parts[1]) : null,
+    body: parts.length > 2 ? orNull(parts.skip(2).join(':')) : null,
   );
 }
 
@@ -715,7 +715,7 @@ PhoneContent? _tel(String body, [CallType type = CallType.voice]) {
   final String b = type != CallType.voice && body.startsWith('//')
       ? body.substring(2)
       : body;
-  final String number = _decode(b).trim();
+  final String number = decodeComponent(b).trim();
   // Apple's facetime: calls one number or one address.
   final bool address = type != CallType.voice && emailAddress.hasMatch(number);
   return address ||
@@ -744,14 +744,14 @@ bool _smsNumbers(String numbers) {
 }
 
 /// One address, or several separated by commas.
-final RegExp _emailAddress = RegExp(
+final RegExp _emailList = RegExp(
   r'^[^\s@,]+@[^\s@,]+(?:\s*,\s*[^\s@,]+@[^\s@,]+)*$',
 );
 
 /// `SMSTO:number:text`.
 SmsContent? _smsTo(String body) {
   final int colon = body.indexOf(':');
-  final String number = _decode(
+  final String number = decodeComponent(
     (colon < 0 ? body : body.substring(0, colon)).trim(),
   );
   // ZXing's SMSTO: holds the numbers sms: does.
@@ -760,7 +760,7 @@ SmsContent? _smsTo(String body) {
   }
   return SmsContent(
     number: number,
-    message: colon < 0 ? null : _orNull(body.substring(colon + 1)),
+    message: colon < 0 ? null : orNull(body.substring(colon + 1)),
   );
 }
 
@@ -777,20 +777,20 @@ SmsContent? _sms(String body) {
   if (q < 0) {
     final int colon = target.indexOf(':');
     if (colon >= 0) {
-      message = _orNull(target.substring(colon + 1));
+      message = orNull(target.substring(colon + 1));
       target = target.substring(0, colon);
     }
   } else {
     for (final String pair in body.substring(q + 1).split('&')) {
       final int eq = pair.indexOf('=');
       if (eq > 0 && pair.substring(0, eq).toLowerCase() == 'body') {
-        message = _orNull(_decode(pair.substring(eq + 1)));
+        message = orNull(decodeComponent(pair.substring(eq + 1)));
       }
     }
   }
   // Parameters such as ;via= are not part of the number.
   final int semicolon = target.indexOf(';');
-  final String number = _decode(
+  final String number = decodeComponent(
     semicolon < 0 ? target : target.substring(0, semicolon),
   ).trim();
   return _phoneNumber.hasMatch(number) && _smsNumbers(number)
@@ -829,7 +829,7 @@ GeoContent? _geo(String body) {
     for (final String pair in body.substring(q + 1).split('&')) {
       final int eq = pair.indexOf('=');
       if (eq > 0 && pair.substring(0, eq).toLowerCase() == 'q') {
-        query = _orNull(_decodeQuery(pair.substring(eq + 1)));
+        query = orNull(_decodeQuery(pair.substring(eq + 1)));
       }
     }
   }
@@ -842,18 +842,6 @@ GeoContent? _geo(String body) {
 }
 
 // --- Shared helpers ------------------------------------------------------------
-
-String? _orNull(String? value) => value == null || value.isEmpty ? null : value;
-
-String _decode(String value) {
-  try {
-    return Uri.decodeComponent(value);
-  } on ArgumentError {
-    return value;
-  } on FormatException {
-    return value;
-  }
-}
 
 String _decodeQuery(String value) {
   try {
