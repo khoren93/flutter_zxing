@@ -103,7 +103,7 @@ sheets:
 
 ONLY ?=
 accuracy:
-	@[ -x build/zxing_reader/ZXingReader ] || ./tool/build_zxing_reader.sh
+	@./tool/build_zxing_reader.sh --if-stale
 	ACCURACY=build/accuracy ACCURACY_ONLY="$(ONLY)" flutter test test/tool/accuracy_test.dart --reporter=expanded
 
 accuracy-causes:

@@ -5,11 +5,21 @@
 #
 # ZXingReader includes stb_image_write.h for its -pngout option only. The stub
 # below replaces it, so that the build needs no download.
+#
+# --if-stale: build only when there is no ZXingReader yet or it was built from
+# another zxing-cpp commit (the submodule moved since).
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 out="$root/build/zxing_reader"
 stb="$out/stb"
+
+# The zxing-cpp commit checked out in the submodule.
+commit="$(git -C "$root" submodule status third_party/zxing-cpp | cut -c2-41)"
+if [ "${1:-}" == "--if-stale" ] && [ -x "$out/ZXingReader" ] &&
+  [ "$(cat "$out/zxing-cpp.commit" 2>/dev/null)" == "$commit" ]; then
+  exit 0
+fi
 
 mkdir -p "$stb"
 cp "$root/third_party/stb/stb_image.h" "$stb/stb_image.h"
@@ -35,4 +45,5 @@ cmake -S "$root/third_party/zxing-cpp" -B "$out/cmake" \
 cmake --build "$out/cmake" --target ZXingReader --parallel > "$out/build.log"
 
 cp "$out/cmake/example/ZXingReader" "$out/ZXingReader"
+echo "$commit" > "$out/zxing-cpp.commit"
 "$out/ZXingReader" -version
