@@ -24,7 +24,8 @@ Usage: scripts/publish.sh [--dry-run] [--force]
   --force     Skip pub.dev's interactive confirmation
 
 Before running, bump `version:` in pubspec.yaml and add the matching
-`## <version>` section to CHANGELOG.md.
+`## <version>` section to CHANGELOG.md, with nothing left under
+`## Unreleased`.
 USAGE
     exit 2
 }
@@ -66,6 +67,20 @@ ESCAPED="${VERSION//./\\.}"
 if ! grep -qE "^##[[:space:]]+v?${ESCAPED}([[:space:]]|$)" "$CHANGELOG"; then
     echo "error: $CHANGELOG has no '## $VERSION' section." >&2
     echo "       Add the release notes for $VERSION first, then re-run." >&2
+    exit 1
+fi
+
+# Notes still under "## Unreleased" would be published under that heading.
+UNRELEASED="$(awk '/^##[[:space:]]/ { if (inside) exit; inside = /^##[[:space:]]+Unreleased/; next } inside && NF' "$CHANGELOG")"
+if [ -n "$UNRELEASED" ]; then
+    echo "error: $CHANGELOG still has notes under '## Unreleased'." >&2
+    echo "       Move them into '## $VERSION' (or delete the heading), then re-run." >&2
+    exit 1
+fi
+
+# A version that has a tag was released already: pub.dev would refuse it.
+if git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
+    echo "error: v$VERSION is tagged already; bump 'version:' in $PUBSPEC." >&2
     exit 1
 fi
 
