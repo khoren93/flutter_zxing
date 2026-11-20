@@ -155,15 +155,19 @@ void main(List<String> args) async {
       libraryDirectories: libraryDirectories,
     ).run(input: input, output: output, logger: logger);
 
+    // The C builders report their sources and the headers under their
+    // include directories. Not reported by them: native/fzx.h, and zint's
+    // sources, which the files in core/src/libzint only #include (a change
+    // to zint would leave the cached library as it was).
+    final Directory zint = Directory.fromUri(
+      input.packageRoot.resolve('third_party/zxing-cpp/zint/backend/'),
+    );
     output.dependencies.addAll(<Uri>[
-      for (final String s in <String>[
-        ...zxingCppSources,
-        ...zxingCSources,
-        'native/fzx.cpp',
-        'native/fzx.h',
-        'native/generated/Version.h',
-      ])
-        input.packageRoot.resolve(s),
+      input.packageRoot.resolve('native/fzx.h'),
+      if (zint.existsSync())
+        for (final FileSystemEntity f in zint.listSync())
+          if (f is File && (f.path.endsWith('.c') || f.path.endsWith('.h')))
+            f.uri,
     ]);
   });
 }
