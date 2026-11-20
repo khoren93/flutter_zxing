@@ -222,8 +222,8 @@ final class EngineReadOptions {
       BarcodeFormat.isbn =>
         '$name cannot be read: ISBNs are read as BarcodeFormat.ean13',
       BarcodeFormat.ean2 || BarcodeFormat.ean5 =>
-        '$name cannot be read on its own: add-ons come with their EAN-13 or '
-            'UPC-A, see ReaderOptions.eanAddOn',
+        '$name cannot be read on its own: add-ons come with their EAN-13, '
+            'EAN-8, UPC-A or UPC-E, see ReaderOptions.eanAddOn',
       _ => '$name cannot be read',
     };
   }

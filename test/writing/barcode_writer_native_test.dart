@@ -310,6 +310,26 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test('numeric Telepen reads back as Telepen Numeric only when asked for '
+      '(zxing-cpp guesses the mode otherwise)', () async {
+    final PixelBuffer pixels = _pixels(
+      await (await const BarcodeWriter(
+        BarcodeFormat.telepen,
+      ).encode('12345678')).toImage(moduleSize: 3),
+    );
+    final Barcode? numeric = await const BarcodeReader(
+      formats: <BarcodeFormat>{BarcodeFormat.telepenNumeric},
+    ).readPixels(pixels);
+    expect(numeric?.format, BarcodeFormat.telepenNumeric);
+    expect(numeric?.text, '12345678');
+    // As documented on BarcodeFormat: with every format, zxing-cpp takes
+    // these digits for full ASCII. An engine limitation, recorded here so
+    // that a zxing-cpp update that changes it is noticed.
+    final Barcode? guessed = await const BarcodeReader().readPixels(pixels);
+    expect(guessed?.format, BarcodeFormat.telepenAlpha);
+    expect(guessed?.text, isNot('12345678'));
+  });
 }
 
 PixelBuffer _pixels(BarcodeImage image) =>

@@ -68,12 +68,19 @@ final class Barcode {
   final Uint8List bytes;
 
   /// Where the barcode is, in pixels of the source image.
+  ///
+  /// For an image file, the pixels as the file stores them: the EXIF
+  /// orientation of a JPEG photo is not applied, so on a photo that
+  /// `Image.memory` shows turned, the position is turned too (and the
+  /// image's width and height are swapped). The scanner's photo reading
+  /// accounts for it.
   final BarcodePosition position;
 
   /// How to interpret the payload.
   final BarcodeContentType contentType;
 
-  /// Clockwise rotation of the symbol in degrees.
+  /// Clockwise rotation of the symbol in degrees, from -180 to 180: a
+  /// symbol turned a quarter counterclockwise is at -90, not 270.
   final int rotation;
 
   /// Whether the symbol was found mirrored.

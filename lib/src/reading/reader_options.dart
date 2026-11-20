@@ -66,11 +66,14 @@ final class ReaderOptions {
   final Binarizer binarizer;
 
   /// For linear barcodes: how many scan lines must agree on a result.
-  /// Higher values reduce false positives on noisy images.
+  /// Higher values reduce false positives on noisy images. The engine
+  /// takes 1 to 255: a larger value counts as 255, and 0 or less as the
+  /// default, 2.
   final int minLineCount;
 
   /// What to do with the EAN-2/EAN-5 add-on symbol printed next to some
-  /// EAN-13 and UPC codes (the price on books, the issue on magazines).
+  /// EAN and UPC codes (the price on books, the issue on magazines). It
+  /// comes with an EAN-13, EAN-8, UPC-A or UPC-E.
   final EanAddOn eanAddOn;
 
   /// The character set of barcodes that do not declare one (with an ECI),

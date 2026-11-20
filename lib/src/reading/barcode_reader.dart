@@ -39,7 +39,8 @@ final class BarcodeReader {
   /// read every format) or holds a format that cannot be read
   /// ([BarcodeFormat.canRead]: not [BarcodeFormat.isbn], which is read as
   /// [BarcodeFormat.ean13], nor the EAN-2/EAN-5 add-ons, which come with
-  /// their EAN-13 or UPC-A, see [ReaderOptions.eanAddOn]). The message
+  /// their EAN-13, EAN-8, UPC-A or UPC-E, see [ReaderOptions.eanAddOn]).
+  /// The message
   /// names the formats as they are written in code (`BarcodeFormat.isbn`).
   final Set<BarcodeFormat>? formats;
 
@@ -74,7 +75,8 @@ final class BarcodeReader {
 
   /// Finds every barcode in an encoded image, at most [maxBarcodes] if
   /// given (the same limit as `ScannerController.maxBarcodes`). Takes the
-  /// same images as [read].
+  /// same images as [read]. The engine finds at most 255 barcodes in one
+  /// image, whatever [maxBarcodes] says.
   ///
   /// ```dart
   /// const reader = BarcodeReader(formats: {BarcodeFormat.qrCode});
@@ -107,7 +109,8 @@ final class BarcodeReader {
   Future<Barcode?> readPixels(PixelBuffer image) async =>
       _first(await BarcodeEngine.shared.readPixels(image, _options(1)));
 
-  /// Finds every barcode in raw pixels, at most [maxBarcodes] if given.
+  /// Finds every barcode in raw pixels, at most [maxBarcodes] if given,
+  /// and at most 255 like [readAll].
   ///
   /// ```dart
   /// // The Y plane of a camera frame, only the middle third.
@@ -144,9 +147,10 @@ final class BarcodeReader {
   /// The engine decodes the joined text: a character set one part declares
   /// carries over to the next, and [ReaderOptions.characterSet] applies
   /// where none is declared. The result has the bytes of all parts in
-  /// sequence order, the format and symbol details of the first part, no
-  /// [Barcode.sequence], and a [Barcode.position] that covers every part
-  /// (meaningful when the parts come from one image).
+  /// sequence order; the format, [Barcode.ecLevel], [Barcode.version],
+  /// rotation and orientation of the first part; no [Barcode.symbol] and
+  /// no [Barcode.sequence]; and a [Barcode.position] that covers every
+  /// part (meaningful when the parts come from one image).
   Future<Barcode?> merge(Iterable<Barcode> parts) async {
     final List<Barcode>? ordered = _sequence(parts);
     if (ordered == null) {

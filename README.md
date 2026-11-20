@@ -509,7 +509,7 @@ BarcodeView(LinkService.whatsApp.link('+374 91 234567').toPayload());
 | | Telepen | MaxiCode ᴿ |
 | | DX Film Edge | |
 
-ᴿ read only. ᴬ read with their EAN-13 or UPC-A
+ᴿ read only. ᴬ read with their EAN-13, EAN-8, UPC-A or UPC-E
 (`ReaderOptions(eanAddOn:)`). ᶜ created only; an ISBN reads as EAN-13.
 `BarcodeFormat.writable` lists the formats to create, for a format picker.
 Engine: zxing-cpp 3.2.0-rc1 (`zxingCppVersion`).

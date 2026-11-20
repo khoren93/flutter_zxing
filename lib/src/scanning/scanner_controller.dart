@@ -679,8 +679,8 @@ class ScannerController extends ValueNotifier<ScannerState> {
   /// result.
   ///
   /// Throws [ImageDecodeException] if [encodedImage] is not a readable
-  /// image, and [EngineException] if the engine failed (the next call
-  /// starts it again).
+  /// image or is too large (see `BarcodeReader.read`), and
+  /// [EngineException] if the engine failed (see [EngineException]).
   Future<BarcodeCapture?> readImage(Uint8List encodedImage) async {
     final EngineReadResult result = await BarcodeEngine.shared.readImage(
       encodedImage,

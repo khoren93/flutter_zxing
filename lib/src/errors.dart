@@ -35,8 +35,11 @@ final class BarcodeWriteException extends ZxingException {
   String get _name => 'BarcodeWriteException';
 }
 
-/// The engine failed to start or stopped unexpectedly. The next call starts
-/// it again.
+/// The barcode engine could not do a call: it failed to start, stopped
+/// (shut down, or crashed), ran out of memory or failed inside. After it
+/// failed to start or stopped, the next call starts it again; after an
+/// error inside a call it keeps running, and the same input may fail the
+/// same way.
 final class EngineException extends ZxingException {
   /// Creates the exception.
   const EngineException(super.message);

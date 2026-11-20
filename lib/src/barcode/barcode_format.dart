@@ -12,11 +12,14 @@ import 'barcode_input.dart';
 /// [code39]. Some variants are found by their filter but reported as their
 /// base format: [itf14] as [itf], [compactPdf417] as [pdf417],
 /// [dataBarStackedOmni] as [dataBarStacked], [aztecCode] and [aztecRune] as
-/// [aztec], [qrCodeModel2] as [qrCode], [code39Standard] as [code39],
-/// [telepenNumeric] as [telepenAlpha]. Use [symbology] to group results.
+/// [aztec], [qrCodeModel2] as [qrCode], [code39Standard] as [code39].
+/// Use [symbology] to group results.
 ///
-/// Every value carries the zxing-cpp format id, which is derived from the
-/// ISO/IEC 15424 symbology identifier, so it is stable across versions.
+/// **Telepen.** Read with both [telepenAlpha] and [telepenNumeric]
+/// allowed (no filter, or [telepen]), zxing-cpp guesses the mode from the
+/// symbol: a numeric code may come as [telepenAlpha] with a wrong text
+/// (`12345678` as `'=Si`). Read numeric Telepen, which `BarcodeWriter`
+/// creates for digits, with `formats: {BarcodeFormat.telepenNumeric}`.
 ///
 /// Errors name a format as it is written in code, `BarcodeFormat.isbn`
 /// ([name]), not by its [displayName]: a format that cannot be read or
@@ -133,8 +136,9 @@ enum BarcodeFormat {
   /// EAN-8.
   ean8('EAN8', 'EAN-8', 'E', '8', _linear | _read | _write),
 
-  /// EAN-5 add-on. Not read on its own: it comes as part of the EAN-13 or
-  /// UPC-A text when `ReaderOptions.eanAddOn` reads add-ons.
+  /// EAN-5 add-on. Not read on its own: it comes as part of the EAN-13,
+  /// EAN-8, UPC-A or UPC-E text when `ReaderOptions.eanAddOn` reads
+  /// add-ons.
   ean5('EAN5', 'EAN-5', 'E', '5', _linear),
 
   /// EAN-2 add-on. Not read on its own, like [ean5].
@@ -255,7 +259,7 @@ enum BarcodeFormat {
   final String displayName;
 
   /// Whether this format can be read: used as a filter, it finds barcodes.
-  /// False for the EAN-2/EAN-5 add-ons (read with their EAN-13 or UPC-A),
+  /// False for the EAN-2/EAN-5 add-ons (read with their EAN or UPC code),
   /// [isbn] (read as [ean13]) and [unknown].
   bool get canRead => _flags & _read != 0;
 
@@ -264,6 +268,8 @@ enum BarcodeFormat {
   /// Every format zxing-cpp creates (through zint) and reads back, except
   /// the EAN-2/EAN-5 add-ons (not symbols on their own), ITF-14 (zint draws
   /// its bearer bars against the bars) and MaxiCode (hexagonal modules).
+  /// Numeric [telepen] reads back only with a [telepenNumeric] filter, see
+  /// **Telepen** in the class description.
   /// For a format picker use [writable], which lists each kind of symbol
   /// once.
   bool get canWrite => _flags & _write != 0;
@@ -441,7 +447,8 @@ const int _write = 8;
 // What each writable format accepts (BarcodeFormat.input). The limits are
 // zint's; tests encode every example.
 const BarcodeInput _qrCode = BarcodeInput(
-  'Any text or binary data, up to 2953 bytes',
+  'Any text or binary data, up to 2331 bytes (2953 with '
+      'ErrorCorrection.low)',
   'https://pub.dev/packages/flutter_zxing',
   anyText: true,
 );
@@ -544,7 +551,8 @@ const BarcodeInput _pzn = BarcodeInput(
   digitsOnly: true,
 );
 const BarcodeInput _telepen = BarcodeInput(
-  'ASCII text; digits only are encoded as Telepen Numeric',
+  'ASCII text; digits only are encoded as Telepen Numeric (read it with '
+      'a telepenNumeric filter)',
   'Telepen',
 );
 const BarcodeInput _dxFilmEdge = BarcodeInput(
