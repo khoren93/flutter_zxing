@@ -48,7 +48,7 @@ third_party/zxing-cpp/zint/backend/tools/
 
 # Development only: engine tools (WebAssembly build, source list, fixtures,
 # headless browser tests) and the engine's test corpus with its runners. The
-# build hook needs none of it: it compiles hook/sources.g.dart's list with
+# build hook needs none of it: it compiles the lists at the end of hook/build.dart with
 # native/generated/Version.h, and the WebAssembly modules ship prebuilt in
 # assets/web/.
 tool/
