@@ -111,9 +111,11 @@ final class WebBackend implements EngineBackend {
       return;
     }
     _done.complete();
+    // Also after a failure: the worker may still hold its WebAssembly heap.
     _worker
       ..onmessage = null
-      ..onerror = null;
+      ..onerror = null
+      ..terminate();
     final List<Completer<_Message>> pending = _pending.values.toList();
     _pending.clear();
     for (final Completer<_Message> c in pending) {
@@ -145,10 +147,24 @@ final class WebBackend implements EngineBackend {
   }
 
   EngineReadResult _readResult(_Message reply, {double? mirrorWidth}) =>
-      decodeBarcodes(
-        reply.buffer!.toDart.asUint8List(),
-        mirrorWidth: mirrorWidth,
-      ).withEngineMicros(((reply.ms ?? 0) * 1000).round());
+      _decoded(
+        () => decodeBarcodes(
+          reply.buffer!.toDart.asUint8List(),
+          mirrorWidth: mirrorWidth,
+        ).withEngineMicros(((reply.ms ?? 0) * 1000).round()),
+      );
+
+  /// [decode] of a result buffer, a corrupt buffer (a module of another
+  /// version) as [EngineException], as on native platforms.
+  static T _decoded<T>(T Function() decode) {
+    try {
+      return decode();
+    } on ZxingException {
+      rethrow;
+    } on Object catch (e) {
+      throw EngineException('The barcode engine returned a corrupt result: $e');
+    }
+  }
 
   /// [image] flipped left to right, tightly packed, its crop flipped too.
   static PixelBuffer _flipped(PixelBuffer image) {
@@ -243,12 +259,16 @@ final class WebBackend implements EngineBackend {
   }
 
   /// Reads a camera frame captured as an `ImageBitmap`. The bitmap is
-  /// transferred to the worker: the caller must not use it afterwards.
+  /// transferred to the worker, or closed if the engine has stopped: the
+  /// caller must not use it afterwards.
   Future<EngineReadResult> readBitmap(
     web.ImageBitmap bitmap,
     EngineReadOptions options, {
     Rect? crop,
   }) async {
+    if (_done.isCompleted) {
+      bitmap.close();
+    }
     final JSObject request = JSObject()
       ..setProperty('type'.toJS, 'readBitmap'.toJS)
       ..setProperty('bitmap'.toJS, bitmap)
@@ -282,7 +302,7 @@ final class WebBackend implements EngineBackend {
       ..setProperty('format'.toJS, format.toJS)
       ..setProperty('options'.toJS, options.toJS);
     final _Message reply = await _call(request, <JSObject>[buffer]);
-    return decodeSymbol(reply.buffer!.toDart.asUint8List());
+    return _decoded(() => decodeSymbol(reply.buffer!.toDart.asUint8List()));
   }
 
   @override
@@ -293,7 +313,7 @@ final class WebBackend implements EngineBackend {
       ..setProperty('buffer'.toJS, buffer)
       ..setProperty('characterSet'.toJS, characterSet.toJS);
     final _Message reply = await _call(request, <JSObject>[buffer]);
-    return decodeMerged(reply.buffer!.toDart.asUint8List());
+    return _decoded(() => decodeMerged(reply.buffer!.toDart.asUint8List()));
   }
 
   @override
@@ -301,7 +321,6 @@ final class WebBackend implements EngineBackend {
 
   @override
   void dispose() {
-    _worker.terminate();
     _stopped(const EngineException('The barcode engine was shut down'));
   }
 }
