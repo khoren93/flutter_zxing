@@ -316,4 +316,14 @@ void main() {
       expect(issues(<String, String>{'10': 'ABC-123'}), isEmpty);
     });
   });
+
+  test("facetime: calls one address, as Apple's scheme takes", () {
+    expect(
+      BarcodeContent.parseText('FACETIME:a@b.c,d@e.f'),
+      isA<TextContent>(),
+    );
+    final BarcodeContent one = BarcodeContent.parseText('facetime:a@b.c');
+    expect(one, const PhoneContent('a@b.c', type: CallType.faceTime));
+    expect(one.uri, isNotNull);
+  });
 }

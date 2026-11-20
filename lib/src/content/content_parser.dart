@@ -716,7 +716,8 @@ PhoneContent? _tel(String body, [CallType type = CallType.voice]) {
       ? body.substring(2)
       : body;
   final String number = _decode(b).trim();
-  final bool address = type != CallType.voice && _emailAddress.hasMatch(number);
+  // Apple's facetime: calls one number or one address.
+  final bool address = type != CallType.voice && emailAddress.hasMatch(number);
   return address ||
           (_phoneNumber.hasMatch(number) &&
               isPhoneNumber(number, call: type == CallType.voice))
