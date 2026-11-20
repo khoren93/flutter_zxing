@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
@@ -45,5 +47,34 @@ void main() {
     final BarcodeReader all = BarcodeReader(options: qr.options);
     expect(all.formats, isNull);
     expect(all.options, qr.options);
+  });
+
+  test('CharacterSet numbers are the ones of zxing-cpp', () {
+    // The engine takes a CharacterSet by its number: the order of
+    // zxing-cpp's enum, matched here by name.
+    final String header = File(
+      'third_party/zxing-cpp/core/src/CharacterSet.h',
+    ).readAsStringSync();
+    final String body = RegExp(
+      r'enum class CharacterSet[^{]*\{([^}]*)\}',
+    ).firstMatch(header)![1]!;
+    final List<String> names = RegExp(
+      r'^\s*(\w+),',
+      multiLine: true,
+    ).allMatches(body).map((RegExpMatch m) => m[1]!).toList();
+    expect(names.first, 'Unknown');
+    String key(String name) => name.toLowerCase().replaceAll('_', '');
+    final Map<String, int> zxing = <String, int>{
+      for (final (int i, String name) in names.indexed) key(name): i,
+    };
+    for (final CharacterSet c in CharacterSet.values) {
+      expect(zxing[key(c.name)], c.engineId, reason: c.name);
+    }
+    // Every character set zxing-cpp decodes, but for Unknown (null) and
+    // BINARY (no text).
+    expect(
+      names.where((String n) => n != 'Unknown' && n != 'BINARY'),
+      hasLength(CharacterSet.values.length),
+    );
   });
 }
