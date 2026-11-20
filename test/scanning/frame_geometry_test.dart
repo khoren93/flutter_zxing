@@ -239,9 +239,6 @@ void main() {
         uiOrientation(DeviceOrientation.portraitUp, Orientation.landscape),
         DeviceOrientation.landscapeRight,
       );
-      for (final DeviceOrientation o in DeviceOrientation.values) {
-        expect(orientationOfDegrees(orientationDegrees(o)), o);
-      }
     });
   });
 }

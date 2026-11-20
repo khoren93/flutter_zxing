@@ -216,14 +216,6 @@ int orientationDegrees(DeviceOrientation orientation) => switch (orientation) {
   DeviceOrientation.landscapeLeft => 270,
 };
 
-/// The orientation of [degrees] (see [orientationDegrees]).
-DeviceOrientation orientationOfDegrees(int degrees) => switch (degrees % 360) {
-  90 => DeviceOrientation.landscapeRight,
-  180 => DeviceOrientation.portraitDown,
-  270 => DeviceOrientation.landscapeLeft,
-  _ => DeviceOrientation.portraitUp,
-};
-
 /// The orientation the app's UI is drawn in, from the physical [device]
 /// orientation the camera reports and the shape of the [ui].
 ///
