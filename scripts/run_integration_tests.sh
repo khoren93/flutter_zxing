@@ -13,7 +13,7 @@
 # `flutter test` after it has been launched, mostly on the iOS simulator, and
 # the run then waits until the whole job times out. A run that takes longer than
 # RUN_TIMEOUT seconds is stopped and retried once. A test that fails is not
-# retried.
+# retried. Windows has no time limit: there a hung run waits for the job's.
 
 set -uo pipefail
 
@@ -33,6 +33,16 @@ run() {
   fi
   if [ "${RUNNER_OS:-}" == "Windows" ]; then
     "${cmd[@]}"
+  elif [ "$(uname -s)" == "Linux" ]; then
+    # GNU timeout stops the whole process group: xvfb-run, Xvfb, flutter
+    # and the app, so that the retry does not run beside them. A hung run
+    # reports 142, as below.
+    timeout -k 30 "$RUN_TIMEOUT" "${cmd[@]}"
+    local status=$?
+    if [ "$status" -eq 124 ] || [ "$status" -eq 137 ]; then
+      return 142
+    fi
+    return "$status"
   else
     # `alarm` survives `exec`, so the run is killed with SIGALRM (status 142).
     perl -e 'alarm shift; exec @ARGV' "$RUN_TIMEOUT" "${cmd[@]}"
