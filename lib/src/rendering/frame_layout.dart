@@ -236,9 +236,6 @@ final class FrameLayout {
   /// the margin an export adds.
   double get outset => shadowBlur == 0 ? 0 : shadowBlur * 1.5 + shadowOffset;
 
-  /// Whether the frame is the code alone.
-  bool get plain => title == null && caption == null && card == null;
-
   /// The card's shape, in modules.
   RRect get cardRRect => RRect.fromRectAndRadius(
     Rect.fromLTWH(0, 0, width, height),

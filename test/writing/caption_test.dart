@@ -45,7 +45,9 @@ void main() {
 
     test('without text or card: the code alone', () {
       final FrameLayout frame = FrameLayout(code, BarcodeStyle.classic);
-      expect(frame.plain, isTrue);
+      expect(frame.title, isNull);
+      expect(frame.caption, isNull);
+      expect(frame.card, isNull);
       expect(frame.width, code.width);
       expect(frame.height, code.height);
       expect(frame.codeOrigin, Offset.zero);
