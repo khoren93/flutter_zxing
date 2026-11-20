@@ -119,6 +119,26 @@ void main() {
         expect(errorCorrectionOf(level).name, level.name);
       }
     });
+
+    test('Aztec and PDF417 get the error correction 3.x gave them', () {
+      String of(BarcodeFormat format, EccLevel level) =>
+          creatorOptionsOf(format, EncodeParams(eccLevel: level));
+      // 3.x: Aztec value * 100 / 8 percent, PDF417 level value.
+      expect(
+        <String>[
+          for (final EccLevel l in EccLevel.values) of(BarcodeFormat.aztec, l),
+        ],
+        <String>['ecLevel=25%', 'ecLevel=50%', 'ecLevel=75%', 'ecLevel=100%'],
+      );
+      expect(
+        <String>[
+          for (final EccLevel l in EccLevel.values) of(BarcodeFormat.pdf417, l),
+        ],
+        <String>['ecLevel=2', 'ecLevel=4', 'ecLevel=6', 'ecLevel=8'],
+      );
+      expect(of(BarcodeFormat.qrCode, EccLevel.quartile), 'ecLevel=Q');
+      expect(of(BarcodeFormat.dataMatrix, EccLevel.high), 'forceSquare');
+    });
   });
 
   group('pixelBufferOf', () {

@@ -328,7 +328,31 @@ void main() {
     }
   });
 
-  test('Data Matrix stays square, as 3.x made it', () {
+  test('Aztec and PDF417 are created at every 3.x error correction', () async {
+    for (final int format in <int>[Format.aztec, Format.pdf417]) {
+      for (final EccLevel level in EccLevel.values) {
+        final Encode encode = zx.encodeBarcode(
+          contents: 'error correction',
+          params: EncodeParams(format: format, eccLevel: level),
+        );
+        expect(encode.isValid, isTrue, reason: '$level: ${encode.error}');
+      }
+    }
+    // EccLevel.low was 25 % for Aztec in 3.x, more than 4.0's low (10 %):
+    // a larger symbol for the same text.
+    final String text = 'error correction in an Aztec code ' * 6;
+    final Encode legacy = zx.encodeBarcode(
+      contents: text,
+      params: EncodeParams(format: Format.aztec, width: 0, height: 0),
+    );
+    final BarcodeSymbol least = await const BarcodeWriter(
+      BarcodeFormat.aztec,
+      errorCorrection: ErrorCorrection.low,
+    ).encode(text);
+    expect(legacy.width, greaterThan(least.width));
+  });
+
+  test('Data Matrix stays square: no DMRE sizes', () {
     final Encode encode = zx.encodeBarcode(
       contents: 'square',
       params: EncodeParams(format: Format.dataMatrix, width: 0, height: 0),

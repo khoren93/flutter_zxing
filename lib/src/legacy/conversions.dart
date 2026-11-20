@@ -387,14 +387,29 @@ final class DebugImage {
 
 /// zxing-cpp creator options for a 3.x encode.
 ///
-/// Data Matrix is kept square, as the 3.x writer made it (zxing-cpp now also
-/// picks rectangular DMRE sizes).
-String creatorOptionsOf(BarcodeFormat format, EncodeParams params) =>
-    creatorOptions(
-      format,
-      errorCorrection: errorCorrectionOf(params.eccLevel),
-      options: format == BarcodeFormat.dataMatrix ? 'forceSquare' : null,
-    );
+/// Aztec and PDF417 get the error correction 3.x gave them from
+/// `EccLevel.value` (2, 4, 6, 8): Aztec `value / 8` of the data (the
+/// engine rounds to the nearest level it has: 23 % or 50 %), PDF417
+/// security level `value`. Data Matrix is kept square: the engine
+/// otherwise also picks rectangular DMRE sizes 3.x never made, and has no
+/// setting for only the classic rectangles 3.x could pick (8 x 18 to
+/// 16 x 48), so those come out square now.
+String creatorOptionsOf(BarcodeFormat format, EncodeParams params) {
+  final int ecc = params.eccLevel.value;
+  final String? options = switch (format) {
+    BarcodeFormat.dataMatrix => 'forceSquare',
+    BarcodeFormat.aztec => 'ecLevel=${ecc * 100 ~/ 8}%',
+    BarcodeFormat.pdf417 => 'ecLevel=$ecc',
+    _ => null,
+  };
+  return creatorOptions(
+    format,
+    errorCorrection: options != null && options.startsWith('ecLevel')
+        ? null
+        : errorCorrectionOf(params.eccLevel),
+    options: options,
+  );
+}
 
 /// The 3.x bitmap of a created [symbol]: one byte per pixel, 0 dark and 255
 /// light, at least `params.width` x `params.height`.
