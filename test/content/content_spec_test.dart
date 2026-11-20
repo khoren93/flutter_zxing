@@ -154,4 +154,49 @@ void main() {
       );
     });
   });
+
+  group('EMVCo merchant-presented QR', () {
+    Map<String, String> fields(String amount) => <String, String>{
+      '00': '01',
+      '26': '0011example.kw',
+      '52': '0000',
+      '53': '414',
+      '54': amount,
+      '58': 'KW',
+      '59': 'Shop',
+      '60': 'Kuwait',
+    };
+
+    test('amount (54) has the places of its currency (EMV QRCPS MPM)', () {
+      for (final String amount in <String>['1.500', '1.', '12', '0.25']) {
+        final EmvPaymentContent c = EmvPaymentContent(fields(amount));
+        expect(c.validate(), isEmpty, reason: amount);
+        expect(BarcodeContent.parseText(c.toPayload()), c, reason: amount);
+      }
+      for (final String amount in <String>['.', '1,5', '1.2.3', '-1']) {
+        expect(
+          EmvPaymentContent(fields(amount)).validate(),
+          isNotEmpty,
+          reason: amount,
+        );
+      }
+    });
+
+    test('merchant name (59) and city (60) are ASCII (ans)', () {
+      final EmvPaymentContent accents = EmvPaymentContent.pix(
+        key: 'a@b.com',
+        name: 'Fulânô',
+        city: 'São Paulo',
+      );
+      expect(accents.validate(), hasLength(2));
+      expect(
+        EmvPaymentContent.pix(
+          key: 'a@b.com',
+          name: 'Fulano',
+          city: 'Sao Paulo',
+        ).validate(),
+        isEmpty,
+      );
+    });
+  });
 }

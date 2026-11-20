@@ -804,6 +804,9 @@ String buildEmv(EmvPaymentContent c) {
   return '$body${emvCrc(utf8.encode(body))}';
 }
 
+final RegExp _printableAscii = RegExp(r'^[\x20-\x7E]*$');
+final RegExp _emvAmount = RegExp(r'^(?=\.?\d)\d*(\.\d*)?$');
+
 /// [EmvPaymentContent.validate].
 List<ContentIssue> validateEmv(EmvPaymentContent c) {
   final Map<String, String> f = c.fields;
@@ -839,13 +842,22 @@ List<ContentIssue> validateEmv(EmvPaymentContent c) {
       ),
     ?_tooLong('fields', f['59'], 25, 'Merchant name (59)'),
     ?_tooLong('fields', f['60'], 15, 'Merchant city (60)'),
+    // EMV QRCPS MPM: 59 and 60 are `ans`, the common character set
+    // (printable ASCII); names in another script go in template 64.
+    for (final (String id, String what) in <(String, String)>[
+      ('59', 'Merchant name'),
+      ('60', 'Merchant city'),
+    ])
+      if (f[id] case final String v when !_printableAscii.hasMatch(v))
+        ContentIssue(
+          'fields',
+          '$what ($id) must be ASCII letters, digits and punctuation',
+        ),
+    // EMV QRCPS MPM: digits and an optional `.`; the places after it
+    // follow the currency (three for KWD, BHD, OMR, JOD, TND, IQD).
     if (f['54'] case final String amount
-        when amount.length > 13 ||
-            !RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(amount))
-      const ContentIssue(
-        'fields',
-        'Amount (54) must be a number, two decimals',
-      ),
+        when amount.length > 13 || !_emvAmount.hasMatch(amount))
+      const ContentIssue('fields', 'Amount (54) must be a decimal number'),
     if (f['53'] case final String currency
         when !RegExp(r'^\d{3}$').hasMatch(currency))
       const ContentIssue('fields', 'Currency (53) must be a numeric code'),

@@ -547,8 +547,9 @@ final class EmvPaymentContent extends PaymentContent {
 
   /// A PIX payment (Banco Central do Brasil): [key] is the PIX key (an
   /// e-mail address, a phone number such as `+5511912345678`, a CPF/CNPJ
-  /// or a random key); [name] up to 25 and [city] up to 15 characters;
-  /// [txid] up to 25 letters and digits, `***` for none.
+  /// or a random key); [name] up to 25 and [city] up to 15 characters,
+  /// ASCII only as EMVCo requires (`Sao Paulo`, not `São Paulo`); [txid]
+  /// up to 25 letters and digits, `***` for none.
   factory EmvPaymentContent.pix({
     required String key,
     required String name,
