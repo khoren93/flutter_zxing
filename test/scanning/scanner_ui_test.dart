@@ -1928,34 +1928,6 @@ void main() {
       expect(camera.focus, isNotNull);
     });
 
-    test('pause while the camera starts: it starts paused', () async {
-      final ScannerController controller = ScannerController();
-      addTearDown(controller.dispose);
-      final Future<void> starting = controller.start();
-      expect(controller.value.status, ScannerStatus.starting);
-      await controller.pause();
-      await starting;
-      expect(controller.value.status, ScannerStatus.paused);
-      await controller.resume();
-      expect(controller.value.status, ScannerStatus.running);
-      await controller.stop();
-    });
-
-    test('setting the same settings keeps distinct mode memory', () {
-      final ScannerController controller = ScannerController(
-        formats: <BarcodeFormat>{BarcodeFormat.qrCode},
-      );
-      addTearDown(controller.dispose);
-      // Equal values are no change (a set with the same formats included).
-      controller
-        ..formats = <BarcodeFormat>{BarcodeFormat.qrCode}
-        ..scanWindow = const ScanWindow.centered()
-        ..detection = DetectionMode.distinct
-        ..maxBarcodes = 1;
-      expect(controller.formats, <BarcodeFormat>{BarcodeFormat.qrCode});
-      expect(() => controller.maxBarcodes = 0, throwsRangeError);
-    });
-
     test('equal strings are equal', () {
       final String close = <String>['Schließen'].join();
       expect(ScannerStrings(close: close), ScannerStrings(close: close));

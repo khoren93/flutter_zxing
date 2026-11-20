@@ -345,6 +345,44 @@ void main() {
       expect(captures, hasLength(2));
     });
 
+    test('setting the same settings keeps distinct mode memory', () async {
+      final ScannerController c = create();
+      c.formats = <BarcodeFormat>{BarcodeFormat.qrCode};
+      final List<BarcodeCapture> captures = <BarcodeCapture>[];
+      c.barcodes.listen(captures.add);
+      await c.start();
+      camera.push(<Barcode>[qr]);
+      await pumpEventQueue();
+      // Equal values are no change (a set with the same formats included).
+      double one() => 1;
+      c
+        ..formats = <BarcodeFormat>{BarcodeFormat.qrCode}
+        ..scanWindow = ScanWindow.centered(aspectRatio: one())
+        ..detection = DetectionMode.distinct
+        ..maxBarcodes = 1;
+      camera.push(<Barcode>[qr]);
+      await pumpEventQueue();
+      expect(captures, hasLength(1));
+      // A real change starts over.
+      c.maxBarcodes = 2;
+      camera.push(<Barcode>[qr]);
+      await pumpEventQueue();
+      expect(captures, hasLength(2));
+    });
+
+    test('pause while the camera starts: it starts paused', () async {
+      final ScannerController c = create();
+      camera.openGate = Completer<void>();
+      final Future<void> starting = c.start();
+      expect(c.value.status, ScannerStatus.starting);
+      await c.pause();
+      camera.openGate!.complete();
+      await starting;
+      expect(c.value.status, ScannerStatus.paused);
+      await c.resume();
+      expect(c.value.status, ScannerStatus.running);
+    });
+
     test('continuous reports every frame', () async {
       final ScannerController c = create(detection: DetectionMode.continuous);
       final List<BarcodeCapture> captures = <BarcodeCapture>[];
@@ -415,6 +453,23 @@ void main() {
       await c.start();
       c.formats = <BarcodeFormat>{BarcodeFormat.ean13};
       expect(c.formats, <BarcodeFormat>{BarcodeFormat.ean13});
+      final FakeFrame frame = camera.push();
+      await pumpEventQueue();
+      expect(
+        frame.options!.formats,
+        EngineReadOptions.formatsToEngine(<BarcodeFormat>{BarcodeFormat.ean13}),
+      );
+    });
+
+    test('changing the options applies to the next frame', () async {
+      final ScannerController c = create();
+      await c.start();
+      c.options = const ReaderOptions(isPure: true, tryInvert: false);
+      final FakeFrame frame = camera.push();
+      await pumpEventQueue();
+      final int flags = frame.options!.flags;
+      expect(flags & FzxFlags.isPure, isNot(0));
+      expect(flags & FzxFlags.tryInvert, 0);
     });
 
     test('an empty or unreadable filter throws at once', () {
@@ -782,6 +837,52 @@ void main() {
       controllers.add(kiosk);
       expect(kiosk.facing, CameraFacing.front);
       expect(kiosk.autoStart, isFalse);
+    });
+  });
+
+  group('BarcodeCapture.snapshot', () {
+    testWidgets('cuts out the barcode asked for', (WidgetTester tester) async {
+      final ScannerController c = create(scanWindow: const ScanWindow.full());
+      final List<BarcodeCapture> captures = <BarcodeCapture>[];
+      c.barcodes.listen(captures.add);
+      final Barcode small = fakeBarcode(
+        'small',
+        const Rect.fromLTWH(60, 60, 60, 60),
+      );
+      final Barcode large = fakeBarcode(
+        'large',
+        const Rect.fromLTWH(300, 100, 240, 240),
+      );
+      PixelBuffer pixels() {
+        final Uint8List gray = Uint8List(640 * 480);
+        for (int i = 0; i < gray.length; i++) {
+          gray[i] = (i % 640 ~/ 8 + i ~/ 640 ~/ 8).isEven ? 20 : 230;
+        }
+        return PixelBuffer(gray, width: 640, height: 480);
+      }
+
+      await tester.runAsync(() async {
+        await c.start();
+        camera.push(<Barcode>[small], null, false, pixels());
+        await pumpEventQueue();
+        // Distinct: the next capture holds only the new code, the second
+        // of its frame.
+        camera.push(<Barcode>[small, large], null, false, pixels());
+        await pumpEventQueue();
+        expect(captures, hasLength(2));
+        expect(captures[1].barcodes.single.text, 'large');
+        final ui.Image? first = await captures[0].snapshot();
+        final ui.Image? second = await captures[1].snapshot(
+          captures[1].barcodes.single,
+        );
+        expect(first, isNotNull);
+        expect(second, isNotNull);
+        expect(second!.width, greaterThan(first!.width * 2));
+        first.dispose();
+        second.dispose();
+        // A barcode of another capture is not in this one.
+        expect(await captures[1].snapshot(captures[0].barcode), isNull);
+      });
     });
   });
 
