@@ -54,7 +54,10 @@ third_party/zxing-cpp/zint/backend/tools/
 tool/
 benchmark/
 native/CMakeLists.txt
-example/assets/fixtures/
+# The corpus images only: the example declares the folder and
+# corpus_expected.json as assets, and a missing asset file fails its build.
+example/assets/fixtures/corpus/*
+!example/assets/fixtures/corpus/README.md
 example/lib/corpus_web.dart
 example/lib/scanner_web.dart
 example/integration_test/corpus_test.dart
