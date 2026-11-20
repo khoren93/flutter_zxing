@@ -671,17 +671,22 @@ void main() {
       expect(frame.options!.flags & flags, flags);
     });
 
-    test('a read interval spaces the reads', () async {
+    testWidgets('a read interval spaces the reads', (
+      WidgetTester tester,
+    ) async {
+      // On the test's clock: a slow machine does not shorten the wait.
       final ScannerController c = create();
       await c.start();
-      c.readInterval = const Duration(milliseconds: 40);
+      c.readInterval = const Duration(seconds: 1);
       camera.push();
-      await pumpEventQueue();
+      await tester.pump();
       final FakeFrame next = camera.push();
-      await pumpEventQueue();
+      await tester.pump(const Duration(milliseconds: 500));
       expect(next.wasRead, isFalse);
-      await Future<void>.delayed(const Duration(milliseconds: 80));
+      await tester.pump(const Duration(milliseconds: 600));
       expect(next.wasRead, isTrue);
+      await c.stop();
+      await tester.pump(const Duration(seconds: 1));
     });
 
     test('frame samples count the codes that were not decoded', () async {

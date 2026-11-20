@@ -129,6 +129,18 @@ void main() {
       await tester.runAsync(() async => controller.dispose());
     }
 
+    /// Waits until the result sheet of a picked code shows, its picture
+    /// loaded off the test clock.
+    Future<void> sheet(WidgetTester tester) async {
+      final Finder shown = find.byType(BarcodeResultSheet);
+      for (int i = 0; i < 200 && shown.evaluate().isEmpty; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
     testWidgets('has a photo button', (WidgetTester tester) async {
       final SemanticsHandle semantics = tester.ensureSemantics();
       await open(tester);
@@ -159,12 +171,7 @@ void main() {
       );
 
       await tester.tap(find.text('right'));
-      for (int i = 0; i < 10; i++) {
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)),
-        );
-        await tester.pump(const Duration(milliseconds: 100));
-      }
+      await sheet(tester);
       expect(find.byType(BarcodeResultSheet), findsOneWidget);
       expect(
         tester
@@ -185,12 +192,7 @@ void main() {
       await tester.tapAt(
         tester.getCenter(find.text('left')) + const Offset(0, 50),
       );
-      for (int i = 0; i < 10; i++) {
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)),
-        );
-        await tester.pump(const Duration(milliseconds: 100));
-      }
+      await sheet(tester);
       expect(
         tester
             .widget<BarcodeResultSheet>(find.byType(BarcodeResultSheet))

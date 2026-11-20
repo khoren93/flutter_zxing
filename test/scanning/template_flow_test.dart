@@ -29,8 +29,17 @@ Widget _host(Widget child) => MediaQuery(
   child: Directionality(textDirection: TextDirection.ltr, child: child),
 );
 
-Future<void> _settle(WidgetTester t, [int n = 10]) async {
-  for (int i = 0; i < n; i++) {
+/// Lets work off the test clock (isolates, images) run: [n] rounds, or
+/// with [until] as many as it takes for it to hold (at most 200).
+Future<void> _settle(
+  WidgetTester t, [
+  int n = 10,
+  bool Function()? until,
+]) async {
+  for (int i = 0; i < (until == null ? n : 200); i++) {
+    if (until?.call() ?? false) {
+      return;
+    }
     await t.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 20)),
     );
@@ -109,7 +118,8 @@ void main() {
     );
     await code(t);
     await t.tap(find.text('A'));
-    await _settle(t);
+    // The frozen frame is made in an isolate.
+    await _settle(t, 10, () => find.byType(RawImage).evaluate().isNotEmpty);
     final Rect frozen = t.getRect(find.byType(RawImage).first);
     const double scale = 844 / 1280;
     expect(frozen.width, moreOrLessEquals(720 * scale, epsilon: 0.01));
