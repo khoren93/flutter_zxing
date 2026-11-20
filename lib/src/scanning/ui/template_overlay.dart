@@ -101,6 +101,11 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   Barcode? _verdictOf;
   Timer? _hideVerdict;
 
+  /// Counts verdicts: each one is a sheet of its own, also when it equals
+  /// the one before, so that its timer starts anew and screen readers
+  /// announce it.
+  int _verdicts = 0;
+
   /// Accepted codes, for the counter.
   int _accepted = 0;
 
@@ -463,6 +468,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     setState(() {
       _verdict = verdict;
       _verdictOf = barcode;
+      _verdicts++;
       _flash = verdict.kind;
       if (verdict.kind == ScanVerdictKind.accept) {
         _accepted++;
@@ -1343,9 +1349,9 @@ class _TemplateOverlayState extends State<TemplateOverlay>
                 child: sheet == null
                     ? const SizedBox.shrink()
                     : SingleChildScrollView(
-                        key: ValueKey<Object?>(
-                          _verdict ?? _result ?? template.mode,
-                        ),
+                        key: _verdict != null
+                            ? ValueKey<int>(_verdicts)
+                            : ValueKey<Object?>(_result ?? template.mode),
                         reverse: true,
                         child: sheet,
                       ),

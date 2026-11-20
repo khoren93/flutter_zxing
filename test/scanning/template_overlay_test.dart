@@ -138,4 +138,25 @@ void main() {
     expect(zoom.center.dx, moreOrLessEquals(180, epsilon: 0.5));
     await close(t);
   });
+
+  testWidgets('a verdict equal to the one before shows anew', (
+    WidgetTester t,
+  ) async {
+    await open(
+      t,
+      ScannerTemplate.checkIn(
+        check: (_) => const ScanVerdict.reject(title: 'Invalid ticket'),
+      ),
+    );
+    await code(t);
+    await t.pump(const Duration(milliseconds: 600));
+    await t.pump(const Duration(seconds: 1));
+    expect(find.byType(ScannerSheet), findsOneWidget);
+    await code(t, 'B', _a.shift(const Offset(0, 320)));
+    await t.pump(const Duration(milliseconds: 50));
+    // The new sheet comes in while the one before leaves.
+    expect(find.byType(ScannerSheet), findsNWidgets(2));
+    await t.pump(const Duration(seconds: 3));
+    await close(t);
+  });
 }
