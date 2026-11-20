@@ -125,7 +125,9 @@ FZX_API uint8_t* fzx_input(fzx_ctx* ctx, int size);
 // Decodes raw pixels: `size` bytes at `data`, at least what the geometry
 // needs (FZX_ERR_ARGUMENT otherwise). `row_stride` <= 0 means tightly packed
 // rows. `crop_w`/`crop_h` <= 0 means the whole image. Positions in the result
-// are in the coordinates of the full (uncropped) image.
+// are in the coordinates of the full (uncropped) image. The alpha of RGBA and
+// BGRA pixels is straight (not premultiplied); pixels that are not opaque
+// are put on white, so a transparent background reads as light.
 // Returns the number of barcodes (result layout "barcodes"), or an FZX_ERR_*.
 FZX_API int fzx_read(fzx_ctx* ctx, const uint8_t* data, int size, int width, int height, int row_stride,
 					 int pix_format, int crop_l, int crop_t, int crop_w, int crop_h, const char* formats,
@@ -133,7 +135,8 @@ FZX_API int fzx_read(fzx_ctx* ctx, const uint8_t* data, int size, int width, int
 
 // Decodes an encoded image (JPEG, PNG, GIF, BMP via stb_image) at full
 // resolution, without lossy pre-scaling: zxing-cpp's tryDownscale handles
-// big images. Returns the number of barcodes or an FZX_ERR_*.
+// big images. Transparent pixels are put on white.
+// Returns the number of barcodes or an FZX_ERR_*.
 FZX_API int fzx_read_file(fzx_ctx* ctx, const uint8_t* data, int size, const char* formats, uint32_t flags,
 						  int binarizer, int max_symbols, int min_line_count, int character_set);
 

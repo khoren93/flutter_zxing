@@ -94,6 +94,10 @@ function bitmapPixels(bitmap) {
     canvas = new OffscreenCanvas(w, h);
     g = canvas.getContext('2d', { willReadFrequently: true });
   }
+  // On white: transparent pixels read as light (getImageData gives them as
+  // black), and nothing of the previous image shows through.
+  g.fillStyle = '#fff';
+  g.fillRect(0, 0, w, h);
   g.drawImage(bitmap, 0, 0);
   bitmap.close();
   return g.getImageData(0, 0, w, h).data;

@@ -5,7 +5,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' show Rect;
+import 'dart:ui' show Color, Rect;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
@@ -228,6 +228,41 @@ void main() {
       expect(b.contentType, BarcodeContentType.binary);
       expect(b.text, '<NUL><U+80>A');
       expect(b.bytes, <int>[0x00, 0x80, 0x41]);
+    });
+  });
+
+  group('a transparent background reads as light', () {
+    late BarcodeSymbol symbol;
+
+    setUpAll(() async {
+      symbol = await const BarcodeWriter(BarcodeFormat.qrCode).encode('alpha');
+    });
+
+    test('in a PNG exported without a background', () async {
+      final Uint8List png = await const BarcodeStyle(
+        backgroundColor: Color(0x00000000),
+      ).toPng(symbol, moduleSize: 4);
+      expect((await reader.read(png))?.text, 'alpha');
+    });
+
+    test('in RGBA pixels', () async {
+      final BarcodeImage image = await symbol.toImage(moduleSize: 4);
+      // Black modules, transparent black elsewhere: (0, 0, 0, 0).
+      final Uint8List rgba = Uint8List(image.pixels.length * 4);
+      for (int i = 0; i < image.pixels.length; i++) {
+        rgba[i * 4 + 3] = image.pixels[i] < 128 ? 255 : 0;
+      }
+      expect(
+        (await reader.readPixels(
+          PixelBuffer(
+            rgba,
+            width: image.width,
+            height: image.height,
+            layout: PixelLayout.rgba,
+          ),
+        ))?.text,
+        'alpha',
+      );
     });
   });
 }

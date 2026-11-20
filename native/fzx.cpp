@@ -320,6 +320,43 @@ int fail(fzx_ctx* ctx, int code, std::string msg)
 	return code;
 }
 
+// A pixel of luminance [lum] and straight [alpha] put on white.
+inline uint8_t onWhite(int lum, int alpha)
+{
+	return static_cast<uint8_t>((lum * alpha + 255 * (255 - alpha) + 127) / 255);
+}
+
+// zxing-cpp ignores alpha, so a transparent background, (0, 0, 0, 0) in most
+// files, would read as black. If any pixel of [iv] (RGBA or BGRA) is not
+// opaque, [lum] receives the pixels put on white as luminance, with the
+// weights zxing-cpp uses, and the result views it. Opaque pixels (camera
+// frames) are read as they are.
+ImageView onWhite(const ImageView& iv, std::vector<uint8_t>& lum)
+{
+	const int w = iv.width(), h = iv.height();
+	bool opaque = true;
+	for (int y = 0; y < h && opaque; y++) {
+		const uint8_t* p = iv.data(0, y);
+		for (int x = 0; x < w; x++, p += 4)
+			if (p[3] != 255) {
+				opaque = false;
+				break;
+			}
+	}
+	if (opaque)
+		return iv;
+	const ImageFormat f = iv.format();
+	const int r = RedIndex(f), g = GreenIndex(f), b = BlueIndex(f);
+	lum.resize(static_cast<size_t>(w) * h);
+	uint8_t* dst = lum.data();
+	for (int y = 0; y < h; y++) {
+		const uint8_t* p = iv.data(0, y);
+		for (int x = 0; x < w; x++, p += 4)
+			*dst++ = onWhite(RGBToLum(p[r], p[g], p[b]), p[3]);
+	}
+	return ImageView(lum.data(), w, h, ImageFormat::Lum);
+}
+
 ImageFormat toImageFormat(int pix)
 {
 	switch (pix) {
@@ -469,6 +506,9 @@ int fzx_read(fzx_ctx* ctx, const uint8_t* data, int size, int width, int height,
 			dy = crop_t < 0 ? 0 : (crop_t < height ? crop_t : height - 1);
 			iv = iv.cropped(crop_l, crop_t, crop_w, crop_h);
 		}
+		std::vector<uint8_t> lum;
+		if (format == ImageFormat::RGBA || format == ImageFormat::BGRA)
+			iv = onWhite(iv, lum);
 		auto barcodes = ReadBarcodes(iv, opts);
 		encodeBarcodes(ctx, barcodes, width, height, dx, dy, &iv);
 		return static_cast<int>(barcodes.size());
@@ -480,12 +520,25 @@ int fzx_read_file(fzx_ctx* ctx, const uint8_t* data, int size, const char* forma
 {
 	return guarded(ctx, FZX_ERR_ARGUMENT, [&] {
 		auto opts = readerOptions(ctx, formats, flags, binarizer, max_symbols, min_line_count, character_set);
+		if (!data || size <= 0)
+			return fail(ctx, FZX_ERR_IMAGE, "Cannot decode image: no data");
 		int w = 0, h = 0, channels = 0;
+		if (!stbi_info_from_memory(data, size, &w, &h, &channels))
+			return fail(ctx, FZX_ERR_IMAGE, std::string("Cannot decode image: ") + stbi_failure_reason());
+		// With alpha, as gray and alpha to put on white; stb_image would
+		// drop the alpha.
+		const bool alpha = channels == 2 || channels == 4;
 		std::unique_ptr<stbi_uc, void (*)(void*)> pixels(
-			data && size > 0 ? stbi_load_from_memory(data, size, &w, &h, &channels, 1) : nullptr, stbi_image_free);
+			stbi_load_from_memory(data, size, &w, &h, &channels, alpha ? 2 : 1), stbi_image_free);
 		if (!pixels)
-			return fail(ctx, FZX_ERR_IMAGE,
-						std::string("Cannot decode image: ") + (data && size > 0 ? stbi_failure_reason() : "no data"));
+			return fail(ctx, FZX_ERR_IMAGE, std::string("Cannot decode image: ") + stbi_failure_reason());
+		if (alpha) {
+			// In place: pixel i is read from 2i and 2i + 1 before it is written.
+			stbi_uc* p = pixels.get();
+			const size_t n = static_cast<size_t>(w) * h;
+			for (size_t i = 0; i < n; i++)
+				p[i] = onWhite(p[2 * i], p[2 * i + 1]);
+		}
 		const ImageView iv(pixels.get(), w, h, ImageFormat::Lum);
 		auto barcodes = ReadBarcodes(iv, opts);
 		encodeBarcodes(ctx, barcodes, w, h, 0, 0, &iv);
