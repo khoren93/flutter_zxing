@@ -8,7 +8,8 @@
 //                                     the example app for the device and web
 //                                     runs (they cannot read the repository)
 //
-// Each image is copied as `<sample directory>__<name>.<ext>`, with what
+// Each image is copied as `<sample directory>__<name>.<ext>` (a second sample
+// of the same name as `<name>_<its ext>`, e.g. rune-68_webp.png), with what
 // zxing-cpp expects from it next to it (.txt, .bin, .result.txt, resolved from
 // the samples' .txt and .toml files by [_expectedOf]), with only [A-Za-z0-9._-]
 // in names:
@@ -153,6 +154,9 @@ class _Output {
   int _images = 0;
   int _bytes = 0;
 
+  /// The names written so far, without extension.
+  final Set<String> _targets = <String>{};
+
   void add(
     String sampleDirectory,
     File image,
@@ -160,9 +164,17 @@ class _Output {
     _Expected? expected,
   ) {
     final String stem = _stem(image.path);
-    final String target =
+    String target =
         '${_dir.path}/${sampleDirectory}__'
         '${_basename(stem).replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_')}';
+    // Two samples with one name (rune-68.png and rune-68.webp): the second
+    // keeps its extension in the name instead of replacing the first.
+    if (!_targets.add(target)) {
+      target = '${target}_${_extension(image.path).substring(1)}';
+      if (!_targets.add(target)) {
+        throw StateError('Two samples become ${_basename(target)}');
+      }
+    }
     final String ext = _extension(image.path) == '.webp'
         ? '.png'
         : _extension(image.path);
