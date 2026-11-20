@@ -244,9 +244,11 @@ ScannerException cameraError(String code, String? message) {
   final String text = message == null || message.isEmpty
       ? code
       : '$code: $message';
-  final String c = code.toLowerCase();
-  // Letters only: "CAMERA_IN_USE", "cameraInUse" and "already in use" alike.
-  final String all = text.toLowerCase().replaceAll(RegExp('[^a-z]'), '');
+  // Letters only: "CAMERA_IN_USE", "cameraInUse" and "already in use" alike,
+  // "camera_not_found" (camera_desktop) like "NotFoundError".
+  final RegExp other = RegExp('[^a-z]');
+  final String c = code.toLowerCase().replaceAll(other, '');
+  final String all = text.toLowerCase().replaceAll(other, '');
   if ((c.contains('denied') ||
           c.contains('restricted') ||
           c.contains('permission') ||

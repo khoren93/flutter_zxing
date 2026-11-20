@@ -292,6 +292,9 @@ void main() {
         ('NotAllowedError', null): CameraPermissionException,
         ('NotFoundError', null): CameraNotFoundException,
         ('OverconstrainedError', null): CameraNotFoundException,
+        // camera_desktop.
+        ('camera_not_found', 'No camera'): CameraNotFoundException,
+        ('no_camera', null): CameraNotFoundException,
         ('NotReadableError', 'Could not start video source'):
             CameraInUseException,
         ('CameraAccess', 'CAMERA_IN_USE (4): connect'): CameraInUseException,
