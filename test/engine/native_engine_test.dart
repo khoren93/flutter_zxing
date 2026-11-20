@@ -4,14 +4,18 @@
 library;
 
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' show Rect;
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:flutter_zxing/src/engine/engine.dart';
 import 'package:flutter_zxing/src/engine/engine_protocol.dart';
+import 'package:flutter_zxing/src/engine/fzx_bindings.dart';
+import 'package:flutter_zxing/src/engine/result_codec.dart';
 
 /// zxing-cpp's samples: always there, the engine is built from the same
 /// submodule.
@@ -242,6 +246,71 @@ void main() {
     await expectLater(pending, throwsA(isA<EngineException>()));
     expect(await e.version(), zxingCppVersion);
     await e.shutdown();
+  });
+
+  test('merging keeps the encoding of each segment', () async {
+    // Kanji mode (Shift_JIS) and a byte segment without ECI, which reads as
+    // UTF-8: one encoding guessed for the whole would make it Shift_JIS.
+    final BarcodeSymbol symbol = await const BarcodeWriter(
+      BarcodeFormat.qrCode,
+    ).encode('日本語日本語日本語日本語ﾃｩ');
+    final BarcodeImage image = await symbol.toImage(moduleSize: 4);
+    final Barcode part = (await engine.readPixels(
+      PixelBuffer(image.pixels, width: image.width, height: image.height),
+      const EngineReadOptions(),
+    )).barcodes.single;
+    expect(part.text, '日本語日本語日本語日本語é');
+    final EngineMerged merged = await engine.merge(
+      mergeInput(<Barcode>[part, part])!,
+      0,
+    );
+    expect(merged.text, part.text * 2);
+  });
+
+  group('fzx', () {
+    late Pointer<FzxContext> ctx;
+    setUp(() => ctx = fzxNew());
+    tearDown(() => fzxFree(ctx));
+
+    test('fzx_input gives a buffer for no data too', () {
+      expect(fzxInput(ctx, 0), isNot(nullptr));
+    });
+
+    test('fzx_read refuses a buffer smaller than its geometry', () {
+      final Pointer<Uint8> pixels = malloc<Uint8>(200);
+      final Pointer<Char> formats = ''.toNativeUtf8().cast<Char>();
+      int read(int size, int rowStride) => fzxRead(
+        ctx,
+        pixels,
+        size,
+        10,
+        10,
+        rowStride,
+        0,
+        0,
+        0,
+        0,
+        0,
+        formats,
+        0, //
+        0,
+        0,
+        2,
+        0,
+      );
+      try {
+        expect(read(100, 0), 0);
+        expect(read(99, 0), FzxError.argument);
+        // The last row needs no padding.
+        expect(read(9 * 10 + 10, 10), 0);
+        expect(read(9 * 11 + 10, 11), 0);
+        expect(read(9 * 11 + 9, 11), FzxError.argument);
+      } finally {
+        malloc
+          ..free(pixels)
+          ..free(formats);
+      }
+    });
   });
 
   group('the downscale flags reach the reader', () {

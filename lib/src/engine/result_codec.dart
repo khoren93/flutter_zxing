@@ -69,7 +69,7 @@ EngineReadResult decodeBarcodes(
     final int symbolWidth = r.i32();
     final int symbolHeight = r.i32();
     final Uint8List modules = r.bytes();
-    final Uint8List eci = r.bytes();
+    final Uint8List mergeData = r.bytes();
     final Barcode barcode = Barcode(
       format: format,
       text: text,
@@ -115,14 +115,9 @@ EngineReadResult decodeBarcodes(
             )
           : null,
     );
-    // What BarcodeReader.merge hands back to the engine: whether the part
-    // declares an ECI, then its bytes with the ECI designators.
-    return barcodeWithMergeData(
-      barcode,
-      Uint8List(eci.length + 1)
-        ..[0] = flags & 8 != 0 ? 1 : 0
-        ..setRange(1, eci.length + 1, eci),
-    );
+    // What BarcodeReader.merge hands back to the engine: the content with
+    // the encoding of each segment.
+    return barcodeWithMergeData(barcode, mergeData);
   });
   return EngineReadResult(
     barcodes: barcodes,
@@ -154,16 +149,13 @@ Uint8List? mergeInput(List<Barcode> parts) {
     if (data == null || data.isEmpty) {
       return null;
     }
-    final int flags =
-        data[0] | (part.contentType == BarcodeContentType.gs1 ? 2 : 0);
     out
-      ..addByte(flags)
       ..add(
         (ByteData(
           4,
-        )..setUint32(0, data.length - 1, Endian.little)).buffer.asUint8List(),
+        )..setUint32(0, data.length, Endian.little)).buffer.asUint8List(),
       )
-      ..add(Uint8List.sublistView(data, 1));
+      ..add(data);
   }
   return out.takeBytes();
 }

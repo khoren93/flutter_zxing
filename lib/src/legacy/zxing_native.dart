@@ -531,6 +531,7 @@ final class _SyncEngine {
       final int code = fzxRead(
         ctx,
         input,
+        image.bytes.length,
         image.width,
         image.height,
         image.rowStride ?? 0,

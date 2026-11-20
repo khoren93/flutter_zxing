@@ -15,8 +15,7 @@
 //     i32 symbol width, i32 symbol height (in modules; 0 for linear codes)
 //     bytes symbol modules (width * height, row by row, 1 = dark, 0 = light):
 //       the grid of modules the reader sampled from a 2D code
-//     bytes eci: the raw bytes with zxing-cpp's ECI designators (bytesECI),
-//       for fzx_merge
+//     bytes merge: the content as fzx_merge takes it back (see writeMergeData)
 //   flags: 1 valid, 2 inverted, 4 mirrored, 8 has ECI, 16 reader init
 //
 // "merged" (fzx_merge)
@@ -34,6 +33,7 @@
 
 #include "fzx.h"
 
+#include "BarcodeData.h"
 #include "Content.h"
 #include "ReadBarcode.h"
 #include "Version.h"
@@ -56,6 +56,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <exception>
 #include <memory>
@@ -102,6 +103,49 @@ struct Writer
 	}
 	void str(const std::string& s) { blob(s.data(), s.size()); }
 };
+
+// zxing-cpp keeps the Content of a Barcode private, and with it the encoding
+// of each segment, which BarcodeReader.merge needs to join a structured
+// append sequence the way MergeStructuredAppendSequence does. An explicit
+// instantiation may name a private member: this hands out &Barcode::d.
+struct BarcodeDataTag
+{
+	using type = std::shared_ptr<BarcodeData> Barcode::*;
+	friend type barcodeDataMember(BarcodeDataTag);
+};
+template <typename Tag, typename Tag::type M>
+struct PrivateMember
+{
+	friend typename Tag::type barcodeDataMember(Tag) { return M; }
+};
+template struct PrivateMember<BarcodeDataTag, &Barcode::d>;
+
+const Content& contentOf(const Barcode& bc)
+{
+	return (bc.*barcodeDataMember(BarcodeDataTag{}))->content;
+}
+
+// The "merge" field of a barcode: its symbology identifier, its encodings
+// and its bytes, from which fzx_merge rebuilds the Content.
+//   u8 code, u8 modifier, i8 ECI modifier offset, u8 AI flag, u8 has ECI,
+//   u32 count, count * (i32 ECI, i32 position), the bytes
+void writeMergeData(Writer& w, const Content& c)
+{
+	std::vector<uint8_t> data;
+	Writer m{data};
+	m.u8(static_cast<uint8_t>(c.symbology.code));
+	m.u8(static_cast<uint8_t>(c.symbology.modifier));
+	m.u8(static_cast<uint8_t>(c.symbology.eciModifierOffset));
+	m.u8(static_cast<uint8_t>(c.symbology.aiFlag));
+	m.u8(c.hasECI ? 1 : 0);
+	m.u32(static_cast<uint32_t>(c.encodings.size()));
+	for (const auto& e : c.encodings) {
+		m.i32(static_cast<int32_t>(e.eci));
+		m.i32(e.pos);
+	}
+	data.insert(data.end(), c.bytes.begin(), c.bytes.end());
+	w.blob(data.data(), data.size());
+}
 
 // The luminance of a pixel of any ImageFormat.
 inline int luminance(const ImageView& iv, int x, int y)
@@ -265,8 +309,7 @@ void encodeBarcodes(fzx_ctx* ctx, const Barcodes& barcodes, int imageWidth, int 
 			for (int x = 0; x < sw; x++)
 				modules[static_cast<size_t>(y) * sw + x] = *symbol.data(x, y) < 128 ? 1 : 0;
 		w.blob(modules.data(), modules.size());
-		const auto eci = bc.bytesECI();
-		w.blob(eci.data(), eci.size());
+		writeMergeData(w, contentOf(bc));
 	}
 }
 
@@ -394,23 +437,31 @@ void fzx_free(fzx_ctx* ctx)
 uint8_t* fzx_input(fzx_ctx* ctx, int size)
 {
 	try {
-		if (size > 0 && static_cast<size_t>(size) > ctx->input.size())
-			ctx->input.resize(size);
+		// At least one byte: the data() of an empty vector may be NULL.
+		const size_t n = size > 0 ? static_cast<size_t>(size) : 1;
+		if (n > ctx->input.size())
+			ctx->input.resize(n);
 		return ctx->input.data();
 	} catch (...) {
 		return nullptr;
 	}
 }
 
-int fzx_read(fzx_ctx* ctx, const uint8_t* data, int width, int height, int row_stride, int pix_format, int crop_l,
-			 int crop_t, int crop_w, int crop_h, const char* formats, uint32_t flags, int binarizer, int max_symbols,
-			 int min_line_count, int character_set)
+int fzx_read(fzx_ctx* ctx, const uint8_t* data, int size, int width, int height, int row_stride, int pix_format,
+			 int crop_l, int crop_t, int crop_w, int crop_h, const char* formats, uint32_t flags, int binarizer,
+			 int max_symbols, int min_line_count, int character_set)
 {
 	return guarded(ctx, FZX_ERR_ARGUMENT, [&] {
 		if (!data || width <= 0 || height <= 0)
 			throw std::invalid_argument("Empty image");
 		auto opts = readerOptions(ctx, formats, flags, binarizer, max_symbols, min_line_count, character_set);
-		ImageView iv(data, width, height, toImageFormat(pix_format), row_stride > 0 ? row_stride : 0);
+		const ImageFormat format = toImageFormat(pix_format);
+		// The last row needs no padding.
+		const int64_t rowBytes = static_cast<int64_t>(width) * PixStride(format);
+		const int64_t stride = row_stride > 0 ? row_stride : rowBytes;
+		if (stride < rowBytes || stride * (height - 1) + rowBytes > size)
+			throw std::invalid_argument("The pixel buffer is smaller than its width, height and row stride say");
+		ImageView iv(data, width, height, format, static_cast<int>(stride));
 		int dx = 0, dy = 0;
 		if (crop_w > 0 && crop_h > 0) {
 			// ImageView::cropped clamps the rectangle to the image.
@@ -450,63 +501,45 @@ int fzx_merge(fzx_ctx* ctx, const uint8_t* data, int size, int character_set)
 		Content merged;
 		merged.defaultCharset = static_cast<CharacterSet>(character_set);
 		const auto bad = [] { return std::invalid_argument("Malformed parts to merge"); };
+		const auto i32 = [](const uint8_t* p) {
+			int32_t v;
+			std::memcpy(&v, p, 4);
+			return v;
+		};
 		size_t i = 0;
 		const size_t n = data && size > 0 ? static_cast<size_t>(size) : 0;
 		for (bool first = true; i < n; first = false) {
-			if (n - i < 5)
+			// u32 length, then a "merge" field, see writeMergeData.
+			if (n - i < 4)
 				throw bad();
-			const uint8_t flags = data[i];
-			uint32_t len;
-			std::memcpy(&len, data + i + 1, 4);
-			i += 5;
-			if (len > n - i)
+			const uint32_t len = static_cast<uint32_t>(i32(data + i));
+			i += 4;
+			if (len > n - i || len < 9 || data[i + 3] > static_cast<uint8_t>(AIFlag::AIM))
 				throw bad();
 			const uint8_t* p = data + i;
 			i += len;
 			Content part;
-			size_t j = 0;
-			// The symbology identifier, "]Q1"; the first part's names the result.
-			if (len >= 3 && p[0] == ']') {
-				if (first) {
-					merged.symbology.code = static_cast<char>(p[1]);
-					merged.symbology.modifier = static_cast<char>(p[2]);
-					merged.symbology.aiFlag = (flags & 2) ? AIFlag::GS1 : AIFlag::None;
-				}
-				j = 3;
+			part.symbology.code = static_cast<char>(p[0]);
+			part.symbology.modifier = static_cast<char>(p[1]);
+			part.symbology.eciModifierOffset = static_cast<signed char>(p[2]);
+			part.symbology.aiFlag = static_cast<AIFlag>(p[3]);
+			part.hasECI = p[4] != 0;
+			const uint32_t count = static_cast<uint32_t>(i32(p + 5));
+			if (count > (len - 9) / 8)
+				throw bad();
+			const size_t at = 9 + static_cast<size_t>(count) * 8;
+			const int bytes = static_cast<int>(len - at);
+			for (uint32_t k = 0, last = 0; k < count; k++) {
+				const int32_t eci = i32(p + 9 + k * 8);
+				const int32_t pos = i32(p + 13 + k * 8);
+				if (pos < static_cast<int32_t>(last) || pos > bytes)
+					throw bad();
+				last = static_cast<uint32_t>(pos);
+				part.encodings.push_back({static_cast<ECI>(eci), pos});
 			}
-			if (!(flags & 1)) {
-				part.append(ByteView(p + j, len - j));
-			} else {
-				// ECI designators are a backslash and 6 digits, a literal
-				// backslash is doubled.
-				//
-				// bytesECI starts a part whose first ECI comes after some data
-				// with the default ECI 3 (ISO-8859-1). In a sequence that data
-				// is in the encoding the previous part ended with instead, as
-				// zxing-cpp's MergeStructuredAppendSequence decodes it, so a
-				// leading ECI 3 of a later part is dropped. A real ECI 3 at the
-				// very start of a later part looks the same and is dropped too,
-				// which only matters if the previous part ended in another one.
-				static constexpr char defaultEci[] = "\\000003";
-				if (!first && len - j >= 7 && std::memcmp(p + j, defaultEci, 7) == 0)
-					j += 7;
-				while (j < len) {
-					if (p[j] != '\\') {
-						part.push_back(p[j++]);
-					} else if (j + 1 < len && p[j + 1] == '\\') {
-						part.push_back('\\');
-						j += 2;
-					} else if (j + 7 <= len && std::all_of(p + j + 1, p + j + 7, [](uint8_t c) { return c >= '0' && c <= '9'; })) {
-						int eci = 0;
-						for (size_t k = j + 1; k < j + 7; k++)
-							eci = eci * 10 + (p[k] - '0');
-						part.switchEncoding(static_cast<ECI>(eci));
-						j += 7;
-					} else {
-						throw bad();
-					}
-				}
-			}
+			part.bytes.assign(p + at, p + len);
+			if (first)
+				merged.symbology = part.symbology;
 			merged.append(part);
 		}
 		if (merged.empty())

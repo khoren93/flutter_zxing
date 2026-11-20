@@ -52,7 +52,7 @@ void _barcode(
   int symbolWidth = 0,
   int symbolHeight = 0,
   List<int> symbol = const <int>[],
-  List<int> eci = const <int>[],
+  List<int> mergeData = const <int>[],
 }) {
   b
     ..u32(format)
@@ -77,7 +77,7 @@ void _barcode(
     ..i32(symbolWidth)
     ..i32(symbolHeight)
     ..blob(symbol)
-    ..blob(eci);
+    ..blob(mergeData);
 }
 
 _Buffer _header(int kind) => _Buffer()

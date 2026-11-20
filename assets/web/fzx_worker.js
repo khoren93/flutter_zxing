@@ -16,6 +16,8 @@
 // such: fzx*.js / fzx*.wasm are built by tool/build_wasm.sh and ship in the
 // published package, but are not in the git repository.
 
+// FZX_ABI_VERSION of native/fzx.h.
+const FZX_ABI_VERSION = 4;
 const FZX_PIX_RGBA = 2;
 const FZX_ERR_IMAGE = -2;
 const FZX_ERR_INTERNAL = -5;
@@ -38,6 +40,13 @@ async function importModule(file) {
 async function load(file) {
   const create = await importModule(file);
   const M = await create();
+  // The page checks the reader module's version on 'ready'; the full module
+  // is checked here, in case the browser cached one and not the other.
+  const abi = M._fzx_abi_version();
+  if (abi !== FZX_ABI_VERSION) {
+    throw new Error(`${file} has ABI version ${abi}, this worker needs ${FZX_ABI_VERSION}. `
+      + 'The browser may have cached an old module.');
+  }
   const ctx = M._fzx_new();
   if (!ctx) throw new Error('The barcode engine is out of memory');
   return { M, ctx, formats: new Map(), writer: M._fzx_has_writer() === 1 };
@@ -74,7 +83,7 @@ function input(e, bytes) {
 
 function readRgba(e, rgba, w, h, o, crop) {
   const c = crop ?? [0, 0, 0, 0];
-  return e.M._fzx_read(e.ctx, input(e, rgba), w, h, 0, FZX_PIX_RGBA, c[0], c[1], c[2], c[3],
+  return e.M._fzx_read(e.ctx, input(e, rgba), rgba.length, w, h, 0, FZX_PIX_RGBA, c[0], c[1], c[2], c[3],
     formatsPtr(e, o.formats), o.flags, o.binarizer, o.maxSymbols, o.minLineCount, o.characterSet);
 }
 
@@ -165,7 +174,8 @@ async function handle(m) {
     }
     case 'readPixels': {
       const o = m.options, c = m.crop ?? [0, 0, 0, 0];
-      const code = e.M._fzx_read(e.ctx, input(e, new Uint8Array(m.buffer)), m.width, m.height, m.rowStride,
+      const pixels = new Uint8Array(m.buffer);
+      const code = e.M._fzx_read(e.ctx, input(e, pixels), pixels.length, m.width, m.height, m.rowStride,
         m.layout, c[0], c[1], c[2], c[3], formatsPtr(e, o.formats), o.flags, o.binarizer, o.maxSymbols,
         o.minLineCount, o.characterSet);
       return reply(m.id, e, code, t0);

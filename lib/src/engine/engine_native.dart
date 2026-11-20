@@ -497,6 +497,7 @@ final class _Engine {
     return fzxRead(
       _ctx,
       pixels,
+      r.width * r.height * PixelLayout.values[r.layout].bytesPerPixel,
       r.width,
       r.height,
       0,

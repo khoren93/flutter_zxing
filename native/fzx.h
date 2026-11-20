@@ -31,7 +31,7 @@
 #define FZX_API __attribute__((visibility("default"))) FZX_KEEP
 #endif
 
-#define FZX_ABI_VERSION 3
+#define FZX_ABI_VERSION 4
 
 #ifdef __cplusplus
 extern "C" {
@@ -103,9 +103,9 @@ FZX_API int fzx_has_writer(void);
 FZX_API fzx_ctx* fzx_new(void);
 FZX_API void fzx_free(fzx_ctx* ctx);
 
-// A buffer owned by the context, at least `size` bytes, reused across calls.
-// Callers write pixels or file bytes here to avoid an allocation per frame.
-// NULL if the allocation failed.
+// A buffer owned by the context, at least `size` bytes (and never NULL for a
+// `size` of 0), reused across calls. Callers write pixels or file bytes here
+// to avoid an allocation per frame. NULL if the allocation failed.
 FZX_API uint8_t* fzx_input(fzx_ctx* ctx, int size);
 
 // Reader options, passed with every call so that one context can serve
@@ -122,13 +122,14 @@ FZX_API uint8_t* fzx_input(fzx_ctx* ctx, int size);
 //   character_set   zxing-cpp CharacterSet of barcodes that declare none;
 //                   0 (Unknown) lets zxing-cpp guess
 
-// Decodes raw pixels. `row_stride` <= 0 means tightly packed rows.
-// `crop_w`/`crop_h` <= 0 means the whole image. Positions in the result are
-// in the coordinates of the full (uncropped) image.
+// Decodes raw pixels: `size` bytes at `data`, at least what the geometry
+// needs (FZX_ERR_ARGUMENT otherwise). `row_stride` <= 0 means tightly packed
+// rows. `crop_w`/`crop_h` <= 0 means the whole image. Positions in the result
+// are in the coordinates of the full (uncropped) image.
 // Returns the number of barcodes (result layout "barcodes"), or an FZX_ERR_*.
-FZX_API int fzx_read(fzx_ctx* ctx, const uint8_t* data, int width, int height, int row_stride, int pix_format,
-					 int crop_l, int crop_t, int crop_w, int crop_h, const char* formats, uint32_t flags,
-					 int binarizer, int max_symbols, int min_line_count, int character_set);
+FZX_API int fzx_read(fzx_ctx* ctx, const uint8_t* data, int size, int width, int height, int row_stride,
+					 int pix_format, int crop_l, int crop_t, int crop_w, int crop_h, const char* formats,
+					 uint32_t flags, int binarizer, int max_symbols, int min_line_count, int character_set);
 
 // Decodes an encoded image (JPEG, PNG, GIF, BMP via stb_image) at full
 // resolution, without lossy pre-scaling: zxing-cpp's tryDownscale handles
@@ -136,11 +137,12 @@ FZX_API int fzx_read(fzx_ctx* ctx, const uint8_t* data, int width, int height, i
 FZX_API int fzx_read_file(fzx_ctx* ctx, const uint8_t* data, int size, const char* formats, uint32_t flags,
 						  int binarizer, int max_symbols, int min_line_count, int character_set);
 
-// Joins the parts of a structured append sequence the way zxing-cpp does: an
-// encoding declared in one part carries over to the next. `data` holds the
-// parts in sequence order, each as
-//   u8 flags (1: the part has an ECI, 2: GS1), u32 length, bytes
-// where the bytes are the part's "eci" field of the "barcodes" layout.
+// Joins the parts of a structured append sequence the way zxing-cpp's
+// MergeStructuredAppendSequence does: each part keeps the encodings its
+// segments were read with, and an encoding of one part carries over to the
+// next. `data` holds the parts in sequence order, each as
+//   u32 length, bytes
+// where the bytes are the part's "merge" field of the "barcodes" layout.
 // `character_set` as for fzx_read. Result layout "merged". Returns 0 or an
 // FZX_ERR_*.
 FZX_API int fzx_merge(fzx_ctx* ctx, const uint8_t* data, int size, int character_set);

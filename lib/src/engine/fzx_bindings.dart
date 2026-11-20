@@ -20,9 +20,6 @@ external int fzxAbiVersion();
 @Native<Pointer<Char> Function()>(symbol: 'fzx_version', isLeaf: true)
 external Pointer<Char> fzxVersion();
 
-@Native<Int Function()>(symbol: 'fzx_has_writer', isLeaf: true)
-external int fzxHasWriter();
-
 @Native<Pointer<FzxContext> Function()>(symbol: 'fzx_new')
 external Pointer<FzxContext> fzxNew();
 
@@ -54,6 +51,7 @@ external int fzxMerge(
     Int,
     Int,
     Int,
+    Int,
     Pointer<Char>,
     Uint32,
     Int,
@@ -65,6 +63,7 @@ external int fzxMerge(
 external int fzxRead(
   Pointer<FzxContext> ctx,
   Pointer<Uint8> data,
+  int size,
   int width,
   int height,
   int rowStride,

@@ -11,7 +11,7 @@ import '../reading/reader_options.dart';
 
 /// `FZX_ABI_VERSION` this Dart code is written against. The engine refuses
 /// to start with a library or WebAssembly module of another version.
-const int fzxExpectedAbiVersion = 3;
+const int fzxExpectedAbiVersion = 4;
 
 /// Flags for zxing-cpp's downscaleFactor and downscaleThreshold, for the
 /// example's diagnostics page. [factor] is 2, 3 or 4, [threshold] in pixels
