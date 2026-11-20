@@ -355,13 +355,23 @@ final class _Summary {
     String? raw(String shown) => text.trim() == shown.trim() ? null : text;
     switch (content) {
       case UrlContent(:final Uri url, :final LinkService service):
+        final String host = url.host.replaceFirst(RegExp(r'^www\.'), '');
+        final String? message = service == LinkService.whatsApp
+            ? url.queryParameters['text']
+            : null;
+        // The address without its query only where the sheet shows all of
+        // it: a link that leads on elsewhere shows where.
+        final bool shown =
+            !url.hasFragment &&
+            url.queryParameters.keys.every(
+              (String key) =>
+                  service == LinkService.whatsApp &&
+                  (key == 'text' || key == 'phone'),
+            );
         return _Summary(
-          _serviceTarget(url, service),
-          detail: service == LinkService.whatsApp
-              ? url.queryParameters['text']
-              : null,
-          // The address without its query: a message is the detail above.
-          payload: '${url.host.replaceFirst(RegExp(r'^www\.'), '')}${url.path}',
+          _serviceTarget(url, service) ?? host,
+          detail: message,
+          payload: shown ? '$host${url.path}' : url.toString(),
         );
       case UrlContent(:final Uri url, :final String? title):
         final String host = url.host.isEmpty ? url.toString() : url.host;
@@ -883,39 +893,170 @@ final class _Summary {
         ].join(':')
       : mac;
 
-  /// Who or what a link to a service leads to: `+374 91 234567` becomes
+  /// Who or what a link to a service leads to: `wa.me/37491234567` becomes
   /// `+37491234567`, an Instagram profile `@name`, a map its search.
-  static String _serviceTarget(Uri url, LinkService service) {
+  /// `null` for any other link of the service, such as a video, a post or
+  /// an invite: the sheet names its host.
+  static String? _serviceTarget(Uri url, LinkService service) {
     final List<String> path = url.pathSegments
         .where((String p) => p.isNotEmpty)
         .toList();
+    final String host = url.host.toLowerCase().replaceFirst(
+      RegExp(r'^(www|m|mobile)\.'),
+      '',
+    );
     String? at(int i) => i < path.length ? path[i] : null;
-    String handle(String? name) => name == null
-        ? url.host
-        : name.startsWith('@')
-        ? name
-        : '@$name';
+    // A profile's name: the first part of the path, unless it is one of
+    // the service's own pages.
+    String? profile(RegExp name, Set<String> pages) {
+      final String? first = at(0);
+      return first != null &&
+              name.hasMatch(first) &&
+              !pages.contains(first.toLowerCase())
+          ? '@$first'
+          : null;
+    }
+
+    // A handle the path starts with: `youtube.com/@name`.
+    String? atName() {
+      final String? first = at(0);
+      return first != null && RegExp(r'^@[\w.\-]+$').hasMatch(first)
+          ? first
+          : null;
+    }
+
+    String? phone(String? digits) =>
+        digits != null && RegExp(r'^\+?\d{4,15}$').hasMatch(digits)
+        ? '+${digits.replaceFirst('+', '')}'
+        : null;
+    final RegExp word = RegExp(r'^[\w.\-]+$');
     return switch (service) {
-      LinkService.whatsApp => at(0) == null ? url.host : '+${at(0)}',
+      LinkService.whatsApp =>
+        host == 'wa.me'
+            ? phone(at(0))
+            : at(0) == 'send'
+            ? phone(url.queryParameters['phone'])
+            : null,
       LinkService.signal =>
-        url.fragment.startsWith('p/') ? url.fragment.substring(2) : url.host,
-      LinkService.linkedIn || LinkService.snapchat => handle(at(1) ?? at(0)),
+        url.fragment.startsWith('p/') ? url.fragment.substring(2) : null,
+      LinkService.telegram =>
+        profile(RegExp(r'^[A-Za-z]\w{3,31}$'), const <String>{
+          'joinchat',
+          'addstickers',
+          'addemoji',
+          'addlist',
+          'addtheme',
+          'share',
+          'proxy',
+          'socks',
+          'login',
+          'setlanguage',
+          'boost',
+          'contact',
+          'confirmphone',
+          'iv',
+        }),
+      LinkService.instagram => profile(word, const <String>{
+        'p',
+        'reel',
+        'reels',
+        'tv',
+        'stories',
+        'explore',
+        'accounts',
+        'direct',
+        'about',
+        'legal',
+        'developer',
+      }),
+      LinkService.facebook =>
+        host == 'facebook.com' || host == 'fb.com'
+            ? profile(RegExp(r'^(?!.*\.php$)[A-Za-z0-9.]+$'), const <String>{
+                'watch',
+                'groups',
+                'events',
+                'pages',
+                'share',
+                'sharer',
+                'reel',
+                'photo',
+                'photos',
+                'videos',
+                'stories',
+                'story',
+                'marketplace',
+                'gaming',
+                'hashtag',
+                'login',
+                'help',
+                'p',
+              })
+            : null,
+      LinkService.x => profile(RegExp(r'^\w{1,15}$'), const <String>{
+        'i',
+        'home',
+        'search',
+        'explore',
+        'intent',
+        'share',
+        'hashtag',
+        'settings',
+        'messages',
+        'notifications',
+        'compose',
+        'login',
+      }),
+      LinkService.linkedIn =>
+        const <String>{'in', 'company', 'school', 'showcase'}.contains(at(0)) &&
+                at(1) != null
+            ? '@${at(1)}'
+            : null,
+      LinkService.snapchat =>
+        at(0) == 'add' && at(1) != null ? '@${at(1)}' : null,
+      LinkService.tikTok ||
+      LinkService.youTube ||
+      LinkService.threads => atName(),
+      LinkService.pinterest =>
+        host == 'pinterest.com'
+            ? profile(word, const <String>{'pin', 'search', 'ideas', 'today'})
+            : null,
+      LinkService.twitch => profile(RegExp(r'^\w{3,25}$'), const <String>{
+        'videos',
+        'directory',
+        'settings',
+        'search',
+        'downloads',
+        'p',
+      }),
+      LinkService.soundCloud => profile(word, const <String>{
+        'discover',
+        'search',
+        'you',
+        'stream',
+        'upload',
+        'pages',
+      }),
       LinkService.reddit =>
-        at(0) == 'r' && at(1) != null ? 'r/${at(1)}' : handle(at(1) ?? at(0)),
-      LinkService.discord => at(0) ?? url.host,
+        host == 'redd.it' || at(1) == null
+            ? null
+            : at(0) == 'r'
+            ? 'r/${at(1)}'
+            : at(0) == 'u' || at(0) == 'user'
+            ? 'u/${at(1)}'
+            : null,
+      LinkService.discord =>
+        host == 'discord.gg'
+            ? at(0)
+            : at(0) == 'invite'
+            ? at(1)
+            : null,
       LinkService.googleMaps ||
       LinkService.appleMaps ||
       LinkService.yandexMaps =>
         url.queryParameters['query'] ??
             url.queryParameters['q'] ??
-            url.queryParameters['text'] ??
-            url.host,
-      LinkService.appStore ||
-      LinkService.googlePlay ||
-      LinkService.spotify ||
-      LinkService.appleMusic ||
-      LinkService.googleReview => url.host.replaceFirst('www.', ''),
-      _ => handle(at(0)),
+            url.queryParameters['text'],
+      _ => null,
     };
   }
 
