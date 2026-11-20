@@ -102,6 +102,8 @@ final _Id _switchOverFactors = _selector(
 final _Id _count = _selector('count');
 final _Id _objectAtIndex = _selector('objectAtIndex:');
 final _Id _doubleValue = _selector('doubleValue');
+final _Id _currentDevice = _selector('currentDevice');
+final _Id _orientation = _selector('orientation');
 
 /// The NSString constant [name] of AVFoundation (a device or media type).
 _Id _constant(String name) => _process.lookup<_Id>(name).value;
@@ -179,6 +181,23 @@ final class IosLens {
       return null;
     } on Object {
       return null; // not AVFoundation, or an older one
+    }
+  }
+
+  /// The device's physical orientation as UIKit reports it
+  /// (`UIDeviceOrientation`: 1 portrait, 2 upside down, 3 landscape left,
+  /// 4 landscape right, 5 face up, 6 face down, 0 unknown); `null` where it
+  /// cannot be read. The camera plugin turns focus points by it.
+  static int? deviceOrientation() {
+    try {
+      final _Id deviceClass = _class('UIDevice');
+      if (deviceClass == nullptr) {
+        return null;
+      }
+      final _Id device = _send(deviceClass, _currentDevice);
+      return device == nullptr ? null : _sendLong(device, _orientation);
+    } on Object {
+      return null; // no UIKit here
     }
   }
 

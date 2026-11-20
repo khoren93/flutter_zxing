@@ -431,11 +431,19 @@ final class NativeCameraSource implements CameraSource {
     if (camera == null) {
       return;
     }
+    // Not every camera can focus or meter on a point: each is tried.
+    final Offset at = _ios
+        ? iosPluginPoint(point, ui: _ui, device: IosLens.deviceOrientation())
+        : point;
     try {
-      await camera.setFocusPoint(point);
-      await camera.setExposurePoint(point);
+      await camera.setFocusPoint(at);
     } on Object {
-      // Not every camera can focus or meter on a point.
+      // A fixed focus.
+    }
+    try {
+      await camera.setExposurePoint(at);
+    } on Object {
+      // No metering on a point.
     }
   }
 

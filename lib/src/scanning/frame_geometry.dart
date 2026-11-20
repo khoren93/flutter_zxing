@@ -264,3 +264,34 @@ int iosFrameRotation(Size frame, DeviceOrientation ui) {
   }
   return uiLandscape ? 270 : 90;
 }
+
+/// The point to give the iOS camera plugin (camera_avfoundation) for the
+/// focus or exposure point [p] of a preview shown in the [ui] orientation.
+///
+/// The plugin turns the point into the sensor's terms by the device's
+/// physical orientation at that moment ([device], a `UIDeviceOrientation`),
+/// not by the capture orientation the scanner locks to the UI: with the
+/// phone flat (face up) it does not turn it at all, and in a portrait-only
+/// app held sideways it turns it the wrong way. So the turn it will make is
+/// undone here, and the one for [ui] made instead.
+Offset iosPluginPoint(
+  Offset p, {
+  required DeviceOrientation ui,
+  required int? device,
+}) {
+  // The plugin's turn (its cgPoint(for:withOrientation:)), for the
+  // UIDeviceOrientation of the UI.
+  final Offset sensor = switch (ui) {
+    DeviceOrientation.portraitUp => Offset(p.dy, 1 - p.dx),
+    DeviceOrientation.portraitDown => Offset(1 - p.dy, p.dx),
+    DeviceOrientation.landscapeRight => Offset(1 - p.dx, 1 - p.dy),
+    DeviceOrientation.landscapeLeft => p,
+  };
+  // Undone for the orientation it will use.
+  return switch (device) {
+    1 => Offset(1 - sensor.dy, sensor.dx),
+    2 => Offset(sensor.dy, 1 - sensor.dx),
+    4 => Offset(1 - sensor.dx, 1 - sensor.dy),
+    _ => sensor,
+  };
+}

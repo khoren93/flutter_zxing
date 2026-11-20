@@ -240,5 +240,45 @@ void main() {
         DeviceOrientation.landscapeRight,
       );
     });
+
+    test('iOS focus points reach the sensor whatever way the phone lies', () {
+      // What camera_avfoundation does with a point, by UIDeviceOrientation.
+      Offset plugin(Offset p, int device) => switch (device) {
+        1 => Offset(p.dy, 1 - p.dx),
+        2 => Offset(1 - p.dy, p.dx),
+        4 => Offset(1 - p.dx, 1 - p.dy),
+        _ => p,
+      };
+      const Map<DeviceOrientation, int> asDevice = <DeviceOrientation, int>{
+        DeviceOrientation.portraitUp: 1,
+        DeviceOrientation.portraitDown: 2,
+        DeviceOrientation.landscapeLeft: 3,
+        DeviceOrientation.landscapeRight: 4,
+      };
+      const Offset tap = Offset(0.5, 0.2);
+      // Flat on a table (face up), a portrait UI: turned for portrait.
+      expect(
+        iosPluginPoint(tap, ui: DeviceOrientation.portraitUp, device: 5),
+        _near(const Offset(0.2, 0.5)),
+      );
+      // Held as the UI is: as given.
+      expect(
+        iosPluginPoint(tap, ui: DeviceOrientation.portraitUp, device: 1),
+        _near(tap),
+      );
+      for (final DeviceOrientation ui in DeviceOrientation.values) {
+        for (int device = 0; device <= 6; device++) {
+          expect(
+            plugin(iosPluginPoint(tap, ui: ui, device: device), device),
+            _near(plugin(tap, asDevice[ui]!)),
+            reason: '$ui, device $device',
+          );
+        }
+        expect(
+          iosPluginPoint(tap, ui: ui, device: null),
+          _near(plugin(tap, asDevice[ui]!)),
+        );
+      }
+    });
   });
 }
