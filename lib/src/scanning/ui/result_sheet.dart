@@ -158,6 +158,8 @@ class BarcodeResultSheet extends StatelessWidget {
     );
     return ScannerSheet(
       label: '$kind: ${summary.title}',
+      // Screen readers announce the code found.
+      liveRegion: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,

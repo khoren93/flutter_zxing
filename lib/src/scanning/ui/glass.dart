@@ -281,6 +281,7 @@ class ScannerSheet extends StatelessWidget {
     super.key,
     this.padding = const EdgeInsets.all(24),
     this.label,
+    this.liveRegion = false,
     required this.child,
   });
 
@@ -289,6 +290,10 @@ class ScannerSheet extends StatelessWidget {
 
   /// What the sheet shows, for screen readers.
   final String? label;
+
+  /// Screen readers announce [label] when the sheet appears or changes,
+  /// as for a code found or a verdict.
+  final bool liveRegion;
 
   /// The content.
   final Widget child;
@@ -300,6 +305,7 @@ class ScannerSheet extends StatelessWidget {
       container: true,
       explicitChildNodes: true,
       label: label,
+      liveRegion: liveRegion,
       child: ScannerGlass(
         shape: theme.sheetBorder,
         strong: true,

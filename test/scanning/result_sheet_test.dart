@@ -3,6 +3,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart' show SemanticsNode;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
@@ -233,6 +234,17 @@ void main() {
       expect(find.text('X-1'), findsOneWidget);
       expect(find.text('AB'), findsOneWidget);
     });
+  });
+  testWidgets('screen readers announce the result', (
+    WidgetTester tester,
+  ) async {
+    final SemanticsHandle handle = tester.ensureSemantics();
+    await _show(tester, _barcode('https://www.example.com/a'));
+    final SemanticsNode node = tester.getSemantics(
+      find.bySemanticsLabel('Link: example.com'),
+    );
+    expect(node.flagsCollection.isLiveRegion, isTrue);
+    handle.dispose();
   });
 }
 

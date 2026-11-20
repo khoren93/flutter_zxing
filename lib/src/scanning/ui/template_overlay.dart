@@ -1456,79 +1456,75 @@ class _VerdictSheet extends StatelessWidget {
     };
     final String title = verdict.title ?? barcodeLabel(barcode);
     final bool still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    return Semantics(
+    return ScannerSheet(
+      padding: const EdgeInsets.all(20),
+      label: <String>[over, title, ?verdict.message].join(': '),
       liveRegion: true,
-      child: ScannerSheet(
-        padding: const EdgeInsets.all(20),
-        label: <String>[over, title, ?verdict.message].join(': '),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                DecoratedBox(
-                  decoration: ShapeDecoration(
-                    color: color,
-                    shape: theme.buttonBorder,
-                  ),
-                  child: SizedBox.square(
-                    dimension: 56,
-                    child: Center(
-                      child: ScannerIcon(icon, size: 30, color: on),
-                    ),
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              DecoratedBox(
+                decoration: ShapeDecoration(
+                  color: color,
+                  shape: theme.buttonBorder,
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text(over.toUpperCase(), style: theme.overlineStyle),
-                      const SizedBox(height: 2),
+                child: SizedBox.square(
+                  dimension: 56,
+                  child: Center(child: ScannerIcon(icon, size: 30, color: on)),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(over.toUpperCase(), style: theme.overlineStyle),
+                    const SizedBox(height: 2),
+                    Text(
+                      title,
+                      style: theme.titleStyle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (verdict.message case final String message)
                       Text(
-                        title,
-                        style: theme.titleStyle,
+                        message,
+                        style: theme.mutedStyle.copyWith(
+                          fontSize: 15,
+                          height: 20 / 15,
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (verdict.message case final String message)
-                        Text(
-                          message,
-                          style: theme.mutedStyle.copyWith(
-                            fontSize: 15,
-                            height: 20 / 15,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: const BorderRadius.all(Radius.circular(2)),
-              child: SizedBox(
-                height: 4,
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween<double>(begin: 1, end: 0),
-                  duration: still ? Duration.zero : duration,
-                  builder: (BuildContext context, double t, Widget? _) =>
-                      CustomPaint(
-                        painter: _TimerPainter(
-                          t,
-                          color,
-                          theme.inkMutedColor.withValues(alpha: 0.22),
-                        ),
-                      ),
+                  ],
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: const BorderRadius.all(Radius.circular(2)),
+            child: SizedBox(
+              height: 4,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 1, end: 0),
+                duration: still ? Duration.zero : duration,
+                builder: (BuildContext context, double t, Widget? _) =>
+                    CustomPaint(
+                      painter: _TimerPainter(
+                        t,
+                        color,
+                        theme.inkMutedColor.withValues(alpha: 0.22),
+                      ),
+                    ),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1566,24 +1562,22 @@ class _HintPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
-    return Semantics(
+    return ScannerSheet(
+      padding: const EdgeInsets.all(32),
       liveRegion: true,
-      child: ScannerSheet(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            if (title case final String title)
-              Text(title, style: theme.displayStyle.copyWith(fontSize: 36)),
-            if (title != null && hint != null) const SizedBox(height: 12),
-            if (hint case final String hint)
-              Text(
-                hint,
-                style: theme.mutedStyle.copyWith(fontSize: 19, height: 28 / 19),
-              ),
-          ],
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (title case final String title)
+            Text(title, style: theme.displayStyle.copyWith(fontSize: 36)),
+          if (title != null && hint != null) const SizedBox(height: 12),
+          if (hint case final String hint)
+            Text(
+              hint,
+              style: theme.mutedStyle.copyWith(fontSize: 19, height: 28 / 19),
+            ),
+        ],
       ),
     );
   }
