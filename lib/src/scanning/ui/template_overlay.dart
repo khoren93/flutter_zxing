@@ -453,13 +453,27 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   }
 
   /// Closes the screen with [barcode], once no other route lies over it.
+  /// Where the screen does not close, such as the app's first screen or
+  /// one that refuses to be popped, scanning goes on.
   void _closeWith(Barcode barcode) {
+    _after = null;
     if (!mounted) {
       return;
     }
     final ModalRoute<Object?>? route = ModalRoute.of(context);
     if (route == null || route.isCurrent) {
-      unawaited(Navigator.maybeOf(context)?.maybePop(barcode));
+      final NavigatorState? navigator = Navigator.maybeOf(context);
+      if (navigator == null) {
+        _scanAgain();
+        return;
+      }
+      unawaited(
+        navigator.maybePop(barcode).then((bool _) {
+          if (mounted && (route?.isCurrent ?? true)) {
+            _scanAgain();
+          }
+        }),
+      );
     } else if (route.isActive) {
       _after = Timer(
         const Duration(milliseconds: 200),

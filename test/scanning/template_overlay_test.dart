@@ -193,4 +193,45 @@ void main() {
     expect(find.byType(BarcodeResultSheet), findsOneWidget);
     await close(t);
   });
+
+  testWidgets('closeOnResult on a screen that does not close scans on', (
+    WidgetTester t,
+  ) async {
+    t.view
+      ..physicalSize = _phone
+      ..devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    int checks = 0;
+    final List<String> found = <String>[];
+    // The app's first screen: nothing to pop.
+    await t.pumpWidget(
+      _host(
+        Navigator(
+          onGenerateRoute: (_) => PageRouteBuilder<void>(
+            pageBuilder: (_, _, _) => BarcodeScanner(
+              controller: c,
+              template: ScannerTemplate.signIn(
+                check: (_) {
+                  checks++;
+                  return null;
+                },
+              ),
+              onDetect: (BarcodeCapture capture) =>
+                  found.add(capture.barcode.text),
+            ),
+          ),
+        ),
+      ),
+    );
+    await t.pump();
+    await code(t);
+    await _settle(t);
+    expect(checks, 1);
+    expect(c.value.status, ScannerStatus.running);
+    await code(t, 'B', _a.shift(const Offset(0, 320)));
+    await _settle(t);
+    expect(checks, 2);
+    expect(found, <String>['A', 'B']);
+    await close(t);
+  });
 }
