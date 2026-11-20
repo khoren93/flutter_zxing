@@ -293,4 +293,39 @@ void main() {
       await close(t);
     });
   });
+
+  testWidgets('the photo picker opens once and its errors are handled', (
+    WidgetTester t,
+  ) async {
+    const MethodChannel picker = MethodChannel(
+      'plugins.flutter.io/image_picker',
+    );
+    int opened = 0;
+    final Completer<Object?> answer = Completer<Object?>();
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(picker, (
+      MethodCall call,
+    ) {
+      opened++;
+      return answer.future;
+    });
+    addTearDown(
+      () => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        picker,
+        null,
+      ),
+    );
+    await open(t, const ScannerTemplate(photoButton: true));
+    await t.tap(find.byType(PickImageButton));
+    await t.pump();
+    // A second tap while the picker opens.
+    await t.tap(find.byType(PickImageButton));
+    await t.pump();
+    expect(opened, 1);
+    answer.completeError(PlatformException(code: 'photo_access_denied'));
+    await t.pump();
+    await t.pump();
+    expect(t.takeException(), isNull);
+    expect(c.value.status, ScannerStatus.running);
+    await close(t);
+  });
 }

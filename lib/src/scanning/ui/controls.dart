@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -96,8 +97,9 @@ class PickImageButton extends StatelessWidget {
   /// The controller that reads the photo.
   final ScannerController controller;
 
-  /// Called after a photo was read, with its capture or `null` when it has
-  /// no code. Not called when the user cancels.
+  /// Called after a photo was read, with its capture or `null` when no
+  /// code could be read in it. Not called when the user cancels, or when
+  /// the picker cannot open.
   final ValueChanged<BarcodeCapture?>? onResult;
 
   @override
@@ -117,21 +119,38 @@ class PickImageButton extends StatelessWidget {
   }
 }
 
+/// Whether the photo picker is open: a second tap meanwhile is ignored.
+bool _picking = false;
+
 /// Lets the user pick a photo and reads it with [controller]. Returns
-/// whether a photo was picked and its capture (`null` without a code, or
-/// for a file that is not an image).
+/// whether a photo was picked and its capture (`null` without a code, for
+/// a file that is not an image, or when the engine failed on it). Nothing
+/// is picked while the picker is already open, or when it cannot open,
+/// such as without access to the photos.
 Future<(bool, BarcodeCapture?)> pickAndReadImage(
   ScannerController controller,
 ) async {
-  final XFile? file = await ImagePicker().pickImage(
-    source: ImageSource.gallery,
-  );
+  if (_picking) {
+    return (false, null);
+  }
+  _picking = true;
+  final XFile? file;
+  try {
+    file = await ImagePicker().pickImage(source: ImageSource.gallery);
+  } on PlatformException {
+    return (false, null);
+  } finally {
+    _picking = false;
+  }
   if (file == null) {
     return (false, null);
   }
   try {
     return (true, await controller.readImage(await file.readAsBytes()));
   } on ImageDecodeException {
+    return (true, null);
+  } on EngineException {
+    // The next read starts the engine again.
     return (true, null);
   }
 }
