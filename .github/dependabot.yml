@@ -13,6 +13,20 @@ updates:
       interval: "monthly"
     reviewers:
       - "khoren93"
+  # The development tools: their lockfiles pin the fixture decoder and the
+  # headless browser.
+  - package-ecosystem: "pub"
+    directory: "/tool"
+    schedule:
+      interval: "monthly"
+    reviewers:
+      - "khoren93"
+  - package-ecosystem: "npm"
+    directory: "/tool"
+    schedule:
+      interval: "monthly"
+    reviewers:
+      - "khoren93"
   # - package-ecosystem: "pub"
   #   directory: "/example"
   #   schedule:
