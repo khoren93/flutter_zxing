@@ -643,7 +643,11 @@ int exifOrientation(Uint8List encoded) {
       return 1;
     }
     final int length = data.getUint16(at + 2);
+    if (length < 2) {
+      return 1; // a length counts its own two bytes: not a JPEG after all
+    }
     if (marker == 0xFFE1 &&
+        length >= 8 &&
         at + 10 <= end &&
         data.getUint32(at + 4) == 0x45786966 && // "Exif"
         data.getUint16(at + 8) == 0) {

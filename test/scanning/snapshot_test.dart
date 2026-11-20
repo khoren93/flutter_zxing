@@ -304,4 +304,15 @@ void main() {
     ], const Rect.fromLTWH(100, 50, 200, 100));
     expect(area, const Rect.fromLTRB(103, 53, 138, 88));
   });
+
+  test('a broken EXIF segment reads as no turn', () {
+    // An APP1 segment too short for its "Exif" header, and one whose length
+    // is less than its own two bytes.
+    for (final List<int> bytes in <List<int>>[
+      <int>[0xFF, 0xD8, 0xFF, 0xE1, 0x00, 0x04, 0x45, 0x78, 0x69, 0x66, 0, 0],
+      <int>[0xFF, 0xD8, 0xFF, 0xE1, 0x00, 0x00, 0x45, 0x78, 0x69, 0x66, 0, 0],
+    ]) {
+      expect(exifOrientation(Uint8List.fromList(bytes)), 1);
+    }
+  });
 }
