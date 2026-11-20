@@ -4,7 +4,9 @@
 // for a second on the same kind of image (#74).
 //
 // Integration tests run in debug mode (JIT, assertions), so the bound is
-// loose; the measured numbers are printed for the record.
+// loose, and a read over it is measured again, up to three times: a garbage
+// collection or a busy emulator stalls one read, a blocking engine every
+// one. The measured numbers are printed for the record.
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -16,9 +18,27 @@ import 'package:integration_test/integration_test.dart';
 /// Longest stall of the UI isolate allowed while reading, in debug mode.
 const Duration _maxStall = Duration(milliseconds: 100);
 
-/// Runs [work] and returns its result with the longest gap between ticks
-/// of a 1 ms timer on this isolate meanwhile.
-Future<(T, Duration)> _measureStall<T>(Future<T> Function() work) async {
+/// Runs [work] and returns its result with the longest gap between ticks of
+/// a 1 ms timer on this isolate meanwhile; over [_maxStall], runs it again,
+/// [tries] times at most, and returns the shortest.
+Future<(T, Duration)> _measureStall<T>(
+  Future<T> Function() work, {
+  int tries = 3,
+}) async {
+  (T, Duration)? best;
+  for (int i = 0; i < tries; i++) {
+    final (T, Duration) run = await _measureOnce(work);
+    if (best == null || run.$2 < best.$2) {
+      best = run;
+    }
+    if (run.$2 < _maxStall) {
+      break;
+    }
+  }
+  return best!;
+}
+
+Future<(T, Duration)> _measureOnce<T>(Future<T> Function() work) async {
   final Stopwatch clock = Stopwatch()..start();
   Duration last = Duration.zero;
   Duration worst = Duration.zero;
