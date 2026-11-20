@@ -42,4 +42,6 @@ else()
   add_library(fzx SHARED fzx.cpp)
 endif()
 target_include_directories(fzx PRIVATE ${STB_DIR})
+# As in hook/build.dart: fzx.cpp uses zxing-cpp's internal headers.
+target_compile_definitions(fzx PRIVATE ZXING_INTERNAL)
 target_link_libraries(fzx PRIVATE ZXing::ZXing)
