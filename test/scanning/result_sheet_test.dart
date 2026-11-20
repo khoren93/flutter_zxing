@@ -201,6 +201,39 @@ void main() {
       expect(find.text('14.11.2026 09:30 – 15.11.2026 11:00'), findsOneWidget);
     });
   });
+  group('GS1 without a GTIN or SSCC', () {
+    Barcode gs1(String text) => _barcode(
+      text,
+      format: BarcodeFormat.dataMatrix,
+      id: ']d2',
+      type: BarcodeContentType.gs1,
+    );
+
+    testWidgets('the batch is the title, once', (WidgetTester tester) async {
+      await _show(tester, gs1('(10)ABC(21)123'));
+      expect(_title(tester), 'ABC');
+      expect(find.text('ABC'), findsOneWidget);
+      expect(find.text('GS1 · BATCH'), findsOneWidget);
+      expect(find.text('123'), findsOneWidget);
+    });
+
+    testWidgets('a date is not the title', (WidgetTester tester) async {
+      await _show(tester, gs1('(17)261231(10)X'));
+      expect(_title(tester), 'X');
+      expect(find.text('261231'), findsNothing);
+      expect(find.text('31 Dec 2026'), findsOneWidget);
+    });
+
+    testWidgets('an element without a name comes first', (
+      WidgetTester tester,
+    ) async {
+      await _show(tester, gs1('(10)AB(240)X-1'));
+      expect(_title(tester), 'X-1');
+      expect(find.text('GS1 · (240)'), findsOneWidget);
+      expect(find.text('X-1'), findsOneWidget);
+      expect(find.text('AB'), findsOneWidget);
+    });
+  });
 }
 
 String _germanDate(DateTime d) => '${d.day}.${d.month}.${d.year}';

@@ -735,11 +735,25 @@ final class _Summary {
         fields['(${e.key})'] = e.value;
       }
     }
+    // Without a GTIN or SSCC: the first element shown by its identifier,
+    // else the batch or serial, and not again in the fields.
     if (title == null) {
-      final MapEntry<String, String> first = elements.entries.first;
-      title = first.value;
-      fields.remove('(${first.key})');
-      kindDetail = '(${first.key})';
+      String? unnamed;
+      for (final String ai in elements.keys) {
+        if (!named.contains(ai)) {
+          unnamed = '($ai)';
+          break;
+        }
+      }
+      final String label =
+          unnamed ??
+          (fields.containsKey(strings.batch)
+              ? strings.batch
+              : fields.containsKey(strings.serial)
+              ? strings.serial
+              : fields.keys.first);
+      title = fields.remove(label) ?? '';
+      kindDetail = label;
     }
     return _Summary(
       title,
