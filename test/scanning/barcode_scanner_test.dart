@@ -279,6 +279,49 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets('a new template turns to the camera of its side', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      host(const BarcodeScanner(template: ScannerTemplate.minimal())),
+    );
+    await tester.pump();
+    expect(camera.opened, <CameraFacing>[CameraFacing.back]);
+    await tester.pumpWidget(
+      host(const BarcodeScanner(template: ScannerTemplate.kiosk())),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(camera.opened.last, CameraFacing.front);
+    // Made anew with the same side: the camera stays.
+    await tester.pumpWidget(
+      host(const BarcodeScanner(template: ScannerTemplate.kiosk(hint: 'x'))),
+    );
+    await tester.pump();
+    expect(camera.opened, hasLength(2));
+    await tester.pumpWidget(host(const SizedBox()));
+    await tester.pump();
+  });
+
+  testWidgets('a template with an overlay of its own opens the settings', (
+    WidgetTester tester,
+  ) async {
+    camera.openError = const CameraPermissionException();
+    await tester.pumpWidget(
+      host(
+        BarcodeScanner(
+          template: ScannerTemplate.minimal(onOpenSettings: () {}),
+          overlayBuilder: (BuildContext context, ScannerLayout layout) =>
+              const SizedBox.shrink(),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Open Settings'), findsOneWidget);
+    await tester.pumpWidget(host(const SizedBox()));
+    await tester.pump();
+  });
+
   testWidgets('a controller of its own is not disposed with the widget', (
     WidgetTester tester,
   ) async {

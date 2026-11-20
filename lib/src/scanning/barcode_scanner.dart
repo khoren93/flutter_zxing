@@ -198,6 +198,12 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
         ..detection = template?.detection ?? DetectionMode.distinct
         ..maxBarcodes = template == null ? 1 : template.maxBarcodes
         ..initialZoom = template?.initialZoom;
+      // Only when the template's side changes: the user's choice of camera
+      // stays through rebuilds that make the template anew.
+      final CameraFacing? facing = template?.facing;
+      if (facing != oldWidget.template?.facing) {
+        unawaited(own.switchCamera(facing ?? CameraFacing.back));
+      }
     }
     if (widget.pauseWhenHidden != oldWidget.pauseWhenHidden) {
       _setHidden(widget.pauseWhenHidden && !_shown);
@@ -390,7 +396,8 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
               : ScannerErrorView(
                   error,
                   onRetry: () => unawaited(controller.start()),
-                  onOpenSettings: widget.onOpenSettings,
+                  onOpenSettings:
+                      widget.onOpenSettings ?? template?.onOpenSettings,
                 ));
     } else {
       base =
