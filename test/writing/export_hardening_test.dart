@@ -25,14 +25,16 @@ Future<Uint8List> _logoPng() async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('QR codes read under every logo size, short payloads too', () async {
+  test('QR codes with short payloads read under a logo', () async {
+    // Short texts in the smallest versions are the hard case; the levels for
+    // every size are checked in logo_error_correction_test.dart.
     final Uint8List png = await _logoPng();
     final List<String> unread = <String>[];
-    for (final double size in <double>[0.12, 0.18, 0.2, 0.22, 0.25, 0.3]) {
+    for (final double size in <double>[0.18, 0.25, 0.3]) {
       final BarcodeStyle style = BarcodeStyle(
         logo: BarcodeLogo(MemoryImage(png), size: size),
       );
-      for (int length = 1; length <= 40; length += length < 10 ? 1 : 5) {
+      for (int length = 1; length <= 10; length++) {
         for (final String seed in <String>['a', 'K', '7']) {
           final String text = String.fromCharCodes(<int>[
             for (int i = 0; i < length; i++) seed.codeUnitAt(0) + (i * 7) % 20,
@@ -50,7 +52,7 @@ void main() {
       }
     }
     expect(unread, isEmpty);
-  }, timeout: const Timeout(Duration(minutes: 3)));
+  }, timeout: const Timeout(Duration(minutes: 1)));
 
   group('digits with an add-on', () {
     Future<String?> printed(BarcodeFormat format, String data) async =>
