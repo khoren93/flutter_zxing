@@ -248,4 +248,15 @@ void main() {
       expect(c.name, 'Иван');
     });
   });
+
+  test('sms: with &body= (iOS form, not RFC 5724) is an SMS', () {
+    expect(
+      BarcodeContent.parseText('sms:+15105550101&body=hello%20there'),
+      const SmsContent(number: '+15105550101', message: 'hello there'),
+    );
+    expect(
+      BarcodeContent.parseText('sms:+15105550101?body=hello'),
+      const SmsContent(number: '+15105550101', message: 'hello'),
+    );
+  });
 }

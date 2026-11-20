@@ -763,10 +763,14 @@ SmsContent? _smsTo(String body) {
   );
 }
 
-/// `sms:number?body=text` (RFC 5724), and the `sms:number:text` some
-/// generators write.
+/// `sms:number?body=text` (RFC 5724), and the `sms:number:text` and
+/// `sms:number&body=text` (iOS) some generators write.
 SmsContent? _sms(String body) {
-  final int q = body.indexOf('?');
+  int q = body.indexOf('?');
+  // Not RFC 5724: iOS takes `&` for the `?` before the parameters.
+  if (q < 0) {
+    q = body.toLowerCase().indexOf('&body=');
+  }
   String target = q < 0 ? body : body.substring(0, q);
   String? message;
   if (q < 0) {
