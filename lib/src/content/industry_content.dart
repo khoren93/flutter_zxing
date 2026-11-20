@@ -314,8 +314,11 @@ int? vinModelYear(String vin) {
 
 const String _base38 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-.';
 
-/// A Matter onboarding payload, after the `MT:`.
-SmartHomeContent? parseMatter(String body, String raw) {
+/// A Matter onboarding payload, after the `MT:`. Matter Core 5.1.3: one
+/// code may hold several payloads separated by `*`; the first is read.
+SmartHomeContent? parseMatter(String text, String raw) {
+  final int star = text.indexOf('*');
+  final String body = star < 0 ? text : text.substring(0, star);
   final List<int> bytes = <int>[];
   int at = 0;
   while (at < body.length) {
@@ -336,6 +339,11 @@ SmartHomeContent? parseMatter(String body, String raw) {
         return null;
       }
       value = value * 38 + digit;
+    }
+    // Five characters hold 3 bytes, four 2 and two 1: a larger value is
+    // no Base38 the specification writes.
+    if (value >= 1 << (8 * count)) {
+      return null;
     }
     for (int i = 0; i < count; i++) {
       bytes.add(value % 256);

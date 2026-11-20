@@ -259,4 +259,27 @@ void main() {
       const SmsContent(number: '+15105550101', message: 'hello'),
     );
   });
+
+  group('Matter onboarding payloads (Matter Core 5.1.3)', () {
+    const String one = 'MT:Y.K9042C00KA0648G00';
+
+    test('several payloads after one MT: give the first', () {
+      final SmartHomeContent first =
+          BarcodeContent.parseText(one) as SmartHomeContent;
+      final SmartHomeContent both =
+          BarcodeContent.parseText('$one*Y.K9042C00KA0648G00')
+              as SmartHomeContent;
+      expect(both.setupCode, first.setupCode);
+      expect(both.vendorId, first.vendorId);
+      expect(both.discriminator, first.discriminator);
+    });
+
+    test('a Base38 chunk over 3 bytes is not a payload', () {
+      // `MLBB8` is `Y.K90` plus 2^24: the same low three bytes.
+      expect(
+        BarcodeContent.parseText('MT:MLBB8${one.substring(8)}'),
+        isA<TextContent>(),
+      );
+    });
+  });
 }
