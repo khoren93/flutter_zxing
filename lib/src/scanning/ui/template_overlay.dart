@@ -620,7 +620,12 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   /// [ScannerMode.pick]: [codes] by the number on their label. A code
   /// keeps its number and the side of its label while it stays in view, so
   /// that labels neither swap numbers nor jump as the camera moves.
-  List<VisibleBarcode> _labeled(List<VisibleBarcode> codes, Size size) {
+  /// A label goes no higher than [minTop], clear of the top bar.
+  List<VisibleBarcode> _labeled(
+    List<VisibleBarcode> codes,
+    Size size,
+    double minTop,
+  ) {
     final Set<int> ids = <int>{for (final VisibleBarcode c in codes) c.id};
     _numbers.removeWhere((int id, int _) => !ids.contains(id));
     _labelsBelow.removeWhere((int id) => !ids.contains(id));
@@ -636,7 +641,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       }
       final Rect bounds = code.bounds;
       const double room = _PickLabel.height + _PickLabel.gap;
-      final bool fitsAbove = bounds.top - room >= _PickLabel.minTop;
+      final bool fitsAbove = bounds.top - room >= minTop;
       final bool fitsBelow = bounds.bottom + room <= size.height - 8;
       if (!_labelsBelow.contains(code.id)) {
         if (!fitsAbove && fitsBelow) {
@@ -644,7 +649,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         }
       } else if (!fitsBelow ||
           // Back above only well clear of the top, not to and fro.
-          bounds.top - room >= _PickLabel.minTop + 32) {
+          bounds.top - room >= minTop + 32) {
         _labelsBelow.remove(code.id);
       }
     }
@@ -949,6 +954,8 @@ class _TemplateOverlayState extends State<TemplateOverlay>
               40 -
               (bottomBar && !landscape ? 72 : 0)
         : math.min(layout.scanWindow.bottom + 16, size.height - 64);
+    // The highest a pick label goes: below the top bar.
+    final double labelTop = safe.top + _PickLabel.topBar;
     // The photo, with room above it for the label of a code at its top.
     final double photoTop = safe.top + 72 + _PickLabel.height + _PickLabel.gap;
     final Rect? photoRect = switch (photo) {
@@ -974,17 +981,21 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       ),
     };
     final List<VisibleBarcode> photoCodes = choosing
-        ? _labeled(<VisibleBarcode>[
-            for (final (int i, _PhotoCode code) in photo.codes.indexed)
-              VisibleBarcode(code.barcode, <Offset>[
-                for (final Offset c in code.corners)
-                  photoRect!.topLeft +
-                      Offset(
-                        c.dx * photoRect.width / photo.image.width,
-                        c.dy * photoRect.height / photo.image.height,
-                      ),
-              ], id: i),
-          ], size)
+        ? _labeled(
+            <VisibleBarcode>[
+              for (final (int i, _PhotoCode code) in photo.codes.indexed)
+                VisibleBarcode(code.barcode, <Offset>[
+                  for (final Offset c in code.corners)
+                    photoRect!.topLeft +
+                        Offset(
+                          c.dx * photoRect.width / photo.image.width,
+                          c.dy * photoRect.height / photo.image.height,
+                        ),
+                ], id: i),
+            ],
+            size,
+            labelTop,
+          )
         : const <VisibleBarcode>[];
     Widget overlay = ScannerOverlay(
       layout,
@@ -1088,12 +1099,17 @@ class _TemplateOverlayState extends State<TemplateOverlay>
           ),
         // A label on every code in view, to pick one.
         if (pick)
-          for (final VisibleBarcode code in _labeled(layout.barcodes, size))
+          for (final VisibleBarcode code in _labeled(
+            layout.barcodes,
+            size,
+            labelTop,
+          ))
             _PickLabel(
               key: ValueKey<int>(code.id),
               number: _numbers[code.id]!,
               code: code,
               below: _labelsBelow.contains(code.id),
+              minTop: labelTop,
               onPressed: () => unawaited(_pick(code)),
             ),
         // On a photo a code is picked by its label or by the code itself,
@@ -1114,6 +1130,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
             number: _numbers[code.id]!,
             code: code,
             below: _labelsBelow.contains(code.id),
+            minTop: labelTop,
             onPressed: () => _pickOnPhoto(code),
           ),
         // The hint under the window.
@@ -1679,14 +1696,18 @@ class _PickLabel extends StatelessWidget {
     required this.number,
     required this.code,
     required this.below,
+    required this.minTop,
     required this.onPressed,
   });
 
-  /// The label's height, its gap to the code, and the highest it goes:
-  /// clear of the top bar.
+  /// The label's height, its gap to the code, and the room the top bar
+  /// takes below the safe area.
   static const double height = 36;
   static const double gap = 8;
-  static const double minTop = 64;
+  static const double topBar = 64;
+
+  /// The highest the label goes: clear of the top bar.
+  final double minTop;
 
   final int number;
   final VisibleBarcode code;

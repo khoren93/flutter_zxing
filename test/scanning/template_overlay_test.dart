@@ -89,4 +89,17 @@ void main() {
     expect(find.text('${'a' * 26}😀…'), findsOneWidget);
     await close(t);
   });
+
+  testWidgets('a pick label stays below the top bar under a notch', (
+    WidgetTester t,
+  ) async {
+    const EdgeInsets notch = EdgeInsets.only(top: 59, bottom: 34);
+    await open(t, const ScannerTemplate.pick(), safe: notch);
+    // A code near the top of the view: its label would go above it.
+    await code(t, 'A', const Rect.fromLTWH(300, 200, 200, 200));
+    final Rect label = t.getRect(find.text('A'));
+    // The top bar ends 60 below the safe area.
+    expect(label.top, greaterThanOrEqualTo(notch.top + 60));
+    await close(t);
+  });
 }
