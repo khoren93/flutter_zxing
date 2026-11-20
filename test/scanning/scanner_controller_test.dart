@@ -466,6 +466,19 @@ void main() {
       expect(frame.wasRead, isTrue);
       expect(frame.crop, isNull);
     });
+
+    test('a centered window of no size is refused', () {
+      double none() => 0;
+      expect(
+        () => ScanWindow.centered(aspectRatio: none()),
+        throwsAssertionError,
+      );
+      expect(() => ScanWindow.centered(width: none()), throwsAssertionError);
+      expect(
+        ScanWindow.centered(width: 1 + none()).resolve(const Size(100, 100)),
+        const Rect.fromLTWH(0, 0, 100, 100),
+      );
+    });
   });
 
   group('camera controls', () {

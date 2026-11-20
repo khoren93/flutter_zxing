@@ -28,6 +28,9 @@ final class ScanWindow {
   ///
   /// [alignment] moves it from the centre, e.g. `Alignment(0, -0.5)`
   /// halfway to the top, to leave room for a result sheet below.
+  ///
+  /// [width] and [aspectRatio] must be above 0: a window of no size would
+  /// decode nothing.
   const ScanWindow.centered({
     double width = 0.7,
     double aspectRatio = 1,
@@ -43,7 +46,10 @@ final class ScanWindow {
     this._width,
     this._aspectRatio,
     this._alignment,
-  );
+  ) : assert(
+        _rect != null || (_width > 0 && _aspectRatio > 0),
+        'width and aspectRatio must be above 0',
+      );
 
   final Rect? _rect;
   final double _width;
