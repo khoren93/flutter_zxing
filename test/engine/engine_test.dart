@@ -310,9 +310,14 @@ void main() {
 
   group('EngineReadOptions.from', () {
     test('maps every reader option', () {
+      // The 4.0 API gives UPC codes as printed; the 3.x API does not.
       expect(
         EngineReadOptions.from(null, const ReaderOptions()),
-        const EngineReadOptions(),
+        const EngineReadOptions(upcAsPrinted: true),
+      );
+      expect(
+        EngineReadOptions.from(null, const ReaderOptions()),
+        isNot(const EngineReadOptions()),
       );
       final EngineReadOptions o = EngineReadOptions.from(
         const <BarcodeFormat>{BarcodeFormat.qrCode, BarcodeFormat.ean13},

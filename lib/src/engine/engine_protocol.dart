@@ -240,7 +240,8 @@ final class EngineReadOptions {
       other.binarizer == binarizer &&
       other.maxSymbols == maxSymbols &&
       other.minLineCount == minLineCount &&
-      other.characterSet == characterSet;
+      other.characterSet == characterSet &&
+      other.upcAsPrinted == upcAsPrinted;
 
   @override
   int get hashCode => Object.hash(
@@ -250,6 +251,7 @@ final class EngineReadOptions {
     maxSymbols,
     minLineCount,
     characterSet,
+    upcAsPrinted,
   );
 }
 
