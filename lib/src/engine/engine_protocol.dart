@@ -13,6 +13,31 @@ import '../reading/reader_options.dart';
 /// to start with a library or WebAssembly module of another version.
 const int fzxExpectedAbiVersion = 4;
 
+/// `FZX_MAX_IMAGE_PIXELS`: images over this many pixels are not read.
+const int fzxMaxImagePixels = 128000000;
+
+/// `FZX_MAX_IMAGE_SIDE`: images wider or taller than this are not read.
+const int fzxMaxImageSide = 65535;
+
+/// Throws the [ImageDecodeException] of the engine (`fzx_read_file`) if an
+/// image of [width] x [height] pixels is too large to read: a small file
+/// can declare an image of gigabytes.
+void checkImageSize(int width, int height) {
+  if (width > fzxMaxImageSide ||
+      height > fzxMaxImageSide ||
+      width * height > fzxMaxImagePixels) {
+    throw ImageDecodeException(
+      'Image too large: $width x $height pixels, at most 128 megapixels and '
+      '65535 pixels a side are read',
+    );
+  }
+}
+
+/// Whether [e] says that an image is too large to read ([checkImageSize]
+/// or `fzx_read_file`): decoding it another way would not help.
+bool isImageTooLarge(ImageDecodeException e) =>
+    e.message.startsWith('Image too large');
+
 /// Flags for zxing-cpp's downscaleFactor and downscaleThreshold, for the
 /// example's diagnostics page. [factor] is 2, 3 or 4, [threshold] in pixels
 /// below 4096; `null` keeps zxing-cpp's default.

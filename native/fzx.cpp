@@ -522,9 +522,15 @@ int fzx_read_file(fzx_ctx* ctx, const uint8_t* data, int size, const char* forma
 		auto opts = readerOptions(ctx, formats, flags, binarizer, max_symbols, min_line_count, character_set);
 		if (!data || size <= 0)
 			return fail(ctx, FZX_ERR_IMAGE, "Cannot decode image: no data");
+		// The size from the header first: a file of a few kilobytes can
+		// declare an image of gigabytes.
 		int w = 0, h = 0, channels = 0;
 		if (!stbi_info_from_memory(data, size, &w, &h, &channels))
 			return fail(ctx, FZX_ERR_IMAGE, std::string("Cannot decode image: ") + stbi_failure_reason());
+		if (w > FZX_MAX_IMAGE_SIDE || h > FZX_MAX_IMAGE_SIDE || static_cast<int64_t>(w) * h > FZX_MAX_IMAGE_PIXELS)
+			return fail(ctx, FZX_ERR_IMAGE,
+						"Image too large: " + std::to_string(w) + " x " + std::to_string(h)
+							+ " pixels, at most 128 megapixels and 65535 pixels a side are read");
 		// With alpha, as gray and alpha to put on white; stb_image would
 		// drop the alpha.
 		const bool alpha = channels == 2 || channels == 4;

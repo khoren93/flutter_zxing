@@ -10,6 +10,50 @@ import 'dart:ui' show Color, Rect;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
+/// A grayscale PNG of [width] x [height] pixels, all [gray]; [header] only
+/// writes the header, the pixels are left out.
+Uint8List _grayPng(
+  int width,
+  int height, {
+  int gray = 255,
+  bool header = false,
+}) {
+  final BytesBuilder png = BytesBuilder()
+    ..add(<int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+  void chunk(String type, List<int> data) {
+    final List<int> typed = <int>[...ascii.encode(type), ...data];
+    int crc = 0xFFFFFFFF;
+    for (final int b in typed) {
+      crc ^= b;
+      for (int k = 0; k < 8; k++) {
+        crc = crc & 1 != 0 ? (crc >> 1) ^ 0xEDB88320 : crc >> 1;
+      }
+    }
+    png
+      ..add((ByteData(4)..setUint32(0, data.length)).buffer.asUint8List())
+      ..add(typed)
+      ..add((ByteData(4)..setUint32(0, crc ^ 0xFFFFFFFF)).buffer.asUint8List());
+  }
+
+  chunk('IHDR', <int>[
+    ...(ByteData(8)
+          ..setUint32(0, width)
+          ..setUint32(4, height))
+        .buffer
+        .asUint8List(),
+    8, 0, 0, 0, 0, // 8-bit gray, deflate, no filter, no interlace
+  ]);
+  if (!header) {
+    final Uint8List rows = Uint8List((width + 1) * height);
+    for (int y = 0; y < height; y++) {
+      rows.fillRange(y * (width + 1) + 1, (y + 1) * (width + 1), gray);
+    }
+    chunk('IDAT', zlib.encode(rows));
+  }
+  chunk('IEND', const <int>[]);
+  return png.takeBytes();
+}
+
 /// zxing-cpp's samples, from the submodule the engine is built from.
 Uint8List _sample(String name) => Uint8List.fromList(
   File('third_party/zxing-cpp/test/samples/$name').readAsBytesSync(),
@@ -262,6 +306,28 @@ void main() {
           ),
         ))?.text,
         'alpha',
+      );
+    });
+  });
+
+  group('an image too large to read', () {
+    test('throws ImageDecodeException before it is decoded', () async {
+      await expectLater(
+        reader.read(_grayPng(20000, 20000, header: true)),
+        throwsA(
+          isA<ImageDecodeException>().having(
+            (ImageDecodeException e) => e.message,
+            'message',
+            startsWith('Image too large: 20000 x 20000 pixels'),
+          ),
+        ),
+      );
+    });
+
+    test('wider than 65535 pixels throws ImageDecodeException', () async {
+      await expectLater(
+        reader.readAll(_grayPng(65536, 1)),
+        throwsA(isA<ImageDecodeException>()),
       );
     });
   });

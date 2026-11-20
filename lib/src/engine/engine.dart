@@ -133,7 +133,9 @@ final class BarcodeEngine {
   /// (on native platforms stb_image knows JPEG, PNG, GIF and BMP) is
   /// decoded by Flutter, which also knows WebP and WBMP and what the
   /// platform adds (HEIF/HEIC on Android 9+), and read as pixels. Throws the
-  /// backend's [ImageDecodeException] if Flutter cannot decode it either.
+  /// backend's [ImageDecodeException] if Flutter cannot decode it either,
+  /// and an [ImageDecodeException] for an image too large to read
+  /// ([checkImageSize]), which Flutter does not try.
   Future<EngineReadResult> readImage(
     Uint8List encodedImage,
     EngineReadOptions options,
@@ -142,6 +144,9 @@ final class BarcodeEngine {
     try {
       return (await b.readImage(encodedImage, options)).asPrinted(options);
     } on ImageDecodeException catch (e, stack) {
+      if (isImageTooLarge(e)) {
+        rethrow;
+      }
       final PixelBuffer? pixels = await decodeWithFlutter(encodedImage);
       if (pixels == null) {
         Error.throwWithStackTrace(e, stack);
@@ -201,16 +206,28 @@ final class BarcodeEngine {
 /// [encodedImage] decoded by Flutter's image codecs (the first frame of an
 /// animation), as straight (not premultiplied) RGBA like stb_image reads
 /// it; `null` if Flutter cannot decode it, or cannot decode at all here
-/// (a background isolate).
+/// (a background isolate). Throws [ImageDecodeException] for an image too
+/// large to read ([checkImageSize]), without decoding it where the size
+/// is known from the header.
 Future<PixelBuffer?> decodeWithFlutter(Uint8List encodedImage) async {
   if (encodedImage.isEmpty) {
     return null;
   }
+  ui.ImmutableBuffer? buffer;
+  ui.ImageDescriptor? descriptor;
   ui.Codec? codec;
   ui.Image? image;
   try {
-    codec = await ui.instantiateImageCodec(encodedImage);
+    buffer = await ui.ImmutableBuffer.fromUint8List(encodedImage);
+    descriptor = await ui.ImageDescriptor.encoded(buffer);
+    // The size from the header, before decoding (not known on the web).
+    final (int, int)? size = _headerSize(descriptor);
+    if (size != null) {
+      checkImageSize(size.$1, size.$2);
+    }
+    codec = await descriptor.instantiateCodec();
     image = (await codec.getNextFrame()).image;
+    checkImageSize(image.width, image.height);
     final ByteData? rgba = await image.toByteData(
       format: ui.ImageByteFormat.rawStraightRgba,
     );
@@ -223,11 +240,23 @@ Future<PixelBuffer?> decodeWithFlutter(Uint8List encodedImage) async {
       height: image.height,
       layout: PixelLayout.rgba,
     );
+  } on ImageDecodeException {
+    rethrow;
   } on Object {
     return null;
   } finally {
     image?.dispose();
     codec?.dispose();
+    descriptor?.dispose();
+    buffer?.dispose();
+  }
+}
+
+(int, int)? _headerSize(ui.ImageDescriptor descriptor) {
+  try {
+    return (descriptor.width, descriptor.height);
+  } on UnsupportedError {
+    return null;
   }
 }
 

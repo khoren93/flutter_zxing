@@ -16,8 +16,10 @@
 // such: fzx*.js / fzx*.wasm are built by tool/build_wasm.sh and ship in the
 // published package, but are not in the git repository.
 
-// FZX_ABI_VERSION of native/fzx.h.
+// FZX_ABI_VERSION and the limits of native/fzx.h.
 const FZX_ABI_VERSION = 4;
+const FZX_MAX_IMAGE_PIXELS = 128000000;
+const FZX_MAX_IMAGE_SIDE = 65535;
 const FZX_PIX_RGBA = 2;
 const FZX_ERR_IMAGE = -2;
 const FZX_ERR_INTERNAL = -5;
@@ -129,6 +131,14 @@ async function readImage(e, bytes, o) {
       bitmap = await createImageBitmap(new Blob([bytes]));
     } catch (_) {
       return { code: FZX_ERR_IMAGE, error: 'Cannot decode image: unknown or corrupt format' };
+    }
+    const w = bitmap.width, h = bitmap.height;
+    if (w > FZX_MAX_IMAGE_SIDE || h > FZX_MAX_IMAGE_SIDE || w * h > FZX_MAX_IMAGE_PIXELS) {
+      bitmap.close();
+      return {
+        code: FZX_ERR_IMAGE,
+        error: `Image too large: ${w} x ${h} pixels, at most 128 megapixels and 65535 pixels a side are read`,
+      };
     }
     return { code: readBitmap(e, bitmap, o) };
   }

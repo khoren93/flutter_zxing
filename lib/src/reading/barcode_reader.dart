@@ -63,7 +63,12 @@ final class BarcodeReader {
   /// final Barcode? barcode = await const BarcodeReader().read(await photo!.readAsBytes());
   /// ```
   ///
-  /// Throws [ImageDecodeException] if [encodedImage] is not a readable image.
+  /// Images over 128 megapixels or 65535 pixels a side are not read: a
+  /// small file can declare an image of gigabytes. Transparent pixels
+  /// count as white.
+  ///
+  /// Throws [ImageDecodeException] if [encodedImage] is not a readable
+  /// image or is too large.
   Future<Barcode?> read(Uint8List encodedImage) async =>
       _first(await BarcodeEngine.shared.readImage(encodedImage, _options(1)));
 
@@ -79,7 +84,8 @@ final class BarcodeReader {
   /// ```
   ///
   /// Throws [ImageDecodeException] if [encodedImage] is not a readable
-  /// image, and [RangeError] if [maxBarcodes] is less than 1.
+  /// image or is too large, and [RangeError] if [maxBarcodes] is less
+  /// than 1.
   Future<List<Barcode>> readAll(
     Uint8List encodedImage, {
     int? maxBarcodes,

@@ -364,6 +364,11 @@ final List<Barcode> all = await reader.readAll(bytes);
 const qrOnly = BarcodeReader(formats: {BarcodeFormat.qrCode});
 ```
 
+Transparent pixels count as white, so a code on a transparent background
+reads. Images over 128 megapixels or 65535 pixels a side throw
+`ImageDecodeException` without being decoded: a small file can declare an
+image of gigabytes.
+
 `readPixels` and `readAllPixels` read frames from anywhere else (video, a
 network stream, another camera plugin):
 

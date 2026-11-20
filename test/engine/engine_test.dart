@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show zlib;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -19,6 +20,9 @@ class _FakeBackend implements EngineBackend {
 
   /// readImage fails like stb_image on a format it does not know.
   bool cannotDecode = false;
+
+  /// readImage fails like the engine on an image over its size limit.
+  bool tooLarge = false;
 
   /// The buffers readPixels was called with.
   final List<PixelBuffer> pixels = <PixelBuffer>[];
@@ -48,6 +52,9 @@ class _FakeBackend implements EngineBackend {
     Uint8List encodedImage,
     EngineReadOptions options,
   ) async {
+    if (tooLarge) {
+      throw const ImageDecodeException('Image too large: 20000 x 20000 pixels');
+    }
     if (cannotDecode) {
       throw const ImageDecodeException('Cannot decode image: unknown type');
     }
@@ -164,7 +171,7 @@ void main() {
       await e.warmUp();
       started.single.cannotDecode = true;
       // A 3 x 2 PNG: red, then transparent white (straight, not
-      // premultiplied: stb_image ignores alpha too).
+      // premultiplied, as stb_image gives it).
       final ui.PictureRecorder recorder = ui.PictureRecorder();
       ui.Canvas(recorder)
         ..drawRect(
@@ -193,6 +200,54 @@ void main() {
       expect(pixels.layout, PixelLayout.rgba);
       expect(pixels.bytes.sublist(0, 4), <int>[255, 0, 0, 255]);
       expect(pixels.bytes.sublist(12, 15), <int>[255, 255, 255]);
+    });
+
+    test(
+      'an image too large for the engine is not decoded by Flutter',
+      () async {
+        final BarcodeEngine e = engine();
+        await e.warmUp();
+        started.single.tooLarge = true;
+        await expectLater(
+          e.readImage(await _png(3, 2), const EngineReadOptions()),
+          throwsA(isA<ImageDecodeException>()),
+        );
+        expect(started.single.pixels, isEmpty);
+      },
+    );
+
+    test('Flutter does not decode an image too large to read', () async {
+      final BarcodeEngine e = engine();
+      await e.warmUp();
+      started.single.cannotDecode = true;
+      // 65536 x 1 white pixels: a valid PNG, wider than the engine reads.
+      final BytesBuilder png = BytesBuilder()
+        ..add(<int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      void chunk(String type, List<int> data) {
+        final List<int> typed = <int>[...type.codeUnits, ...data];
+        png
+          ..add((ByteData(4)..setUint32(0, data.length)).buffer.asUint8List())
+          ..add(typed)
+          ..add(
+            (ByteData(4)..setUint32(0, _crc32(typed))).buffer.asUint8List(),
+          );
+      }
+
+      chunk('IHDR', <int>[0, 1, 0, 0, 0, 0, 0, 1, 8, 0, 0, 0, 0]);
+      chunk('IDAT', zlib.encode(Uint8List(65537)..fillRange(1, 65537, 255)));
+      chunk('IEND', const <int>[]);
+      final Uint8List wide = png.takeBytes();
+      await expectLater(
+        e.readImage(wide, const EngineReadOptions()),
+        throwsA(
+          isA<ImageDecodeException>().having(
+            (ImageDecodeException x) => x.message,
+            'message',
+            startsWith('Image too large: 65536 x 1 pixels'),
+          ),
+        ),
+      );
+      expect(started.single.pixels, isEmpty);
     });
 
     test("an image nobody decodes keeps the backend's exception", () async {
@@ -384,4 +439,27 @@ void main() {
     );
     expect(writeErrorMessage('Nothing to encode'), 'Nothing to encode');
   });
+}
+
+/// A PNG of [width] x [height] white pixels.
+Future<Uint8List> _png(int width, int height) async {
+  final ui.PictureRecorder recorder = ui.PictureRecorder();
+  ui.Canvas(recorder).drawColor(const ui.Color(0xFFFFFFFF), ui.BlendMode.src);
+  final ui.Image image = await recorder.endRecording().toImage(width, height);
+  final ByteData png = (await image.toByteData(
+    format: ui.ImageByteFormat.png,
+  ))!;
+  image.dispose();
+  return png.buffer.asUint8List();
+}
+
+int _crc32(List<int> bytes) {
+  int crc = 0xFFFFFFFF;
+  for (final int b in bytes) {
+    crc ^= b;
+    for (int k = 0; k < 8; k++) {
+      crc = crc & 1 != 0 ? (crc >> 1) ^ 0xEDB88320 : crc >> 1;
+    }
+  }
+  return crc ^ 0xFFFFFFFF;
 }

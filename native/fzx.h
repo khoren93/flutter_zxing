@@ -33,6 +33,13 @@
 
 #define FZX_ABI_VERSION 4
 
+// fzx_read_file refuses images over this many pixels, or wider or taller
+// than FZX_MAX_IMAGE_SIDE, with FZX_ERR_IMAGE and a message that starts with
+// "Image too large": a small file can declare a huge image (a decompression
+// bomb). zxing-cpp itself reads at most 65535 pixels a side.
+#define FZX_MAX_IMAGE_PIXELS 128000000
+#define FZX_MAX_IMAGE_SIDE 65535
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -135,7 +142,8 @@ FZX_API int fzx_read(fzx_ctx* ctx, const uint8_t* data, int size, int width, int
 
 // Decodes an encoded image (JPEG, PNG, GIF, BMP via stb_image) at full
 // resolution, without lossy pre-scaling: zxing-cpp's tryDownscale handles
-// big images. Transparent pixels are put on white.
+// big images. Transparent pixels are put on white. Images larger than
+// FZX_MAX_IMAGE_PIXELS / FZX_MAX_IMAGE_SIDE are refused before decoding.
 // Returns the number of barcodes or an FZX_ERR_*.
 FZX_API int fzx_read_file(fzx_ctx* ctx, const uint8_t* data, int size, const char* formats, uint32_t flags,
 						  int binarizer, int max_symbols, int min_line_count, int character_set);
