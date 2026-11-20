@@ -54,6 +54,7 @@ void main() {
     session.onReads(<(String, String)>[(first.format, first.text)]);
     await tester.pump();
     expect(session.resultOf(first)!.outcome, FieldOutcome.pass);
+    expect(recorder.armed, isFalse); // As before the code was started.
     expect(find.textContaining('Aim at ${fieldCodes[1].id} '), findsOneWidget);
     expect(find.textContaining('Pass 1'), findsOneWidget);
   });

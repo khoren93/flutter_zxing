@@ -78,9 +78,25 @@ class _DiagFieldTabState extends State<DiagFieldTab> {
     super.dispose();
   }
 
+  /// Keeps the frames while the code is tried, for a recording when it is
+  /// given up on; afterwards the recorder is as it was.
   void _start(FieldCode code) {
-    widget.recorder.armed = true;
-    widget.session.start(code, widget.settings.toJson());
+    final FieldSession session = widget.session;
+    final FrameRecorder recorder = widget.recorder;
+    final bool wasArmed = recorder.armed;
+    recorder.armed = true;
+    session.start(code, widget.settings.toJson());
+    // On the session, not this tab: the code may end while the tab is away.
+    late final VoidCallback ended;
+    ended = () {
+      if (session.running == null) {
+        session.removeListener(ended);
+        if (!wasArmed) {
+          recorder.armed = false;
+        }
+      }
+    };
+    session.addListener(ended);
   }
 
   Future<void> _giveUp() async {
