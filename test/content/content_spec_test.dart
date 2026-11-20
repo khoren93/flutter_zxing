@@ -78,10 +78,7 @@ void main() {
     });
 
     test('letters are not in RFC 3966: tel:1-800-FLOWERS is text', () {
-      expect(
-        BarcodeContent.parseText('tel:1-800-FLOWERS'),
-        isA<TextContent>(),
-      );
+      expect(BarcodeContent.parseText('tel:1-800-FLOWERS'), isA<TextContent>());
     });
 
     test('an extension is for calls, not for SMS', () {
@@ -117,6 +114,44 @@ void main() {
       final BarcodeContent eight = BarcodeContent.parseText('${uri}8');
       expect(eight, isA<OtpContent>());
       expect(eight.uri, isNotNull);
+    });
+  });
+
+  group('payment checksums: a wrong one is text', () {
+    const String iban = 'DE89370400440532013000';
+
+    test('EPC: line 10 is an ISO 11649 reference (EPC069-12)', () {
+      const String head = 'BCD\n002\n1\nSCT\n\nName\n$iban\nEUR1\n\n';
+      expect(BarcodeContent.parseText('${head}RF00123'), isA<TextContent>());
+      final BarcodeContent ok = BarcodeContent.parseText(
+        '${head}RF18539007547034',
+      );
+      expect(ok, isA<EpcPaymentContent>());
+      expect(BarcodeContent.parseText(ok.toPayload()), ok);
+    });
+
+    test('SPAYD: CRC32 of the canonical form, when present (SPAYD 1.0)', () {
+      const String fields =
+          'ACC:CZ6508000000192000145399*AM:450.00*CC:CZK*MSG:PLATBA';
+      expect(
+        BarcodeContent.parseText('SPD*1.0*$fields*CRC32:C0E0909C'),
+        isA<SpaydPaymentContent>(),
+      );
+      expect(
+        BarcodeContent.parseText(
+          'SPD*1.0*CRC32:C0E0909C*MSG:PLATBA*CC:CZK*'
+          'AM:450.00*ACC:CZ6508000000192000145399',
+        ),
+        isA<SpaydPaymentContent>(),
+      );
+      expect(
+        BarcodeContent.parseText('SPD*1.0*$fields*CRC32:00000000'),
+        isA<TextContent>(),
+      );
+      expect(
+        BarcodeContent.parseText('SPD*1.0*$fields'),
+        isA<SpaydPaymentContent>(),
+      );
     });
   });
 }

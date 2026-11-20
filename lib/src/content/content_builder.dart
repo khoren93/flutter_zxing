@@ -39,8 +39,7 @@ List<ContentIssue> validateBinary(BinaryContent c) => <ContentIssue>[
 
 /// [url] with `https://` if it has no scheme (`example.com/a`); `null` if
 /// it is no address even then (`a@b@c.com`).
-Uri? _withScheme(Uri url) =>
-    url.hasScheme ? url : Uri.tryParse('https://$url');
+Uri? _withScheme(Uri url) => url.hasScheme ? url : Uri.tryParse('https://$url');
 
 /// Why [url] is no web address, or `null` if it is one.
 ContentIssue? _webUrlIssue(String field, Uri url) {

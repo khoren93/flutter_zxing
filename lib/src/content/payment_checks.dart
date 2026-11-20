@@ -78,3 +78,20 @@ String emvCrc(List<int> bytes) {
   }
   return crc.toRadixString(16).toUpperCase().padLeft(4, '0');
 }
+
+/// CRC-32 (ISO-HDLC, the zip one: polynomial 0xEDB88320 reflected, start
+/// and final XOR 0xFFFFFFFF) of [bytes], as eight upper case hex digits:
+/// the checksum of SPAYD codes.
+String crc32(List<int> bytes) {
+  int crc = 0xFFFFFFFF;
+  for (final int byte in bytes) {
+    crc ^= byte;
+    for (int i = 0; i < 8; i++) {
+      crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320 : crc >> 1;
+    }
+  }
+  return ((crc ^ 0xFFFFFFFF) & 0xFFFFFFFF)
+      .toRadixString(16)
+      .toUpperCase()
+      .padLeft(8, '0');
+}

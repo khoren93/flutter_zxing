@@ -85,6 +85,12 @@ EpcPaymentContent? parseEpc(String text) {
     }
     euros = m.group(1);
   }
+  // EPC069-12: line 10 is an ISO 11649 creditor reference; one that says
+  // RF but fails its check digits is not a valid transfer.
+  final String reference = _at(l, 9).toUpperCase();
+  if (reference.startsWith('RF') && !isValidCreditorReference(reference)) {
+    return null;
+  }
   return EpcPaymentContent(
     name: name,
     iban: iban,
@@ -926,12 +932,37 @@ String _spaydDecode(String value) =>
 String _spaydEncode(String value) =>
     value.replaceAll('%', '%25').replaceAll('*', '%2A');
 
+/// Whether the `CRC32` field of the SPAYD [parts] (split at `*`), if there
+/// is one, matches. SPAYD 1.0: the CRC32 of the canonical form, the header
+/// and every other `KEY:value` as written, sorted, joined with `*`. The
+/// order as written is accepted too, as some generators sum that.
+bool _spaydCrcMatches(List<String> parts) {
+  String? crc;
+  final List<String> fields = <String>[];
+  for (final String part in parts.skip(2)) {
+    if (part.toUpperCase().startsWith('CRC32:')) {
+      crc ??= part.substring(6).trim().toUpperCase();
+    } else if (part.isNotEmpty) {
+      fields.add(part);
+    }
+  }
+  if (crc == null) {
+    return true;
+  }
+  final String header = '${parts[0]}*${parts[1]}*';
+  String sum(List<String> f) => crc32(utf8.encode(header + f.join('*')));
+  return crc == sum(<String>[...fields]..sort()) || crc == sum(fields);
+}
+
 /// `SPD*1.0*ACC:…*…`.
 SpaydPaymentContent? parseSpayd(String text) {
   final List<String> parts = text.trim().split('*');
   if (parts.length < 3 ||
       parts.first.toUpperCase() != 'SPD' ||
       !RegExp(r'^\d+\.\d+$').hasMatch(parts[1])) {
+    return null;
+  }
+  if (!_spaydCrcMatches(parts)) {
     return null;
   }
   final Map<String, String> fields = <String, String>{};

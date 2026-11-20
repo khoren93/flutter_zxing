@@ -86,7 +86,7 @@ is not a payment: it parses as `TextContent`.
 | `GostPaymentContent` | ГОСТ Р 56042-2014 | `ST00012\|Name=…\|…` | account, BIC, correspondent account, INN, KPP; read in Windows-1251, UTF-8 and KOI8-R, written in UTF-8 |
 | `UpiPaymentContent` | NPCI UPI | `upi://pay?pa=…` | UPI address, amount, INR |
 | `EmvPaymentContent` | EMVCo merchant-presented QR: PIX, PayNow, PromptPay, QRIS, VietQR, DuitNow and others | `000201…6304XXXX` | CRC16; built with `EmvPaymentContent.pix(...)` |
-| `SpaydPaymentContent` | Short Payment Descriptor (Czech Republic) | `SPD*1.0*ACC:…` | IBAN, BIC, symbols |
+| `SpaydPaymentContent` | Short Payment Descriptor (Czech Republic) | `SPD*1.0*ACC:…` | IBAN, BIC, symbols, `CRC32` when present |
 
 ```dart
 const epc = EpcPaymentContent(
