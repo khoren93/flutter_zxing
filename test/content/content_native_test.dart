@@ -9,10 +9,6 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
-/// A QR code sequence in one image. WebP in the samples, which the engine
-/// does not read: `make fixtures` converts it.
-const String _qrSequence = 'build/fixtures/corpus/qrcode-2__StructApp.png';
-
 /// zxing-cpp's samples, from the submodule the engine is built from.
 Uint8List _sample(String name) => Uint8List.fromList(
   File('third_party/zxing-cpp/test/samples/$name').readAsBytesSync(),
@@ -106,29 +102,24 @@ void main() {
       expect(merged?.text, isNot(contains('¤')));
     });
 
-    test(
-      'QR structured append: four symbols, one message',
-      () async {
-        final List<Barcode> parts = await reader.readAll(
-          Uint8List.fromList(File(_qrSequence).readAsBytesSync()),
+    test('QR structured append: four symbols, one message', () async {
+      // WebP: decoded by Flutter, the engine does not read it.
+      final List<Barcode> parts = await reader.readAll(
+        _sample('qrcode-2/StructApp.webp'),
+      );
+      expect(parts, hasLength(4));
+      expect(parts.map((Barcode b) => b.sequence?.size), everyElement(4));
+      expect(await reader.merge(parts.take(3)), isNull);
+      final List<Barcode> ordered = parts.toList()
+        ..sort(
+          (Barcode a, Barcode b) =>
+              a.sequence!.index.compareTo(b.sequence!.index),
         );
-        expect(parts, hasLength(4));
-        expect(parts.map((Barcode b) => b.sequence?.size), everyElement(4));
-        expect(await reader.merge(parts.take(3)), isNull);
-        final List<Barcode> ordered = parts.toList()
-          ..sort(
-            (Barcode a, Barcode b) =>
-                a.sequence!.index.compareTo(b.sequence!.index),
-          );
-        expect(
-          (await reader.merge(parts.reversed))?.text,
-          ordered.map((Barcode b) => b.text).join(),
-        );
-      },
-      skip: File(_qrSequence).existsSync()
-          ? false
-          : 'run `make fixtures` first',
-    );
+      expect(
+        (await reader.merge(parts.reversed))?.text,
+        ordered.map((Barcode b) => b.text).join(),
+      );
+    });
   });
 
   group('written and read back', () {
