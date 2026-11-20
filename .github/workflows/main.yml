@@ -16,9 +16,10 @@ on:
   workflow_dispatch:
 
 # A new push or pull request update cancels the run still going for the same
-# branch, to save resources. Every push to main is still tested on its own.
+# branch or pull request (by number: forks may use the same branch name), to
+# save resources. Every push to main is still tested on its own.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 # The workflow reads the repository; `actions: write` lets a failed job cancel
