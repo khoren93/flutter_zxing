@@ -115,7 +115,7 @@ The pieces (`ScannerButton`, `TorchButton`, `ScannerSheet`,
 | `rawBytes` | `bytes` |
 | `format` | `format` (`BarcodeFormat`, with `displayName`) |
 | `corners` | `position.corners` (also `position.bounds`, `position.center`) |
-| `type` with `url`, `wifi`, `contactInfo`, ... | `content`: a sealed type to `switch` on |
+| `type` with `url`, `wifi`, `contactInfo`, ... | `content`: a class to `switch` on, with a `default` case |
 
 ```dart
 switch (barcode.content) {

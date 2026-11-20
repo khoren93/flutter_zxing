@@ -1,7 +1,8 @@
 # Content types
 
-`barcode.content` parses what a barcode holds into a sealed `BarcodeContent`
-type. Every kind can also build the text for a new code with `toPayload()`,
+`barcode.content` parses what a barcode holds into a `BarcodeContent`, one
+of a closed set of classes (new kinds come in minor versions, so a `switch`
+needs a `default` case). Every kind can also build the text for a new code with `toPayload()`,
 and `BarcodeContent.parseText` reads that text back (see
 [Normal form](#normal-form) for when the value is equal).
 
@@ -41,8 +42,6 @@ link, such as Wi-Fi networks and contacts.
 **Built** means the kind has a `toPayload()` that writes the standard
 format. **Parsed only** kinds come from codes that others issue (airlines,
 states, device makers); their `toPayload()` returns the text as read.
-Which built codes the iOS and Android camera apps open is being checked on
-devices and will be added here.
 
 | Kind | Holds | Payload | Built |
 |---|---|---|---|
@@ -158,7 +157,10 @@ The kinds are `empty`, `tooLong`, `invalid`, `checksum`, `outOfRange`,
 
 Building normalises what parsing would not give back as it is: spaces
 leave phone numbers, surrounding whitespace leaves fields, empty strings
-become `null`, OTP secrets lose spaces and padding. So
+become `null`, OTP secrets lose spaces and padding, web addresses without
+a scheme get `https://`, `\r\n` line breaks become `\n`, event times lose their
+milliseconds and all-day events keep only their local date, ГОСТ amounts
+get two decimals (`1250.5` → `1250.50`). So
 `parseText(c.toPayload()) == c` holds for values in that form, and building
 again always gives the same text.
 

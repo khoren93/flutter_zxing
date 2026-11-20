@@ -348,7 +348,7 @@ enum VinRegion {
   /// `6`–`7`.
   oceania,
 
-  /// `8`–`9`.
+  /// `8`, `9` and `0`.
   southAmerica,
 }
 

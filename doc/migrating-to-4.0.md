@@ -269,8 +269,8 @@ the parts with `await reader.merge(parts)`).
 
 ## What is in the barcode
 
-`barcode.content` parses the payload into a sealed type for pattern
-matching. Parsing never throws; anything not recognised is `TextContent`.
+`barcode.content` parses the payload into a class for pattern matching
+(keep a `default` case: new kinds come in minor versions). Parsing never throws; anything not recognised is `TextContent`.
 
 ```dart
 switch (barcode.content) {

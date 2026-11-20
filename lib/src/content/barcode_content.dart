@@ -76,7 +76,10 @@ abstract final class BarcodeContent {
   /// which come only from barcodes). Values that are not in the form
   /// parsing returns are normalised first, so that building again gives the
   /// same text: spaces leave phone numbers, surrounding whitespace leaves
-  /// fields, empty strings become `null`.
+  /// fields, empty strings become `null`, web addresses without a scheme
+  /// get `https://`, `\r\n` line breaks become `\n`, event times lose their
+  /// milliseconds and all-day events keep only their local date, ГОСТ
+  /// amounts get two decimals.
   ///
   /// Throws an [ArgumentError] if [validate] finds a problem, and an
   /// [UnsupportedError] for [BinaryContent], which has no text: encode its

@@ -451,8 +451,8 @@ each format holds, with an example, for forms and hints.
 
 ## What is in the barcode
 
-`barcode.content` parses the text into a sealed type to `switch` on. Parsing
-never throws: anything unrecognised is `TextContent` or `BinaryContent`.
+`barcode.content` parses the text into a class to `switch` on (keep a
+`default` case: new kinds come in minor versions). Parsing never throws: anything unrecognised is `TextContent` or `BinaryContent`.
 
 ```dart
 switch (barcode.content) {
@@ -472,8 +472,8 @@ switch (barcode.content) {
 Also payments (SEPA/EPC, Swiss QR-bill, ГОСТ Р 56042, UPI, PIX and other
 EMVCo codes, SPAYD, all as `PaymentContent`), e-mail, phone and FaceTime,
 SMS, locations, events, one-time passwords (`otpauth://`), eSIM activation codes, cryptocurrency payments,
-Wi‑Fi Easy Connect, Matter and HomeKit setup codes, boarding passes, US
-driver's licenses, VINs and products (EAN/UPC with ISBN and ISSN). The full
+Wi‑Fi Easy Connect, Matter and HomeKit setup codes, boarding passes, North
+American driver's licenses, VINs and products (EAN/UPC with ISBN and ISSN). The full
 list, with what each kind holds: [doc/content-types.md](https://github.com/khoren93/flutter_zxing/blob/4.0/doc/content-types.md).
 
 `barcode.content.uri` is a link to open it with (`https://`, `mailto:`,
