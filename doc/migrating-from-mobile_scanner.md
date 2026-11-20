@@ -47,8 +47,11 @@ Create the controller once, as above, not in `build`: a new controller on
 every rebuild restarts the camera. A controller you create is yours to
 `dispose()`.
 
-When the formats are all you set, you need no controller: a template takes
-them, and `BarcodeScanner` creates its own controller and disposes it.
+A template is something else: a whole scanner screen. With a template and
+no controller, `BarcodeScanner` creates its own controller with the
+template's formats and disposes it, but the template also decides what
+happens with a code. Most presets read one code, pause and show a sheet
+with it, and add close, torch and photo buttons:
 
 ```dart
 BarcodeScanner(
@@ -56,6 +59,10 @@ BarcodeScanner(
   onDetect: (BarcodeCapture capture) => print(capture.barcode.text),
 )
 ```
+
+For the behaviour of `MobileScanner(onDetect:)`, where scanning goes on
+and your app decides what to show, pass a controller as above and no
+template.
 
 | mobile_scanner | flutter_zxing |
 |---|---|

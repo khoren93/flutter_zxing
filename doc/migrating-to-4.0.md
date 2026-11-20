@@ -38,7 +38,7 @@ engine compiled to WebAssembly.
 | 3.x | 4.0 |
 |---|---|
 | `ReaderWidget(onScan: ...)` | `BarcodeScanner(onDetect: ...)` |
-| `ReaderWidget(isMultiScan: true, onMultiScan: ...)` | `BarcodeScanner` with `ScannerController(maxBarcodes: null)`, then `capture.barcodes` |
+| `ReaderWidget(isMultiScan: true, onMultiScan: ...)` | `BarcodeScanner` with `ScannerController(maxBarcodes: null, detection: DetectionMode.continuous)`, then `capture.barcodes` |
 | `WriterWidget` | `BarcodeView` |
 | `zx.readBarcodeImagePath(file, params)` | `BarcodeReader().read(await file.readAsBytes())` |
 | `zx.readBarcodesImagePath(file, params)` | `BarcodeReader().readAll(...)` |
@@ -90,9 +90,13 @@ rebuild restarts the camera. A controller you create is yours to
 `detection` while the camera runs, and controls the torch, zoom, focus and
 camera (`setTorch`, `setZoom`, `setFocusPoint`, `switchCamera`).
 
-Without a controller, `BarcodeScanner` creates and disposes its own. A
-template takes the formats then:
+Without a controller, `BarcodeScanner` creates and disposes its own, with
+default settings. With a template, it takes the template's formats:
 `BarcodeScanner(template: const ScannerTemplate.minimal(formats: {BarcodeFormat.qrCode}))`.
+A template is a whole screen, not only settings: most presets read one
+code, pause and show a sheet with it (see below). For `ReaderWidget`'s
+behaviour, where scanning goes on and `onScan` gets each code, pass a
+controller and no template.
 
 As with `ReaderWidget`, the camera stops while the app is in the background
 and starts again when it returns (`ScannerController(stopInBackground:)`).
@@ -154,8 +158,11 @@ ReaderWidget(
   onMultiScan: (Codes codes) => print(codes.codes.length),
 )
 
-// 4.0, the controller a field of your State
-final controller = ScannerController(maxBarcodes: null);
+// 4.0, the controller a field of your State: every code in each frame
+final controller = ScannerController(
+  maxBarcodes: null,
+  detection: DetectionMode.continuous,
+);
 
 BarcodeScanner(
   controller: controller,
@@ -166,6 +173,11 @@ BarcodeScanner(
   },
 )
 ```
+
+As with `onMultiScan`, `DetectionMode.continuous` reports all the codes in
+view on every frame. With the default `DetectionMode.distinct`,
+`capture.barcodes` holds only the codes that are new in the frame: each
+code once, again after it has left the frame.
 
 ### One code, then back
 
