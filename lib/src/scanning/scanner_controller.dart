@@ -653,6 +653,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
   bool _pauseWhenStarted = false;
 
   /// Resumes decoding after [pause] (or after a [DetectionMode.once] result).
+  /// With [DetectionMode.distinct], the codes in view are reported anew.
   Future<void> resume() async {
     _pauseWhenStarted = false;
     if (_statusBeforeHide == ScannerStatus.paused) {
@@ -1717,7 +1718,9 @@ enum CameraResolution {
 /// When a [ScannerController] reports a barcode.
 enum DetectionMode {
   /// Each barcode once. It is reported again only after it has been out of
-  /// view for a moment (about a second). The default.
+  /// view for a moment (about a second), and after a pause: on
+  /// [ScannerController.resume], the codes in view are reported anew. The
+  /// default.
   distinct,
 
   /// Every frame that contains a barcode (about 30 times per second).
