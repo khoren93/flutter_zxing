@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'barcode_content.dart';
+import 'content_util.dart';
 import 'gs1.dart';
 
 // Building payloads: the reverse of content_parser.dart. Every builder
@@ -180,7 +181,6 @@ List<ContentIssue> validateEmail(EmailContent c) {
   ];
 }
 
-final RegExp _phoneCharacters = RegExp(r'^\+?[\d*#\s\-.()/]+$');
 final RegExp _visualSeparators = RegExp(r'[\s\-.()/]');
 
 /// [number] without visual separators: `+1 (212) 555-1234` →
@@ -188,7 +188,11 @@ final RegExp _visualSeparators = RegExp(r'[\s\-.()/]');
 String _dialable(String number) =>
     number.trim().replaceAll(_visualSeparators, '');
 
-List<ContentIssue> _validateNumber(String field, String number) {
+List<ContentIssue> _validateNumber(
+  String field,
+  String number, {
+  bool call = false,
+}) {
   final String n = number.trim();
   if (n.isEmpty) {
     return <ContentIssue>[
@@ -199,7 +203,7 @@ List<ContentIssue> _validateNumber(String field, String number) {
       ),
     ];
   }
-  if (!_phoneCharacters.hasMatch(n) || !n.contains(RegExp(r'\d'))) {
+  if (!isPhoneNumber(n, call: call)) {
     return <ContentIssue>[ContentIssue(field, 'Not a phone number: $n')];
   }
   return const <ContentIssue>[];
@@ -225,7 +229,7 @@ String buildPhone(PhoneContent c) {
 List<ContentIssue> validatePhone(PhoneContent c) =>
     c.type != CallType.voice && _emailAddress.hasMatch(c.number.trim())
     ? const <ContentIssue>[]
-    : _validateNumber('number', c.number);
+    : _validateNumber('number', c.number, call: c.type == CallType.voice);
 
 /// [SmsContent.toPayload].
 String buildSms(SmsContent c) {

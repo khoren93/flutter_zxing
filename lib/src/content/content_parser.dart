@@ -4,6 +4,7 @@ import '../barcode/barcode.dart';
 import '../barcode/barcode_format.dart';
 import 'app_content.dart';
 import 'barcode_content.dart';
+import 'content_util.dart';
 import 'gs1.dart';
 import 'industry_content.dart';
 import 'payment_content.dart';
@@ -679,6 +680,10 @@ EmailContent? _matmsg(String body) {
         text = _orNull(_unescape(raw));
     }
   }
+  // The address follows the rule of mailto: (RFC 6068).
+  if (to != null && to.isNotEmpty && !_emailAddress.hasMatch(to)) {
+    return null;
+  }
   return to == null && subject == null && text == null
       ? null
       : EmailContent(address: to ?? '', subject: subject, body: text);
@@ -705,16 +710,30 @@ PhoneContent? _tel(String body, [CallType type = CallType.voice]) {
       : body;
   final String number = _decode(b).trim();
   final bool address = type != CallType.voice && _emailAddress.hasMatch(number);
-  return _phoneNumber.hasMatch(number) || address
+  return address ||
+          (_phoneNumber.hasMatch(number) &&
+              isPhoneNumber(number, call: type == CallType.voice))
       ? PhoneContent(number, type: type)
       : null;
 }
 
 /// A number to call, not a sentence that starts with `Tel:`: digits with
-/// the usual separators, letters only inside a word such as 1-800-FLOWERS.
+/// the usual separators and pauses, an extension at the end (RFC 3966
+/// §5.1.5). No letters: RFC 3966 has none, so `1-800-FLOWERS` is text.
 final RegExp _phoneNumber = RegExp(
-  r'^[+(*#]*\d[\dA-Za-z()*#.,;=+/\-]*(?:\s[\d().\-]+)*$',
+  r'^[+(*#]*\d[\d()*#.,;+/\-]*(?:\s[\d().\-]+)*(?:;ext=[\d\-.()]+)?$',
+  caseSensitive: false,
 );
+
+/// Whether [numbers], separated by commas, are numbers [SmsContent]
+/// builds.
+bool _smsNumbers(String numbers) {
+  final List<String> list = <String>[
+    for (final String n in numbers.split(','))
+      if (n.trim().isNotEmpty) n.trim(),
+  ];
+  return list.isNotEmpty && list.every(isPhoneNumber);
+}
 
 /// One address, or several separated by commas.
 final RegExp _emailAddress = RegExp(
@@ -724,12 +743,15 @@ final RegExp _emailAddress = RegExp(
 /// `SMSTO:number:text`.
 SmsContent? _smsTo(String body) {
   final int colon = body.indexOf(':');
-  final String number = (colon < 0 ? body : body.substring(0, colon)).trim();
-  if (number.isEmpty) {
+  final String number = _decode(
+    (colon < 0 ? body : body.substring(0, colon)).trim(),
+  );
+  // ZXing's SMSTO: holds the numbers sms: does.
+  if (!_smsNumbers(number)) {
     return null;
   }
   return SmsContent(
-    number: _decode(number),
+    number: number,
     message: colon < 0 ? null : _orNull(body.substring(colon + 1)),
   );
 }
@@ -759,7 +781,7 @@ SmsContent? _sms(String body) {
   final String number = _decode(
     semicolon < 0 ? target : target.substring(0, semicolon),
   ).trim();
-  return _phoneNumber.hasMatch(number)
+  return _phoneNumber.hasMatch(number) && _smsNumbers(number)
       ? SmsContent(number: number, message: message)
       : null;
 }

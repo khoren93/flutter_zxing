@@ -185,10 +185,6 @@ void main() {
         BarcodeContent.parseText('tel:+1 (201) 555-0123'),
         isA<PhoneContent>(),
       );
-      expect(
-        BarcodeContent.parseText('tel:1-800-FLOWERS'),
-        isA<PhoneContent>(),
-      );
       expect(BarcodeContent.parseText('tel:*100#'), isA<PhoneContent>());
       expect(BarcodeContent.parseText('facetime:a@b.org'), isA<PhoneContent>());
       expect(

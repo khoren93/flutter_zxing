@@ -55,8 +55,9 @@ OtpContent? parseOtp(String body) {
   final int? counter = int.tryParse(params['counter'] ?? '0');
   if (algorithm == null ||
       digits == null ||
-      digits < 1 ||
-      digits > 10 ||
+      // Key Uri Format: 6 or 8 digits; validateOtp builds 6 to 8.
+      digits < 6 ||
+      digits > 8 ||
       period == null ||
       period < 1 ||
       counter == null ||

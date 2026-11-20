@@ -45,3 +45,26 @@ Map<String, String> queryParameters(String query) {
 bool hasPrefix(String text, String prefix) =>
     text.length >= prefix.length &&
     text.substring(0, prefix.length).toUpperCase() == prefix;
+
+final RegExp _textNumber = RegExp(r'^\+?[\d*#\s\-.()/]+$');
+
+// RFC 3966 §5.1.5: `;ext=` after the number. The pauses `,` and `;`
+// (wait) are not in the RFC, but phones dial them, and conference numbers
+// use them.
+final RegExp _callNumber = RegExp(
+  r'^\+?[\d*#\s\-.()/,;]+(?:;ext=[\d\-.()]+)?$',
+  caseSensitive: false,
+);
+
+final RegExp _digit = RegExp(r'\d');
+
+/// Whether [number] (trimmed) is a phone number [PhoneContent] and
+/// [SmsContent] can build: digits, `*`, `#`, a leading `+` and visual
+/// separators. With [call], also the pauses `,` and `;` and an extension
+/// `;ext=` (RFC 3966 §5.1.5); letters (`1-800-FLOWERS`) never.
+bool isPhoneNumber(String number, {bool call = false}) =>
+    (call ? _callNumber : _textNumber).hasMatch(number) &&
+    number.contains(_digit);
+
+/// One e-mail address.
+final RegExp emailAddress = RegExp(r'^[^\s@,]+@[^\s@,]+$');
