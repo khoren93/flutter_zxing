@@ -525,7 +525,7 @@ skewed), not from the camera: a limit of zxing-cpp.
 
 ## Benchmarks
 
-Release builds. The full tables, the raw data and how to repeat each run are
+Release builds. The camera table, its raw data and how to repeat a run are
 in [benchmark/BENCHMARKS.md](https://github.com/khoren93/flutter_zxing/blob/4.0/benchmark/BENCHMARKS.md).
 
 **Images.** 32 images from zxing-cpp's test corpus, mean time per image; and
