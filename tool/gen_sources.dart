@@ -2,15 +2,19 @@
 // native/generated/Version.h from zxing-cpp's own CMake build, so that hook/build.dart compiles exactly the
 // sources and defines upstream would.
 //
-// Run after updating third_party/zxing-cpp (needs cmake on PATH):
-//   dart run tool/gen_sources.dart
+// Run after updating third_party/zxing-cpp (needs cmake on PATH), from the
+// repository root:
+//   make sources
+//   or: cd tool && dart run gen_sources.dart
 import 'dart:convert';
 import 'dart:io';
 
 void main() {
-  final String root = Directory.fromUri(
-    Platform.script.resolve('..'),
-  ).absolute.uri.toFilePath().replaceAll(RegExp(r'[/\\]$'), '');
+  final String root = _slashes(
+    Directory.fromUri(
+      Platform.script.resolve('..'),
+    ).absolute.uri.toFilePath().replaceAll(RegExp(r'[/\\]$'), ''),
+  );
   final String build = '$root/build/gen_sources';
   _run('cmake', <String>[
     '-S',
@@ -31,7 +35,7 @@ void main() {
   final Set<String> cDefines = <String>{};
   final RegExp define = RegExp(r'(?:^|\s)-D(\S+)');
   for (final Map<String, dynamic> unit in units) {
-    final String file = File(unit['file'] as String).absolute.path;
+    final String file = _slashes(File(unit['file'] as String).absolute.path);
     // Everything but native/fzx.cpp, which the hook builds on its own.
     if (!file.startsWith('$root/third_party/')) {
       continue;
@@ -54,6 +58,13 @@ void main() {
   }
   cpp.sort();
   c.sort();
+  if (cpp.isEmpty || c.isEmpty) {
+    stderr.writeln(
+      'No zxing-cpp sources under $root/third_party/ in '
+      '$build/compile_commands.json (${units.length} entries)',
+    );
+    exit(1);
+  }
 
   String list(String name, Iterable<String> values) =>
       'const List<String> $name = <String>[\n'
@@ -80,7 +91,7 @@ void main() {
     '${list('zxingCDefines', cDefines.toList()..sort())}\n'
     '${source.substring(to)}',
   );
-  Process.runSync('dart', <String>['format', hook.path]);
+  _run('dart', <String>['format', hook.path]);
 
   File('$root/native/generated/Version.h')
     ..parent.createSync(recursive: true)
@@ -91,6 +102,9 @@ void main() {
     'C++ defines $cppDefines, C defines $cDefines',
   );
 }
+
+/// [path] with `/` between its parts, also on Windows.
+String _slashes(String path) => path.replaceAll(r'\', '/');
 
 void _run(String executable, List<String> arguments) {
   final ProcessResult result = Process.runSync(executable, arguments);
