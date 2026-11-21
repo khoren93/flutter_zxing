@@ -12,6 +12,17 @@ topics:
   - camera
   - zxing
 
+# Declared: pub.dev would otherwise take the platforms of `camera` (Android,
+# iOS, web). Reading and creating work everywhere; the desktop camera comes
+# from camera_desktop, which the app adds (README, "Camera on desktop").
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
 environment:
   sdk: ">=3.11.0 <4.0.0"
   flutter: ">=3.41.0"

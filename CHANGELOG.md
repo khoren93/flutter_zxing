@@ -128,6 +128,7 @@ Upgrading from rc.2: see
 * 3.x API: synchronous `zx` calls no longer leak memory on short-lived
   isolates; Aztec and PDF417 get the error correction they had in 3.x.
 * The example from pub.dev builds again.
+* pub.dev lists macOS, Linux and Windows among the supported platforms.
 
 ## 4.0.0-rc.2
 
