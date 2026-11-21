@@ -1,0 +1,8 @@
+const BarcodeView(
+  'https://pub.dev/packages/flutter_zxing',
+  width: 200,
+)
+
+// Or a PNG file:
+final png = await const BarcodeWriter(BarcodeFormat.qrCode)
+    .toPng('Hello', size: 512);

@@ -53,6 +53,8 @@ third_party/zxing-cpp/zint/backend/tools/
 # assets/web/.
 tool/
 benchmark/
+# The documentation site, published to GitHub Pages, not with the package.
+website/
 native/CMakeLists.txt
 # The corpus images only: the example declares the folder and
 # corpus_expected.json as assets, and a missing asset file fails its build.

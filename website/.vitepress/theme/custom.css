@@ -1,0 +1,130 @@
+/*
+ * The flutter_zxing design system (Claude Design) on VitePress's default
+ * theme: its surfaces, the lock accent, Sora / Instrument Sans / JetBrains
+ * Mono, and code that is dark in both themes.
+ */
+
+:root {
+  --fz-lock: #2ee6b5;
+  --fz-on-lock: #03261d;
+  --fz-lock-ink: #00735d;
+  --fz-lock-soft: rgba(46, 230, 181, 0.18);
+  --fz-signal-ink: #8a5a00;
+  --fz-danger: #c4271f;
+  --fz-ink: #0e1218;
+  --fz-ink-muted: #4b5563;
+  --fz-surface: #f4f6f9;
+  --fz-surface-raised: #ffffff;
+  --fz-line: #dfe4eb;
+  --fz-focus: #2563eb;
+  --fz-camera: #1a1e25;
+  --fz-code: #0e1218;
+  --fz-code-line: #283039;
+
+  --vp-font-family-base: 'Instrument Sans', 'Helvetica Neue', 'Segoe UI', system-ui, sans-serif;
+  --vp-font-family-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --fz-font-display: Sora, 'Avenir Next', 'Segoe UI', sans-serif;
+
+  --vp-c-brand-1: var(--fz-lock-ink);
+  --vp-c-brand-2: #005c4a;
+  --vp-c-brand-3: var(--fz-lock);
+  --vp-c-brand-soft: var(--fz-lock-soft);
+
+  --vp-c-bg: var(--fz-surface-raised);
+  --vp-c-bg-alt: var(--fz-surface);
+  --vp-c-bg-elv: var(--fz-surface-raised);
+  --vp-c-bg-soft: var(--fz-surface);
+  --vp-c-text-1: var(--fz-ink);
+  --vp-c-text-2: var(--fz-ink-muted);
+  --vp-c-text-3: var(--fz-ink-muted);
+  --vp-c-divider: var(--fz-line);
+  --vp-c-gutter: var(--fz-line);
+  --vp-c-border: var(--fz-line);
+
+  --vp-button-brand-border: var(--fz-lock);
+  --vp-button-brand-text: var(--fz-on-lock);
+  --vp-button-brand-bg: var(--fz-lock);
+  --vp-button-brand-hover-border: #27d3a5;
+  --vp-button-brand-hover-text: var(--fz-on-lock);
+  --vp-button-brand-hover-bg: #27d3a5;
+  --vp-button-brand-active-border: #22bf95;
+  --vp-button-brand-active-text: var(--fz-on-lock);
+  --vp-button-brand-active-bg: #22bf95;
+
+  --vp-code-block-bg: var(--fz-code);
+  --vp-code-block-divider-color: var(--fz-code-line);
+  --vp-code-copy-code-bg: #161a21;
+  --vp-code-copy-code-hover-bg: #1f252e;
+  --vp-code-lang-color: #a7b0bd;
+  --vp-code-color: var(--fz-lock-ink);
+  --vp-code-bg: var(--fz-lock-soft);
+
+  --vp-c-tip-1: var(--fz-lock-ink);
+  --vp-c-tip-soft: var(--fz-lock-soft);
+  --vp-c-warning-1: var(--fz-signal-ink);
+  --vp-c-danger-1: var(--fz-danger);
+
+  --vp-home-hero-name-color: var(--fz-ink);
+}
+
+.dark {
+  --fz-lock-ink: #4ff0c4;
+  --fz-lock-soft: rgba(46, 230, 181, 0.14);
+  --fz-signal-ink: #ffc857;
+  --fz-danger: #ff7a70;
+  --fz-ink: #eef1f5;
+  --fz-ink-muted: #a7b0bd;
+  --fz-surface: #0b0e13;
+  --fz-surface-raised: #161a21;
+  --fz-line: #283039;
+  --fz-focus: #7cb2ff;
+  --fz-code: #11151b;
+
+  --vp-c-brand-2: #7ff5d4;
+  --vp-c-bg: var(--fz-surface);
+  --vp-c-bg-alt: #0f1318;
+  --vp-c-bg-elv: var(--fz-surface-raised);
+  --vp-c-bg-soft: var(--fz-surface-raised);
+}
+
+/* Headings in the display face. */
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.VPNavBarTitle .title {
+  font-family: var(--fz-font-display);
+  letter-spacing: -0.01em;
+}
+
+.vp-doc h1 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Keyboard focus, as in the design system: 2px solid, 2px offset. */
+:focus-visible {
+  outline: 2px solid var(--fz-focus);
+  outline-offset: 2px;
+}
+
+/* Code blocks: dark, rounded, in both themes. */
+.vp-doc div[class*='language-'] {
+  border-radius: 16px;
+}
+
+/* Inline code reads as API names. */
+.vp-doc :not(pre) > code {
+  font-size: 0.875em;
+}
+
+/* Pill buttons, as everywhere in the design system. */
+.VPButton {
+  border-radius: 999px !important;
+  font-weight: 600 !important;
+}
+
+/* Tables scroll in their own box on a phone. */
+.vp-doc table {
+  display: block;
+  overflow-x: auto;
+}

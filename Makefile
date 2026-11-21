@@ -25,7 +25,8 @@ first_device = $(or $(DEVICE),$(shell cd example && flutter devices --machine 2>
 
 .PHONY: help publish publish-dry test analyze sheets fixtures wasm sources \
 	devices run run-android run-ios run-web run-macos run-windows run-linux \
-	run-desktop web-engine diag diag-pull replay accuracy accuracy-causes
+	run-desktop web-engine diag diag-pull replay accuracy accuracy-causes \
+	site site-build site-shots site-check
 
 help:
 	@echo "Publishing:"
@@ -72,6 +73,13 @@ help:
 	@echo "  TAB=create           Open the demo on a tab: scan, create, history"
 	@echo "  ARGS=...             More flags for flutter run"
 	@echo "                       e.g. make run-ios MODE=release TAB=create"
+	@echo ""
+	@echo "Documentation site (website/, published to GitHub Pages):"
+	@echo "  make site            Serve it at http://localhost:5173/flutter_zxing/"
+	@echo "                       (renders the template screenshots first if missing)"
+	@echo "  make site-build      Build it into website/.vitepress/dist"
+	@echo "  make site-shots      Render the template screenshots it shows"
+	@echo "  make site-check      Check that every Dart sample on it compiles"
 	@echo ""
 	@echo "Engine:"
 	@echo "  make fixtures        Generate the test corpus from the zxing-cpp samples"
@@ -169,3 +177,26 @@ run-desktop:
 	  MINGW*|MSYS*|CYGWIN*) $(MAKE) run-windows ;; \
 	  *) echo "Unknown desktop: $$(uname -s)"; exit 1 ;; \
 	esac
+
+# The documentation site. Its screenshots are rendered from the templates, not
+# committed; its Dart samples are compiled against the package.
+SITE_SHOTS = website/public/shots
+
+site-shots:
+	FLUTTER_ROOT="$(abspath $(dir $(realpath $(shell which flutter)))..)" \
+		SHOTS="$(CURDIR)/$(SITE_SHOTS)" \
+		flutter test test/tool/scanner_shots_test.dart
+
+website/node_modules: website/package-lock.json
+	cd website && npm ci
+	@touch $@
+
+site: website/node_modules
+	@[ -d $(SITE_SHOTS) ] || $(MAKE) site-shots
+	cd website && npm run dev
+
+site-build: website/node_modules site-shots
+	cd website && npm run build
+
+site-check:
+	cd tool && dart pub get && dart run check_site_snippets.dart

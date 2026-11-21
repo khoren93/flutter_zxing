@@ -1,0 +1,7 @@
+import 'package:flutter_zxing/scanner.dart';
+
+// Scan one code and come back with it
+// (null if the user closes the scanner).
+final Barcode? barcode = await scanBarcode(context);
+
+print(barcode?.text);

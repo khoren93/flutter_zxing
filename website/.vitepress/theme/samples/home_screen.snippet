@@ -1,0 +1,9 @@
+BarcodeScanner(
+  template: const ScannerTemplate.payment(),
+  onDetect: (capture) {
+    final content = capture.barcode.content;
+    if (content is PaymentContent) {
+      print('${content.payee}: ${content.amount}');
+    }
+  },
+)

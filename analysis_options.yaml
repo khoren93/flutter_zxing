@@ -30,6 +30,7 @@ analyzer:
     - "zxscanner/**"
     - build/**
     - web/**
+    - website/**
     
 linter:
   rules:

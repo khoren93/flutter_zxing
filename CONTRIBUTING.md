@@ -50,6 +50,7 @@ into `~/.cache/flutter_zxing/emsdk` the first time).
 | `tool/` | Engine tools: WebAssembly build, source list, test corpus, browser tests |
 | `benchmark/` | Scan benchmarks and their raw data |
 | `doc/` | Guides |
+| `website/` | The documentation site (VitePress), published with the demo to GitHub Pages |
 
 ### Layers
 
@@ -114,6 +115,24 @@ A desktop app cannot be started twice in one `flutter test` run;
 
 The web engine is tested in headless Chrome: see the `web` job in
 `.github/workflows/main.yml` for the commands.
+
+## The documentation site
+
+`website/` is the site at <https://khoren93.github.io/flutter_zxing/>, with
+the demo at `/demo/`. It needs Node.js 18 or newer.
+
+```bash
+make site          # serve it at http://localhost:5173/flutter_zxing/
+make site-check    # every Dart sample on it compiles against the package
+make site-build    # build it, which fails on a link to a missing page
+```
+
+A sample may be a fragment: a few statements, a widget, the members of a
+State. A block that is not meant to compile, such as 3.x code shown for
+comparison, gets `<!-- snippet: skip -->` on the line above. The template
+screenshots are rendered from the package (`make site-shots`), not
+committed. To try the live demo in `make site`, run the demo with `make
+run-web` and point the site at it: `VITE_DEMO_URL=http://localhost:<port>/`.
 
 ## Pull requests
 
