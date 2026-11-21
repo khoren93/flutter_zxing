@@ -29,6 +29,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 // ignore: avoid_relative_lib_imports
 import '../../test/scanning/fake_camera.dart';
 
+/// The "With code" figure showing [value]: other figures, such as the CPU
+/// of a busy CI runner, can show the same text.
+Finder withCode(String value) => find.byWidgetPredicate(
+  (Widget w) =>
+      w is Column &&
+      w.children.length == 2 &&
+      w.children[0] is Text &&
+      (w.children[0] as Text).data == 'With code' &&
+      w.children[1] is Text &&
+      (w.children[1] as Text).data == value,
+);
+
 void main() {
   group('settings', () {
     test('start as the scanner\'s defaults', () {
@@ -323,7 +335,7 @@ void main() {
         }
       });
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('100%'), findsOneWidget);
+      expect(withCode('100%'), findsOneWidget);
       await close(tester);
     });
 
@@ -399,12 +411,12 @@ void main() {
         }
       });
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('100%'), findsOneWidget);
+      expect(withCode('100%'), findsOneWidget);
       await tester.tap(ab);
       await tester.pump();
       await tester.tap(ab);
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('100%'), findsNothing);
+      expect(withCode('100%'), findsNothing);
       await close(tester);
     });
 
