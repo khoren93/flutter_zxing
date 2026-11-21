@@ -403,7 +403,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "4.0.0-rc.2"
+    version: "4.0.0-rc.3"
   font_awesome_flutter:
     dependency: "direct main"
     description:
