@@ -131,7 +131,15 @@ class ScanPage extends StatefulWidget {
 }
 
 class _ScanPageState extends State<ScanPage> {
-  DemoTemplate _picked = DemoTemplate.minimal;
+  // --dart-define=TEMPLATE=payment (or ?template=payment on the web, as the
+  // documentation site embeds the demo) opens a template directly. The
+  // names are the constructors': payment, checkIn, signIn...
+  DemoTemplate _picked = DemoTemplate.values.firstWhere(
+    (DemoTemplate t) =>
+        t.name == const String.fromEnvironment('TEMPLATE') ||
+        t.name == Uri.base.queryParameters['template'],
+    orElse: () => DemoTemplate.minimal,
+  );
   late ScannerTemplate _template = _build(_picked);
   late final ScannerController _controller = ScannerController.fromTemplate(
     _template,
