@@ -1,7 +1,15 @@
-name: Web demo
+name: Site and demo
 
-# Builds the demo app (example/lib/main.dart) for the web and publishes it to
-# GitHub Pages: https://khoren93.github.io/flutter_zxing/
+# Publishes https://khoren93.github.io/flutter_zxing/ to GitHub Pages:
+#
+#   /flutter_zxing/       the documentation site (website/, VitePress)
+#   /flutter_zxing/demo/  the demo app (example/lib/main.dart) on the web
+#
+# The site embeds the demo next to its code samples, and shows screenshots of
+# the scanner templates rendered here by test/tool/scanner_shots_test.dart.
+# Old links to the demo at the root (`?tab=create`) are sent on to /demo/ by
+# the site; website/public/flutter_service_worker.js removes the service
+# worker an old demo build may have left at the root.
 #
 # Runs on every push to main and to the 4.0 development branch, and by hand
 # ("Run workflow"). The repository's Pages source has to be "GitHub Actions"
@@ -26,9 +34,9 @@ permissions:
 
 jobs:
   build:
-    name: Build the web demo
+    name: Build the site and the demo
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -55,16 +63,26 @@ jobs:
         run: tool/build_wasm.sh
 
       # dart2wasm, with the dart2js build next to it: browsers without
-      # WasmGC (older Safari) load that one. The site lives under
-      # /flutter_zxing/, hence the base href.
+      # WasmGC (older Safari) load that one. The demo lives under
+      # /flutter_zxing/demo/, hence the base href.
       - name: Build the demo
         run: |
           cd example
-          flutter build web --release --wasm --base-href /flutter_zxing/
+          flutter build web --release --wasm --base-href /flutter_zxing/demo/
+
+      # The templates as the site shows them, from the package itself.
+      - name: Render the template screenshots
+        run: make site-shots
+
+      - name: Build the site
+        run: cd website && npm ci && npm run build
+
+      - name: Put the demo under the site
+        run: cp -R example/build/web website/.vitepress/dist/demo
 
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: example/build/web
+          path: website/.vitepress/dist
 
   deploy:
     name: Publish to GitHub Pages

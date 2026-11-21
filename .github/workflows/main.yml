@@ -123,6 +123,39 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+  # The documentation site (website/): every Dart sample on it compiles
+  # against the package, and it builds, which fails on a link to a page that
+  # does not exist. .github/workflows/pages.yml publishes it.
+  site:
+    name: "Documentation site"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: "stable"
+          cache: true
+
+      - name: Check the Dart samples
+        run: |
+          flutter pub get
+          cd tool && dart pub get --enforce-lockfile
+          dart run check_site_snippets.dart
+
+      - name: Build the site
+        run: cd website && npm ci && npm run build
+
+      # The first failure stops the whole run: the other jobs would only burn
+      # CI minutes on a run that has already failed.
+      - name: Cancel the run
+        if: failure()
+        shell: bash
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   # The test corpus is generated from zxing-cpp's samples (the submodule), not
   # committed: once here, then handed to every job that reads it. libwebp's
   # dwebp converts the WebP samples, like zxing-cpp's own tests decode them.
