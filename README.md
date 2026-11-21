@@ -590,8 +590,8 @@ trade-offs.
 | Android size | +2.7 MB per ABI | +3–10 MB bundled, ~0.6 MB unbundled |
 | Platforms | Android, iOS, macOS, Linux, Windows, web | Android, iOS, macOS, web |
 | Creates barcodes | Yes: widget, PNG, SVG, styles | No |
-| Formats | 39 to read, the same on every platform | Depends on the platform's decoder; ML Kit on Android reads 13 (no Micro QR, rMQR, DataBar, MaxiCode, MicroPDF417) |
-| Parsed content | Sealed Dart types, the same on every platform | From the platform's decoder |
+| Formats | 32 to read, the same on every platform | Depends on the platform's decoder; ML Kit on Android reads 13 (no Micro QR, rMQR, DataBar, MaxiCode, MicroPDF417) |
+| Parsed content | Dart types, the same on every platform | From the platform's decoder |
 | Scanner UI | 16 templates and themable pieces, or your own | Your own (`overlayBuilder`) |
 | Camera | The `camera` plugin: frames pass through Dart (only the scan window is copied); up to 30 fps | Native camera, frames stay native |
 
