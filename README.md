@@ -10,8 +10,9 @@ built into your app.
 - **Knows what is inside:** URLs, Wi-Fi, contacts, events, GS1 data, as Dart types.
 - **No ML Kit, no Google Play services, no network.**
 
-**[Try it in your browser](https://khoren93.github.io/flutter_zxing/)** — the
-demo app of this repository, running on the web build of the package.
+**[Documentation](https://khoren93.github.io/flutter_zxing/)** with a guide to every feature ·
+**[Try it in your browser](https://khoren93.github.io/flutter_zxing/demo/)**: the demo app of this repository,
+running on the web build of the package.
 
 ---
 
@@ -481,7 +482,7 @@ EMVCo codes, SPAYD, all as `PaymentContent`), e-mail, phone and FaceTime,
 SMS, locations, events, one-time passwords (`otpauth://`), eSIM activation codes, cryptocurrency payments,
 Wi‑Fi Easy Connect, Matter and HomeKit setup codes, boarding passes, North
 American driver's licenses, VINs and products (EAN/UPC with ISBN and ISSN). The full
-list, with what each kind holds: [doc/content-types.md](https://github.com/khoren93/flutter_zxing/blob/4.0/doc/content-types.md).
+list, with what each kind holds: [What is in a code](https://khoren93.github.io/flutter_zxing/content/overview).
 
 `barcode.content.uri` is a link to open it with (`https://`, `mailto:`,
 `tel:`, `geo:`...). The other way round, every kind builds the text for a
@@ -609,7 +610,7 @@ Choose flutter_zxing when Google services, offline use or privacy matter,
 when you need formats ML Kit does not read, Linux or Windows, the same results
 on every platform, or barcode generation in the same package.
 
-Coming from mobile_scanner: [the API, side by side](https://github.com/khoren93/flutter_zxing/blob/4.0/doc/migrating-from-mobile_scanner.md).
+Coming from mobile_scanner: [the API, side by side](https://khoren93.github.io/flutter_zxing/more/from-mobile-scanner).
 
 ## Upgrading from 3.x
 
@@ -618,7 +619,7 @@ keeps working in 4.x, on the new engine, and is deprecated until its removal
 in 5.0. Each deprecated declaration names its replacement. After upgrading,
 run `flutter clean` once.
 
-[Migrating to 4.0](https://github.com/khoren93/flutter_zxing/blob/4.0/doc/migrating-to-4.0.md) shows the replacements side by
+[Upgrading from 3.x](https://khoren93.github.io/flutter_zxing/more/upgrading-from-3x) shows the replacements side by
 side; the [CHANGELOG](https://github.com/khoren93/flutter_zxing/blob/4.0/CHANGELOG.md) lists the few behaviour changes.
 
 ## Layers

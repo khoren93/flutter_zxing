@@ -49,7 +49,7 @@ into `~/.cache/flutter_zxing/emsdk` the first time).
 | `example/` | The demo app (`lib/main.dart`) and developer screens |
 | `tool/` | Engine tools: WebAssembly build, source list, test corpus, browser tests |
 | `benchmark/` | Scan benchmarks and their raw data |
-| `doc/` | Guides |
+| `doc/` | Pointers to the guides, which are on the documentation site now |
 | `website/` | The documentation site (VitePress), published with the demo to GitHub Pages |
 
 ### Layers

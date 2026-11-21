@@ -1,9 +1,14 @@
 # Changelog
 
+## Unreleased
+
+* A documentation site with a guide to every feature and the demo built in:
+  <https://khoren93.github.io/flutter_zxing/>. The demo moved to <https://khoren93.github.io/flutter_zxing/demo/>.
+
 ## 4.0.0-rc.3
 
 Upgrading from rc.2: see
-[From 4.0.0-rc.2](https://github.com/khoren93/flutter_zxing/blob/4.0/doc/migrating-to-4.0.md#from-400-rc2).
+[From 4.0.0-rc.2](https://khoren93.github.io/flutter_zxing/more/upgrading-from-3x#from-4-0-0-rc-2).
 
 ### Breaking changes
 
