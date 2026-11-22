@@ -170,6 +170,8 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
               ),
             );
           }
+        case 'pause' || 'resume':
+          await ladder?.pauseScanner(paused: action == 'pause');
         case 'stop':
           ladder?.stopRun();
       }

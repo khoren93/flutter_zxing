@@ -309,6 +309,41 @@ void main() {
     expect((await source.nextFrame())?.dropped, 0);
   });
 
+  test('a paused scanner stops the frame stream, and resumes it', () async {
+    await open();
+    final int id = platform.lastId;
+    bool listening() => platform._frames[id]!.hasListener;
+    platform.frame(id);
+    await source.nextFrame();
+    platform.frame(id); // not handed out before the pause
+    source.setFramesWanted(false);
+    await pumpEventQueue();
+    expect(listening(), isFalse);
+    source.setFramesWanted(true);
+    await pumpEventQueue();
+    expect(listening(), isTrue);
+    // The frame from before the pause is not handed out.
+    final Future<CameraFrame?> next = source.nextFrame();
+    bool got = false;
+    unawaited(next.then((_) => got = true));
+    await pumpEventQueue();
+    expect(got, isFalse);
+    platform.frame(id);
+    expect((await next)?.dropped, 0);
+  });
+
+  test('unwanted frames stop after the first frame of a new camera', () async {
+    source.setFramesWanted(false);
+    await open();
+    final int id = platform.lastId;
+    await pumpEventQueue();
+    // The first frame tells the preview's shape.
+    expect(platform._frames[id]!.hasListener, isTrue);
+    platform.frame(id);
+    await pumpEventQueue();
+    expect(platform._frames[id]!.hasListener, isFalse);
+  });
+
   test('frames the engine cannot read fail', () async {
     await open();
     platform.frame(platform.lastId, group: ImageFormatGroup.jpeg);

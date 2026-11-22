@@ -796,6 +796,14 @@ class LadderPageState extends State<LadderPage> {
     });
   }
 
+  /// Pauses or resumes the scanner of steps L7 to L11.
+  Future<void> pauseScanner({required bool paused}) async {
+    final ScannerController? scanner = _scanner;
+    if (scanner != null) {
+      await (paused ? scanner.pause() : scanner.resume());
+    }
+  }
+
   /// Stops an automatic run.
   void stopRun() {
     _run++;

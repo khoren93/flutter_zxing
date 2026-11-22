@@ -40,6 +40,11 @@ final class NativeCameraSource implements CameraSource {
   int _received = 0;
   int _taken = 0;
   Completer<void>? _waiter;
+
+  /// Whether frames are wanted ([setFramesWanted]), and whether the stream
+  /// is being turned to match.
+  bool _framesWanted = true;
+  bool _turningFrames = false;
   Orientation _uiShape = Orientation.portrait;
   DeviceOrientation _ui = DeviceOrientation.portraitUp;
   final ValueNotifier<FrameTransform?> _preview =
@@ -254,6 +259,46 @@ final class NativeCameraSource implements CameraSource {
         (facing == CameraFacing.back ? cameras.firstOrNull : null);
   }
 
+  @override
+  void setFramesWanted(bool wanted) {
+    if (wanted == _framesWanted) {
+      return;
+    }
+    _framesWanted = wanted;
+    _matchFrames();
+  }
+
+  /// Starts or stops the plugin's frame stream to match [_framesWanted], in
+  /// turn with opening and closing. The stream stops only after the first
+  /// frame: on iOS the preview's shape is known from it.
+  void _matchFrames() {
+    if (_turningFrames) {
+      return;
+    }
+    _turningFrames = true;
+    unawaited(
+      _turns.run(() async {
+        _turningFrames = false;
+        final CameraController? camera = _camera;
+        if (camera == null) {
+          return;
+        }
+        final bool streaming = camera.value.isStreamingImages;
+        try {
+          if (_framesWanted && !streaming) {
+            await camera.startImageStream(_onImage);
+          } else if (!_framesWanted && streaming && _latest != null) {
+            await camera.stopImageStream();
+            // A frame from before the pause is not handed out after it.
+            _taken = _received;
+          }
+        } on CameraException catch (e) {
+          debugPrint('flutter_zxing: could not turn the frames: $e');
+        }
+      }),
+    );
+  }
+
   void _onImage(CameraImage image) {
     final CameraImage? previous = _latest;
     _latest = image;
@@ -270,6 +315,9 @@ final class NativeCameraSource implements CameraSource {
     final Completer<void>? waiter = _waiter;
     _waiter = null;
     waiter?.complete();
+    if (!_framesWanted && previous == null) {
+      _matchFrames(); // the preview is known now
+    }
   }
 
   @override

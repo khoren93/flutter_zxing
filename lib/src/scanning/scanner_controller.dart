@@ -535,6 +535,14 @@ class ScannerController extends ValueNotifier<ScannerState> {
   void _set(ScannerState state) {
     if (!_disposed) {
       value = state;
+      // A paused scanner shows the preview only: no frames to copy.
+      switch (state.status) {
+        case ScannerStatus.paused:
+          _source?.setFramesWanted(false);
+        case ScannerStatus.running:
+          _source?.setFramesWanted(true);
+        case _:
+      }
     }
   }
 

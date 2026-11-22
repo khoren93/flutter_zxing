@@ -316,6 +316,11 @@ final class WebCameraSource implements CameraSource {
     return presented.future;
   }
 
+  // Frames are taken from the <video> only when asked for: nothing runs
+  // while the scanner is paused.
+  @override
+  void setFramesWanted(bool wanted) {}
+
   @override
   Future<CameraFrame?> nextFrame() async {
     final int closes = _closes;

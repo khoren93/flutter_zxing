@@ -383,6 +383,21 @@ void main() {
       expect(c.value.status, ScannerStatus.running);
     });
 
+    test('a pause turns the frames off, resume turns them on', () async {
+      final ScannerController c = create(detection: DetectionMode.once);
+      await c.start();
+      expect(camera.framesWanted, isTrue);
+      await c.pause();
+      expect(camera.framesWanted, isFalse);
+      await c.resume();
+      expect(camera.framesWanted, isTrue);
+      // A result of DetectionMode.once pauses too.
+      camera.push(<Barcode>[qr]);
+      await pumpEventQueue();
+      expect(c.value.status, ScannerStatus.paused);
+      expect(camera.framesWanted, isFalse);
+    });
+
     test('continuous reports every frame', () async {
       final ScannerController c = create(detection: DetectionMode.continuous);
       final List<BarcodeCapture> captures = <BarcodeCapture>[];

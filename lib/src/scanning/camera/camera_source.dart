@@ -159,6 +159,13 @@ abstract class CameraSource {
   /// again.
   void dispose();
 
+  /// Whether the camera sends frames to decode: off while the scanner is
+  /// paused, so that a camera showing only its preview costs no copying of
+  /// frames. On until turned off, and kept across [open]s; frames sent
+  /// before it was turned off are not handed out after it is turned on
+  /// again.
+  void setFramesWanted(bool wanted);
+
   /// A frame newer than the last one handed out; waits for the camera.
   /// `null` once the camera is closed. Throws a [ScannerException] when the
   /// camera fails after it opened (another app took it).

@@ -7,6 +7,9 @@
 * The scan window's brackets stay still on a code that is held still, instead
   of redrawing the screen all the time: the scanner uses about a third less
   CPU while a code is in view.
+* A paused scanner, such as under a result sheet, stops taking camera frames
+  and keeps only the preview: about 15 % of a CPU core instead of 50 % on an
+  iPhone 17 Pro Max.
 
 ## 4.0.0-rc.3
 

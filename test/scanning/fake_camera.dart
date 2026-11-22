@@ -242,6 +242,12 @@ final class FakeCamera implements CameraSource {
   @override
   void dispose() => disposed = true;
 
+  /// What the controller last asked of [setFramesWanted].
+  bool framesWanted = true;
+
+  @override
+  void setFramesWanted(bool wanted) => framesWanted = wanted;
+
   @override
   Future<CameraFrame?> nextFrame() async {
     while (_open) {
