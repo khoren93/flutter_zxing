@@ -122,7 +122,10 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
       Map<String, String> params,
     ) async {
       final String action = params['action'] ?? 'status';
-      if (action == 'open' || action == 'step' || action == 'run') {
+      if (action == 'open' ||
+          action == 'step' ||
+          action == 'run' ||
+          action == 'watch') {
         await _openLadder();
       }
       final LadderPageState? ladder = _ladder.currentState;
@@ -151,6 +154,22 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
               scene: params['scene'] ?? 'A',
             ),
           );
+        case 'watch':
+          final LadderStep? step = LadderStep.parse(params['step'] ?? '');
+          if (step != null) {
+            unawaited(
+              ladder?.watch(
+                step: step,
+                warmup: Duration(
+                  seconds: int.tryParse(params['warmup'] ?? '') ?? 10,
+                ),
+                length: Duration(
+                  seconds: int.tryParse(params['seconds'] ?? '') ?? 600,
+                ),
+                scene: params['scene'] ?? 'B',
+              ),
+            );
+          }
         case 'stop':
           ladder?.stopRun();
       }

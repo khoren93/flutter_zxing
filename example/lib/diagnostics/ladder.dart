@@ -18,6 +18,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 // The frame samples are not public API.
 // ignore: implementation_imports
+import 'package:flutter_zxing/src/scanning/camera/camera_source.dart'
+    show CameraLens;
+// ignore: implementation_imports
 import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
     show ScannerControllerDebug, ScannerFrameSample;
 import 'package:path_provider/path_provider.dart';
@@ -25,6 +28,7 @@ import 'package:path_provider/path_provider.dart';
 import 'cpu_usage_stub.dart' if (dart.library.ffi) 'cpu_usage.dart';
 import 'diag_metrics.dart';
 import 'diag_runs.dart';
+import 'ios_camera_numbers.dart';
 
 /// One step of the ladder.
 enum LadderStep {
@@ -187,6 +191,61 @@ final class _Recorder {
   }
 }
 
+/// What happened in one second of a spike watch (R4-03).
+final class _WatchSecond {
+  int reads = 0;
+  int found = 0;
+  int dropped = 0;
+  int readMax = 0;
+  int engineMax = 0;
+  int uiFrames = 0;
+  int buildMax = 0;
+  int rasterMax = 0;
+  int cameraSamples = 0;
+  bool focusing = false;
+  bool exposing = false;
+  bool balancing = false;
+  double isoMin = double.infinity;
+  double isoMax = 0;
+  double exposureMin = double.infinity;
+  double exposureMax = 0;
+  double maxFps = 0;
+  double lensMin = double.infinity;
+  double lensMax = 0;
+
+  void onCamera(CameraNumbers n) {
+    cameraSamples++;
+    focusing |= n.adjustingFocus;
+    exposing |= n.adjustingExposure;
+    balancing |= n.adjustingWhiteBalance;
+    isoMin = math.min(isoMin, n.iso);
+    isoMax = math.max(isoMax, n.iso);
+    exposureMin = math.min(exposureMin, n.exposureMs);
+    exposureMax = math.max(exposureMax, n.exposureMs);
+    maxFps = n.maxFps;
+    lensMin = math.min(lensMin, n.lensPosition);
+    lensMax = math.max(lensMax, n.lensPosition);
+  }
+
+  Map<String, Object?> camera() => cameraSamples == 0
+      ? <String, Object?>{}
+      : <String, Object?>{
+          'iso': <double>[_r(isoMin), _r(isoMax)],
+          'expMs': <double>[
+            (exposureMin * 100).round() / 100,
+            (exposureMax * 100).round() / 100,
+          ],
+          'maxFps': _r(maxFps),
+          'lens': <double>[
+            (lensMin * 1000).round() / 1000,
+            (lensMax * 1000).round() / 1000,
+          ],
+          'af': focusing,
+          'ae': exposing,
+          'awb': balancing,
+        };
+}
+
 /// malloc and free of the C library, for the copy of step L4.
 final class _Native {
   _Native._(DynamicLibrary lib)
@@ -266,6 +325,7 @@ class LadderPageState extends State<LadderPage> {
   @override
   void dispose() {
     _run++;
+    _cameraTimer?.cancel();
     _generation++;
     unawaited(_seconds?.cancel());
     SchedulerBinding.instance.removeTimingsCallback(_onTimings);
@@ -278,14 +338,34 @@ class LadderPageState extends State<LadderPage> {
   void _onSecond(CpuSecond s) {
     _lastSecond = s;
     _recorder?.onSecond(s);
+    _watchTick(s);
     _updatePanel();
   }
 
-  void _onTimings(List<FrameTiming> timings) =>
-      _recorder?.frames.addAll(timings);
+  void _onTimings(List<FrameTiming> timings) {
+    _recorder?.frames.addAll(timings);
+    final _WatchSecond? w = _watchSecond;
+    if (w != null) {
+      for (final FrameTiming f in timings) {
+        w.uiFrames++;
+        w.buildMax = math.max(w.buildMax, f.buildDuration.inMicroseconds);
+        w.rasterMax = math.max(w.rasterMax, f.rasterDuration.inMicroseconds);
+      }
+    }
+  }
 
   void _onRead(int micros, {int? engine, bool hit = false, int lost = 0}) {
     _recorder?.onRead(micros, engine: engine, hit: hit, lost: lost);
+    final _WatchSecond? w = _watchSecond;
+    if (w != null) {
+      w.reads++;
+      if (hit) {
+        w.found++;
+      }
+      w.dropped += lost;
+      w.readMax = math.max(w.readMax, micros);
+      w.engineMax = math.max(w.engineMax, engine ?? 0);
+    }
     _recentReads.add(micros);
     if (_recentReads.length > 60) {
       _recentReads.removeAt(0);
@@ -557,9 +637,170 @@ class LadderPageState extends State<LadderPage> {
     debugPrint('DIAGLADDER done ${_results.length} steps in ${total.elapsed}');
   }
 
+  // --- spike watch (R4-03) ---------------------------------------------------
+
+  _WatchSecond? _watchSecond;
+  final Stopwatch _watchClock = Stopwatch();
+  final List<Map<String, Object?>> _watchRows = <Map<String, Object?>>[];
+  Timer? _cameraTimer;
+  List<cam.CameraDescription>? _cameras;
+  final Map<String, IosCameraNumbers?> _cameraNumbers =
+      <String, IosCameraNumbers?>{};
+
+  /// The camera in use: the plugin's for L2 to L6, the scanner's lens after.
+  String? _cameraName() {
+    final cam.CameraController? camera = _camera;
+    if (camera != null) {
+      return camera.description.name;
+    }
+    final ScannerController? scanner = _scanner;
+    final List<cam.CameraDescription>? cameras = _cameras;
+    if (scanner == null || cameras == null) {
+      return null;
+    }
+    final cam.CameraLensType type = switch (scanner.lensSample.lens) {
+      CameraLens.main => cam.CameraLensType.wide,
+      CameraLens.ultraWide => cam.CameraLensType.ultraWide,
+      CameraLens.telephoto => cam.CameraLensType.telephoto,
+    };
+    for (final cam.CameraDescription c in cameras) {
+      if (c.lensDirection == cam.CameraLensDirection.back &&
+          c.lensType == type) {
+        return c.name;
+      }
+    }
+    return null;
+  }
+
+  void _sampleCamera() {
+    final _WatchSecond? w = _watchSecond;
+    final String? name = _cameraName();
+    if (w == null || name == null) {
+      return;
+    }
+    final IosCameraNumbers? numbers = _cameraNumbers.putIfAbsent(
+      name,
+      () => IosCameraNumbers.open(name),
+    );
+    if (numbers != null) {
+      w.onCamera(numbers.read());
+    }
+  }
+
+  void _watchTick(CpuSecond s) {
+    final _WatchSecond? w = _watchSecond;
+    if (w == null) {
+      return;
+    }
+    _watchSecond = _WatchSecond();
+    String? lens;
+    if (_scanner case final ScannerController scanner?) {
+      lens = scanner.lensSample.lens.name;
+    }
+    final int? rss = CpuMeter.residentBytes;
+    final Map<String, Object?> row = <String, Object?>{
+      't': _r(_watchClock.elapsedMilliseconds / 1000),
+      'cpu': _r(s.cpu),
+      'q': s.quarters.map(_r).toList(),
+      'thr': <String, double>{
+        for (final (String name, double v) in s.threads)
+          if (v >= 0.1) name: _r(v),
+      },
+      'reads': w.reads,
+      'found': w.found,
+      'dropped': w.dropped,
+      'readMaxMs': _r(w.readMax / 1000),
+      'engineMaxMs': _r(w.engineMax / 1000),
+      'uiFrames': w.uiFrames,
+      'buildMaxMs': _r(w.buildMax / 1000),
+      'rasterMaxMs': _r(w.rasterMax / 1000),
+      'thermal': CpuMeter.thermalState,
+      'rssMb': rss == null ? null : _r(rss / 1048576),
+      'lens': ?lens,
+      'cam': w.camera(),
+    };
+    _watchRows.add(row);
+    debugPrint('DIAGSEC ${jsonEncode(row)}');
+  }
+
+  /// Holds [step] for [length] after [warmup] and logs every second of it
+  /// as a `DIAGSEC` line, for the spike catcher on the Mac.
+  Future<void> watch({
+    required LadderStep step,
+    Duration warmup = const Duration(seconds: 10),
+    Duration length = const Duration(minutes: 10),
+    String scene = 'B',
+  }) async {
+    final int run = ++_run;
+    _cameras ??= await cam.availableCameras();
+    setState(() {
+      _running = true;
+      _results.clear();
+      _savedTo = null;
+    });
+    _progress = 'watch ${step.label}, scene $scene';
+    await setStep(step);
+    await Future<void>.delayed(warmup);
+    if (run != _run || !mounted) {
+      return;
+    }
+    _watchRows.clear();
+    _watchClock
+      ..reset()
+      ..start();
+    _watchSecond = _WatchSecond();
+    _cameraTimer = Timer.periodic(
+      const Duration(milliseconds: 100),
+      (_) => _sampleCamera(),
+    );
+    debugPrint('DIAGWATCH start ${step.label} scene $scene');
+    await Future<void>.delayed(length);
+    _cameraTimer?.cancel();
+    _watchSecond = null;
+    if (run != _run || !mounted) {
+      return;
+    }
+    String? saved;
+    try {
+      final Directory dir = await getApplicationDocumentsDirectory();
+      final String stamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
+      final File file = File(
+        '${dir.path}/watch-$scene-${step.label}-$stamp.json',
+      );
+      await file.writeAsString(
+        jsonEncode(<String, Object?>{
+          'device': diagDevice,
+          'build': diagBuild,
+          'step': step.label,
+          'scene': scene,
+          'rows': _watchRows,
+        }),
+      );
+      saved = file.path;
+    } on Object catch (e) {
+      debugPrint('watch: not saved: $e');
+    }
+    debugPrint('DIAGWATCH done ${step.label} ${_watchRows.length} s');
+    await setStep(LadderStep.l0);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _running = false;
+      _progress = '';
+      _savedTo = saved;
+    });
+  }
+
   /// Stops an automatic run.
   void stopRun() {
     _run++;
+    _cameraTimer?.cancel();
+    _watchSecond = null;
     _recorder = null;
     _progress = '';
     setState(() => _running = false);

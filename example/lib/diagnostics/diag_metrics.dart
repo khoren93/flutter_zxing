@@ -199,10 +199,13 @@ String? extraValue(String extra, String key) {
 @immutable
 final class CpuSecond {
   /// Creates a second.
-  const CpuSecond(this.cpu, this.threads);
+  const CpuSecond(this.cpu, this.threads, [this.quarters = const <double>[]]);
 
   final double cpu;
   final List<(String, double)> threads;
+
+  /// The process in each quarter of the second.
+  final List<double> quarters;
 }
 
 /// Collects the numbers of a scanner, separately for A and B.
@@ -343,7 +346,7 @@ final class DiagMetrics extends ChangeNotifier {
       meter.stop();
       final double? cpu = _cpuPercent;
       if (cpu != null && _seconds.hasListener) {
-        _seconds.add(CpuSecond(cpu, _threads));
+        _seconds.add(CpuSecond(cpu, _threads, List<double>.of(_quarters)));
       }
       if (_log) {
         _printSample(meter.elapsedMicroseconds);
