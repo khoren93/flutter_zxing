@@ -567,6 +567,36 @@ void main() {
       );
     });
 
+    testWidgets('the window breathes 30 times a second, not at vsync', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      int frames = 0;
+      tester.binding.addPersistentFrameCallback((_) => frames++);
+      // Frames drawn over a second, pumped every 1/120 s like a ProMotion
+      // display.
+      Future<int> second() async {
+        frames = 0;
+        for (int i = 0; i < 120; i++) {
+          await tester.pump(const Duration(microseconds: 8333));
+        }
+        return frames;
+      }
+
+      await tester.pumpWidget(_host(const BarcodeScanner()));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      // No ticker: the screen is not redrawn at its full rate.
+      expect(tester.hasRunningAnimations, isFalse);
+      expect(await second(), inInclusiveRange(28, 32));
+      // Hidden, it rests.
+      await tester.pumpWidget(
+        _host(const TickerMode(enabled: false, child: BarcodeScanner())),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(await second(), 0);
+    });
+
     testWidgets('the brackets stay still while a code only trembles', (
       WidgetTester tester,
     ) async {

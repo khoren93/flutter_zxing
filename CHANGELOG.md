@@ -5,8 +5,10 @@
 * A documentation site with a guide to every feature and the demo built in:
   <https://khoren93.github.io/flutter_zxing/>. The demo moved to <https://khoren93.github.io/flutter_zxing/demo/>.
 * The scan window's brackets stay still on a code that is held still, instead
-  of redrawing the screen all the time: the scanner uses about a third less
-  CPU while a code is in view.
+  of redrawing the screen all the time while a code is in view.
+* The scan window breathes at 30 frames a second instead of the display's
+  full rate: a scanner searching for a code draws about a quarter as many
+  frames on a 120 Hz display.
 * A paused scanner, such as under a result sheet, stops taking camera frames
   and keeps only the preview: about 15 % of a CPU core instead of 50 % on an
   iPhone 17 Pro Max.

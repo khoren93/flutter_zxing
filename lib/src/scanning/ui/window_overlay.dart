@@ -78,10 +78,7 @@ class ScanWindowOverlay extends StatefulWidget {
 
 class _ScanWindowOverlayState extends State<ScanWindowOverlay>
     with TickerProviderStateMixin {
-  late final AnimationController _breathe = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2400),
-  );
+  final _Breath _breathe = _Breath();
   late final AnimationController _move = AnimationController(
     vsync: this,
     value: 1,
@@ -168,12 +165,11 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
         !widget.settled &&
         status == ScannerStatus.running &&
         !_reduceMotion;
-    if (searching && !_breathe.isAnimating) {
-      unawaited(_breathe.repeat(reverse: true));
-    } else if (!searching && _breathe.isAnimating) {
-      _breathe
-        ..stop()
-        ..value = 0;
+    // Hidden (another page over the scanner), it rests like an animation.
+    if (searching && TickerMode.valuesOf(context).enabled) {
+      _breathe.start();
+    } else {
+      _breathe.stop();
     }
 
     final double lock = target == null && !widget.settled ? 0 : 1;
@@ -262,6 +258,52 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
         ],
       ),
     );
+  }
+}
+
+/// The brackets' slow breathing while the scanner searches, 2.4 s each way,
+/// drawn 30 times a second. An AnimationController would redraw the screen
+/// at its full rate, 120 times a second on a ProMotion display, for a
+/// change of a fraction of a pixel per frame.
+final class _Breath extends ChangeNotifier {
+  static const int _periodMicros = 2400000;
+  static const Duration _step = Duration(microseconds: 33333);
+
+  final Stopwatch _clock = Stopwatch();
+  Timer? _timer;
+
+  /// 0 to 1 and back.
+  double value = 0;
+
+  void start() {
+    if (_timer != null) {
+      return;
+    }
+    _clock
+      ..reset()
+      ..start();
+    _timer = Timer.periodic(_step, (_) {
+      final double t = (_clock.elapsedMicroseconds / _periodMicros) % 2;
+      value = t <= 1 ? t : 2 - t;
+      notifyListeners();
+    });
+  }
+
+  void stop() {
+    if (_timer == null) {
+      return;
+    }
+    _timer!.cancel();
+    _timer = null;
+    _clock.stop();
+    value = 0;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 }
 
