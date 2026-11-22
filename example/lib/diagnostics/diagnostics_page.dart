@@ -719,6 +719,7 @@ class _Numbers extends StatelessWidget {
               _Stat('CPU', '${_n(s.cpuPercent, 0)}%'),
               _Stat('Device', '${_n(s.devicePercent, 0)}%'),
               _Stat('Memory', '${_n(s.memoryMb, 0)} MB'),
+              _Stat('Energy', '${_n(s.milliwatts, 0)} mW'),
               _Stat('Not decoded', '${s.failed}'),
             ],
           ),

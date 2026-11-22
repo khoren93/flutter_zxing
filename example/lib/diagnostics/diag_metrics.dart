@@ -62,6 +62,7 @@ final class DiagSnapshot {
     this.cpuPercent,
     this.cores = 0,
     this.memoryMb,
+    this.milliwatts,
     this.uiP95Ms = 0,
     this.rasterP95Ms = 0,
     this.slowFramesPercent = 0,
@@ -126,6 +127,11 @@ final class DiagSnapshot {
   final double? cpuPercent;
   final int cores;
   final double? memoryMb;
+
+  /// The process's CPU energy over the last second, in milliwatts (iOS and
+  /// macOS): unlike [cpuPercent] it does not grow when the system moves
+  /// the work to slower, thriftier cores.
+  final double? milliwatts;
   final double uiP95Ms;
   final double rasterP95Ms;
 
@@ -158,6 +164,7 @@ final class DiagSnapshot {
     final double? cpu = cpuPercent;
     final double? device = devicePercent;
     final double? memory = memoryMb;
+    final double? power = milliwatts;
     return <String, Object?>{
       'reads': reads,
       'withCodePercent': r(withCodePercent),
@@ -172,6 +179,7 @@ final class DiagSnapshot {
       'cpuPercent': cpu == null ? null : r(cpu),
       'devicePercent': device == null ? null : r(device),
       'memoryMb': memory == null ? null : r(memory),
+      'milliwatts': power == null ? null : r(power),
       'uiP95Ms': r(uiP95Ms),
       'rasterP95Ms': r(rasterP95Ms),
       'slowFramesPercent': r(slowFramesPercent),
@@ -457,6 +465,7 @@ final class DiagMetrics extends ChangeNotifier {
       cpuPercent: _cpuPercent,
       cores: CpuMeter.cores,
       memoryMb: resident == null ? null : resident / 1024 / 1024,
+      milliwatts: _work?['milliwatts'],
       uiP95Ms: percentile(ui, 0.95) / 1000,
       rasterP95Ms: percentile(raster, 0.95) / 1000,
       slowFramesPercent: _frames.isEmpty ? 0 : slow / _frames.length * 100,

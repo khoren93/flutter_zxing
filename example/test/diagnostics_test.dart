@@ -304,17 +304,25 @@ void main() {
       SwitchListTile autoZoom() => tester.widget<SwitchListTile>(
         find.widgetWithText(SwitchListTile, 'Automatic zoom'),
       );
-      await tester.scrollUntilVisible(
+      // Both the switch and the zoom slider below it on screen, whatever
+      // the height of the numbers above the tabs.
+      for (final Finder f in <Finder>[
         find.byType(Slider),
-        200,
-        scrollable: find
-            .descendant(
-              of: find.byType(DiagSettingsTab),
-              matching: find.byType(Scrollable),
-            )
-            .first,
-      );
+        find.widgetWithText(SwitchListTile, 'Automatic zoom'),
+      ]) {
+        await tester.scrollUntilVisible(
+          f,
+          200,
+          scrollable: find
+              .descendant(
+                of: find.byType(DiagSettingsTab),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
+      }
       await tester.pump();
+      expect(find.byType(Slider), findsWidgets);
       expect(autoZoom().value, isTrue);
       tester.widget<Slider>(find.byType(Slider)).onChanged!(2);
       await tester.pump();
