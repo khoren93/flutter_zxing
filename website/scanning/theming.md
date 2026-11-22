@@ -28,7 +28,7 @@ defaults.
 | `brightness` | the platform's | Light or dark glass |
 | `windowRadius` | 24 | Corner radius of the scan window |
 | `buttonShape` | `ScannerButtonShape.circle` | Round buttons, or `roundedSquare` for brands with sharper shapes |
-| `blur` | on, off when the device is too slow | Whether the glass blurs the camera behind it. Left unset, the scanner stops blurring for good when more than one frame in ten takes over 16 ms; `true` blurs always, `false` never |
+| `blur` | on, off when the device is too slow | Whether the glass blurs the camera behind it. Left unset, the scanner stops blurring for good when, in its first three seconds, the device has no room for it (one frame in ten over 8 ms, or five over 16 ms); `true` blurs always, `false` never |
 | `scrimBlur` | on, off when the device is too slow | Whether the dimmed camera around the window is blurred too; it is computed again for every frame. Unset, `true` and `false` work as for `blur` |
 | `fontFamily` | the app's | Font of the scanner's text |
 | `monoFontFamily` | a monospaced system font | Font of barcode data |

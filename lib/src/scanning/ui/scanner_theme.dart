@@ -72,9 +72,9 @@ final class ScannerTheme with Diagnosticable {
 
   /// Whether the glass panels blur the camera behind them; without blur
   /// they are more opaque. Left `null`, the scanner blurs, and stops for
-  /// good when the device does not draw its frames in time (more than one
-  /// in ten over 16 ms), as on a 2020 Android phone. `true` blurs always,
-  /// `false` never.
+  /// good when, in its first three seconds, the device has no room for it
+  /// (one frame in ten over 8 ms, or five over 16 ms), as on a 2020
+  /// Android phone. `true` blurs always, `false` never.
   final bool? blur;
 
   /// Whether the dimmed camera around the scan window is also blurred. The

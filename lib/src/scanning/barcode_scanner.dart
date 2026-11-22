@@ -160,17 +160,24 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
   bool _blurTooSlow = false;
   bool _watchingFrames = false;
   int _framesSeen = 0;
-  int _slowFrames = 0;
+
+  /// How long each judged frame took to build or to draw, whichever is
+  /// longer.
+  final List<Duration> _frameTimes = <Duration>[];
 
   /// Frames not judged after the watch starts: shaders compile, the camera
   /// opens.
   static const int _warmupFrames = 15;
 
-  /// Frames judged together, half a second to a second: the blur goes when
-  /// more than one in ten of them take longer than [_frameBudget] to build
-  /// or to draw.
-  static const int _judgedFrames = 30;
+  /// Frames judged, about three seconds. The blur goes at once when
+  /// [_lateFrames] of them take longer than [_frameBudget], and after them
+  /// when one in ten takes longer than [_frameRoom]: a device without that
+  /// room misses frames now and then, which a device that keeps up never
+  /// does.
+  static const int _judgedFrames = 90;
+  static const int _lateFrames = 5;
   static const Duration _frameBudget = Duration(microseconds: 16667);
+  static const Duration _frameRoom = Duration(milliseconds: 8);
 
   void _watchFrames(bool watch) {
     if (watch == _watchingFrames) {
@@ -179,7 +186,7 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
     _watchingFrames = watch;
     if (watch) {
       _framesSeen = 0;
-      _slowFrames = 0;
+      _frameTimes.clear();
       SchedulerBinding.instance.addTimingsCallback(_onTimings);
     } else {
       SchedulerBinding.instance.removeTimingsCallback(_onTimings);
@@ -191,28 +198,47 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
       if (++_framesSeen <= _warmupFrames) {
         continue;
       }
-      if (t.rasterDuration > _frameBudget || t.buildDuration > _frameBudget) {
-        _slowFrames++;
-      }
-      if (_framesSeen - _warmupFrames < _judgedFrames) {
-        continue;
-      }
-      if (_slowFrames * 10 > _judgedFrames) {
-        _watchFrames(false);
-        debugPrint(
-          'flutter_zxing: $_slowFrames of $_judgedFrames frames were late; '
-          'the scanner stops blurring (set ScannerTheme.blur and scrimBlur '
-          'to choose)',
-        );
-        if (mounted) {
-          setState(() => _blurTooSlow = true);
-        }
+      _frameTimes.add(
+        t.rasterDuration > t.buildDuration ? t.rasterDuration : t.buildDuration,
+      );
+      final int late = _frameTimes
+          .where((Duration d) => d > _frameBudget)
+          .length;
+      if (late >= _lateFrames) {
+        _blurDecided(drop: true, why: '$late of ${_frameTimes.length} late');
         return;
       }
-      _framesSeen = _warmupFrames;
-      _slowFrames = 0;
+      if (_frameTimes.length >= _judgedFrames) {
+        final List<Duration> sorted = List<Duration>.of(_frameTimes)..sort();
+        final Duration p90 = sorted[(sorted.length * 0.9).floor()];
+        _blurDecided(
+          drop: p90 > _frameRoom,
+          why: 'one in ten took ${p90.inMicroseconds / 1000} ms or more',
+        );
+        return;
+      }
     }
   }
+
+  /// Stops watching the frames; [drop]: the blur goes for good.
+  void _blurDecided({required bool drop, required String why}) {
+    _watchFrames(false);
+    _decided = true;
+    if (!drop) {
+      return;
+    }
+    debugPrint(
+      'flutter_zxing: the frames have no room for blur ($why); the '
+      'scanner stops blurring (set ScannerTheme.blur and scrimBlur to '
+      'choose)',
+    );
+    if (mounted) {
+      setState(() => _blurTooSlow = true);
+    }
+  }
+
+  /// Whether the blur was judged: it is not watched again.
+  bool _decided = false;
 
   ScannerController get _controller =>
       widget.controller ?? (_own ??= _create(widget.template));
@@ -394,7 +420,7 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
         scrimBlur: theme.scrimBlur ?? false,
       );
     }
-    _watchFrames(autoBlur && !_blurTooSlow && _shown);
+    _watchFrames(autoBlur && !_decided && _shown);
     return resolvedScannerScope(
       context,
       theme: theme,

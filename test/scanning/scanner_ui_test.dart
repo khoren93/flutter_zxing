@@ -586,20 +586,30 @@ void main() {
               ),
           ]);
       Finder blur() => find.byType(BackdropFilter);
-
-      await tester.pumpWidget(_host(const BarcodeScanner()));
-      await tester.pump();
-      expect(blur(), findsWidgets);
-      // Smooth frames keep it.
-      report(200, 8);
-      await tester.pump();
-      expect(blur(), findsWidgets);
-      // One in five over 16 ms: gone.
-      report(30, 8);
-      for (int i = 0; i < 12; i++) {
-        report(4, 8);
-        report(1, 25);
+      Future<void> fresh() async {
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpWidget(_host(const BarcodeScanner()));
+        await tester.pump();
+        expect(blur(), findsWidgets);
       }
+
+      // Room to spare for three seconds: it stays, and late frames later
+      // have other causes.
+      await fresh();
+      report(15 + 90, 6);
+      report(60, 25);
+      await tester.pump();
+      expect(blur(), findsWidgets);
+      // In time, but one frame in ten takes over half of one: gone.
+      await fresh();
+      report(15 + 80, 6);
+      report(10, 12);
+      await tester.pump();
+      expect(blur(), findsNothing);
+      // Five late frames: gone at once.
+      await fresh();
+      report(15 + 20, 6);
+      report(5, 25);
       await tester.pump();
       expect(blur(), findsNothing);
 
