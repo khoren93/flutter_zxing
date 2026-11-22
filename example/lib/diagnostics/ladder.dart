@@ -228,6 +228,8 @@ final class _WatchSecond {
   int readMax = 0;
   int engineMax = 0;
   int uiFrames = 0;
+  int slowBuild = 0;
+  int slowRaster = 0;
   int buildMax = 0;
   int rasterMax = 0;
   int cameraSamples = 0;
@@ -377,6 +379,12 @@ class LadderPageState extends State<LadderPage> {
     if (w != null) {
       for (final FrameTiming f in timings) {
         w.uiFrames++;
+        if (f.buildDuration.inMicroseconds > 16000) {
+          w.slowBuild++;
+        }
+        if (f.rasterDuration.inMicroseconds > 16000) {
+          w.slowRaster++;
+        }
         w.buildMax = math.max(w.buildMax, f.buildDuration.inMicroseconds);
         w.rasterMax = math.max(w.rasterMax, f.rasterDuration.inMicroseconds);
       }
@@ -741,6 +749,8 @@ class LadderPageState extends State<LadderPage> {
       'readMaxMs': _r(w.readMax / 1000),
       'engineMaxMs': _r(w.engineMax / 1000),
       'uiFrames': w.uiFrames,
+      'slowBuild': w.slowBuild,
+      'slowRaster': w.slowRaster,
       'buildMaxMs': _r(w.buildMax / 1000),
       'rasterMaxMs': _r(w.rasterMax / 1000),
       'thermal': CpuMeter.thermalState,

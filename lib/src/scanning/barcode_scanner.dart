@@ -164,11 +164,12 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
 
   /// Frames not judged after the watch starts: shaders compile, the camera
   /// opens.
-  static const int _warmupFrames = 30;
+  static const int _warmupFrames = 15;
 
-  /// Frames judged together; the blur goes when more than one in ten of
-  /// them take longer than [_frameBudget] to build or to draw.
-  static const int _judgedFrames = 60;
+  /// Frames judged together, half a second to a second: the blur goes when
+  /// more than one in ten of them take longer than [_frameBudget] to build
+  /// or to draw.
+  static const int _judgedFrames = 30;
   static const Duration _frameBudget = Duration(microseconds: 16667);
 
   void _watchFrames(bool watch) {
@@ -198,6 +199,11 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
       }
       if (_slowFrames * 10 > _judgedFrames) {
         _watchFrames(false);
+        debugPrint(
+          'flutter_zxing: $_slowFrames of $_judgedFrames frames were late; '
+          'the scanner stops blurring (set ScannerTheme.blur and scrimBlur '
+          'to choose)',
+        );
         if (mounted) {
           setState(() => _blurTooSlow = true);
         }

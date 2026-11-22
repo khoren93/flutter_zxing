@@ -10,8 +10,8 @@
   full rate: a scanner searching for a code draws about a quarter as many
   frames on a 120 Hz display.
 * The scanner's blur, left unset in `ScannerTheme`, turns itself off on a
-  device that does not draw the frames in time: on a Pixel 4a the demo's
-  template went from 12.6 % of frames late to under 2 %. `blur: true` and
+  device that does not draw the frames in time, within about two seconds: on
+  a Pixel 4a the demo's template went from 12.6 % of frames late to 0.1 %. `blur: true` and
   `scrimBlur: true` keep it on.
 * A paused scanner, such as under a result sheet, stops taking camera frames
   and keeps only the preview: about 15 % of a CPU core instead of 50 % on an
