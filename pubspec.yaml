@@ -1,6 +1,6 @@
 name: flutter_zxing
 description: Scan 32 barcode formats and create 30, QR codes included, on Android, iOS, macOS, Linux, Windows and the web with zxing-cpp. No ML Kit, no Play services.
-version: 4.0.0-rc.3
+version: 4.0.0-rc.4
 homepage: https://khoren93.github.io/flutter_zxing/
 repository: https://github.com/khoren93/flutter_zxing
 issue_tracker: https://github.com/khoren93/flutter_zxing/issues

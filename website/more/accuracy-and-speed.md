@@ -5,9 +5,25 @@
 The `camera` plugin delivers frames to Dart. The scanner copies only the
 scan window of each frame and decodes it on a background isolate, one frame
 at a time: while a frame is decoded, newer frames replace each other, so
-nothing piles up. The decoder takes 2–4 ms of the 33–40 ms between frames,
-so every frame the camera delivers is decoded, and the frame rate of the
-camera is the limit.
+nothing piles up. A frame takes 1–9 ms on an iPhone 17 Pro Max and 2–18 ms
+on a 2020 Pixel 4a, of the 33–40 ms between frames, so every frame the
+camera delivers is decoded, and the frame rate of the camera is the limit.
+
+## Load and battery
+
+Most of the scanner's work is not decoding. The `camera` plugin copies every
+frame into Dart, which costs more than reading it: about a quarter of a CPU
+core on an iPhone 17 Pro Max and most of a core on a Pixel 4a. The scanner
+keeps the rest small:
+
+- A paused scanner, such as under a result sheet, takes no frames and keeps
+  only the preview.
+- The scan window and the brackets on a code redraw the screen only when
+  something moves, not at the display's full rate.
+- The blur turns itself off on a phone without room for it (see below).
+
+`stop()` releases the camera entirely: use it when the scanner is not on
+screen for long.
 
 ## Small or dense codes
 

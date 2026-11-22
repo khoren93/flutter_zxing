@@ -650,8 +650,9 @@ class ScannerController extends ValueNotifier<ScannerState> {
   }
 
   /// Stops decoding but keeps the camera and the preview running, e.g. while
-  /// a result sheet is shown. While the camera is starting, it starts
-  /// paused.
+  /// a result sheet is shown: the camera sends no frames meanwhile, so a
+  /// paused scanner costs little more than the preview. While the camera is
+  /// starting, it starts paused.
   Future<void> pause() async {
     if (value.status == ScannerStatus.running) {
       _set(value.copyWith(status: ScannerStatus.paused));

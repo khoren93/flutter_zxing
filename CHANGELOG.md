@@ -1,24 +1,21 @@
 # Changelog
 
-## Unreleased
+## 4.0.0-rc.4
 
 * A documentation site with a guide to every feature and the demo built in:
-  <https://khoren93.github.io/flutter_zxing/>. The demo moved to <https://khoren93.github.io/flutter_zxing/demo/>.
-* The scan window's brackets stay still on a code that is held still, instead
-  of redrawing the screen all the time while a code is in view.
-* A code held still in view no longer rebuilds the scanner's overlay with
-  every camera frame: on a Pixel 4a the demo's template uses about a fifth
-  less CPU with a code in view.
-* The scan window breathes at 30 frames a second instead of the display's
-  full rate: a scanner searching for a code draws about a quarter as many
-  frames on a 120 Hz display.
-* The scanner's blur, left unset in `ScannerTheme`, turns itself off on a
-  device without room for it, decided in its first three seconds: on a
-  Pixel 4a the demo's template went from 12.6 % of frames late to under 1 %. `blur: true` and
-  `scrimBlur: true` keep it on.
+  <https://khoren93.github.io/flutter_zxing/>. The demo moved to
+  <https://khoren93.github.io/flutter_zxing/demo/>.
+* The scanner uses far less energy: on an iPhone 17 Pro Max the demo's
+  template takes 70–80 % less, both while searching and with a code in view.
+* The scan window and its brackets no longer redraw the screen while a code
+  is held still, and the window breathes at 30 frames a second instead of
+  the display's full rate.
 * A paused scanner, such as under a result sheet, stops taking camera frames
-  and keeps only the preview: about 15 % of a CPU core instead of 50 % on an
-  iPhone 17 Pro Max.
+  and keeps only the preview.
+* Blur left unset in `ScannerTheme` turns itself off within three seconds on
+  a device without room for it: on a Pixel 4a the demo's template went from
+  12.6 % of frames late to under 1 %. `blur: true` and `scrimBlur: true` keep
+  it on.
 
 ## 4.0.0-rc.3
 

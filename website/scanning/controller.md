@@ -99,7 +99,7 @@ Widget status(ScannerController controller) => ValueListenableBuilder<ScannerSta
 
 ```dart
 Future<void> handle(ScannerController controller, BarcodeCapture capture) async {
-  await controller.pause(); // the preview runs, decoding stops
+  await controller.pause(); // the preview runs, frames and decoding stop
   print(capture.barcode.text);
   await controller.resume(); // with distinct, codes in view are reported anew
 }
