@@ -52,6 +52,9 @@ export default defineConfig({
     ],
     ['meta', { name: 'theme-color', content: '#2ee6b5' }],
     ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:url', content: site }],
+    ['meta', { property: 'og:image', content: `${site}shots/content.png` }],
+    ['meta', { name: 'twitter:card', content: 'summary' }],
     ['meta', { property: 'og:title', content: 'flutter_zxing' }],
     [
       'meta',

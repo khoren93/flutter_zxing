@@ -40,8 +40,9 @@ tool/node_modules/
 website/node_modules/
 website/.vitepress/cache/
 website/.vitepress/dist/
-# Template screenshots, rendered by `make site-shots`
+# Template screenshots and codes, rendered by `make site-shots`
 website/public/shots/
+website/public/codes/
 
 # Engine test corpus, generated from the zxing-cpp submodule by
 # tool/make_fixtures.dart (build/fixtures/ is covered by build/ above)

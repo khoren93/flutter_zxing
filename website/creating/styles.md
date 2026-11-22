@@ -2,7 +2,8 @@
 
 `BarcodeStyle` sets the colours or a gradient, the shape of the modules and
 of a QR code's finder patterns, a logo, a title, a caption and a card. Every
-style is checked to read back with the package's reader.
+style is checked to read back with the package's reader, and so is every
+code on this page: they are rendered by the package itself.
 
 ```dart
 BarcodeView(
@@ -37,6 +38,8 @@ QR-bill must carry.
 const BarcodeView('https://pub.dev', width: 200, style: BarcodeStyle.lagoon)
 ```
 
+<CodeGallery :items="[{ file: 'style-classic.png', label: 'BarcodeStyle.classic', alt: 'A QR code in the classic style' }, { file: 'style-soft.png', label: 'BarcodeStyle.soft', alt: 'A QR code in the soft style' }, { file: 'style-dots.png', label: 'BarcodeStyle.dots', alt: 'A QR code in the dots style' }, { file: 'style-lagoon.png', label: 'BarcodeStyle.lagoon', alt: 'A QR code in the lagoon style' }, { file: 'style-ink.png', label: 'BarcodeStyle.ink', alt: 'A QR code in the ink style' }, { file: 'style-night.png', label: 'BarcodeStyle.night', alt: 'A QR code in the night style' }]" />
+
 ## A logo
 
 `BarcodeLogo` takes any `ImageProvider`. Its `size` is a fraction of the
@@ -52,6 +55,8 @@ at least nine times in ten with a blot a quarter of the logo's size
 elsewhere on it. `logo.neededErrorCorrection` gives the level a logo gets,
 and `BarcodeLogo(errorCorrection:)` sets one, as a standard may require. A
 writer that sets its own `errorCorrection` keeps it.
+
+<CodeGallery :items="[{ file: 'logo.png', label: 'BarcodeLogo', alt: 'A QR code with the Flutter logo in the middle' }]" />
 
 ## Title, caption and card
 
@@ -77,6 +82,8 @@ BarcodeView(
 | `BarcodeCaption` | `text`, `size` (0.09), `style`, `align`, `gap` (0.05), `maxLines` (2), `letterSpacing` |
 | `BarcodeCard` | `color`, `radius` (0.12), `padding` (0.1), `elevation` |
 
+<CodeGallery :items="[{ file: 'caption-card.png', label: 'BarcodeCaption + BarcodeCard', alt: 'A QR code on a white card with the caption @FLUTTERDEV' }]" />
+
 ## A gradient
 
 ```dart
@@ -89,6 +96,8 @@ BarcodeView(
   ),
 )
 ```
+
+<CodeGallery :items="[{ file: 'gradient.png', label: 'LinearGradient', alt: 'A QR code of round dots in a green to blue gradient' }]" />
 
 SVG has no sweep gradient: a `SweepGradient` draws on screen and in a PNG,
 and an SVG export of it throws an `UnsupportedError`.

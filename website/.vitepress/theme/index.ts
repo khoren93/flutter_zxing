@@ -3,6 +3,7 @@
 // gallery.
 import DefaultTheme from 'vitepress/theme'
 import type { Theme } from 'vitepress'
+import CodeGallery from './components/CodeGallery.vue'
 import HomePage from './components/HomePage.vue'
 import LiveDemo from './components/LiveDemo.vue'
 import TemplateGallery from './components/TemplateGallery.vue'
@@ -11,6 +12,7 @@ import './custom.css'
 export default {
   extends: DefaultTheme,
   enhanceApp({ app }) {
+    app.component('CodeGallery', CodeGallery)
     app.component('HomePage', HomePage)
     app.component('LiveDemo', LiveDemo)
     app.component('TemplateGallery', TemplateGallery)

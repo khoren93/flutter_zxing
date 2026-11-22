@@ -78,7 +78,7 @@ help:
 	@echo "  make site            Serve it at http://localhost:5173/flutter_zxing/"
 	@echo "                       (renders the template screenshots first if missing)"
 	@echo "  make site-build      Build it into website/.vitepress/dist"
-	@echo "  make site-shots      Render the template screenshots it shows"
+	@echo "  make site-shots      Render the template screenshots and codes it shows"
 	@echo "  make site-check      Check that every Dart sample on it compiles"
 	@echo ""
 	@echo "Engine:"
@@ -181,11 +181,13 @@ run-desktop:
 # The documentation site. Its screenshots are rendered from the templates, not
 # committed; its Dart samples are compiled against the package.
 SITE_SHOTS = website/public/shots
+SITE_CODES = website/public/codes
 
 site-shots:
 	FLUTTER_ROOT="$(abspath $(dir $(realpath $(shell which flutter)))..)" \
 		SHOTS="$(CURDIR)/$(SITE_SHOTS)" \
-		flutter test test/tool/scanner_shots_test.dart
+		SITE_IMAGES="$(CURDIR)/$(SITE_CODES)" \
+		flutter test test/tool/scanner_shots_test.dart test/tool/site_images_test.dart
 
 website/node_modules: website/package-lock.json
 	cd website && npm ci

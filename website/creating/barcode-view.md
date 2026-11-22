@@ -14,6 +14,8 @@ const BarcodeView(
 )
 ```
 
+<CodeGallery :items="[{ file: 'ean13.svg', label: 'BarcodeFormat.ean13', alt: 'An EAN-13 barcode with its digits under it' }, { file: 'datamatrix-gs1.png', label: 'dataMatrix, gs1: true', alt: 'A GS1 Data Matrix code' }, { file: 'pdf417.png', label: 'BarcodeFormat.pdf417', alt: 'A PDF417 code, as on a boarding pass' }]" />
+
 The code is encoded in the background and cached. When the data changes,
 the previous code stays on screen until the new one is ready, so it does
 not flash.
@@ -36,6 +38,12 @@ const BarcodeView(
   width: 160,
 )
 ```
+
+The Create tab of the demo builds a code from what it holds, its format
+and its style, reads the preview back to check that it scans, and exports
+it as PNG or SVG:
+
+<LiveDemo query="tab=create" label="The Create tab of the demo" />
 
 ## Errors
 
