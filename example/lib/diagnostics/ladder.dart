@@ -913,8 +913,8 @@ class LadderPageState extends State<LadderPage> {
             ? const SizedBox.expand()
             : BarcodeScanner(
                 controller: scanner,
+                // As in the demo: the blur left to the scanner.
                 template: const ScannerTemplate.minimal(),
-                theme: const ScannerTheme(blur: true, scrimBlur: true),
               );
     }
   }

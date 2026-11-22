@@ -341,8 +341,8 @@ class _ScanPageState extends State<ScanPage> {
             ? mq.viewPadding.bottom
             : mq.padding.bottom) +
         widget.bottomInset;
+    // The blur is left to the scanner: on, off where the phone is too slow.
     return ScannerScope(
-      theme: const ScannerTheme(blur: true, scrimBlur: true),
       child: ColoredBox(
         color: Colors.black,
         child: Stack(
@@ -359,7 +359,6 @@ class _ScanPageState extends State<ScanPage> {
               child: BarcodeScanner(
                 controller: _controller,
                 template: _template,
-                theme: const ScannerTheme(blur: true, scrimBlur: true),
                 onDetect: (BarcodeCapture c) => unawaited(_onDetect(c)),
                 // The template picker and the diagnostics button, over the
                 // template's screen in its theme; the close button they

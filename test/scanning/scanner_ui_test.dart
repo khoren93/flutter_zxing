@@ -2,6 +2,7 @@
 // colors, icons, the scan window, the template screens and their states,
 // result sheets for every kind of content.
 import 'dart:convert';
+import 'dart:ui' show FrameTiming;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -565,6 +566,57 @@ void main() {
             .settled,
         isFalse,
       );
+    });
+
+    testWidgets('a device too slow for the blur loses it, unless asked', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      // Frames that take [rasterMs] to draw, as the engine reports them.
+      void report(int count, int rasterMs) =>
+          tester.binding.platformDispatcher.onReportTimings!(<FrameTiming>[
+            for (int i = 0; i < count; i++)
+              FrameTiming(
+                vsyncStart: 0,
+                buildStart: 0,
+                buildFinish: 2000,
+                rasterStart: 2000,
+                rasterFinish: 2000 + rasterMs * 1000,
+                rasterFinishWallTime: 2000 + rasterMs * 1000,
+              ),
+          ]);
+      Finder blur() => find.byType(BackdropFilter);
+
+      await tester.pumpWidget(_host(const BarcodeScanner()));
+      await tester.pump();
+      expect(blur(), findsWidgets);
+      // Smooth frames keep it.
+      report(200, 8);
+      await tester.pump();
+      expect(blur(), findsWidgets);
+      // One in five over 16 ms: gone.
+      report(30, 8);
+      for (int i = 0; i < 12; i++) {
+        report(4, 8);
+        report(1, 25);
+      }
+      await tester.pump();
+      expect(blur(), findsNothing);
+
+      // Asked for, it stays.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(
+        _host(
+          const BarcodeScanner(
+            theme: ScannerTheme(blur: true, scrimBlur: true),
+          ),
+        ),
+      );
+      await tester.pump();
+      report(30, 8);
+      report(60, 25);
+      await tester.pump();
+      expect(blur(), findsWidgets);
     });
 
     testWidgets('the window breathes 30 times a second, not at vsync', (

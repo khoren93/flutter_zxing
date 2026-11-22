@@ -70,14 +70,17 @@ final class ScannerTheme with Diagnosticable {
   /// Shape of the buttons and panels. Default [ScannerButtonShape.circle].
   final ScannerButtonShape? buttonShape;
 
-  /// Whether the glass panels blur the camera behind them. Default `true`;
-  /// turn it off on slow devices: the panels then become more opaque.
+  /// Whether the glass panels blur the camera behind them; without blur
+  /// they are more opaque. Left `null`, the scanner blurs, and stops for
+  /// good when the device does not draw its frames in time (more than one
+  /// in ten over 16 ms), as on a 2020 Android phone. `true` blurs always,
+  /// `false` never.
   final bool? blur;
 
-  /// Whether the dimmed camera around the scan window is also blurred.
-  /// Default `true`. The blur is computed again for every camera frame:
-  /// turn it off on slow phones (a 2020 Android phone does not manage it in
-  /// a frame's time).
+  /// Whether the dimmed camera around the scan window is also blurred. The
+  /// blur is computed again for every camera frame. Left `null`, the
+  /// scanner blurs, and stops for good when the device does not draw its
+  /// frames in time, like [blur]. `true` blurs always, `false` never.
   final bool? scrimBlur;
 
   /// Font of the scanner's text. `null` uses the app's font.

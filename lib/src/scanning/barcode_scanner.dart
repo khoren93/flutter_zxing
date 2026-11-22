@@ -154,6 +154,60 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
   bool _pausedBeforeStop = false;
   Timer? _release;
 
+  /// Whether the blur the theme leaves to the scanner (a `null`
+  /// [ScannerTheme.blur] or [ScannerTheme.scrimBlur]) is off for good: the
+  /// device did not draw the frames in time with it.
+  bool _blurTooSlow = false;
+  bool _watchingFrames = false;
+  int _framesSeen = 0;
+  int _slowFrames = 0;
+
+  /// Frames not judged after the watch starts: shaders compile, the camera
+  /// opens.
+  static const int _warmupFrames = 30;
+
+  /// Frames judged together; the blur goes when more than one in ten of
+  /// them take longer than [_frameBudget] to build or to draw.
+  static const int _judgedFrames = 60;
+  static const Duration _frameBudget = Duration(microseconds: 16667);
+
+  void _watchFrames(bool watch) {
+    if (watch == _watchingFrames) {
+      return;
+    }
+    _watchingFrames = watch;
+    if (watch) {
+      _framesSeen = 0;
+      _slowFrames = 0;
+      SchedulerBinding.instance.addTimingsCallback(_onTimings);
+    } else {
+      SchedulerBinding.instance.removeTimingsCallback(_onTimings);
+    }
+  }
+
+  void _onTimings(List<ui.FrameTiming> timings) {
+    for (final ui.FrameTiming t in timings) {
+      if (++_framesSeen <= _warmupFrames) {
+        continue;
+      }
+      if (t.rasterDuration > _frameBudget || t.buildDuration > _frameBudget) {
+        _slowFrames++;
+      }
+      if (_framesSeen - _warmupFrames < _judgedFrames) {
+        continue;
+      }
+      if (_slowFrames * 10 > _judgedFrames) {
+        _watchFrames(false);
+        if (mounted) {
+          setState(() => _blurTooSlow = true);
+        }
+        return;
+      }
+      _framesSeen = _warmupFrames;
+      _slowFrames = 0;
+    }
+  }
+
   ScannerController get _controller =>
       widget.controller ?? (_own ??= _create(widget.template));
 
@@ -221,6 +275,7 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
 
   @override
   void dispose() {
+    _watchFrames(false);
     _release?.cancel();
     if (_pausedByHiding) {
       unawaited(_controller.resume());
@@ -322,11 +377,21 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
     // template's theme and the scanner's own go on top.
     final ScannerScope? around = context
         .dependOnInheritedWidgetOfExactType<ScannerScope>();
+    ScannerTheme theme = (around?.theme ?? const ScannerTheme())
+        .merge(template?.theme)
+        .merge(widget.theme);
+    // Blur left to the scanner goes when the device cannot draw it in time.
+    final bool autoBlur = theme.blur == null || theme.scrimBlur == null;
+    if (_blurTooSlow) {
+      theme = theme.copyWith(
+        blur: theme.blur ?? false,
+        scrimBlur: theme.scrimBlur ?? false,
+      );
+    }
+    _watchFrames(autoBlur && !_blurTooSlow && _shown);
     return resolvedScannerScope(
       context,
-      theme: (around?.theme ?? const ScannerTheme())
-          .merge(template?.theme)
-          .merge(widget.theme),
+      theme: theme,
       strings: widget.strings ?? around?.strings ?? const ScannerStrings(),
       child: BackdropGroup(
         backdropKey: _backdrop,

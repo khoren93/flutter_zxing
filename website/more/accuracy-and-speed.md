@@ -38,8 +38,9 @@ codes too close for the main camera to focus.
 - **The camera preset.** `ReaderOptions.camera()` leaves out light-on-dark
   codes. Turn `tryInvert` on only if the app reads them.
 - **Slow phones.** The dimmed camera around the window is blurred again for
-  every frame: `ScannerTheme(scrimBlur: false)` saves that work, and
-  `blur: false` the glass blur.
+  every frame. Left unset, the scanner turns its blur off by itself when the
+  device does not draw its frames in time; `ScannerTheme(scrimBlur: false,
+  blur: false)` turns it off from the start, `true` keeps it on.
 
 ## Photos and files
 
