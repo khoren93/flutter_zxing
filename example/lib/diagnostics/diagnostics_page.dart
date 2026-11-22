@@ -23,6 +23,7 @@ import 'field_tab.dart';
 import 'frame_recorder.dart';
 import 'frame_saver.dart';
 import 'frames_tab.dart';
+import 'ladder.dart';
 import 'lens_numbers.dart';
 import 'scan_benchmark.dart';
 import 'settings_tab.dart';
@@ -62,6 +63,10 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
 
   /// Whether the numbers are on screen; off, they stop updating too.
   bool _showNumbers = true;
+
+  /// The ladder, while it is open.
+  final GlobalKey<LadderPageState> _ladder = GlobalKey<LadderPageState>();
+  Future<void>? _ladderOpen;
 
   /// The service extensions are registered once per isolate.
   static bool _extensionsRegistered = false;
@@ -110,6 +115,93 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
         jsonEncode(<String, Object>{'show': show}),
       );
     });
+    // ext.diag.ladder?action=open|close|step|run|stop|status, with step=L3
+    // or for a run steps=L0,L5 warmup=10 measure=60 repeats=3 scene=A.
+    developer.registerExtension('ext.diag.ladder', (
+      String method,
+      Map<String, String> params,
+    ) async {
+      final String action = params['action'] ?? 'status';
+      if (action == 'open' || action == 'step' || action == 'run') {
+        await _openLadder();
+      }
+      final LadderPageState? ladder = _ladder.currentState;
+      switch (action) {
+        case 'close':
+          if (ladder != null && mounted) {
+            Navigator.of(context).pop();
+          }
+        case 'step':
+          final LadderStep? step = LadderStep.parse(params['step'] ?? '');
+          if (step != null) {
+            await ladder?.setStep(step);
+          }
+        case 'run':
+          int n(String key, int d) => int.tryParse(params[key] ?? '') ?? d;
+          final List<LadderStep> steps = <LadderStep>[
+            for (final String s in (params['steps'] ?? '').split(','))
+              ?LadderStep.parse(s.trim()),
+          ];
+          unawaited(
+            ladder?.run(
+              steps: steps.isEmpty ? LadderStep.values : steps,
+              warmup: Duration(seconds: n('warmup', 10)),
+              measure: Duration(seconds: n('measure', 60)),
+              repeats: n('repeats', 3),
+              scene: params['scene'] ?? 'A',
+            ),
+          );
+        case 'stop':
+          ladder?.stopRun();
+      }
+      final LadderPageState? now = _ladder.currentState;
+      return developer.ServiceExtensionResponse.result(
+        jsonEncode(<String, Object?>{
+          'open': now != null,
+          'step': now?.step.label,
+          'running': now?.running ?? false,
+          'progress': now?.progress,
+          'results': now?.results.length ?? 0,
+        }),
+      );
+    });
+  }
+
+  /// Opens the ladder over the page; the page's scanner stops meanwhile so
+  /// that nothing of it is measured.
+  Future<void> _openLadder() async {
+    if (_ladder.currentState != null || !mounted) {
+      return;
+    }
+    if (_ladderOpen != null) {
+      await WidgetsBinding.instance.endOfFrame;
+      return;
+    }
+    _metrics.quiet = true;
+    await _controller.stop();
+    if (!mounted) {
+      return;
+    }
+    final Future<void> closed = Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) =>
+            LadderPage(key: _ladder, metrics: _metrics),
+      ),
+    );
+    _ladderOpen = closed;
+    unawaited(
+      closed.then((_) {
+        _ladderOpen = null;
+        if (mounted) {
+          _metrics.quiet = !_showNumbers;
+          unawaited(_controller.start());
+        }
+      }),
+    );
+    // Built and laid out before the caller uses it.
+    while (_ladder.currentState == null && mounted) {
+      await WidgetsBinding.instance.endOfFrame;
+    }
   }
 
   /// Every frame's reads go to the field test: it finds its code among them.
@@ -407,6 +499,7 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
       onSaveFrame: _saveFrame,
       onBenchmark: _runBenchmark,
       onStall: _measureStall,
+      onLadder: () => unawaited(_openLadder()),
     );
     // Dark also when the demo opens it from its own theme.
     return Theme(
@@ -455,6 +548,7 @@ class _Actions extends StatelessWidget {
     required this.onSaveFrame,
     required this.onBenchmark,
     required this.onStall,
+    required this.onLadder,
   });
 
   final ScannerController controller;
@@ -465,6 +559,7 @@ class _Actions extends StatelessWidget {
   final VoidCallback onSaveFrame;
   final VoidCallback onBenchmark;
   final VoidCallback onStall;
+  final VoidCallback onLadder;
 
   @override
   Widget build(BuildContext context) {
@@ -525,6 +620,11 @@ class _Actions extends StatelessWidget {
             tooltip: 'UI stall while reading a photo',
             icon: const Icon(Icons.hourglass_bottom),
             onPressed: onStall,
+          ),
+          IconButton(
+            tooltip: 'Load ladder',
+            icon: const Icon(Icons.stairs_outlined),
+            onPressed: onLadder,
           ),
           if (running != null)
             Padding(

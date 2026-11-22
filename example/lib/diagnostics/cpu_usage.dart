@@ -78,6 +78,64 @@ final class CpuMeter {
   /// The logical cores of the device.
   static int get cores => Platform.numberOfProcessors;
 
+  /// How hot the device is: 0 nominal, 1 fair, 2 serious, 3 critical
+  /// (NSProcessInfo.thermalState). iOS and macOS; `null` elsewhere.
+  static int? get thermalState => _thermal?.call();
+
+  static final int? Function()? _thermal = _thermalReader();
+
+  static int? Function()? _thermalReader() {
+    if (!Platform.isIOS && !Platform.isMacOS) {
+      return null;
+    }
+    try {
+      final DynamicLibrary lib = DynamicLibrary.process();
+      final Pointer<Uint8> Function(int) malloc = lib
+          .lookupFunction<
+            Pointer<Uint8> Function(IntPtr),
+            Pointer<Uint8> Function(int)
+          >('malloc');
+      Pointer<Uint8> cString(String s) {
+        final Pointer<Uint8> p = malloc(s.length + 1);
+        for (int i = 0; i < s.length; i++) {
+          p[i] = s.codeUnitAt(i);
+        }
+        p[s.length] = 0;
+        return p;
+      }
+
+      final Pointer<Void> Function(Pointer<Uint8>) getClass = lib
+          .lookupFunction<
+            Pointer<Void> Function(Pointer<Uint8>),
+            Pointer<Void> Function(Pointer<Uint8>)
+          >('objc_getClass');
+      final Pointer<Void> Function(Pointer<Uint8>) selector = lib
+          .lookupFunction<
+            Pointer<Void> Function(Pointer<Uint8>),
+            Pointer<Void> Function(Pointer<Uint8>)
+          >('sel_registerName');
+      final Pointer<Void> send = lib.lookup<Void>('objc_msgSend');
+      final Pointer<Void> Function(Pointer<Void>, Pointer<Void>)
+      sendObject = send
+          .cast<
+            NativeFunction<Pointer<Void> Function(Pointer<Void>, Pointer<Void>)>
+          >()
+          .asFunction();
+      final int Function(Pointer<Void>, Pointer<Void>) sendInt = send
+          .cast<NativeFunction<IntPtr Function(Pointer<Void>, Pointer<Void>)>>()
+          .asFunction();
+      // Looked up once, kept as long as the app runs.
+      final Pointer<Void> info = sendObject(
+        getClass(cString('NSProcessInfo')),
+        selector(cString('processInfo')),
+      );
+      final Pointer<Void> thermal = selector(cString('thermalState'));
+      return () => sendInt(info, thermal);
+    } on Object {
+      return null;
+    }
+  }
+
   /// The memory the process occupies, in bytes.
   static int? get residentBytes => ProcessInfo.currentRss;
 

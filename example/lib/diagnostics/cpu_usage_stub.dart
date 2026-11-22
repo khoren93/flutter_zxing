@@ -8,6 +8,9 @@ final class CpuMeter {
   /// Unknown.
   static int? get residentBytes => null;
 
+  /// Unknown.
+  static int? get thermalState => null;
+
   /// Always `null`.
   int? get processMicros => null;
 

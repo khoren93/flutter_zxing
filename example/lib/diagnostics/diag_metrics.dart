@@ -195,6 +195,16 @@ String? extraValue(String extra, String key) {
   }
 }
 
+/// One second of CPU: the process and its threads, as shares of one core.
+@immutable
+final class CpuSecond {
+  /// Creates a second.
+  const CpuSecond(this.cpu, this.threads);
+
+  final double cpu;
+  final List<(String, double)> threads;
+}
+
 /// Collects the numbers of a scanner, separately for A and B.
 final class DiagMetrics extends ChangeNotifier {
   /// Starts measuring.
@@ -241,6 +251,12 @@ final class DiagMetrics extends ChangeNotifier {
 
   /// The side being measured.
   String get side => _side;
+
+  final StreamController<CpuSecond> _seconds =
+      StreamController<CpuSecond>.broadcast(sync: true);
+
+  /// The CPU of every second, as it is measured.
+  Stream<CpuSecond> get seconds => _seconds.stream;
 
   /// Whether listeners stop hearing about new numbers: nothing on screen
   /// needs them. Measuring and the log go on.
@@ -325,6 +341,10 @@ final class DiagMetrics extends ChangeNotifier {
       _cpuPercent = _cpu.sample();
       _threads = _cpu.sampleThreads() ?? const <(String, double)>[];
       meter.stop();
+      final double? cpu = _cpuPercent;
+      if (cpu != null && _seconds.hasListener) {
+        _seconds.add(CpuSecond(cpu, _threads));
+      }
       if (_log) {
         _printSample(meter.elapsedMicroseconds);
       }
@@ -408,6 +428,7 @@ final class DiagMetrics extends ChangeNotifier {
   @override
   void dispose() {
     _ticker.cancel();
+    unawaited(_seconds.close());
     SchedulerBinding.instance.removeTimingsCallback(_onTimings);
     unawaited(_subscription?.cancel());
     super.dispose();
