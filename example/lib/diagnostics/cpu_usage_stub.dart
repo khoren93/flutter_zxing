@@ -9,6 +9,9 @@ final class CpuMeter {
   static int? get residentBytes => null;
 
   /// Always `null`.
+  int? get processMicros => null;
+
+  /// Always `null`.
   double? sample() => null;
 
   /// Always `null`.

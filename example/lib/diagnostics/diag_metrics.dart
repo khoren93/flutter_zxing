@@ -220,6 +220,13 @@ final class DiagMetrics extends ChangeNotifier {
   StreamSubscription<ScannerFrameSample>? _subscription;
   ScannerController? _controller;
 
+  /// Prints every CPU sample (`--dart-define=DIAG_LOG=true`).
+  static const bool _log = bool.fromEnvironment('DIAG_LOG');
+
+  final List<double> _quarters = <double>[];
+  int? _quarterProcess;
+  int _quarterWall = 0;
+
   String _side = 'A';
   int _skip = 0;
   int _ticks = 0;
@@ -234,6 +241,10 @@ final class DiagMetrics extends ChangeNotifier {
 
   /// The side being measured.
   String get side => _side;
+
+  /// Whether listeners stop hearing about new numbers: nothing on screen
+  /// needs them. Measuring and the log go on.
+  bool quiet = false;
 
   /// Measures [controller] from now on.
   void attach(ScannerController controller) {
@@ -300,15 +311,46 @@ final class DiagMetrics extends ChangeNotifier {
   }
 
   void _onTick(Timer _) {
+    // Each 250 ms quarter on its own, to see what the 1 s average hides.
+    final int? process = _cpu.processMicros;
+    final int wall = _clock.elapsedMicroseconds;
+    final int? lastProcess = _quarterProcess;
+    if (process != null && lastProcess != null && wall > _quarterWall) {
+      _quarters.add((process - lastProcess) / (wall - _quarterWall) * 100);
+    }
+    _quarterProcess = process;
+    _quarterWall = wall;
     if (++_ticks % 4 == 0) {
+      final Stopwatch meter = Stopwatch()..start();
       _cpuPercent = _cpu.sample();
       _threads = _cpu.sampleThreads() ?? const <(String, double)>[];
+      meter.stop();
+      if (_log) {
+        _printSample(meter.elapsedMicroseconds);
+      }
+      _quarters.clear();
       _dirty = true;
     }
-    if (_dirty) {
+    if (_dirty && !quiet) {
       _dirty = false;
       notifyListeners();
     }
+  }
+
+  /// Prints the CPU of the last second for comparison with the system
+  /// profilers (R4-01): process, its 250 ms quarters, the meter's own time
+  /// and the threads.
+  void _printSample(int meterMicros) {
+    String f(double v) => v.toStringAsFixed(1);
+    final double? cpu = _cpuPercent;
+    debugPrint(
+      'DIAGCPU t=${(_clock.elapsedMilliseconds / 1000).toStringAsFixed(2)}'
+      ' cpu=${cpu == null ? '-' : f(cpu)}'
+      ' q=${_quarters.map(f).join(',')}'
+      ' meter=${meterMicros}us'
+      ' reads=${_samples[_side]?.where((DiagSample s) => _clock.elapsedMicroseconds - s.atMicros < 1000000).length ?? 0}'
+      ' thr=${_threads.map(((String, double) t) => '${t.$1}:${f(t.$2)}').join('|')}',
+    );
   }
 
   /// The numbers of [side], by default the one being measured.

@@ -39,8 +39,9 @@ final class CpuMeter {
   Map<int, (String, int)> _lastThreads = <int, (String, int)>{};
   int _lastThreadsWall = 0;
 
-  /// Each thread's CPU time since the previous call, by thread name (threads
-  /// without one together as "unnamed"), as a share of one core, busiest
+  /// Each thread's CPU time since the previous call, by thread name (the
+  /// main thread as "main", the other threads without a name together as
+  /// "unnamed"), as a share of one core, busiest
   /// first. iOS and macOS only; `null` on the first call and elsewhere.
   List<(String, double)>? sampleThreads() {
     final _MachThreads? threads = _threads;
@@ -96,6 +97,9 @@ final class CpuMeter {
     return (cpu - last) / (wall - lastWall) * 100;
   }
 
+  /// User plus system CPU time of the process so far, in microseconds.
+  int? get processMicros => _cpuMicros();
+
   /// User plus system CPU time of the process, in microseconds.
   int? _cpuMicros() {
     final _GetRusageDart? getrusage = _getrusage;
@@ -148,6 +152,7 @@ final class _MachThreads {
             Pointer<Void> Function(Uint32),
             Pointer<Void> Function(int)
           >('pthread_from_mach_thread_np'),
+      _mainThread = _lookupMain(lib),
       _getName = lib
           .lookupFunction<
             Int32 Function(Pointer<Void>, Pointer<Uint8>, IntPtr),
@@ -161,6 +166,19 @@ final class _MachThreads {
             Pointer<Uint8> Function(IntPtr),
             Pointer<Uint8> Function(int)
           >('malloc')(256);
+
+  /// The main thread's pthread (Darwin's pthread_main_thread_np), `null`
+  /// if the symbol is missing.
+  static Pointer<Void>? _lookupMain(DynamicLibrary lib) {
+    try {
+      return lib
+          .lookupFunction<Pointer<Void> Function(), Pointer<Void> Function()>(
+            'pthread_main_thread_np',
+          )();
+    } on Object {
+      return null;
+    }
+  }
 
   static _MachThreads? load() {
     try {
@@ -177,6 +195,7 @@ final class _MachThreads {
   final int Function(int, int) _portDeallocate;
   final int Function(int, int, int) _vmDeallocate;
   final Pointer<Void> Function(int) _fromMachThread;
+  final Pointer<Void>? _mainThread;
   final int Function(Pointer<Void>, Pointer<Uint8>, int) _getName;
   final Pointer<Uint8> _scratch;
 
@@ -205,7 +224,10 @@ final class _MachThreads {
         final int micros = (info[0] + info[2]) * 1000000 + info[1] + info[3];
         String label = '';
         final Pointer<Void> thread = _fromMachThread(port);
-        if (thread != nullptr && _getName(thread, name, _nameSize) == 0) {
+        if (thread != nullptr && thread == _mainThread) {
+          label = 'main';
+        } else if (thread != nullptr &&
+            _getName(thread, name, _nameSize) == 0) {
           label = _cString(name);
         }
         threads[port] = (label.isEmpty ? 'unnamed' : label, micros);

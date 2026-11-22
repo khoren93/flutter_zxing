@@ -1,6 +1,8 @@
 // The diagnostics page: the live camera, its numbers, and the tabs that change
 // the settings and keep the runs.
 import 'dart:async';
+import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 // material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
@@ -58,6 +60,12 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
   bool _reopening = false;
   ScanBenchmark? _benchmark;
 
+  /// Whether the numbers are on screen; off, they stop updating too.
+  bool _showNumbers = true;
+
+  /// The service extensions are registered once per isolate.
+  static bool _extensionsRegistered = false;
+
   /// Apart from the page's state: it changes with every code read.
   final ValueNotifier<String?> _lastRead = ValueNotifier<String?>(null);
 
@@ -79,6 +87,29 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     unawaited(_runs.load());
     unawaited(_recordings.load());
     unawaited(loadFieldResults(_field));
+    _registerExtensions();
+  }
+
+  /// Lets a script on the Mac drive the page through the VM service of a
+  /// profile build (R4-01): `ext.diag.numbers?show=false` hides the numbers.
+  void _registerExtensions() {
+    if (_extensionsRegistered) {
+      return;
+    }
+    _extensionsRegistered = true;
+    developer.registerExtension('ext.diag.numbers', (
+      String method,
+      Map<String, String> params,
+    ) async {
+      final bool show = params['show'] != 'false';
+      if (mounted) {
+        setState(() => _showNumbers = show);
+        _metrics.quiet = !show;
+      }
+      return developer.ServiceExtensionResponse.result(
+        jsonEncode(<String, Object>{'show': show}),
+      );
+    });
   }
 
   /// Every frame's reads go to the field test: it finds its code among them.
@@ -351,20 +382,22 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     );
     // Opened on a small phone, the numbers scroll instead of pushing the
     // tabs off the screen.
-    final Widget numbers = ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.4,
-      ),
-      child: SingleChildScrollView(
-        child: _Numbers(
-          metrics: _metrics,
-          controller: _controller,
-          abOn: _b != null,
-          live: _live,
-          lastRead: _lastRead,
-        ),
-      ),
-    );
+    final Widget numbers = !_showNumbers
+        ? const SizedBox.shrink()
+        : ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.4,
+            ),
+            child: SingleChildScrollView(
+              child: _Numbers(
+                metrics: _metrics,
+                controller: _controller,
+                abOn: _b != null,
+                live: _live,
+                lastRead: _lastRead,
+              ),
+            ),
+          );
     final Widget actions = _Actions(
       controller: _controller,
       abOn: _b != null,
