@@ -78,6 +78,15 @@ final class CpuMeter {
   /// The logical cores of the device.
   static int get cores => Platform.numberOfProcessors;
 
+  /// The process's counters from proc_pid_rusage(RUSAGE_INFO_V6), iOS and
+  /// macOS: work and energy that do not depend on which cores ran it or at
+  /// what clock. `null` elsewhere or where the kernel is older.
+  static RusageCounters? get counters => _rusage?.read();
+
+  static final _Rusage6? _rusage = (Platform.isIOS || Platform.isMacOS)
+      ? _Rusage6.load()
+      : null;
+
   /// How hot the device is: 0 nominal, 1 fair, 2 serious, 3 critical
   /// (NSProcessInfo.thermalState). iOS and macOS; `null` elsewhere.
   static int? get thermalState => _thermal?.call();
@@ -306,5 +315,85 @@ final class _MachThreads {
       bytes.add(b);
     }
     return String.fromCharCodes(bytes);
+  }
+}
+
+/// Counters of the whole process since it started.
+typedef RusageCounters = ({
+  int userNs,
+  int systemNs,
+  int userPNs,
+  int systemPNs,
+  int instructions,
+  int cycles,
+  int pInstructions,
+  int pCycles,
+  int energyNj,
+  int pEnergyNj,
+  int billedEnergy,
+});
+
+/// proc_pid_rusage with RUSAGE_INFO_V6 (macOS 13, iOS 16 and later).
+final class _Rusage6 {
+  _Rusage6._(this._call, this._pid, this._buffer, this._nsPerTick);
+
+  static _Rusage6? load() {
+    try {
+      final DynamicLibrary lib = DynamicLibrary.process();
+      final int Function(int, int, Pointer<Uint8>) call = lib
+          .lookupFunction<
+            Int32 Function(Int32, Int32, Pointer<Uint8>),
+            int Function(int, int, Pointer<Uint8>)
+          >('proc_pid_rusage');
+      final int pid = lib.lookupFunction<Int32 Function(), int Function()>(
+        'getpid',
+      )();
+      // Kept as long as the app runs.
+      final Pointer<Uint8> buffer = lib
+          .lookupFunction<
+            Pointer<Uint8> Function(IntPtr),
+            Pointer<Uint8> Function(int)
+          >('malloc')(1024);
+      // The times count Mach ticks (24 MHz on Apple silicon).
+      lib.lookupFunction<
+        Int32 Function(Pointer<Uint32>),
+        int Function(Pointer<Uint32>)
+      >('mach_timebase_info')(buffer.cast());
+      final double nsPerTick =
+          buffer.cast<Uint32>()[0] / buffer.cast<Uint32>()[1];
+      final _Rusage6 r = _Rusage6._(call, pid, buffer, nsPerTick);
+      return r.read() == null ? null : r;
+    } on Object {
+      return null;
+    }
+  }
+
+  final int Function(int, int, Pointer<Uint8>) _call;
+  final int _pid;
+  final Pointer<Uint8> _buffer;
+  final double _nsPerTick;
+
+  int _ns(int offset) => (_u64(offset) * _nsPerTick).round();
+
+  int _u64(int offset) => (_buffer + offset).cast<Uint64>().value;
+
+  RusageCounters? read() {
+    if (_call(_pid, 6, _buffer) != 0) {
+      return null;
+    }
+    // struct rusage_info_v6, <sys/resource.h>.
+    return (
+      userNs: _ns(16),
+      systemNs: _ns(24),
+      userPNs: _ns(304),
+      systemPNs: _ns(312),
+      instructions: _u64(248),
+      cycles: _u64(256),
+      pInstructions: _u64(320),
+      pCycles: _u64(328),
+      energyNj: _u64(336),
+      pEnergyNj: _u64(344),
+      billedEnergy: _u64(264),
+    );
   }
 }

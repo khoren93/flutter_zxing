@@ -199,7 +199,18 @@ String? extraValue(String extra, String key) {
 @immutable
 final class CpuSecond {
   /// Creates a second.
-  const CpuSecond(this.cpu, this.threads, [this.quarters = const <double>[]]);
+  const CpuSecond(
+    this.cpu,
+    this.threads, [
+    this.quarters = const <double>[],
+    this.work,
+  ]);
+
+  /// The work of the second where the kernel counts it (iOS, macOS):
+  /// `instructionsG` (billions), `cyclesG`, `milliwatts` (the process's
+  /// energy over the second), `pShare` (share of CPU time on performance
+  /// cores, 0 to 1), `ghz` (cycles per second of CPU time).
+  final Map<String, double>? work;
 
   final double cpu;
   final List<(String, double)> threads;
@@ -237,6 +248,34 @@ final class DiagMetrics extends ChangeNotifier {
   static const bool _log = bool.fromEnvironment('DIAG_LOG');
 
   final List<double> _quarters = <double>[];
+  RusageCounters? _lastCounters;
+  int _lastCountersWall = 0;
+  Map<String, double>? _work;
+
+  /// The work since the last call, see [CpuSecond.work].
+  Map<String, double>? _sampleWork(int wall) {
+    final RusageCounters? now = CpuMeter.counters;
+    final RusageCounters? last = _lastCounters;
+    final int span = wall - _lastCountersWall;
+    _lastCounters = now;
+    _lastCountersWall = wall;
+    if (now == null || last == null || span <= 0) {
+      return null;
+    }
+    final int time = now.userNs + now.systemNs - last.userNs - last.systemNs;
+    final int pTime =
+        now.userPNs + now.systemPNs - last.userPNs - last.systemPNs;
+    final int cycles = now.cycles - last.cycles;
+    double r(double v) => (v * 1000).round() / 1000;
+    return <String, double>{
+      'instructionsG': r((now.instructions - last.instructions) / 1e9),
+      'cyclesG': r(cycles / 1e9),
+      'milliwatts': r((now.energyNj - last.energyNj) / 1e6 / (span / 1e6)),
+      'pShare': time <= 0 ? 0 : r(pTime / time),
+      'ghz': time <= 0 ? 0 : r(cycles / time),
+    };
+  }
+
   int? _quarterProcess;
   int _quarterWall = 0;
 
@@ -341,12 +380,15 @@ final class DiagMetrics extends ChangeNotifier {
     _quarterWall = wall;
     if (++_ticks % 4 == 0) {
       final Stopwatch meter = Stopwatch()..start();
+      _work = _sampleWork(wall);
       _cpuPercent = _cpu.sample();
       _threads = _cpu.sampleThreads() ?? const <(String, double)>[];
       meter.stop();
       final double? cpu = _cpuPercent;
       if (cpu != null && _seconds.hasListener) {
-        _seconds.add(CpuSecond(cpu, _threads, List<double>.of(_quarters)));
+        _seconds.add(
+          CpuSecond(cpu, _threads, List<double>.of(_quarters), _work),
+        );
       }
       if (_log) {
         _printSample(meter.elapsedMicroseconds);
@@ -371,6 +413,7 @@ final class DiagMetrics extends ChangeNotifier {
       ' cpu=${cpu == null ? '-' : f(cpu)}'
       ' q=${_quarters.map(f).join(',')}'
       ' meter=${meterMicros}us'
+      ' work=${jsonEncode(_work)}'
       ' reads=${_samples[_side]?.where((DiagSample s) => _clock.elapsedMicroseconds - s.atMicros < 1000000).length ?? 0}'
       ' thr=${_threads.map(((String, double) t) => '${t.$1}:${f(t.$2)}').join('|')}',
     );

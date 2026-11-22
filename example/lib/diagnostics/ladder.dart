@@ -111,6 +111,27 @@ final class _Recorder {
     dropped += lost;
   }
 
+  /// The means of [CpuSecond.work] over the seconds that have it.
+  Map<String, double>? _work() {
+    final List<Map<String, double>> w = <Map<String, double>>[
+      for (final CpuSecond s in seconds) ?s.work,
+    ];
+    if (w.isEmpty) {
+      return null;
+    }
+    return <String, double>{
+      for (final String key in w.first.keys)
+        key:
+            (w
+                        .map((Map<String, double> m) => m[key] ?? 0)
+                        .reduce((double a, double b) => a + b) /
+                    w.length *
+                    1000)
+                .round() /
+            1000,
+    };
+  }
+
   Map<String, Object?> finish() {
     final double span = clock.elapsedMicroseconds / 1e6;
     final List<double> cpu = seconds.map((CpuSecond s) => s.cpu).toList()
@@ -187,6 +208,7 @@ final class _Recorder {
       ),
       'rssMaxMb': _r(rss.isEmpty ? 0 : rss.reduce(math.max) / 1048576),
       'thermal': <int?>[thermalStart, CpuMeter.thermalState],
+      'work': _work(),
     };
   }
 }
@@ -715,6 +737,7 @@ class LadderPageState extends State<LadderPage> {
       'buildMaxMs': _r(w.buildMax / 1000),
       'rasterMaxMs': _r(w.rasterMax / 1000),
       'thermal': CpuMeter.thermalState,
+      'work': ?s.work,
       'rssMb': rss == null ? null : _r(rss / 1048576),
       'lens': ?lens,
       'cam': w.camera(),
