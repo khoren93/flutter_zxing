@@ -567,6 +567,33 @@ void main() {
       );
     });
 
+    testWidgets('the brackets stay still while a code only trembles', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      await tester.pumpWidget(_host(const BarcodeScanner()));
+      await tester.pump();
+      const Rect code = Rect.fromLTWH(150, 330, 90, 90);
+      await push(tester, <Barcode>[_barcode('a')]);
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(tester.hasRunningAnimations, isFalse);
+      // Corners found anew in every frame wander by a pixel or two.
+      for (final Offset d in const <Offset>[
+        Offset(1, 0),
+        Offset(-1, 2),
+        Offset(2, -1),
+      ]) {
+        await push(tester, <Barcode>[_barcode('a', rect: code.shift(d))]);
+        expect(tester.hasRunningAnimations, isFalse);
+      }
+      // A code that moves is still followed.
+      await push(tester, <Barcode>[
+        _barcode('a', rect: code.shift(const Offset(30, 0))),
+      ]);
+      expect(tester.hasRunningAnimations, isTrue);
+      await tester.pump(const Duration(milliseconds: 600));
+    });
+
     testWidgets('without a cut-out (the web) the brackets stay on the code', (
       WidgetTester tester,
     ) async {

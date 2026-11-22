@@ -145,6 +145,21 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
     );
   }
 
+  /// Whether a code the brackets frame has only trembled from [from] to
+  /// [to]: its corners, found anew in every frame, wander by a pixel or two
+  /// even when nothing moves. Following each of these restarted the flight
+  /// 30 times a second and kept the screen drawing at its full rate.
+  static bool _trembles(Rect? from, Rect? to) {
+    if (from == null || to == null) {
+      return false;
+    }
+    final double slack = math.max(3, 0.04 * math.min(from.width, from.height));
+    return (from.left - to.left).abs() <= slack &&
+        (from.top - to.top).abs() <= slack &&
+        (from.right - to.right).abs() <= slack &&
+        (from.bottom - to.bottom).abs() <= slack;
+  }
+
   void _retarget({required bool initial}) {
     final Rect? target = _target();
     final ScannerStatus status = widget.layout.state.status;
@@ -169,7 +184,7 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
       _fromTight = _toTight = tight;
       return;
     }
-    if (target == _to && lock == _toLock) {
+    if (lock == _toLock && (target == _to || _trembles(_to, target))) {
       return;
     }
     final Rect window = widget.layout.scanWindow;
