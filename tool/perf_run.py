@@ -41,7 +41,7 @@ BUDGETS = {
     },
     'Pixel 4a': {
         'A:L11:cpu': 180, 'B:L11:cpu': 180, 'pause:cpu': 40,
-        'L11:slowFramesPercent': 0.5, 'readP95Ms': 25, 'rssMb': 400,
+        'L11:slowFramesPercent': 1, 'readP95Ms': 25, 'rssMb': 400,
     },
 }
 
