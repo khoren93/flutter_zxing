@@ -649,6 +649,40 @@ void main() {
       expect(await second(), 0);
     });
 
+    testWidgets('the overlay is not built again for a trembling code', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      int builds = 0;
+      await tester.pumpWidget(
+        _host(
+          BarcodeScanner(
+            overlayBuilder: (BuildContext context, ScannerLayout layout) {
+              builds++;
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+      const Rect code = Rect.fromLTWH(150, 330, 90, 90);
+      await push(tester, <Barcode>[_barcode('a')]);
+      final int seen = builds;
+      for (final Offset d in const <Offset>[
+        Offset(1, 0),
+        Offset(0, -1),
+        Offset(1, 1),
+      ]) {
+        await push(tester, <Barcode>[_barcode('a', rect: code.shift(d))]);
+      }
+      expect(builds, seen);
+      await push(tester, <Barcode>[
+        _barcode('a', rect: code.shift(const Offset(30, 0))),
+      ]);
+      expect(builds, greaterThan(seen));
+      await tester.pump(const Duration(seconds: 1));
+    });
+
     testWidgets('the brackets stay still while a code only trembles', (
       WidgetTester tester,
     ) async {

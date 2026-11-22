@@ -1205,6 +1205,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
       return;
     }
     final double still = frame.shortestSide * 0.02;
+    bool changed = false;
     final List<_Track> open = List<_Track>.of(_tracks);
     for (final Barcode found in barcodes) {
       final Offset center = found.position.bounds.center;
@@ -1224,17 +1225,19 @@ class ScannerController extends ValueNotifier<ScannerState> {
       }
       if (nearest == null) {
         _tracks.add(_Track(_nextTrack++, found, found.position.corners, now));
+        changed = true;
       } else {
         open.remove(nearest);
-        nearest.update(found, now, still);
+        changed |= nearest.update(found, now, still);
       }
     }
     final int before = _tracks.length;
     _tracks.removeWhere(
       (_Track track) => now.difference(track.seen) > _outlineHold,
     );
-    if (barcodes.isEmpty && _tracks.length == before) {
-      // Nothing moved.
+    if (!changed && _tracks.length == before) {
+      // Nothing moved: the overlay is not built again for a code that only
+      // trembles, 30 times a second while it is in view.
       return;
     }
     _visible.value = _tracks.isEmpty
@@ -1414,21 +1417,27 @@ final class _Track {
   DateTime seen;
 
   /// Takes [found], the same code in a newer frame: a small move is
-  /// smoothed away, a large one followed at once. [still] is how far
-  /// counts as small, in display frame pixels.
-  void update(Barcode found, DateTime now, double still) {
+  /// smoothed away, a large one followed at once, and a tremble of a pixel
+  /// or two (a quarter of [still]) leaves the corners where they are.
+  /// [still] is how far counts as small, in display frame pixels. Returns
+  /// whether the corners moved.
+  bool update(Barcode found, DateTime now, double still) {
     final List<Offset> next = found.position.corners;
     double moved = 0;
     for (int i = 0; i < 4; i++) {
       moved = math.max(moved, (next[i] - corners[i]).distance);
+    }
+    barcode = found;
+    seen = now;
+    if (moved <= still / 4) {
+      return false;
     }
     corners = moved > still
         ? next
         : <Offset>[
             for (int i = 0; i < 4; i++) Offset.lerp(corners[i], next[i], 0.5)!,
           ];
-    barcode = found;
-    seen = now;
+    return true;
   }
 
   _Seen get seenAs => _Seen(id, barcode, corners);
