@@ -30,21 +30,24 @@ final class CpuMeter {
     }
     if (Platform.isIOS || Platform.isMacOS) {
       _threads = _MachThreads.load();
+    } else if (Platform.isAndroid || Platform.isLinux) {
+      _threads = _ProcThreads();
     }
   }
 
   static final CpuMeter _instance = CpuMeter._();
 
-  _MachThreads? _threads;
+  _ThreadReader? _threads;
   Map<int, (String, int)> _lastThreads = <int, (String, int)>{};
   int _lastThreadsWall = 0;
 
   /// Each thread's CPU time since the previous call, by thread name (the
   /// main thread as "main", the other threads without a name together as
   /// "unnamed"), as a share of one core, busiest
-  /// first. iOS and macOS only; `null` on the first call and elsewhere.
+  /// first. iOS, macOS, Android and Linux; `null` on the first call and
+  /// elsewhere.
   List<(String, double)>? sampleThreads() {
-    final _MachThreads? threads = _threads;
+    final _ThreadReader? threads = _threads;
     if (threads == null) {
       return null;
     }
@@ -190,8 +193,60 @@ extension type _Rusage(Pointer<Uint8> _p) {
   }
 }
 
+/// Each thread of the process: its id, name and user plus system CPU time
+/// in microseconds.
+abstract interface class _ThreadReader {
+  Map<int, (String, int)> read();
+}
+
+/// The threads of this process from /proc (Android, Linux): the main thread
+/// (whose id is the process's) as "main".
+final class _ProcThreads implements _ThreadReader {
+  /// Clock ticks per second of /proc times (USER_HZ): 100 on Android and
+  /// Linux.
+  static const int _hz = 100;
+
+  @override
+  Map<int, (String, int)> read() {
+    final Map<int, (String, int)> threads = <int, (String, int)>{};
+    final List<FileSystemEntity> tasks;
+    try {
+      tasks = Directory('/proc/self/task').listSync();
+    } on FileSystemException {
+      return threads;
+    }
+    final int self = pid;
+    for (final FileSystemEntity task in tasks) {
+      final int? tid = int.tryParse(
+        task.uri.pathSegments.lastWhere((String s) => s.isNotEmpty),
+      );
+      if (tid == null) {
+        continue;
+      }
+      try {
+        // "tid (name) state ppid ...": the name may hold spaces and
+        // parentheses, so the fields are counted after the last ')'.
+        final String stat = File('${task.path}/stat').readAsStringSync();
+        final int open = stat.indexOf('(');
+        final int close = stat.lastIndexOf(')');
+        final List<String> f = stat.substring(close + 2).split(' ');
+        // utime and stime are fields 14 and 15, here 11 and 12 (from 0
+        // after the state, field 3).
+        final int ticks = int.parse(f[11]) + int.parse(f[12]);
+        final String name = tid == self
+            ? 'main'
+            : stat.substring(open + 1, close);
+        threads[tid] = (name, ticks * 1000000 ~/ _hz);
+      } on Object {
+        // The thread ended meanwhile.
+      }
+    }
+    return threads;
+  }
+}
+
 /// The threads of this process, from the Mach kernel.
-final class _MachThreads {
+final class _MachThreads implements _ThreadReader {
   _MachThreads._(DynamicLibrary lib)
     : _task = lib.lookup<Uint32>('mach_task_self_').value,
       _taskThreads = lib
@@ -271,6 +326,7 @@ final class _MachThreads {
   static const int _nameSize = 64;
 
   /// Each thread's port, name and user plus system CPU time (µs).
+  @override
   Map<int, (String, int)> read() {
     final Pointer<Pointer<Uint32>> list = _scratch.cast();
     final Pointer<Uint32> count = (_scratch + 8).cast();

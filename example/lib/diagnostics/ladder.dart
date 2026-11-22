@@ -141,11 +141,18 @@ final class _Recorder {
       for (final (String name, double v) in s.threads) {
         final String key = switch (name) {
           'main' => 'main',
-          'io.flutter.1.raster' => 'raster',
+          'io.flutter.1.raster' || '1.raster' => 'raster',
           'DartWorker' => 'worker',
           'unnamed' => 'unnamed',
           'io.flutter.1.profiler' ||
-          'Dart Profiler ThreadInterrupter' => 'profiler',
+          'Dart Profiler ThreadInterrupter' ||
+          'Dart Profiler T' => 'profiler',
+          // Android: the Java heap's collector, the camera plugin's threads
+          // and the binder calls they make.
+          'HeapTaskDaemon' => 'javaGc',
+          _ when name.startsWith('CameraX') || name.startsWith('CXCP') =>
+            'camera',
+          _ when name.startsWith('binder:') => 'binder',
           _ => 'other',
         };
         threads[key] = (threads[key] ?? 0) + v / seconds.length;
