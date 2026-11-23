@@ -1,3 +1,4 @@
+import '../writing/check_digit.dart';
 import 'barcode_content.dart';
 import 'gs1_table.g.dart';
 
@@ -135,7 +136,7 @@ ContentIssue? gs1ElementIssue(String field, String ai, String value) {
   if (_numeric(ai) && !_digits.hasMatch(value)) {
     return ContentIssue(field, '($ai) must be digits');
   }
-  if (_checkDigit(ai) && !_validCheckDigit(value)) {
+  if (_checkDigit(ai) && !CheckDigit.gs1.isValid(value)) {
     return ContentIssue(
       field,
       '($ai) check digit is wrong',
@@ -169,17 +170,6 @@ bool _numeric(String ai) =>
     ai == '30' ||
     ai == '37' ||
     (ai.length == 4 && ai[0] == '3' && '1234569'.contains(ai[1]));
-
-/// The GS1 mod 10 check digit (General Specifications 7.9.1): weights 3
-/// and 1 from the right, the last digit makes the sum a multiple of 10.
-bool _validCheckDigit(String digits) {
-  int sum = 0;
-  for (int i = digits.length - 2, weight = 3; i >= 0; i--) {
-    sum += (digits.codeUnitAt(i) - 0x30) * weight;
-    weight = 4 - weight;
-  }
-  return (10 - sum % 10) % 10 == digits.codeUnitAt(digits.length - 1) - 0x30;
-}
 
 final RegExp _gs1DateDigits = RegExp(r'^\d{6}$');
 

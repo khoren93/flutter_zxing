@@ -131,6 +131,7 @@ export default defineConfig({
           { text: 'Styles and logos', link: '/creating/styles' },
           { text: 'PNG, SVG and images', link: '/creating/export' },
           { text: 'Label sheets', link: '/creating/label-sheets' },
+          { text: 'Many codes', link: '/creating/batches' },
         ],
       },
       {

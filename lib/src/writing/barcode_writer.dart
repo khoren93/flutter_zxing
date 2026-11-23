@@ -9,6 +9,7 @@ import '../barcode/barcode_format.dart';
 import '../barcode/upc.dart';
 import '../engine/engine.dart';
 import '../engine/engine_protocol.dart';
+import 'barcode_items.dart';
 import 'creator_options.dart' as writing;
 import 'creator_options.dart' show errorCorrectionOf;
 import 'symbol_layout.dart';
@@ -211,6 +212,32 @@ final class BarcodeWriter {
     };
     return '$printed$addOn';
   }
+
+  /// The first of [items] this writer cannot encode, or `null` if all
+  /// seem fine: for a list from a user, before a long label sheet or
+  /// export stops halfway with a [BarcodeWriteException].
+  ///
+  /// Every item is checked against the simple rules of [format] in Dart,
+  /// which is quick for a list of 100 000: empty items, characters the
+  /// format does not take (letters in an EAN-13, `é` in Code 39), digits
+  /// too many and a wrong check digit for EAN, UPC and GS1 DataBar. Then
+  /// the first, the last and the longest item are encoded. Capacity and
+  /// the rarer rules of a format are only found in those, so an item in
+  /// between may still fail to encode; [encodeAll] encodes every item
+  /// instead, which is exact and slower.
+  ///
+  /// ```dart
+  /// const writer = BarcodeWriter(BarcodeFormat.ean13);
+  /// final BarcodeItemIssue? issue = await writer.checkItems(['4006381333931', 'AB-1']);
+  /// print(issue); // Item 1 ("AB-1"): 'A' at position 1: EAN-13 takes digits only, ...
+  /// ```
+  ///
+  /// Throws [ArgumentError] if [format] cannot be written or [version] or
+  /// [zxingOptions] are not valid for it.
+  Future<BarcodeItemIssue?> checkItems(
+    Iterable<String> items, {
+    bool encodeAll = false,
+  }) => checkWriterItems(this, items, encodeAll: encodeAll);
 
   /// Encodes text and returns it as an SVG document, black on white. Same
   /// as `(await encode(data)).toSvg(...)` (see [BarcodeSymbol.toSvg]); for
