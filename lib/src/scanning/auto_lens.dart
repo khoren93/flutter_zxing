@@ -41,10 +41,14 @@ abstract final class AutoLensTuning {
   /// The steps, from the widest. Those on a camera the phone does not have
   /// are skipped.
   static const List<AutoLensStep> steps = <AutoLensStep>[
-    // The ultra-wide camera (0.5×): back to the main camera once it focuses
-    // farther than the main camera can (it reads about 0.75 where the main
-    // camera reaches 0).
-    AutoLensStep(CameraLens.ultraWide, up: 0.77),
+    // The ultra-wide camera zoomed to 0.9× (its own 1.8): at its own 0.5× a
+    // close code is half as big in the frame. On an iPhone 17 Pro Max at
+    // 10 cm this reads 30 of 34 codes at hd instead of 15 (R3-08). Not 1×:
+    // that zoom belongs to the main camera, and a step at the same zoom
+    // gives way to the longer camera. Back to the main camera once it
+    // focuses farther than the main camera can (it reads about 0.75 where the
+    // main camera reaches 0).
+    AutoLensStep(CameraLens.ultraWide, zoom: 1.8, up: 0.77),
     // The main camera (1×): at its nearest focus → the ultra-wide camera;
     // farther → its own 2×.
     AutoLensStep(CameraLens.main, down: 0.02, up: 0.5),

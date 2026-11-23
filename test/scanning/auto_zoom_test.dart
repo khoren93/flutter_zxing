@@ -142,7 +142,8 @@ void main() {
         CameraLens.main,
         CameraLens.ultraWide,
       ]);
-      expect(c.value.zoom, 0.5);
+      // Zoomed to 0.9×, so that a close code stays big in the frame.
+      expect(c.value.zoom, closeTo(0.9, 1e-9));
 
       // The ultra-wide camera focuses farther than the main one could.
       camera.lens = 0.9;
