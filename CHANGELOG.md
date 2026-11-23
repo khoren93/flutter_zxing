@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 4.0.0-rc.5
+
+Upgrading from rc.4: see
+[Upgrading](https://khoren93.github.io/flutter_zxing/more/upgrading-from-3x#from-4-0-0-rc-2).
 
 ### Breaking changes
 

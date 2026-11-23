@@ -365,7 +365,7 @@ digits (3.x gave 13). Asking for EAN-13 alone still gives EAN-13.
 
 The API changed in a few places between the release candidates and the
 release. The analyzer finds each of them; this table gives
-the new form. The rows from `ScannerStrings` on changed after rc.4.
+the new form. The rows from `ScannerStrings` on are new in rc.5.
 
 | rc.x | Now |
 |---|---|

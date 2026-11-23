@@ -74,7 +74,7 @@ code. `flutter_zxing.dart` adds the deprecated 3.x API to it.
 ## Installation
 
 ```bash
-flutter pub add flutter_zxing:^4.0.0-rc.4
+flutter pub add flutter_zxing:^4.0.0-rc.5
 ```
 
 The package compiles zxing-cpp with a build hook: no CMake, CocoaPods or
