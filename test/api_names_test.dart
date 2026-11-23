@@ -47,7 +47,7 @@ const List<Type> _types = <Type>[
   BarcodeContentView,
   BarcodeStyle, ModuleShape, FinderShape, BarcodeLogo, BarcodeCaption,
   BarcodeCard, BarcodeLabelSheet, BarcodeLabelSheetView, PaperSize,
-  SerialItems, BarcodeItems, BarcodeItemIssue, CheckDigit,
+  SerialItems, BarcodeItems, BarcodeItemIssue, CheckDigit, LabelOrder,
   // Scanning
   BarcodeScanner, ScannerController, ScannerState, ScannerStatus, TorchState,
   CameraFacing, CameraResolution, DetectionMode, BarcodeCapture, ScanWindow,

@@ -3,7 +3,8 @@
 `BarcodeLabelSheet` puts a list of data on pages to print: one code with
 its text on each label, in a fixed grid of columns and rows. You get the
 pages as one PDF or as SVG documents, in millimetres, so they print at
-their real size. The codes are vectors, black on white.
+their real size. The codes are vectors, black on white unless you give
+them a [style](#styled-codes).
 
 ```dart
 Future<void> printLabels(List<String> skus, Directory dir) async {
@@ -48,8 +49,11 @@ are in millimetres.
 | `captionSize` | `3` | The height of that line (3 mm is about 8.5 pt) |
 | `codeSize` | `null` | The longer side of each code in millimetres, centred on its label with the caption; `null` as large as the label allows |
 | `writer` | QR code | The format, error correction and the rest |
+| `style` | `BarcodeStyle.classic` | How the codes are drawn: see [Styled codes](#styled-codes) |
+| `order` | `LabelOrder.rows` | `LabelOrder.columns` fills a page column by column: the next item is below, for labels cut into strips or stacked in order |
 
-Labels fill a page row by row, left to right. In each label the code is
+Labels fill a page row by row, left to right, or column by column with
+`order: LabelOrder.columns`. In each label the code is
 as large as fits above the caption, keeping its proportions, and the two
 are centered. A caption too long for its label gets smaller.
 
@@ -76,6 +80,46 @@ Future<Uint8List> shelfLabels(Map<String, String> products) {
 `labelsPerPage`, `pageCount(items)`, `labelSize` and `labelRect(index)`
 give the grid, for a preview of your own or to print something next to
 the codes.
+
+## Styled codes
+
+`style` takes the [`BarcodeStyle`](./styles) of `BarcodeView`, and the
+preview, the PDF and the SVG draw the codes with it:
+
+```dart
+Future<Uint8List> brandedLabels(List<String> urls) {
+  final sheet = BarcodeLabelSheet(
+    columns: 3,
+    rows: 8,
+    style: BarcodeStyle.dots.copyWith(
+      logo: () => const BarcodeLogo(AssetImage('assets/logo.png')),
+    ),
+  );
+  return sheet.pdf(urls);
+}
+```
+
+The code part of the style applies: `color`, `gradient`, `moduleShape`,
+`finderShape`, `quietZone` and `logo`. A label is white paper, so a
+`backgroundColor` other than white fills the code's box, its quiet zone
+included. The style's `title`, `caption` and `card` are not drawn: the
+sheet has its own caption.
+
+Under a logo each item is encoded with the error correction the logo
+needs, as `BarcodeView` does. The logo is loaded once for the whole
+sheet, sharp at 300 dpi, and is in the PDF once however many labels show
+it (in an SVG, once a page). A logo that cannot load stops the sheet with
+an `ArgumentError` before the first page.
+
+In the PDF the module shapes are vector paths, a `LinearGradient` or
+`RadialGradient` is a real PDF gradient across each code, and colors are
+opaque. A gradient's `TileMode.repeated` and `mirror` extend its end
+colors there. A `SweepGradient` cannot be drawn in the files: `pdf` and
+`svgPages` throw an `UnsupportedError` for it.
+
+Rounded modules and dots take more room than squares: 10 000 QR codes
+make a PDF of about 17 MB with dots and 29 MB with rounded modules, in
+7 to 10 seconds on a laptop (squares: under 3 MB in about 2.5 seconds).
 
 ## PDF or SVG
 
@@ -119,7 +163,8 @@ Future<Uint8List> withProgress(List<String> items) {
 An item the format cannot hold, such as letters in an EAN-13, stops the
 whole sheet with a `BarcodeWriteException` that names the item and its
 index: a sheet never prints with a label silently missing. Check your
-data first if it may have such items.
+data first with `BarcodeWriter.checkItems`, and make numbered items or
+read them from a CSV file with the helpers in [Many codes](./batches).
 
 ## Preview
 

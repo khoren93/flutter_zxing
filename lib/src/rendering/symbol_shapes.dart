@@ -153,36 +153,42 @@ final class SymbolShapes {
         }
       case ModuleShape.rounded:
         // A corner is rounded only where both of its sides are open, so
-        // neighbouring modules flow into one shape.
+        // neighbouring modules flow into one shape. A run of modules in a
+        // row is one shape: inside it no corner is rounded.
         const Radius r = Radius.circular(0.5);
+        bool on(int x, int y) => dark(x, y) && !skip(x, y);
         for (int y = 0; y < h; y++) {
-          for (int x = 0; x < w; x++) {
-            if (!dark(x, y) || skip(x, y)) {
+          int x = 0;
+          while (x < w) {
+            if (!on(x, y)) {
+              x++;
               continue;
             }
-            final bool up = dark(x, y - 1) && !skip(x, y - 1);
-            final bool down = dark(x, y + 1) && !skip(x, y + 1);
-            final bool left = dark(x - 1, y) && !skip(x - 1, y);
-            final bool right = dark(x + 1, y) && !skip(x + 1, y);
-            final Rect cell = Rect.fromLTWH(
-              (q + x).toDouble(),
+            final int start = x;
+            while (x + 1 < w && on(x + 1, y)) {
+              x++;
+            }
+            final int end = x++;
+            final bool topLeft = !on(start, y - 1) && !on(start - 1, y);
+            final bool bottomLeft = !on(start, y + 1) && !on(start - 1, y);
+            final bool topRight = !on(end, y - 1) && !on(end + 1, y);
+            final bool bottomRight = !on(end, y + 1) && !on(end + 1, y);
+            final Rect run = Rect.fromLTRB(
+              (q + start).toDouble(),
               (q + y).toDouble(),
-              1,
-              1,
+              (q + end + 1).toDouble(),
+              (q + y + 1).toDouble(),
             );
-            if ((up || left) &&
-                (up || right) &&
-                (down || right) &&
-                (down || left)) {
-              sink.rect(cell);
+            if (!topLeft && !bottomLeft && !topRight && !bottomRight) {
+              sink.rect(run);
             } else {
               sink.rrect(
                 RRect.fromRectAndCorners(
-                  cell,
-                  topLeft: up || left ? Radius.zero : r,
-                  topRight: up || right ? Radius.zero : r,
-                  bottomRight: down || right ? Radius.zero : r,
-                  bottomLeft: down || left ? Radius.zero : r,
+                  run,
+                  topLeft: topLeft ? r : Radius.zero,
+                  topRight: topRight ? r : Radius.zero,
+                  bottomRight: bottomRight ? r : Radius.zero,
+                  bottomLeft: bottomLeft ? r : Radius.zero,
                 ),
               );
             }

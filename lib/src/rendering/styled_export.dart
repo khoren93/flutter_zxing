@@ -268,36 +268,21 @@ Future<String> styledSvg(
     svg.write(' shape-rendering="crispEdges"');
   }
   svg.write('>');
-  final _SvgSink modules = _SvgSink();
-  shapes.modules(modules);
-  svg.write('<path d="$modules" fill="$fill"$opacity/>');
-  if (shapes.hasFinders) {
-    final _SvgSink finders = _SvgSink();
-    shapes.finders(finders);
-    svg.write('<path d="$finders" fill="$fill"$opacity fill-rule="evenodd"/>');
-  }
-  if (logoBox != null && logoPng != null) {
-    final ui.Rect r = logoBox.rect;
-    svg.write(
-      '<image x="${_n(r.left)}" y="${_n(r.top)}" '
-      'width="${_n(r.width)}" height="${_n(r.height)}" '
-      'preserveAspectRatio="xMidYMid meet" '
-      'xlink:href="data:image/png;base64,$logoPng"/>',
-    );
-  }
-  final Color digits = textColorOf(style);
-  for (final TextRun t in layout.textRuns) {
-    svg
-      ..write('<text x="${_n(t.x)}" ')
-      ..write('y="${_n(t.top + t.fontSize)}" ')
-      ..write('font-family="monospace" ')
-      ..write('font-size="${_n(t.fittedSize(layout.width))}" ')
-      ..write('$_preserveSpaces ')
-      ..write('text-anchor="middle" fill="${_color(digits)}"')
-      ..write('${_opacity('fill', digits)}>')
-      ..write(xmlEscape(t.text))
-      ..write('</text>');
-  }
+  _writeCode(
+    svg,
+    shapes,
+    style,
+    fill: fill,
+    opacity: opacity,
+    logo: logoBox != null && logoPng != null
+        ? (ui.Rect r) => svg.write(
+            '<image x="${_n(r.left)}" y="${_n(r.top)}" '
+            'width="${_n(r.width)}" height="${_n(r.height)}" '
+            'preserveAspectRatio="xMidYMid meet" '
+            'xlink:href="data:image/png;base64,$logoPng"/>',
+          )
+        : null,
+  );
   svg.write('</g>');
   for (final FrameText? t in <FrameText?>[frame.title, frame.caption]) {
     if (t != null) {
@@ -307,6 +292,120 @@ Future<String> styledSvg(
   svg.write('</svg>');
   return svg.toString();
 }
+
+/// The code of [shapes] in module units: the modules and finders filled
+/// with [fill], the logo drawn by [logo] in its box, the digits under
+/// EAN/UPC.
+void _writeCode(
+  StringBuffer svg,
+  SymbolShapes shapes,
+  BarcodeStyle style, {
+  required String fill,
+  required String opacity,
+  void Function(ui.Rect box)? logo,
+}) {
+  final _SvgSink modules = _SvgSink();
+  shapes.modules(modules);
+  svg.write('<path d="$modules" fill="$fill"$opacity/>');
+  if (shapes.hasFinders) {
+    final _SvgSink finders = _SvgSink();
+    shapes.finders(finders);
+    svg.write('<path d="$finders" fill="$fill"$opacity fill-rule="evenodd"/>');
+  }
+  final LogoBox? logoBox = shapes.logo;
+  if (logoBox != null && logo != null) {
+    logo(logoBox.rect);
+  }
+  final Color digits = textColorOf(style);
+  for (final TextRun t in shapes.layout.textRuns) {
+    svg
+      ..write('<text x="${_n(t.x)}" ')
+      ..write('y="${_n(t.top + t.fontSize)}" ')
+      ..write('font-family="monospace" ')
+      ..write('font-size="${_n(t.fittedSize(shapes.layout.width))}" ')
+      ..write('$_preserveSpaces ')
+      ..write('text-anchor="middle" fill="${_color(digits)}"')
+      ..write('${_opacity('fill', digits)}>')
+      ..write(xmlEscape(t.text))
+      ..write('</text>');
+  }
+}
+
+/// [shown] (a symbol as [style] shows it: `styledSymbol`) drawn with the
+/// code part of [style] as a nested `<svg>` at [x], [y], [width] x
+/// [height] in the units of the page around it: the background (unless
+/// white), the modules and finders in the style's color or gradient, the
+/// logo and the digits under EAN/UPC. No title, caption or card.
+///
+/// A gradient goes into [defs] (id to definition) under an id named after
+/// its definition, so codes of one size share it; the page writes [defs].
+/// The logo is a `<use>` of [logoId], a `<symbol>` the page defines, so
+/// the image is in the page once. Without [logoId] the logo is left out.
+///
+/// Throws [UnsupportedError] for a [SweepGradient], which SVG cannot draw.
+String styledSvgElement(
+  BarcodeSymbol shown,
+  BarcodeStyle style, {
+  required double x,
+  required double y,
+  required double width,
+  required double height,
+  required Map<String, String> defs,
+  String? logoId,
+}) {
+  final SymbolLayout layout = SymbolLayout(shown);
+  final SymbolShapes shapes = SymbolShapes(shown, layout, style);
+  final Gradient? gradient = style.gradient;
+  final String fill;
+  final String opacity;
+  if (gradient == null) {
+    fill = _color(style.color);
+    opacity = _opacity('fill', style.color);
+  } else {
+    final String def = _gradient(gradient, shapes.symbolArea);
+    final String id = 'ink-${_hash(def)}';
+    defs[id] ??= def.replaceFirst('id="ink"', 'id="$id"');
+    fill = 'url(#$id)';
+    opacity = '';
+  }
+  final StringBuffer svg = StringBuffer()
+    ..write('<svg x="${_n(x)}" y="${_n(y)}" ')
+    ..write('width="${_n(width)}" height="${_n(height)}" ')
+    ..write('viewBox="0 0 ${layout.width} ${layout.height}"');
+  if (shapes.plain) {
+    svg.write(' shape-rendering="crispEdges"');
+  }
+  svg.write('>');
+  final Color background = style.backgroundColor;
+  if (background.a > 0 && background.toARGB32() != 0xFFFFFFFF) {
+    svg.write(
+      '<rect width="${layout.width}" height="${layout.height}" '
+      'fill="${_color(background)}"${_opacity('fill', background)}/>',
+    );
+  }
+  _writeCode(
+    svg,
+    shapes,
+    style,
+    fill: fill,
+    opacity: opacity,
+    logo: logoId == null
+        ? null
+        : (ui.Rect r) => svg.write(
+            '<use xlink:href="#$logoId" x="${_n(r.left)}" y="${_n(r.top)}" '
+            'width="${_n(r.width)}" height="${_n(r.height)}"/>',
+          ),
+  );
+  svg.write('</svg>');
+  return svg.toString();
+}
+
+/// The `<symbol>` with id [id] holding [png] (base64), [width] x
+/// [height] pixels, for the `<use>` of [styledSvgElement]: fitted into the
+/// logo's box and centred, as the screen draws it.
+String svgLogoSymbol(String id, String png, int width, int height) =>
+    '<symbol id="$id" viewBox="0 0 $width $height"><image width="$width" height="$height" '
+    'xlink:href="data:image/png;base64,$png"/></symbol>';
 
 /// Keeps runs of spaces in `<text>`, as the screen and the PNG show them:
 /// SVG collapses them otherwise.

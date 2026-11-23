@@ -5,6 +5,7 @@
 library;
 
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,6 +24,25 @@ Future<Set<String>> _read(PixelBuffer pixels) async => <String>{
   for (final Barcode b in await const BarcodeReader().readAllPixels(pixels))
     b.text,
 };
+
+/// A [size] x [size] PNG: a dark rounded square on transparency, like an
+/// app icon.
+Future<Uint8List> _logoPng([int size = 64]) async {
+  final ui.PictureRecorder recorder = ui.PictureRecorder();
+  Canvas(recorder).drawRRect(
+    RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.toDouble(), size.toDouble()),
+      Radius.circular(size / 5),
+    ),
+    Paint()..color = const Color(0xFF0B3D91),
+  );
+  final ui.Image image = await recorder.endRecording().toImage(size, size);
+  final ByteData png = (await image.toByteData(
+    format: ui.ImageByteFormat.png,
+  ))!;
+  image.dispose();
+  return png.buffer.asUint8List();
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -156,5 +176,224 @@ void main() {
     final Rect text = tester.getRect(find.text('SKU-0025'));
     expect(text.center.dx, closeTo(at.code.center.dx * 2, 0.5));
     await tester.binding.setSurfaceSize(null);
+  });
+
+  group('styled codes', () {
+    late final BarcodeStyle withLogo;
+    setUpAll(() async {
+      final Uint8List png = await _logoPng();
+      withLogo = BarcodeStyle.soft.copyWith(
+        logo: () => BarcodeLogo(MemoryImage(png)),
+      );
+    });
+
+    final List<(String, BarcodeStyle Function())> styles =
+        <(String, BarcodeStyle Function())>[
+          ('soft', () => BarcodeStyle.soft),
+          ('dots', () => BarcodeStyle.dots),
+          ('lagoon (linear gradient)', () => BarcodeStyle.lagoon),
+          (
+            'radial gradient of three colors',
+            () => const BarcodeStyle(
+              moduleShape: ModuleShape.circle,
+              finderShape: FinderShape.rounded,
+              gradient: RadialGradient(
+                colors: <Color>[
+                  Color(0xFF000000),
+                  Color(0xFF1D4ED8),
+                  Color(0xFF00735D),
+                ],
+                stops: <double>[0, 0.6, 1],
+              ),
+            ),
+          ),
+          ('a logo', () => withLogo),
+        ];
+    for (final (String name, BarcodeStyle Function() style) in styles) {
+      final List<String> items = _items(qr.labelsPerPage + 3);
+      final Set<String> firstPage = items.take(qr.labelsPerPage).toSet();
+
+      test('$name: every code of the PDF page reads back', () async {
+        final BarcodeLabelSheet sheet = qr.copyWith(style: style());
+        final String content = readPdf(await sheet.pdf(items)).contents.first;
+        final PixelBuffer pixels = await paintPdfPage(content, qr.paper, 8);
+        expect(await _read(pixels), firstPage);
+      });
+
+      test('$name: every code of the SVG page reads back', () async {
+        final BarcodeLabelSheet sheet = qr.copyWith(style: style());
+        final String svg = await sheet.svgPages(items).first;
+        final PixelBuffer pixels = await paintSvgPage(svg, qr.paper, 8);
+        expect(await _read(pixels), firstPage);
+      });
+    }
+
+    test('a logo: encoded with the error correction it needs, in the PDF '
+        'once', () async {
+      final BarcodeLabelSheet sheet = qr.copyWith(style: withLogo);
+      final List<String> items = _items(30);
+      final PdfPages pdf = readPdf(await sheet.pdf(items));
+      final List<String> images = pdf.objects.values
+          .where((String o) => o.contains('/Subtype/Image/'))
+          .toList();
+      // The image and its soft mask (the logo's corners are transparent).
+      expect(images, hasLength(2));
+      expect(images.where((String o) => o.contains('/SMask')), hasLength(1));
+      expect(pdf.contents, hasLength(2));
+      expect(RegExp('/Logo Do').allMatches(pdf.contents[0]), hasLength(24));
+      expect(RegExp('/Logo Do').allMatches(pdf.contents[1]), hasLength(6));
+      expect(pdf.resources[1], contains('/XObject<</Logo '));
+      // The PDF's code is the one BarcodeView shows: the logo's level.
+      final BarcodeSymbol expected = await withLogo.encode(items.first);
+      expect(expected.errorCorrection, ErrorCorrection.high);
+      final LabelPlacement at = placeLabel(
+        sheet,
+        sheet.labelRect(0),
+        SymbolLayout(expected),
+        items.first,
+      );
+      final double m = at.code.width / SymbolLayout(expected).width;
+      expect(pdf.contents[0], contains('q ${m.toStringAsFixed(6)} 0 0 '));
+
+      final List<String> svg = await sheet.svgPages(items).toList();
+      for (final String page in svg) {
+        expect(RegExp('<symbol id="zx-logo"').allMatches(page), hasLength(1));
+      }
+      expect(RegExp('<use ').allMatches(svg[0]), hasLength(24));
+    });
+
+    test('a logo that cannot load fails before any page', () async {
+      final BarcodeLabelSheet broken = qr.copyWith(
+        style: BarcodeStyle.soft.copyWith(
+          logo: () => BarcodeLogo(MemoryImage(Uint8List.fromList(<int>[1, 2]))),
+        ),
+      );
+      final Matcher error = throwsA(
+        isA<ArgumentError>().having(
+          (ArgumentError e) => e.message,
+          'message',
+          contains('logo'),
+        ),
+      );
+      await expectLater(broken.pdf(_items(3)), error);
+      await expectLater(broken.svgPages(_items(3)).toList(), error);
+    });
+
+    testWidgets('the preview draws styled codes where the files do', (
+      WidgetTester tester,
+    ) async {
+      final BarcodeStyle style = BarcodeStyle.dots.copyWith(
+        quietZone: false,
+        caption: () => const BarcodeCaption('NOT ON A LABEL'),
+      );
+      final BarcodeLabelSheet sheet = qr.copyWith(style: style);
+      final List<String> items = _items(5);
+      await tester.binding.setSurfaceSize(const Size(420, 700));
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 420,
+              child: BarcodeLabelSheetView(sheet: sheet, items: items),
+            ),
+          ),
+        ),
+      );
+      for (int i = 0; i < 100; i++) {
+        if (find.byType(BarcodeView).evaluate().length == 5) {
+          break;
+        }
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+      final List<BarcodeView> views = tester
+          .widgetList<BarcodeView>(find.byType(BarcodeView))
+          .toList();
+      expect(views, hasLength(5));
+      for (final BarcodeView view in views) {
+        expect(view.style, style.copyWith(caption: () => null));
+      }
+      final BarcodeSymbol symbol = (await tester.runAsync(
+        () => sheet.writer.encode(items[1]),
+      ))!;
+      final LabelPlacement at = placeLabel(
+        sheet,
+        sheet.labelRect(1),
+        SymbolLayout(withoutQuietZone(symbol)),
+        items[1],
+      );
+      final Rect shown = tester.getRect(find.byType(BarcodeView).at(1));
+      expect(shown.left, closeTo(at.code.left * 2, 0.01));
+      expect(shown.top, closeTo(at.code.top * 2, 0.01));
+      expect(shown.width, closeTo(at.code.width * 2, 0.01));
+      expect(find.text('NOT ON A LABEL'), findsNothing);
+      await tester.binding.setSurfaceSize(null);
+    });
+
+    testWidgets("the preview fills a page in the sheet's order", (
+      WidgetTester tester,
+    ) async {
+      final BarcodeLabelSheet sheet = qr.copyWith(order: LabelOrder.columns);
+      await tester.binding.setSurfaceSize(const Size(420, 700));
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 420,
+              child: BarcodeLabelSheetView(sheet: sheet, items: _items(2)),
+            ),
+          ),
+        ),
+      );
+      for (int i = 0; i < 100; i++) {
+        if (find.byType(BarcodeView).evaluate().length == 2) {
+          break;
+        }
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+      final Rect first = tester.getRect(find.text('SKU-0001'));
+      final Rect second = tester.getRect(find.text('SKU-0002'));
+      expect(second.center.dx, closeTo(first.center.dx, 0.01));
+      expect(second.top, greaterThan(first.bottom));
+      await tester.binding.setSurfaceSize(null);
+    });
+
+    testWidgets('the preview encodes under a logo as the files do', (
+      WidgetTester tester,
+    ) async {
+      final BarcodeLabelSheet sheet = qr.copyWith(style: withLogo);
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: SizedBox(
+            width: 420,
+            child: BarcodeLabelSheetView(sheet: sheet, items: _items(2)),
+          ),
+        ),
+      );
+      for (int i = 0; i < 100; i++) {
+        if (find.byType(BarcodeView).evaluate().length == 2) {
+          break;
+        }
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+      final BarcodeView view = tester.widget<BarcodeView>(
+        find.byType(BarcodeView).first,
+      );
+      expect(view.symbol!.errorCorrection, ErrorCorrection.high);
+      expect(view.style.logo, withLogo.logo);
+    });
   });
 }

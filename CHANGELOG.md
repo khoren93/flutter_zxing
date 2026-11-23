@@ -15,6 +15,17 @@
 
 * `BarcodeLabelSheet(codeSize:)` sets the size of each code in millimetres
   instead of filling its label.
+* `SerialItems('BOX-{n:6}', count: 10000)` makes numbered items for a
+  label sheet, one at a time, with an optional check digit.
+* `BarcodeItems.lines` and `BarcodeItems.csv` read items from pasted text
+  or a CSV file, with `csvHeaders` for a column picker.
+* `CheckDigit.gs1`, `luhn` and `mod43` compute and verify check digits.
+* `BarcodeWriter.checkItems` finds the first item of a list that cannot
+  be encoded, and why, before a long export.
+* `BarcodeLabelSheet(style:)` prints styled codes: colors, gradients,
+  rounded modules, dots, round eyes and a logo, in the preview, the PDF
+  and the SVG alike. `order: LabelOrder.columns` fills a page column by
+  column.
 
 ### Fixed
 

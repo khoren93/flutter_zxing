@@ -7,8 +7,11 @@ import '../barcode/barcode_format.dart';
 import '../errors.dart';
 import '../writing/barcode_writer.dart';
 import '../writing/symbol_layout.dart';
+import 'barcode_style.dart';
 import 'barcode_view.dart';
 import 'label_sheet_output.dart';
+import 'logo_symbol.dart';
+import 'symbol_shapes.dart';
 
 /// A sheet of paper, in millimetres.
 ///
@@ -57,13 +60,25 @@ final class PaperSize {
   String toString() => 'PaperSize($width x $height mm)';
 }
 
+/// The order in which a [BarcodeLabelSheet] fills a page with labels.
+enum LabelOrder {
+  /// Row by row: the next item is to the right, then the next row starts
+  /// at the left. The default.
+  rows,
+
+  /// Column by column: the next item is below, then the next column
+  /// starts at the top. For labels cut into strips or stacked in order.
+  columns,
+}
+
 /// Pages of labels to print: a code with its text on each label, in a
 /// fixed grid of [columns] x [rows] on [paper].
 ///
 /// Give it the data, one item a label, and get the pages as a PDF or as
 /// SVG documents in millimetres, which print at their real size. The codes
-/// are vectors, black on white. Items are encoded page by page, so a list
-/// of 10 000 never holds all its codes at once.
+/// are vectors, black on white unless you give a [style]. Items are
+/// encoded page by page, so a list of 10 000 never holds all its codes at
+/// once.
 ///
 /// ```dart
 /// const sheet = BarcodeLabelSheet(
@@ -79,6 +94,18 @@ final class PaperSize {
 /// [columnGap] and [rowGap] the space between labels, [padding] the blank
 /// edge inside each label. Show a page on screen with
 /// [BarcodeLabelSheetView].
+///
+/// Draw the codes with a [BarcodeStyle], as `BarcodeView` does:
+///
+/// ```dart
+/// final sheet = BarcodeLabelSheet(
+///   columns: 3,
+///   rows: 8,
+///   style: BarcodeStyle.soft.copyWith(
+///     logo: () => const BarcodeLogo(AssetImage('assets/logo.png')),
+///   ),
+/// );
+/// ```
 @immutable
 final class BarcodeLabelSheet {
   /// Creates a sheet layout. All lengths are in millimetres.
@@ -94,6 +121,8 @@ final class BarcodeLabelSheet {
     this.captionSize = 3,
     this.codeSize,
     this.writer = const BarcodeWriter(BarcodeFormat.qrCode),
+    this.style = BarcodeStyle.classic,
+    this.order = LabelOrder.rows,
   }) : assert(columns > 0 && rows > 0, 'A sheet needs a column and a row'),
        assert(columnGap >= 0 && rowGap >= 0, 'Gaps cannot be negative'),
        assert(padding >= 0, 'The padding cannot be negative'),
@@ -141,6 +170,33 @@ final class BarcodeLabelSheet {
   /// code by default.
   final BarcodeWriter writer;
 
+  /// How the codes are drawn: on the preview, in the SVG and in the PDF
+  /// alike. Black squares by default ([BarcodeStyle.classic]).
+  ///
+  /// The code part of the style applies: [BarcodeStyle.color],
+  /// [BarcodeStyle.gradient], [BarcodeStyle.moduleShape],
+  /// [BarcodeStyle.finderShape], [BarcodeStyle.quietZone] and
+  /// [BarcodeStyle.logo]. Under a logo each item is encoded with the error
+  /// correction the logo needs, as `BarcodeView` and [BarcodeStyle.encode]
+  /// do. The label is white paper: a [BarcodeStyle.backgroundColor] other
+  /// than white fills the code's box, its quiet zone included. The style's
+  /// [BarcodeStyle.title], [BarcodeStyle.caption] and [BarcodeStyle.card]
+  /// are not drawn: the sheet has its own [caption].
+  ///
+  /// The PDF draws the module shapes as vector paths, a [LinearGradient] or
+  /// [RadialGradient] as a PDF shading and the logo as one image the whole
+  /// file shares. PDF colors are opaque, and a gradient's
+  /// [TileMode.repeated] and [TileMode.mirror] extend its end colors. A
+  /// [SweepGradient] cannot be drawn in the files: [pdf] and [svgPages]
+  /// throw an [UnsupportedError] for it.
+  final BarcodeStyle style;
+
+  /// The order the items fill a page in: row by row (the default) or
+  /// column by column ([LabelOrder.columns]: the next item is below; for
+  /// labels cut into strips or stacked in order). The files and the
+  /// preview follow it.
+  final LabelOrder order;
+
   /// Labels on one page.
   int get labelsPerPage => columns * rows;
 
@@ -154,8 +210,9 @@ final class BarcodeLabelSheet {
   );
 
   /// Where the label of item [index] is on its page, in millimetres from
-  /// the top left corner. Labels fill a page row by row, left to right;
-  /// item `labelsPerPage` starts the next page at the same place as item 0.
+  /// the top left corner. Labels fill a page in [order]: row by row, left
+  /// to right, or column by column, top to bottom; item `labelsPerPage`
+  /// starts the next page at the same place as item 0.
   ///
   /// Throws [ArgumentError] if [index] is negative or the margins and gaps
   /// leave no room for the labels.
@@ -171,9 +228,13 @@ final class BarcodeLabelSheet {
       );
     }
     final int i = index % labelsPerPage;
+    final (int column, int row) = switch (order) {
+      LabelOrder.rows => (i % columns, i ~/ columns),
+      LabelOrder.columns => (i ~/ rows, i % rows),
+    };
     return Rect.fromLTWH(
-      margin.left + (i % columns) * (size.width + columnGap),
-      margin.top + (i ~/ columns) * (size.height + rowGap),
+      margin.left + column * (size.width + columnGap),
+      margin.top + row * (size.height + rowGap),
       size.width,
       size.height,
     );
@@ -194,23 +255,39 @@ final class BarcodeLabelSheet {
   /// }
   /// ```
   ///
+  /// The [style]'s logo is embedded as a PNG, once a page.
+  ///
   /// No items give no pages. Throws [BarcodeWriteException] naming the
   /// item and its index if an item cannot be encoded (such as a character
   /// Code 128 cannot hold): no page is skipped silently. Throws
-  /// [ArgumentError] if the labels leave no room for a code.
+  /// [ArgumentError] if the labels leave no room for a code or the
+  /// style's logo cannot be loaded, and [UnsupportedError] for a
+  /// [SweepGradient]; both before the first page.
   Stream<String> svgPages(
     Iterable<String> items, {
     String Function(String item)? captionText,
   }) async* {
-    checkRoom(this);
+    _check();
+    final SheetLogo? logo = await loadSheetLogo(this, png: true);
     await for (final _Page page in _pages(items, captionText)) {
-      yield svgPage(this, page.symbols, page.captions);
+      yield svgPage(this, page.symbols, page.captions, logo: logo);
     }
   }
 
-  /// The pages as one PDF document: vector rectangles for the modules,
-  /// the built-in Courier font for the text, each page the size of
-  /// [paper]. Print it at 100 % (actual size).
+  /// Throws if the labels leave no room or the style cannot be drawn.
+  void _check() {
+    checkRoom(this);
+    if (style.gradient is SweepGradient) {
+      throw UnsupportedError(
+        'A label sheet cannot draw a SweepGradient: use a LinearGradient '
+        'or a RadialGradient',
+      );
+    }
+  }
+
+  /// The pages as one PDF document: vector shapes for the modules (see
+  /// [style]), the built-in Courier font for the text, each page the size
+  /// of [paper]. Print it at 100 % (actual size).
   ///
   /// [captionText] gives the text under the code of an item (the item
   /// itself by default); see [caption]. The PDF shows Latin-1 text
@@ -228,22 +305,35 @@ final class BarcodeLabelSheet {
   /// ```
   ///
   /// Throws [BarcodeWriteException] naming the item and its index if an
-  /// item cannot be encoded, and [ArgumentError] if [items] is empty or
-  /// the labels leave no room for a code.
+  /// item cannot be encoded, [ArgumentError] if [items] is empty, the
+  /// labels leave no room for a code or the style's logo cannot be
+  /// loaded, and [UnsupportedError] for a [SweepGradient].
   Future<Uint8List> pdf(
     Iterable<String> items, {
     String Function(String item)? captionText,
     void Function(int done, int total)? onProgress,
   }) async {
-    checkRoom(this);
+    _check();
     final int total = onProgress == null ? 0 : items.length;
     final PdfWriter pdf = PdfWriter();
+    final PdfStyleResources shared = PdfStyleResources(
+      pdf,
+      await loadSheetLogo(this, png: false),
+    );
     int done = 0;
     await for (final _Page page in _pages(items, captionText)) {
+      final PdfPageResources resources = PdfPageResources(shared);
+      final String content = pdfPageContent(
+        this,
+        page.symbols,
+        page.captions,
+        resources: resources,
+      );
       pdf.addPage(
         paper.width,
         paper.height,
-        pdfPageContent(this, page.symbols, page.captions),
+        content,
+        resources: resources.entries,
       );
       done += page.symbols.length;
       onProgress?.call(done, total);
@@ -260,6 +350,7 @@ final class BarcodeLabelSheet {
     String Function(String item)? captionText,
   ) async* {
     final Iterator<String> it = items.iterator;
+    final BarcodeWriter writer = writerUnderLogo(this.writer, style.logo);
     int index = 0;
     while (true) {
       final List<String> data = <String>[];
@@ -272,7 +363,8 @@ final class BarcodeLabelSheet {
       final int first = index;
       final List<BarcodeSymbol> symbols = await Future.wait(
         <Future<BarcodeSymbol>>[
-          for (int i = 0; i < data.length; i++) _encode(first + i, data[i]),
+          for (int i = 0; i < data.length; i++)
+            _encode(writer, first + i, data[i]),
         ],
       );
       index += data.length;
@@ -283,10 +375,15 @@ final class BarcodeLabelSheet {
     }
   }
 
-  /// [item] at [index] encoded, or a [BarcodeWriteException] that names it.
-  Future<BarcodeSymbol> _encode(int index, String item) async {
+  /// [item] at [index] encoded with [writer] (see [encodeFor]), or a
+  /// [BarcodeWriteException] that names it.
+  Future<BarcodeSymbol> _encode(
+    BarcodeWriter writer,
+    int index,
+    String item,
+  ) async {
     try {
-      return await writer.encode(item);
+      return await encodeFor(writer, style, item);
     } on BarcodeWriteException catch (e) {
       final String shown = item.length > 60
           ? '${item.substring(0, 57)}...'
@@ -298,6 +395,9 @@ final class BarcodeLabelSheet {
   }
 
   /// Creates a copy with the given fields replaced.
+  ///
+  /// [codeSize], which may be `null`, takes a function: `copyWith(codeSize:
+  /// () => null)` clears it.
   BarcodeLabelSheet copyWith({
     PaperSize? paper,
     int? columns,
@@ -310,6 +410,8 @@ final class BarcodeLabelSheet {
     double? captionSize,
     ValueGetter<double?>? codeSize,
     BarcodeWriter? writer,
+    BarcodeStyle? style,
+    LabelOrder? order,
   }) => BarcodeLabelSheet(
     paper: paper ?? this.paper,
     columns: columns ?? this.columns,
@@ -322,6 +424,8 @@ final class BarcodeLabelSheet {
     captionSize: captionSize ?? this.captionSize,
     codeSize: codeSize == null ? this.codeSize : codeSize(),
     writer: writer ?? this.writer,
+    style: style ?? this.style,
+    order: order ?? this.order,
   );
 
   @override
@@ -337,7 +441,9 @@ final class BarcodeLabelSheet {
       other.caption == caption &&
       other.captionSize == captionSize &&
       other.codeSize == codeSize &&
-      other.writer == writer;
+      other.writer == writer &&
+      other.style == style &&
+      other.order == order;
 
   @override
   int get hashCode => Object.hash(
@@ -352,11 +458,15 @@ final class BarcodeLabelSheet {
     captionSize,
     codeSize,
     writer,
+    style,
+    order,
   );
 
   @override
   String toString() =>
-      'BarcodeLabelSheet(${columns}x$rows on $paper, ${writer.format.name})';
+      'BarcodeLabelSheet(${columns}x$rows on $paper, ${writer.format.name}'
+      '${order == LabelOrder.rows ? '' : ', by columns'}'
+      '${style == BarcodeStyle.classic ? '' : ', styled'})';
 }
 
 /// The codes of one page and the captions under them.
@@ -374,7 +484,8 @@ final class _Page {
 /// BarcodeLabelSheetView(sheet: sheet, items: items, page: 0)
 /// ```
 ///
-/// The codes are [BarcodeView]s. An item that cannot be encoded leaves its
+/// The codes are [BarcodeView]s drawn with the sheet's
+/// [BarcodeLabelSheet.style]. An item that cannot be encoded leaves its
 /// label without a code; [BarcodeLabelSheet.pdf] and
 /// [BarcodeLabelSheet.svgPages] throw for it.
 class BarcodeLabelSheetView extends StatefulWidget {
@@ -405,9 +516,11 @@ class BarcodeLabelSheetView extends StatefulWidget {
 }
 
 class _BarcodeLabelSheetViewState extends State<BarcodeLabelSheetView> {
-  /// The items of the page shown and the writer they were encoded with.
+  /// The items of the page shown and the writer they were encoded with
+  /// (the sheet's, as the style's logo needs it).
   List<String> _items = const <String>[];
   BarcodeWriter? _writer;
+  BarcodeLogo? _logo;
 
   /// Their symbols, `null` for one that cannot be encoded or is not yet.
   List<BarcodeSymbol?> _symbols = const <BarcodeSymbol?>[];
@@ -430,15 +543,17 @@ class _BarcodeLabelSheetViewState extends State<BarcodeLabelSheetView> {
     final List<String> items = widget.page < 0
         ? const <String>[]
         : widget.items.skip(widget.page * n).take(n).toList();
-    final BarcodeWriter writer = widget.sheet.writer;
-    if (writer == _writer && listEquals(items, _items)) {
+    final BarcodeLogo? logo = widget.sheet.style.logo;
+    final BarcodeWriter writer = writerUnderLogo(widget.sheet.writer, logo);
+    if (writer == _writer && logo == _logo && listEquals(items, _items)) {
       return;
     }
     _items = items;
     _writer = writer;
+    _logo = logo;
     _symbols = List<BarcodeSymbol?>.filled(items.length, null);
     for (int i = 0; i < items.length; i++) {
-      unawaited(_encodeAt(i, items, writer));
+      unawaited(_encodeAt(i, items, writer, widget.sheet.style));
     }
   }
 
@@ -446,10 +561,11 @@ class _BarcodeLabelSheetViewState extends State<BarcodeLabelSheetView> {
     int i,
     List<String> items,
     BarcodeWriter writer,
+    BarcodeStyle style,
   ) async {
     BarcodeSymbol? symbol;
     try {
-      symbol = await writer.encode(items[i]);
+      symbol = await encodeFor(writer, style, items[i]);
     } on BarcodeWriteException {
       symbol = null;
     }
@@ -491,10 +607,11 @@ class _BarcodeLabelSheetViewState extends State<BarcodeLabelSheetView> {
     if (symbol == null) {
       return const <Widget>[];
     }
+    final BarcodeStyle style = codeStyleOf(sheet);
     final LabelPlacement at = placeLabel(
       sheet,
       sheet.labelRect(i),
-      SymbolLayout(symbol),
+      SymbolLayout(styledSymbol(symbol, style)),
       caption,
     );
     final Rect? line = at.captionBox;
@@ -506,6 +623,7 @@ class _BarcodeLabelSheetViewState extends State<BarcodeLabelSheetView> {
         height: at.code.height * mm,
         child: BarcodeView.symbol(
           symbol,
+          style: style,
           width: at.code.width * mm,
           height: at.code.height * mm,
         ),

@@ -19,7 +19,11 @@ class _LabelSheetPageState extends State<LabelSheetPage> {
     for (int i = 1; i <= 120; i++) 'SKU-${i.toString().padLeft(4, '0')}',
   ];
   // Match your label paper: page size, labels across and down, margins.
-  BarcodeLabelSheet _sheet = const BarcodeLabelSheet(columns: 3, rows: 8);
+  BarcodeLabelSheet _sheet = const BarcodeLabelSheet(
+    columns: 3,
+    rows: 8,
+    style: BarcodeStyle.soft,
+  );
   int _page = 0;
   double? _progress; // while making the PDF
 

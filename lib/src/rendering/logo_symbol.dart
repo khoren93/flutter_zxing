@@ -76,3 +76,18 @@ String logoFitsMessage(BarcodeSymbol symbol, BarcodeLogo logo) =>
     'style.encode(data, writer: ...), or BarcodeView(data, writer: ...) without '
     'errorCorrection and without ecLevel in zxingOptions; to keep a lower '
     'level on purpose, set BarcodeLogo.errorCorrection.';
+
+/// [item] encoded for [style] with [writer], already the writer of
+/// [writerUnderLogo]: a QR code under a logo in a symbol large enough for
+/// it.
+Future<BarcodeSymbol> encodeFor(
+  BarcodeWriter writer,
+  BarcodeStyle style,
+  String item,
+) => style.logo == null
+    ? writer.encode(item)
+    : encodeUnderLogo(
+        writer,
+        style.logo!.size,
+        (BarcodeWriter w) => w.encode(item),
+      );
