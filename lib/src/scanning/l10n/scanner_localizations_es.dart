@@ -455,7 +455,7 @@ class ScannerLocalizationsEs extends ScannerLocalizations {
   String get quantity => 'Cantidad';
 
   @override
-  String get bestBefore => 'Consumo preferente';
+  String get bestBefore => 'Consumo pref.';
 
   @override
   String get loyaltyCard => 'Tarjeta de fidelidad';
