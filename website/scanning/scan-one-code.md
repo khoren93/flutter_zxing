@@ -66,6 +66,33 @@ final Barcode? barcode = await scanBarcode(
 );
 ```
 
+## One kind of content
+
+`scanContent` accepts only one kind of content, such as a 2FA code or a
+Wi‑Fi network, and returns it typed. Other codes are refused and the
+scanner stays open:
+
+```dart
+Future<void> addAccount(BuildContext context) async {
+  final OtpContent? otp = await scanContent<OtpContent>(
+    context,
+    hint: 'Scan the QR code from the service’s 2FA settings',
+    reject: const ScanVerdict.reject(title: 'Not a 2FA code'),
+  );
+  if (otp != null) print('${otp.issuer}: ${otp.account}');
+}
+```
+
+`acceptOnly<T>()` is the same check for a template:
+`ScannerTemplate.content(check: acceptOnly<WifiContent>())`.
+
+## More than the code
+
+`scanBarcode` returns the code. To return something else, such as what a
+check found on your server, open the template with its sheet:
+`openScanner<T>` returns what the sheet passes to `result.finish`. See
+[What the check found](./templates#what-the-check-found).
+
 ## Fill a text field
 
 `ScanFieldButton` goes in a text field: a tap opens the scanner in a sheet

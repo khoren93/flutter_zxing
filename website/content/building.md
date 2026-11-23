@@ -95,3 +95,16 @@ GS1 mode and `BinaryContent` as bytes:
 Future<BarcodeSymbol> gs1Label() => const BarcodeWriter(BarcodeFormat.dataMatrix)
     .encodeContent(const Gs1Content({'01': '09501101530003', '17': '270101'}));
 ```
+
+On screen, `BarcodeContentView(content)` does the same and adds what a
+standard requires, such as the Swiss cross on a QR-bill; a content with
+problems shows its `errorBuilder`:
+
+```dart
+Widget wifiCard(WifiContent wifi) => BarcodeContentView(
+  wifi,
+  width: 220,
+  errorBuilder: (BuildContext context, BarcodeWriteException error) =>
+      Text(error.message),
+);
+```

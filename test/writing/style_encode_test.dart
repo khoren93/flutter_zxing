@@ -107,7 +107,7 @@ void main() {
   group('style.encode', () {
     test('a logo gets its error correction, and a Wi-Fi code with a logo '
         'exported through the symbol reads', () async {
-      final BarcodeSymbol symbol = await withLogo.encode(qr, wifi);
+      final BarcodeSymbol symbol = await withLogo.encode(wifi);
       expect(symbol.errorCorrection, ErrorCorrection.high);
       final Uint8List png = await withLogo.toPng(symbol, size: 512);
       expect((await const BarcodeReader().read(png))?.text, wifi);
@@ -117,11 +117,11 @@ void main() {
 
     test("the writer's own error correction stays", () async {
       final BarcodeSymbol symbol = await withLogo.encode(
-        const BarcodeWriter(
+        wifi,
+        writer: const BarcodeWriter(
           BarcodeFormat.qrCode,
           errorCorrection: ErrorCorrection.quartile,
         ),
-        wifi,
       );
       expect(symbol.errorCorrection, ErrorCorrection.quartile);
     });
@@ -157,14 +157,13 @@ void main() {
 
     test('a short text gets a symbol large enough for the logo', () async {
       final BarcodeSymbol plain = await qr.encode('a');
-      final BarcodeSymbol styled = await withLogo.encode(qr, 'a');
+      final BarcodeSymbol styled = await withLogo.encode('a');
       expect(plain.width, 21);
       expect(styled.width, greaterThan(21));
     });
 
     test('encodeBytes: the same for binary data', () async {
       final BarcodeSymbol symbol = await withLogo.encodeBytes(
-        qr,
         Uint8List.fromList(<int>[0, 1, 0xFE, 0xFF]),
       );
       expect(symbol.errorCorrection, ErrorCorrection.high);
@@ -172,7 +171,6 @@ void main() {
 
     test("encodeContent: the content's kind, the logo's level", () async {
       final BarcodeSymbol symbol = await withLogo.encodeContent(
-        qr,
         const WifiContent(ssid: 'Cafe Central', password: 'espresso-42'),
       );
       expect(symbol.errorCorrection, ErrorCorrection.high);
@@ -181,8 +179,8 @@ void main() {
       expect(read?.content, isA<WifiContent>());
       // GS1 content is encoded as GS1.
       final BarcodeSymbol gs1 = await BarcodeStyle.classic.encodeContent(
-        const BarcodeWriter(BarcodeFormat.dataMatrix),
         const Gs1Content(<String, String>{'01': '09501101530003'}),
+        writer: const BarcodeWriter(BarcodeFormat.dataMatrix),
       );
       final Barcode? gs1Read = await const BarcodeReader().read(
         await gs1.toPng(),
@@ -201,11 +199,11 @@ void main() {
       await expectLater(withLogo.toSvg(low), throwsA(isA<AssertionError>()));
       await expectLater(
         withLogo.encodePng(
-          const BarcodeWriter(
+          wifi,
+          writer: const BarcodeWriter(
             BarcodeFormat.qrCode,
             errorCorrection: ErrorCorrection.low,
           ),
-          wifi,
         ),
         throwsA(isA<AssertionError>()),
       );
@@ -292,7 +290,7 @@ void main() {
     test('is loaded in the resolution variant for its size', () async {
       final _Variants image = _Variants();
       final BarcodeStyle style = BarcodeStyle(logo: BarcodeLogo(image));
-      final BarcodeSymbol symbol = await style.encode(qr, wifi);
+      final BarcodeSymbol symbol = await style.encode(wifi);
       // 1x is 16 pixels wide; at 1024 the logo is about 225.
       await style.toPng(symbol, size: 1024);
       expect(image.asked.last, greaterThan(3));
@@ -306,7 +304,7 @@ void main() {
       final BarcodeStyle style = BarcodeStyle(
         logo: BarcodeLogo(MemoryImage(Uint8List.fromList(<int>[1, 2, 3]))),
       );
-      final BarcodeSymbol symbol = await style.encode(qr, 'x');
+      final BarcodeSymbol symbol = await style.encode('x');
       await expectLater(style.toPng(symbol), throwsA(anything));
     });
   });
@@ -408,4 +406,63 @@ void main() {
       expect(svg, contains('letter-spacing="'));
     });
   });
+
+  group('style.encodeContent: what the standard requires', () {
+    test('a Swiss QR-bill: error correction M under the cross', () async {
+      final BarcodeSymbol symbol = await BarcodeStyle.swissQrBill.encodeContent(
+        _bill,
+      );
+      expect(symbol.format, BarcodeFormat.qrCode);
+      expect(symbol.errorCorrection, ErrorCorrection.medium);
+    });
+
+    test('an EPC payment: M whatever the writer says', () async {
+      final BarcodeSymbol symbol = await BarcodeStyle.classic.encodeContent(
+        _epc,
+        writer: const BarcodeWriter(
+          BarcodeFormat.qrCode,
+          errorCorrection: ErrorCorrection.high,
+        ),
+      );
+      expect(symbol.errorCorrection, ErrorCorrection.medium);
+      final Barcode? read = await const BarcodeReader().read(
+        await BarcodeStyle.classic.toPng(symbol),
+      );
+      expect(read?.content, _epc);
+    });
+  });
+
+  test('encodePng and encodeSvg make a QR code without a writer', () async {
+    final Uint8List png = await BarcodeStyle.soft.encodePng(
+      'https://pub.dev',
+      size: 256,
+    );
+    final Barcode? read = await const BarcodeReader().read(png);
+    expect(read?.format, BarcodeFormat.qrCode);
+    expect(read?.text, 'https://pub.dev');
+    expect(
+      await BarcodeStyle.classic.encodeSvg('https://pub.dev'),
+      startsWith('<svg'),
+    );
+  });
 }
+
+const EpcPaymentContent _epc = EpcPaymentContent(
+  name: 'Kaffeehaus Lumen GmbH',
+  iban: 'DE89370400440532013000',
+  amount: '19.50',
+);
+
+const SwissQrBillContent _bill = SwissQrBillContent(
+  iban: 'CH4431999123000889012',
+  creditor: SwissAddress(
+    name: 'Robert Schneider AG',
+    street: 'Rue du Lac',
+    buildingNumber: '1268',
+    postalCode: '2501',
+    town: 'Biel',
+    country: 'CH',
+  ),
+  amount: '1949.75',
+  creditorReference: '210000000003139471430009017',
+);

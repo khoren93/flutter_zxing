@@ -130,6 +130,7 @@ export default defineConfig({
           { text: 'Barcodes as widgets', link: '/creating/barcode-view' },
           { text: 'Styles and logos', link: '/creating/styles' },
           { text: 'PNG, SVG and images', link: '/creating/export' },
+          { text: 'Label sheets', link: '/creating/label-sheets' },
         ],
       },
       {

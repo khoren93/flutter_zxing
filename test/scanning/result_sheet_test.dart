@@ -167,7 +167,7 @@ void main() {
   group('texts come from ScannerStrings', () {
     const ScannerStrings de = ScannerStrings(
       wifiPassword: 'Passwort im Code',
-      wifiEnterprise: 'Unternehmen',
+      wifiSecurity: _germanSecurity,
       fullDate: _germanDate,
     );
 
@@ -249,3 +249,9 @@ void main() {
 }
 
 String _germanDate(DateTime d) => '${d.day}.${d.month}.${d.year}';
+
+String _germanSecurity(WifiSecurity s) => switch (s) {
+  WifiSecurity.none => 'Offenes Netz',
+  WifiSecurity.enterprise => 'Unternehmen',
+  _ => s.name.toUpperCase(),
+};

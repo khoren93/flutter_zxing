@@ -64,11 +64,27 @@ Widget giroCode() => BarcodeView(
 IBAN, before `toPayload()` would throw: see
 [Building content](./building#forms).
 
-A Swiss QR-bill must carry the Swiss cross in the middle:
-`BarcodeStyle.swissQrBill` draws it, with the error correction the standard
-requires.
+`BarcodeContentView` draws a payment with what its standard requires: a
+QR code with error correction M for EPC and the Swiss QR-bill, and the
+Swiss cross in the middle of a QR-bill (`BarcodeStyle.swissQrBill`). A
+payment that `validate()` finds problems in shows `errorBuilder` instead of
+a code.
 
 ```dart
-Widget swissBill(SwissQrBillContent bill) =>
-    BarcodeView(bill.toPayload(), style: BarcodeStyle.swissQrBill, width: 200);
+Widget bill(PaymentContent payment) => BarcodeContentView(
+  payment,
+  width: 200,
+  errorBuilder: (BuildContext context, BarcodeWriteException error) =>
+      Text(error.message),
+);
+```
+
+`ScannerStrings.amount` writes an amount with its currency as the result
+sheet does ("1949.75 EUR", "Any amount" without one); give your own to
+format it for a locale.
+
+```dart
+Widget amount(BuildContext context, PaymentContent payment) => Text(
+  ScannerStrings.of(context).amount(payment.amount, payment.currency),
+);
 ```

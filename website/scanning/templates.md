@@ -107,38 +107,49 @@ as `result.verdict?.data`. The check may wait for your server;
 `resultBuilder` and `actionsBuilder` run synchronously, so the work belongs
 in the check.
 
+`openScanner` opens a template as a screen of its own and returns what the
+sheet passes to `result.finish`, here the member:
+
 ```dart
 typedef Member = ({String name, int points});
 
 Future<Member?> findMember(String card) async => (name: 'Anna', points: 1240);
 
-Widget till() => BarcodeScanner(
-  template: ScannerTemplate.loyalty(
-    check: (barcode) async {
-      final Member? member = await findMember(barcode.text);
-      if (member == null) return const ScanVerdict.reject(title: 'Unknown card');
-      return ScanVerdict.accept(
-        title: member.name,
-        message: '${member.points} points',
-        data: member,
-      );
-    },
-    actionsBuilder: (context, result) => [
-      ScannerAction(
-        label: 'Attach to the sale',
-        primary: true,
-        onPressed: () => print(result.verdict?.data as Member?),
-      ),
-      ...result.defaultActions,
-    ],
-  ),
-);
+Future<void> attachCard(BuildContext context) async {
+  final Member? member = await openScanner<Member>(
+    context,
+    template: ScannerTemplate.loyalty(
+      check: (barcode) async {
+        final Member? member = await findMember(barcode.text);
+        if (member == null) return const ScanVerdict.reject(title: 'Unknown card');
+        return ScanVerdict.accept(
+          title: member.name,
+          message: '${member.points} points',
+          data: member,
+        );
+      },
+      actionsBuilder: (context, result) => [
+        ScannerAction(
+          label: 'Attach to the sale',
+          primary: true,
+          onPressed: () => result.finish(result.verdict?.data),
+        ),
+        ScannerAction.scanAgain(result.scanAgain),
+      ],
+    ),
+  );
+  if (member != null) print('${member.name}: ${member.points} points');
+}
 ```
+
+In collect mode each `CollectedBarcode` keeps its `verdict` too.
 
 ## The result sheet
 
 `actionsBuilder` sets the buttons of the result sheet. `ScannerResult` has
-the code, its capture and the default buttons:
+the code, its capture, the check's verdict and the default buttons. A sheet
+fills one button with the accent, the first primary one, so yours can go
+before the default buttons as they are:
 
 ```dart
 BarcodeScanner(
@@ -156,7 +167,31 @@ BarcodeScanner(
 )
 ```
 
-`resultBuilder` replaces the whole sheet with your own widget. With
+`resultBuilder` replaces the whole sheet with your own widget, or returns
+`null` for the default sheet, such as for a code of another kind:
+
+```dart
+BarcodeScanner(
+  template: ScannerTemplate.content(
+    resultBuilder: (context, result) => switch (result.barcode.content) {
+      WifiContent(:final ssid) => ScannerSheet(
+        label: ssid,
+        child: ScannerActions([
+          ScannerAction(label: 'Join $ssid', primary: true, onPressed: () {}),
+          ScannerAction.scanAgain(result.scanAgain),
+        ]),
+      ),
+      _ => null,
+    },
+  ),
+)
+```
+
+`result.scanAgain` hides the sheet and scans the next code,
+`result.finish(value)` closes the screen with a value, and
+`result.backToCodes` goes back to the codes of `ScannerTemplate.pick()`.
+
+With
 `showResult: false` there is no sheet: the brackets lock onto the code, the
 scanner pauses, and the app handles `onDetect` and calls
 `controller.resume()` to scan the next code.
@@ -173,6 +208,7 @@ Every template takes these, in its constructor or in `copyWith`:
 | `facing`, `initialZoom` | The camera to start with and its zoom |
 | `torchButton`, `photoButton`, `zoomButtons`, `switchCameraButton`, `closeButton` | Which buttons show |
 | `onClose` | What the close button does; `Navigator.maybePop` by default |
+| `hiddenExit` | A long press of two seconds in the top-left corner closes the screen: a way out for staff on a kiosk without buttons |
 | `closeOnResult` | Once a code is accepted, close the screen with the `Barcode` as the route's result, instead of showing a sheet |
 | `resumeAfter` | How long a result shows before scanning goes on by itself: the verdict in continuous mode (2 seconds by default), or the sheet in single mode (`null` waits for the user) |
 | `counter` | In continuous mode, a counter of the accepted codes at the top |

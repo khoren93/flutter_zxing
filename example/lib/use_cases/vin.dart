@@ -20,15 +20,12 @@ class _VinPageState extends State<VinPage> {
   bool? _checkDigitOk;
 
   Future<void> _scan() async {
-    final Barcode? barcode = await scanBarcode(
+    final VinContent? vin = await scanContent<VinContent>(
       context,
-      template: ScannerTemplate.vin(
-        check: (barcode) => barcode.content is VinContent
-            ? null
-            : const ScanVerdict.reject(title: 'Not a VIN'),
-      ),
+      template: const ScannerTemplate.vin(),
+      reject: const ScanVerdict.reject(title: 'Not a VIN'),
     );
-    if (barcode?.content case final VinContent vin when mounted) {
+    if (vin != null && mounted) {
       setState(() {
         _vin.text = vin.vin;
         _maker.text = vin.wmi; // Your code: the maker's name for the WMI

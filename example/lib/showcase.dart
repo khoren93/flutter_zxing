@@ -322,7 +322,7 @@ Widget _ticketSheet(BuildContext context, ScannerResult result) {
   }
   final BoardingPassLeg leg = content.legs.first;
   // The pass gives the day of the year, not the year: this year's.
-  final DateTime? day = leg.dateIn(DateTime.now().year);
+  final DateTime? day = leg.date();
   final ScannerTheme theme = ScannerTheme.of(context);
   return ScannerSheet(
     label: 'Boarding pass',

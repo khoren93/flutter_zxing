@@ -48,6 +48,7 @@ class _InvoiceQrPageState extends State<InvoiceQrPage> {
       _Standard.sepa => _sepa,
       _Standard.swiss => _swiss,
     };
+    final ScannerStrings strings = ScannerStrings.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text(_number)),
       body: ListView(
@@ -63,16 +64,10 @@ class _InvoiceQrPageState extends State<InvoiceQrPage> {
           ),
           const SizedBox(height: 24),
           Center(
-            child: BarcodeView(
-              payment.toPayload(),
-              // A QR-bill must carry the Swiss cross; on paper the code is
-              // 46 × 46 mm. The EPC asks for error correction M, the
-              // default.
-              style: _standard == _Standard.swiss
-                  ? BarcodeStyle.swissQrBill
-                  : BarcodeStyle.classic,
-              width: 220,
-            ),
+            // What each standard asks for: a QR-bill carries the Swiss
+            // cross (on paper the code is 46 × 46 mm), both use error
+            // correction M.
+            child: BarcodeContentView(payment, width: 220),
           ),
           const SizedBox(height: 24),
           // The same five fields whatever the standard.
@@ -86,7 +81,8 @@ class _InvoiceQrPageState extends State<InvoiceQrPage> {
           ),
           ListTile(
             title: const Text('Amount'),
-            subtitle: Text('${payment.amount} ${payment.currency}'),
+            // "1949.75 EUR"; ScannerStrings formats it for your locale.
+            subtitle: Text(strings.amount(payment.amount, payment.currency)),
           ),
           ListTile(
             title: const Text('Reference'),

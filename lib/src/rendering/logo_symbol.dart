@@ -73,6 +73,6 @@ String logoFitsMessage(BarcodeSymbol symbol, BarcodeLogo logo) =>
     'The QR code has error correction ${symbol.errorCorrection?.name}, '
     'too little for a logo of size ${logo.size}, which needs '
     '${logo.neededErrorCorrection.name}: it may not scan. Encode it with '
-    'style.encode(writer, data), or BarcodeView(data, writer: ...) without '
+    'style.encode(data, writer: ...), or BarcodeView(data, writer: ...) without '
     'errorCorrection and without ecLevel in zxingOptions; to keep a lower '
     'level on purpose, set BarcodeLogo.errorCorrection.';

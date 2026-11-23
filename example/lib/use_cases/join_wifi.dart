@@ -8,25 +8,16 @@ class JoinWifiPage extends StatelessWidget {
   const JoinWifiPage({super.key});
 
   // Other QR codes keep the scanner open.
-  static ScanVerdict? _check(Barcode barcode) => barcode.content is WifiContent
-      ? null
-      : const ScanVerdict.reject(title: 'Not a Wi‑Fi code');
+  static final ScannerCheck _check = acceptOnly<WifiContent>(
+    reject: const ScanVerdict.reject(title: 'Not a Wi‑Fi code'),
+  );
 
-  static String _security(WifiSecurity security) => switch (security) {
-    WifiSecurity.none => 'Open network, no password',
-    WifiSecurity.wep => 'WEP (outdated)',
-    WifiSecurity.wpa => 'WPA2',
-    WifiSecurity.wpa3 => 'WPA3',
-    WifiSecurity.enterprise => 'Enterprise: sign in with your account',
-    _ => 'Unknown',
-  };
-
-  static Widget _sheet(BuildContext context, ScannerResult result) {
+  static Widget? _sheet(BuildContext context, ScannerResult result) {
     final BarcodeContent content = result.barcode.content;
-    if (content is! WifiContent) {
-      return BarcodeResultSheet(result.barcode, onScanAgain: result.scanAgain);
-    }
+    // Anything else, such as a code from a photo: the default sheet.
+    if (content is! WifiContent) return null;
     final ScannerTheme theme = ScannerTheme.of(context);
+    final ScannerStrings strings = ScannerStrings.of(context);
     final String? password = content.password;
     return ScannerSheet(
       label: 'Wi‑Fi network',
@@ -37,7 +28,7 @@ class JoinWifiPage extends StatelessWidget {
           Text('WI‑FI', style: theme.overlineStyle),
           const SizedBox(height: 4),
           Text(content.ssid, style: theme.titleStyle),
-          Text(_security(content.security), style: theme.mutedStyle),
+          Text(strings.wifiSecurity(content.security), style: theme.mutedStyle),
           if (content.hidden) Text('Hidden network', style: theme.mutedStyle),
           if (password != null && password.isNotEmpty) ...[
             const SizedBox(height: 16),
@@ -54,7 +45,7 @@ class JoinWifiPage extends StatelessWidget {
                 label: 'Copy password',
                 primary: true,
               ),
-            ScannerAction(label: 'Scan again', onPressed: result.scanAgain),
+            ScannerAction.scanAgain(result.scanAgain),
           ]),
         ],
       ),
@@ -62,7 +53,7 @@ class JoinWifiPage extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => const Scaffold(
+  Widget build(BuildContext context) => Scaffold(
     body: BarcodeScanner(
       template: ScannerTemplate.content(
         hint: 'Scan the Wi‑Fi code',

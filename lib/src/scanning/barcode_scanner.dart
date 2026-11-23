@@ -765,6 +765,121 @@ Future<Barcode?> scanBarcode(
     // It counts the codes of a scanner that keeps scanning.
     counter: false,
   );
+  return _pushScanner<Barcode>(
+    context,
+    template: page,
+    presentation: presentation,
+    theme: theme,
+    strings: strings,
+  );
+}
+
+/// Opens [template] as a screen of its own, with its result sheet, and
+/// returns what the sheet passes to `ScannerResult.finish`, or `null` if
+/// the user closes it. For a code that needs more than [scanBarcode]
+/// gives, such as the customer a loyalty card belongs to:
+///
+/// ```dart
+/// final Customer? customer = await openScanner<Customer>(
+///   context,
+///   template: ScannerTemplate.loyalty(
+///     check: (barcode) async {
+///       final Customer? c = await customers.find(barcode.text);
+///       if (c == null) return const ScanVerdict.reject(title: 'Unknown card');
+///       return ScanVerdict.accept(title: c.name, data: c);
+///     },
+///     actionsBuilder: (context, result) => [
+///       ScannerAction(
+///         label: 'Attach to the sale',
+///         primary: true,
+///         onPressed: () => result.finish(result.verdict?.data),
+///       ),
+///       ScannerAction.scanAgain(result.scanAgain),
+///     ],
+///   ),
+/// );
+/// ```
+///
+/// The theme and texts of a [ScannerScope] around [context] apply, under
+/// the template's theme, [theme] and [strings]. [presentation] opens it as
+/// a page or as a sheet.
+Future<T?> openScanner<T>(
+  BuildContext context, {
+  ScannerTemplate template = const ScannerTemplate.minimal(),
+  ScannerPresentation presentation = ScannerPresentation.page,
+  ScannerTheme? theme,
+  ScannerStrings? strings,
+}) => _pushScanner<T>(
+  context,
+  template: template,
+  presentation: presentation,
+  theme: theme,
+  strings: strings,
+);
+
+/// Opens a scanner that accepts only content of the kind [T], such as an
+/// `OtpContent` or a `WifiContent`, and returns it, or `null` if the user
+/// closes the scanner. Other codes are refused with [reject] (by default
+/// [ScannerStrings.rejected]) and the scanner stays open. The other
+/// parameters are those of [scanBarcode].
+///
+/// ```dart
+/// final OtpContent? otp = await scanContent<OtpContent>(
+///   context,
+///   hint: 'Scan the QR code your service shows',
+///   reject: const ScanVerdict.reject(title: 'Not a 2FA code'),
+/// );
+/// ```
+Future<T?> scanContent<T extends BarcodeContent>(
+  BuildContext context, {
+  Set<BarcodeFormat>? formats,
+  ScanWindow? scanWindow,
+  CameraFacing? facing,
+  String? hint,
+  ScanVerdict? reject,
+  ScannerPresentation presentation = ScannerPresentation.page,
+  ScannerTemplate? template,
+  ScannerTheme? theme,
+  ScannerStrings? strings,
+}) async {
+  final Barcode? barcode = await scanBarcode(
+    context,
+    formats: formats,
+    scanWindow: scanWindow,
+    facing: facing,
+    hint: hint,
+    check: acceptOnly<T>(reject: reject),
+    presentation: presentation,
+    template: template,
+    theme: theme,
+    strings: strings,
+  );
+  return switch (barcode?.content) {
+    final T content => content,
+    _ => null,
+  };
+}
+
+/// A [ScannerCheck] that accepts only content of the kind [T] and refuses
+/// the rest with [reject] (by default [ScannerStrings.rejected]).
+///
+/// ```dart
+/// ScannerTemplate.content(check: acceptOnly<WifiContent>(
+///   reject: const ScanVerdict.reject(title: 'Not a Wi‑Fi code'),
+/// ))
+/// ```
+ScannerCheck acceptOnly<T extends BarcodeContent>({ScanVerdict? reject}) =>
+    (Barcode barcode) =>
+        barcode.content is T ? null : reject ?? const ScanVerdict.reject();
+
+Future<T?> _pushScanner<T>(
+  BuildContext context, {
+  required ScannerTemplate template,
+  required ScannerPresentation presentation,
+  ScannerTheme? theme,
+  ScannerStrings? strings,
+}) {
+  final ScannerTemplate page = template;
   // The route is built under the navigator: take the caller's scope along.
   final ScannerScope? around = context
       .getInheritedWidgetOfExactType<ScannerScope>();
@@ -783,8 +898,8 @@ Future<Barcode?> scanBarcode(
       ),
     ),
   );
-  return Navigator.of(context).push<Barcode>(switch (presentation) {
-    ScannerPresentation.page => PageRouteBuilder<Barcode>(
+  return Navigator.of(context).push<T>(switch (presentation) {
+    ScannerPresentation.page => PageRouteBuilder<T>(
       reverseTransitionDuration: const Duration(milliseconds: 200),
       pageBuilder:
           (BuildContext context, Animation<double> _, Animation<double> _) =>
@@ -800,7 +915,7 @@ Future<Barcode?> scanBarcode(
             child: child,
           ),
     ),
-    ScannerPresentation.sheet => PageRouteBuilder<Barcode>(
+    ScannerPresentation.sheet => PageRouteBuilder<T>(
       opaque: false,
       barrierDismissible: true,
       barrierColor: const Color(0x6B06090D),

@@ -559,7 +559,7 @@ void main() {
       final ScannerResult result = seen!;
       expect(result.barcode.text, epc);
       expect(result.capture.barcodes.single.text, epc);
-      expect(result.close, isNull);
+      expect(result.backToCodes, isNull);
       // The smart copy of the default sheet: the IBAN alone.
       expect(result.defaultActions, hasLength(2));
       expect(result.defaultActions.first.label, 'Copy IBAN');
@@ -606,8 +606,8 @@ void main() {
       await tester.tap(find.text('first'));
       await wait(tester, 800);
       expect(seen?.barcode.text, 'first');
-      expect(seen?.close, isNotNull);
-      expect(seen?.scanAgain, isNot(seen?.close));
+      expect(seen?.backToCodes, isNotNull);
+      expect(seen?.scanAgain, isNot(seen?.backToCodes));
     });
   });
 

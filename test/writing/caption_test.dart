@@ -144,7 +144,7 @@ void main() {
         caption: BarcodeCaption('@FLUTTERDEV'),
         card: BarcodeCard(),
       );
-      final Uint8List png = await style.encodePng(qr, url, moduleSize: 6);
+      final Uint8List png = await style.encodePng(url, moduleSize: 6);
       final (int width, int height) = await _size(png);
       expect(height, greaterThan(width));
       expect((await const BarcodeReader().read(png))?.text, url);
@@ -159,7 +159,7 @@ void main() {
         backgroundColor: Color(0xFFF4EFE4),
         caption: BarcodeCaption('@flutterdev'),
       );
-      final Uint8List png = await style.encodePng(qr, url, moduleSize: 4);
+      final Uint8List png = await style.encodePng(url, moduleSize: 4);
       expect(await _pixel(png, 0, 0), 0xFFF4EFE4);
       expect((await const BarcodeReader().read(png))?.text, url);
     });
@@ -172,7 +172,7 @@ void main() {
             card: () =>
                 const BarcodeCard(color: Color(0xFF1D4ED8), padding: 0.3),
           )
-          .encodePng(qr, url, moduleSize: 4);
+          .encodePng(url, moduleSize: 4);
       final (int width, _) = await _size(png);
       // Left edge, in the card's padding: the card's color.
       expect(await _pixel(png, 2, width ~/ 2), 0xFF1D4ED8);
@@ -183,7 +183,7 @@ void main() {
       final Uint8List png = await const BarcodeStyle(
         caption: BarcodeCaption('@flutterdev'),
         card: BarcodeCard(elevation: 0.04),
-      ).encodePng(qr, url, size: 512);
+      ).encodePng(url, size: 512);
       final (int width, int height) = await _size(png);
       expect(width, lessThanOrEqualTo(512));
       expect(height, lessThanOrEqualTo(512));
@@ -203,7 +203,7 @@ void main() {
         // as wide as it is tall.
         caption: BarcodeCaption('Scan to join & <play>', size: 0.04),
         card: BarcodeCard(radius: 0.1, elevation: 0.04),
-      ).encodeSvg(qr, url);
+      ).encodeSvg(url);
       expect(svg, contains('<filter id="shadow-'));
       expect(svg, contains(' rx="'));
       expect(svg, contains('<g transform="translate('));
@@ -216,7 +216,7 @@ void main() {
     });
 
     test('without text or card: as before', () async {
-      final String svg = await BarcodeStyle.classic.encodeSvg(qr, url);
+      final String svg = await BarcodeStyle.classic.encodeSvg(url);
       expect(
         svg,
         startsWith('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '),

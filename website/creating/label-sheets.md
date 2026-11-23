@@ -1,0 +1,136 @@
+# Label sheets
+
+`BarcodeLabelSheet` puts a list of data on pages to print: one code with
+its text on each label, in a fixed grid of columns and rows. You get the
+pages as one PDF or as SVG documents, in millimetres, so they print at
+their real size. The codes are vectors, black on white.
+
+```dart
+Future<void> printLabels(List<String> skus, Directory dir) async {
+  const sheet = BarcodeLabelSheet(
+    paper: PaperSize.a4,
+    columns: 3,
+    rows: 8,
+    writer: BarcodeWriter(BarcodeFormat.code128),
+  );
+  final Uint8List pdf = await sheet.pdf(skus);
+  await File('${dir.path}/labels.pdf').writeAsBytes(pdf);
+}
+```
+
+Print the file at 100 % (actual size), not "fit to page", or the codes
+miss the labels.
+
+## Paper
+
+`PaperSize` is a sheet in millimetres. There are `PaperSize.a3`, `a4`,
+`a5`, `letter` and `legal`; give any other size to the constructor, and
+turn a sheet on its side with `landscape`:
+
+```dart
+const PaperSize a6 = PaperSize(105, 148);
+final PaperSize wide = PaperSize.a4.landscape; // 297 x 210 mm
+```
+
+## Layout
+
+Measure your label paper, or copy the numbers from its box. All lengths
+are in millimetres.
+
+| Setting | Default | What it is |
+|---|---|---|
+| `paper` | `PaperSize.a4` | The page |
+| `columns`, `rows` | required | Labels across and down a page |
+| `margin` | `EdgeInsets.all(10)` | The blank edge of the page; give each side its own with `EdgeInsets.fromLTRB` |
+| `columnGap`, `rowGap` | `0` | Space between labels side by side, and one above the other |
+| `padding` | `2` | The blank edge inside each label |
+| `caption` | `true` | A line of text under each code |
+| `captionSize` | `3` | The height of that line (3 mm is about 8.5 pt) |
+| `writer` | QR code | The format, error correction and the rest |
+
+Labels fill a page row by row, left to right. In each label the code is
+as large as fits above the caption, keeping its proportions, and the two
+are centered. A caption too long for its label gets smaller.
+
+The caption is the item itself; `captionText` gives other text, such as a
+product name. Turn captions off for EAN-13, UPC-A and the other retail
+codes: they print their digits under the bars themselves.
+
+```dart
+Future<Uint8List> shelfLabels(Map<String, String> products) {
+  const sheet = BarcodeLabelSheet(
+    paper: PaperSize.letter,
+    columns: 3,
+    rows: 10,
+    margin: EdgeInsets.fromLTRB(4.8, 12.7, 4.8, 12.7),
+    columnGap: 3.2,
+  );
+  return sheet.pdf(
+    products.keys,
+    captionText: (String sku) => products[sku]!,
+  );
+}
+```
+
+`labelsPerPage`, `pageCount(items)`, `labelSize` and `labelRect(index)`
+give the grid, for a preview of your own or to print something next to
+the codes.
+
+## PDF or SVG
+
+`pdf` gives one document with every page: rectangles for the modules and
+the built-in Courier font for the text, so it needs no fonts and opens
+everywhere. Its text is Latin-1 (English and Western European letters);
+any other character is printed as `?`.
+
+`svgPages` gives one SVG document a page, each in millimetres
+(`width="210mm"` for A4). SVG holds text in any script; the program that
+shows the file picks a monospace font.
+
+```dart
+Future<void> savePages(List<String> items, Directory dir) async {
+  const sheet = BarcodeLabelSheet(columns: 4, rows: 10);
+  int n = 0;
+  await for (final String page in sheet.svgPages(items)) {
+    await File('${dir.path}/labels-${++n}.svg').writeAsString(page);
+  }
+}
+```
+
+## Large batches
+
+Both encode the items a page at a time, so a list of 10 000 never holds
+all its codes at once. 10 000 QR codes make a PDF of about 1.2 MB in about
+1.5 seconds on a laptop (compressed on Android, iOS and desktop; on the
+web the PDF is not compressed and a few times larger). `onProgress` tells
+you how far it is:
+
+```dart
+Future<Uint8List> withProgress(List<String> items) {
+  const sheet = BarcodeLabelSheet(columns: 4, rows: 10);
+  return sheet.pdf(
+    items,
+    onProgress: (int done, int total) => print('$done of $total labels'),
+  );
+}
+```
+
+An item the format cannot hold, such as letters in an EAN-13, stops the
+whole sheet with a `BarcodeWriteException` that names the item and its
+index: a sheet never prints with a label silently missing. Check your
+data first if it may have such items.
+
+## Preview
+
+`BarcodeLabelSheetView` shows one page: white paper at the page's
+proportions, as wide as it may be, with each code and caption where the
+PDF puts them.
+
+```dart
+Widget preview(BarcodeLabelSheet sheet, List<String> items, int page) =>
+    BarcodeLabelSheetView(sheet: sheet, items: items, page: page);
+```
+
+The Use cases page has the whole [sheet of labels](../use-cases#a-sheet-of-labels):
+a QR or Code 128 switch, the preview with page buttons, and sharing the
+PDF.

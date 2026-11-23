@@ -13,9 +13,17 @@ import 'scanner_strings.dart';
 import 'scanner_theme.dart';
 
 /// Builds the sheet shown for a code the scanner found: see
-/// [ScannerResult].
+/// [ScannerResult]. Return `null` for the default sheet, such as for a
+/// code of another kind than the one your sheet shows:
+///
+/// ```dart
+/// resultBuilder: (context, result) => switch (result.barcode.content) {
+///   WifiContent wifi => MyWifiSheet(wifi, onDone: result.scanAgain),
+///   _ => null, // the default sheet, with its verdict and buttons
+/// },
+/// ```
 typedef ScannerResultBuilder =
-    Widget Function(BuildContext context, ScannerResult result);
+    Widget? Function(BuildContext context, ScannerResult result);
 
 /// Builds the buttons of the default result sheet, such as
 /// `[...result.defaultActions, ScannerAction(label: 'Open', ...)]`.
@@ -31,8 +39,9 @@ final class ScannerResult {
     required this.barcode,
     required this.capture,
     required this.scanAgain,
+    required this.finish,
     this.cutOut,
-    this.close,
+    this.backToCodes,
     this.defaultActions = const <ScannerAction>[],
     this.verdict,
   });
@@ -53,10 +62,26 @@ final class ScannerResult {
   /// Hides the result and scans the next code with the camera.
   final VoidCallback scanAgain;
 
+  /// Closes the scanner's screen with [value] as the route's result: the
+  /// customer a loyalty card belongs to, a product the check found
+  /// (`verdict?.data`). With [openScanner], `await openScanner<T>(…)`
+  /// returns it; [value] must then be a `T` or `null`.
+  ///
+  /// ```dart
+  /// actionsBuilder: (context, result) => [
+  ///   ScannerAction(
+  ///     label: 'Attach to the sale',
+  ///     primary: true,
+  ///     onPressed: () => result.finish(result.verdict?.data),
+  ///   ),
+  /// ],
+  /// ```
+  final void Function([Object? value]) finish;
+
   /// Hides the result without scanning again: back to the codes to pick
   /// from in [ScannerMode.pick] (`BarcodeResultSheet.onClose`). `null` in
   /// the other modes, where the result hides by scanning again.
-  final VoidCallback? close;
+  final VoidCallback? backToCodes;
 
   /// The buttons of the default sheet: a copy of what matters, such as
   /// "Copy IBAN" with the IBAN alone for a payment (none for a code with a
@@ -128,6 +153,7 @@ final class ScannerTemplate {
     this.hint,
     this.hintIcon,
     this.largeHint = false,
+    this.hiddenExit = false,
     this.closeButton = true,
     this.onClose,
     this.onOpenSettings,
@@ -161,6 +187,7 @@ final class ScannerTemplate {
     required this.hint,
     required this.hintIcon,
     required this.largeHint,
+    required this.hiddenExit,
     required this.closeButton,
     required this.onClose,
     required this.onOpenSettings,
@@ -213,6 +240,7 @@ final class ScannerTemplate {
     this.sound = false,
   }) : mode = ScannerMode.single,
        largeHint = false,
+       hiddenExit = false,
        onDone = null,
        onPick = null,
        counter = false,
@@ -246,10 +274,11 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.zoomButtons = false,
+    this.switchCameraButton = false,
   }) : mode = ScannerMode.single,
        largeHint = false,
-       zoomButtons = false,
-       switchCameraButton = false,
+       hiddenExit = false,
        onDone = null,
        onPick = null,
        counter = false,
@@ -285,14 +314,15 @@ final class ScannerTemplate {
     this.check,
     this.haptics = true,
     this.sound = false,
+    this.hint,
+    this.photoButton = false,
+    this.zoomButtons = false,
+    this.switchCameraButton = false,
   }) : mode = ScannerMode.collect,
        onPick = null,
-       hint = null,
        hintIcon = null,
        largeHint = false,
-       photoButton = false,
-       zoomButtons = false,
-       switchCameraButton = false,
+       hiddenExit = false,
        counter = false,
        showResult = true,
        resultHeader = ResultHeader.picture,
@@ -331,13 +361,14 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.hint,
+    this.photoButton = false,
+    this.zoomButtons = false,
+    this.switchCameraButton = false,
   }) : mode = ScannerMode.single,
-       hint = null,
        hintIcon = null,
        largeHint = false,
-       photoButton = false,
-       zoomButtons = false,
-       switchCameraButton = false,
+       hiddenExit = false,
        onDone = null,
        onPick = null,
        counter = false,
@@ -373,10 +404,11 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.zoomButtons = false,
+    this.switchCameraButton = false,
   }) : mode = ScannerMode.single,
        largeHint = false,
-       zoomButtons = false,
-       switchCameraButton = false,
+       hiddenExit = false,
        onDone = null,
        onPick = null,
        counter = false,
@@ -412,10 +444,11 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.zoomButtons = false,
+    this.switchCameraButton = false,
   }) : mode = ScannerMode.single,
        largeHint = false,
-       zoomButtons = false,
-       switchCameraButton = false,
+       hiddenExit = false,
        onDone = null,
        onPick = null,
        counter = false,
@@ -457,10 +490,11 @@ final class ScannerTemplate {
     this.initialZoom = 2,
     this.haptics = true,
     this.sound = false,
+    this.photoButton = false,
+    this.switchCameraButton = false,
   }) : mode = ScannerMode.single,
        largeHint = false,
-       photoButton = false,
-       switchCameraButton = false,
+       hiddenExit = false,
        onDone = null,
        onPick = null,
        counter = false,
@@ -493,11 +527,12 @@ final class ScannerTemplate {
     this.check,
     this.haptics = true,
     this.sound = false,
+    this.photoButton = false,
+    this.zoomButtons = false,
+    this.switchCameraButton = false,
   }) : mode = ScannerMode.single,
        largeHint = false,
-       photoButton = false,
-       zoomButtons = false,
-       switchCameraButton = false,
+       hiddenExit = false,
        onDone = null,
        onPick = null,
        counter = false,
@@ -538,12 +573,13 @@ final class ScannerTemplate {
     this.resumeAfter = const Duration(seconds: 2),
     this.haptics = true,
     this.sound = true,
+    this.title,
+    this.photoButton = false,
+    this.zoomButtons = false,
+    this.switchCameraButton = false,
   }) : mode = ScannerMode.continuous,
-       title = null,
        largeHint = false,
-       photoButton = false,
-       zoomButtons = false,
-       switchCameraButton = false,
+       hiddenExit = false,
        onDone = null,
        onPick = null,
        showResult = true,
@@ -580,11 +616,12 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.photoButton = false,
+    this.zoomButtons = false,
+    this.switchCameraButton = false,
   }) : mode = ScannerMode.single,
        largeHint = false,
-       photoButton = false,
-       zoomButtons = false,
-       switchCameraButton = false,
+       hiddenExit = false,
        onDone = null,
        onPick = null,
        counter = false,
@@ -623,11 +660,12 @@ final class ScannerTemplate {
     this.closeOnResult = false,
     this.haptics = true,
     this.sound = false,
+    this.zoomButtons = false,
+    this.switchCameraButton = false,
   }) : mode = ScannerMode.pick,
        scanWindow = const ScanWindow.full(),
        largeHint = false,
-       zoomButtons = false,
-       switchCameraButton = false,
+       hiddenExit = false,
        onDone = null,
        counter = false,
        resultHeader = ResultHeader.icon,
@@ -661,14 +699,15 @@ final class ScannerTemplate {
     this.check,
     this.haptics = true,
     this.sound = false,
+    this.hint,
+    this.photoButton = false,
+    this.zoomButtons = false,
+    this.switchCameraButton = false,
   }) : mode = ScannerMode.collect,
        onPick = null,
-       hint = null,
        hintIcon = null,
        largeHint = false,
-       photoButton = false,
-       zoomButtons = false,
-       switchCameraButton = false,
+       hiddenExit = false,
        counter = false,
        showResult = true,
        resultHeader = ResultHeader.picture,
@@ -697,21 +736,22 @@ final class ScannerTemplate {
     this.title,
     this.hint,
     this.check,
+    this.hiddenExit = false,
     this.onOpenSettings,
     this.counter = false,
     this.resumeAfter = const Duration(seconds: 3),
     this.facing = CameraFacing.front,
     this.haptics = false,
     this.sound = true,
+    this.photoButton = false,
+    this.zoomButtons = false,
+    this.switchCameraButton = false,
+    this.torchButton = false,
+    this.closeButton = false,
+    this.onClose,
   }) : mode = ScannerMode.continuous,
        hintIcon = null,
        largeHint = true,
-       closeButton = false,
-       onClose = null,
-       torchButton = false,
-       photoButton = false,
-       zoomButtons = false,
-       switchCameraButton = false,
        onDone = null,
        onPick = null,
        showResult = true,
@@ -742,11 +782,12 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.hint,
   }) : mode = ScannerMode.single,
        scanWindow = const ScanWindow.full(),
-       hint = null,
        hintIcon = null,
        largeHint = false,
+       hiddenExit = false,
        onDone = null,
        onPick = null,
        counter = false,
@@ -786,11 +827,12 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.photoButton = false,
+    this.zoomButtons = false,
+    this.switchCameraButton = false,
   }) : mode = ScannerMode.single,
        largeHint = false,
-       photoButton = false,
-       zoomButtons = false,
-       switchCameraButton = false,
+       hiddenExit = false,
        onDone = null,
        onPick = null,
        counter = false,
@@ -834,10 +876,11 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.zoomButtons = false,
+    this.switchCameraButton = false,
   }) : mode = ScannerMode.single,
        largeHint = false,
-       zoomButtons = false,
-       switchCameraButton = false,
+       hiddenExit = false,
        onDone = null,
        onPick = null,
        counter = false,
@@ -909,6 +952,11 @@ final class ScannerTemplate {
   /// in landscape) instead of the pills, for a screen read from a step
   /// away, such as a kiosk.
   final bool largeHint;
+
+  /// A long press of two seconds in the top-left corner closes the screen
+  /// ([onClose], or the route's pop): a way out for staff where the screen
+  /// shows no buttons, such as [ScannerTemplate.kiosk].
+  final bool hiddenExit;
 
   /// A close button at the top left, shown when [onClose] is set or the
   /// scanner's route can be popped.
@@ -1054,6 +1102,7 @@ final class ScannerTemplate {
     ValueGetter<String?>? hint,
     ValueGetter<ScannerIconData?>? hintIcon,
     bool? largeHint,
+    bool? hiddenExit,
     bool? closeButton,
     ValueGetter<VoidCallback>? onClose,
     ValueGetter<VoidCallback>? onOpenSettings,
@@ -1084,6 +1133,7 @@ final class ScannerTemplate {
     hint: hint == null ? this.hint : hint(),
     hintIcon: hintIcon == null ? this.hintIcon : hintIcon(),
     largeHint: largeHint ?? this.largeHint,
+    hiddenExit: hiddenExit ?? this.hiddenExit,
     closeButton: closeButton ?? this.closeButton,
     onClose: onClose == null ? this.onClose : onClose(),
     onOpenSettings: onOpenSettings == null

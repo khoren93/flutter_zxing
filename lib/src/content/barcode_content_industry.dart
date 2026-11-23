@@ -138,10 +138,35 @@ final class BoardingPassLeg {
   /// The check-in sequence number without leading zeros.
   final String sequenceNumber;
 
-  /// [dayOfYear] as a date in [year].
-  DateTime? dateIn(int year) {
+  /// The day of the flight: [dayOfYear] in the year that puts it closest
+  /// to [now] (today by default), at midnight local time; `null` if the
+  /// pass gives no day. A pass for 2 January scanned on 30 December is for
+  /// next year's flight, one for 30 December scanned on 2 January for last
+  /// year's; day 366 falls only in a leap year.
+  ///
+  /// ```dart
+  /// final DateTime? day = pass.legs.first.date();
+  /// ```
+  DateTime? date({DateTime? now}) {
     final int? day = dayOfYear;
-    return day == null ? null : DateTime(year, 1, day);
+    if (day == null || day < 1 || day > 366) {
+      return null;
+    }
+    final DateTime at = now ?? DateTime.now();
+    // In UTC, so that a change to summer time does not tip the comparison.
+    final DateTime today = DateTime.utc(at.year, at.month, at.day);
+    DateTime? best;
+    for (int year = at.year - 1; year <= at.year + 1; year++) {
+      final DateTime candidate = DateTime.utc(year, 1, day);
+      if (candidate.year != year) {
+        continue; // day 366 of a common year
+      }
+      if (best == null ||
+          candidate.difference(today).abs() < best.difference(today).abs()) {
+        best = candidate;
+      }
+    }
+    return best == null ? null : DateTime(best.year, best.month, best.day);
   }
 
   @override

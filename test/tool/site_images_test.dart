@@ -60,7 +60,6 @@ void main() {
     skip: _out == null ? 'SITE_IMAGES not set' : null,
     () async {
       await _loadFonts();
-      const BarcodeWriter qr = BarcodeWriter(BarcodeFormat.qrCode);
       const String url = 'https://pub.dev/packages/flutter_zxing';
 
       // Every ready-made style.
@@ -68,7 +67,7 @@ void main() {
           in BarcodeStyle.presets.entries) {
         await _write(
           'style-${e.key}',
-          await e.value.encodePng(qr, url, size: 480),
+          await e.value.encodePng(url, size: 480),
           url,
         );
       }
@@ -83,7 +82,7 @@ void main() {
           moduleShape: ModuleShape.rounded,
           finderShape: FinderShape.rounded,
           logo: BarcodeLogo(logo),
-        ).encodePng(qr, 'https://flutter.dev', size: 480),
+        ).encodePng('https://flutter.dev', size: 480),
         'https://flutter.dev',
       );
 
@@ -95,7 +94,7 @@ void main() {
           finderShape: FinderShape.rounded,
           caption: BarcodeCaption('@FLUTTERDEV', style: _text),
           card: BarcodeCard(elevation: 0.04),
-        ).encodePng(qr, 'https://t.me/flutterdev', size: 480),
+        ).encodePng('https://t.me/flutterdev', size: 480),
         'https://t.me/flutterdev',
       );
 
@@ -107,7 +106,7 @@ void main() {
           gradient: LinearGradient(
             colors: <Color>[Color(0xFF00735D), Color(0xFF2563EB)],
           ),
-        ).encodePng(qr, 'https://pub.dev', size: 480),
+        ).encodePng('https://pub.dev', size: 480),
         'https://pub.dev',
       );
 

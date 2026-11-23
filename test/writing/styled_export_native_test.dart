@@ -52,7 +52,7 @@ void main() {
           final Uint8List png = await BarcodeStyle(
             moduleShape: modules,
             finderShape: finders,
-          ).encodePng(qr, url, moduleSize: 6);
+          ).encodePng(url, moduleSize: 6);
           expect((await const BarcodeReader().read(png))?.text, url);
         });
       }
@@ -61,11 +61,7 @@ void main() {
     for (final MapEntry<String, BarcodeStyle> preset
         in BarcodeStyle.presets.entries) {
       test('preset ${preset.key}', () async {
-        final Uint8List png = await preset.value.encodePng(
-          qr,
-          url,
-          moduleSize: 5,
-        );
+        final Uint8List png = await preset.value.encodePng(url, moduleSize: 5);
         expect((await const BarcodeReader().read(png))?.text, url);
       });
     }
@@ -96,8 +92,8 @@ void main() {
                 'dots': const BarcodeStyle(moduleShape: ModuleShape.circle),
               }.entries) {
             final Uint8List png = await style.value.encodePng(
-              writer,
               data,
+              writer: writer,
               moduleSize: 6,
             );
             expect(await reader.read(png), isNotNull, reason: style.key);
@@ -113,7 +109,7 @@ void main() {
           colors: <Color>[Color(0xFF0B3D91), Color(0xFF00735D)],
         ),
         moduleShape: ModuleShape.rounded,
-      ).encodePng(qr, url, size: 400);
+      ).encodePng(url, size: 400);
       expect((await const BarcodeReader().read(png))?.text, url);
     });
 
@@ -130,7 +126,7 @@ void main() {
             moduleShape: ModuleShape.rounded,
             finderShape: FinderShape.rounded,
             logo: BarcodeLogo(MemoryImage(logo), size: size),
-          ).encodePng(qr, url, moduleSize: 6);
+          ).encodePng(url, moduleSize: 6);
           final Barcode? read = await const BarcodeReader().read(png);
           expect(read?.text, url, reason: 'logo $size');
           expect(read?.ecLevel, level, reason: 'logo $size');
@@ -154,7 +150,6 @@ void main() {
         message: 'Order of 15 June 2020',
       );
       final Uint8List png = await BarcodeStyle.swissQrBill.encodePng(
-        const BarcodeWriter(BarcodeFormat.qrCode),
         bill.toPayload(),
         size: 600,
       );
@@ -170,9 +165,12 @@ void main() {
         BarcodeFormat.dataMatrix,
         BarcodeFormat.aztec,
       ]) {
-        final Uint8List png = await const BarcodeStyle(
-          moduleShape: ModuleShape.circle,
-        ).encodePng(BarcodeWriter(format), 'Styled $format', moduleSize: 8);
+        final Uint8List png =
+            await const BarcodeStyle(moduleShape: ModuleShape.circle).encodePng(
+              'Styled $format',
+              writer: BarcodeWriter(format),
+              moduleSize: 8,
+            );
         expect(
           (await const BarcodeReader().read(png))?.text,
           'Styled $format',
@@ -184,8 +182,8 @@ void main() {
     test('an EAN-13 with its digits in color', () async {
       final Uint8List png = await const BarcodeStyle(color: Color(0xFF14213D))
           .encodePng(
-            const BarcodeWriter(BarcodeFormat.ean13, showText: true),
             '950110153000',
+            writer: const BarcodeWriter(BarcodeFormat.ean13, showText: true),
             moduleSize: 3,
           );
       expect((await const BarcodeReader().read(png))?.text, '9501101530003');
@@ -230,7 +228,7 @@ void main() {
       () async {
         final String svg = await BarcodeStyle(
           logo: BarcodeLogo(MemoryImage(await _logoPng())),
-        ).encodeSvg(qr, url);
+        ).encodeSvg(url);
         expect(svg, contains('xlink:href="data:image/png;base64,'));
         // The default logo (0.22 of the width) needs H: the same text gives a
         // larger symbol than at the default level, M.

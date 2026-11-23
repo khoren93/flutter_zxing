@@ -8,16 +8,14 @@ class BoardingPassPage extends StatelessWidget {
   const BoardingPassPage({super.key});
 
   // Tickets and other codes keep the scanner open.
-  static ScanVerdict? _check(Barcode barcode) =>
-      barcode.content is BoardingPassContent
-      ? null
-      : const ScanVerdict.reject(title: 'Not a boarding pass');
+  static final ScannerCheck _check = acceptOnly<BoardingPassContent>(
+    reject: const ScanVerdict.reject(title: 'Not a boarding pass'),
+  );
 
-  static Widget _sheet(BuildContext context, ScannerResult result) {
+  static Widget? _sheet(BuildContext context, ScannerResult result) {
     final BarcodeContent content = result.barcode.content;
-    if (content is! BoardingPassContent) {
-      return BarcodeResultSheet(result.barcode, onScanAgain: result.scanAgain);
-    }
+    // Anything else, such as a code from a photo: the default sheet.
+    if (content is! BoardingPassContent) return null;
     final ScannerTheme theme = ScannerTheme.of(context);
     final ScannerStrings strings = ScannerStrings.of(context);
     return ScannerSheet(
@@ -36,7 +34,7 @@ class BoardingPassPage extends StatelessWidget {
             ScannerFields({
               'Flight': '${leg.carrier} ${leg.flightNumber}',
               // The pass gives the day of the year, not the year.
-              if (leg.dateIn(DateTime.now().year) case final DateTime day)
+              if (leg.date() case final DateTime day)
                 'Date': strings.dayAndMonth(day),
               'Seat': leg.seat.isEmpty ? '–' : leg.seat,
               'Class': leg.cabin,
@@ -50,10 +48,10 @@ class BoardingPassPage extends StatelessWidget {
               primary: true,
               onPressed: () {
                 // Your code: save the pass to the user's trips.
-                Navigator.of(context).maybePop();
+                result.finish();
               },
             ),
-            ScannerAction(label: 'Scan again', onPressed: result.scanAgain),
+            ScannerAction.scanAgain(result.scanAgain),
           ]),
         ],
       ),
@@ -61,7 +59,7 @@ class BoardingPassPage extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => const Scaffold(
+  Widget build(BuildContext context) => Scaffold(
     body: BarcodeScanner(
       template: ScannerTemplate.ticket(
         title: 'Scan your boarding pass',

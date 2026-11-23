@@ -137,11 +137,14 @@ Future<void> generate() async {
     finderShape: FinderShape.rounded,
   );
   final Uint8List styledPng = await style.encodePng(
-    writer,
     'https://pub.dev',
+    writer: writer,
     size: 1024,
   );
-  final String styledSvg = await style.encodeSvg(writer, 'https://pub.dev');
+  final String styledSvg = await style.encodeSvg(
+    'https://pub.dev',
+    writer: writer,
+  );
   print('${styledPng.length} ${styledSvg.length}');
 
   // Binary data: encode once, render as needed.

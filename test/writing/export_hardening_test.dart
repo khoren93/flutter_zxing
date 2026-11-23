@@ -39,11 +39,7 @@ void main() {
           final String text = String.fromCharCodes(<int>[
             for (int i = 0; i < length; i++) seed.codeUnitAt(0) + (i * 7) % 20,
           ]);
-          final Uint8List image = await style.encodePng(
-            const BarcodeWriter(BarcodeFormat.qrCode),
-            text,
-            size: 512,
-          );
+          final Uint8List image = await style.encodePng(text, size: 512);
           final Barcode? read = await const BarcodeReader().read(image);
           if (read?.text != text) {
             unread.add('$size "$text"');

@@ -46,7 +46,7 @@ to it.
 | `zx.readBarcodesImagePath(file, params)` | `BarcodeReader().readAll(...)` |
 | `zx.readBarcode(pixels, params)` | `BarcodeReader().readPixels(PixelBuffer(...))` |
 | `zx.processCameraImage(image, params)` | `ScannerController`, or `readPixels` |
-| `zx.encodeBarcode(contents: ..., params: ...)` | `BarcodeWriter(format).toPng(...)`, `.toSvg(...)`, `.toImage(...)` or `.encode(...)`; with a style, `style.encodePng(writer, ...)` |
+| `zx.encodeBarcode(contents: ..., params: ...)` | `BarcodeWriter(format).toPng(...)`, `.toSvg(...)`, `.toImage(...)` or `.encode(...)`; with a style, `style.encodePng(data, writer: ...)` |
 | `Code` / `Codes` | `Barcode` / `List<Barcode>` |
 | `Format.qrCode \| Format.ean13` (an `int` bit mask) | `{BarcodeFormat.qrCode, BarcodeFormat.ean13}` |
 | `DecodeParams` | `ReaderOptions` and `formats` |
@@ -309,7 +309,7 @@ Future<void> generate() async {
 
   // With the look of the code on screen:
   const BarcodeStyle style = BarcodeStyle(moduleShape: ModuleShape.rounded);
-  final Uint8List styled = await style.encodePng(writer, 'https://pub.dev', size: 300);
+  final Uint8List styled = await style.encodePng('https://pub.dev', size: 300);
   print('${png.length} ${svg.length} ${styled.length}');
 }
 ```

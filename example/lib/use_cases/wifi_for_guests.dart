@@ -19,8 +19,6 @@ class _WifiForGuestsPageState extends State<WifiForGuestsPage> {
   final _password = TextEditingController(text: 'espresso2027');
   WifiSecurity _security = WifiSecurity.wpa;
 
-  static const BarcodeWriter _writer = BarcodeWriter(BarcodeFormat.qrCode);
-
   WifiContent get _wifi => WifiContent(
     ssid: _ssid.text,
     password: _security == WifiSecurity.none ? null : _password.text,
@@ -46,11 +44,11 @@ class _WifiForGuestsPageState extends State<WifiForGuestsPage> {
     // The same card as on screen; SVG prints sharp at any size.
     final XFile file = svg
         ? XFile.fromData(
-            utf8.encode(await _style.encodeSvg(_writer, data)),
+            utf8.encode(await _style.encodeSvg(data)),
             mimeType: 'image/svg+xml',
           )
         : XFile.fromData(
-            await _style.encodePng(_writer, data, size: 2048),
+            await _style.encodePng(data, size: 2048),
             mimeType: 'image/png',
           );
     await SharePlus.instance.share(
@@ -68,7 +66,7 @@ class _WifiForGuestsPageState extends State<WifiForGuestsPage> {
   Widget build(BuildContext context) {
     // What keeps the network from being built: an empty name, a short
     // WPA password…
-    final List<ContentIssue> issues = _wifi.validate();
+    final bool valid = _wifi.validate().isEmpty;
     return Scaffold(
       appBar: AppBar(title: const Text('Wi‑Fi for guests')),
       body: ListView(
@@ -96,12 +94,16 @@ class _WifiForGuestsPageState extends State<WifiForGuestsPage> {
               onChanged: (_) => setState(() {}),
             ),
           const SizedBox(height: 24),
-          if (issues.isNotEmpty)
-            Text(issues.map((i) => i.message).join('\n'))
-          else ...[
-            Center(
-              child: BarcodeView(_wifi.toPayload(), style: _style, width: 260),
+          Center(
+            // Shows what is wrong instead of a code that cannot join.
+            child: BarcodeContentView(
+              _wifi,
+              style: _style,
+              width: 260,
+              errorBuilder: (context, error) => Text(error.message),
             ),
+          ),
+          if (valid) ...[
             const SizedBox(height: 24),
             Builder(
               builder: (context) => Wrap(

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+import '../barcode/barcode_format.dart';
 import '../writing/barcode_writer.dart';
 import 'logo_symbol.dart';
 import 'styled_export.dart';
@@ -10,13 +11,17 @@ import 'swiss_cross.dart';
 /// [encodePng] and [encodeSvg] when exported.
 ///
 /// ```dart
-/// const writer = BarcodeWriter(BarcodeFormat.qrCode);
-/// final png = await BarcodeStyle.dots.encodePng(writer, 'https://pub.dev', size: 1024);
+/// // A QR code unless you give a writer.
+/// final png = await BarcodeStyle.dots.encodePng('https://pub.dev', size: 1024);
+/// final ean = await BarcodeStyle.classic.encodeSvg(
+///   '4006381333931',
+///   writer: const BarcodeWriter(BarcodeFormat.ean13),
+/// );
 ///
 /// // Encode once, draw twice: encode gives a logo the error correction it
 /// // needs.
 /// const style = BarcodeStyle.dots;
-/// final symbol = await style.encode(writer, 'https://pub.dev');
+/// final symbol = await style.encode('https://pub.dev');
 /// final svg = await style.toSvg(symbol);
 /// final thumbnail = await style.toPng(symbol, size: 256);
 /// ```
@@ -162,8 +167,8 @@ final class BarcodeStyle {
   /// profile code in a messenger.
   final BarcodeCard? card;
 
-  /// Encodes [data] with [writer] for this style: the symbol `BarcodeView`
-  /// shows. Under a [logo] a QR code gets the error correction the logo
+  /// Encodes [data] with [writer] (a QR code by default) for this style:
+  /// the symbol `BarcodeView` shows. Under a [logo] a QR code gets the error correction the logo
   /// needs ([BarcodeLogo.neededErrorCorrection]) unless the writer sets its
   /// own, and a symbol large enough for it unless the writer sets a
   /// version. Encode once, then draw with [toPng] and [toSvg] as often as
@@ -171,28 +176,32 @@ final class BarcodeStyle {
   ///
   /// ```dart
   /// final style = BarcodeStyle(logo: BarcodeLogo(AssetImage('assets/logo.png')));
-  /// final symbol = await style.encode(const BarcodeWriter(BarcodeFormat.qrCode), wifi);
+  /// final symbol = await style.encode(wifi);
   /// final png = await style.toPng(symbol, size: 1024);
   /// ```
   ///
   /// Throws `BarcodeWriteException` if [data] cannot be encoded.
-  Future<BarcodeSymbol> encode(BarcodeWriter writer, String data) =>
-      encodeUnderLogo(
-        writerUnderLogo(writer, logo),
-        logo?.size,
-        (BarcodeWriter w) => w.encode(data),
-      );
+  Future<BarcodeSymbol> encode(
+    String data, {
+    BarcodeWriter writer = const BarcodeWriter(BarcodeFormat.qrCode),
+  }) => encodeUnderLogo(
+    writerUnderLogo(writer, logo),
+    logo?.size,
+    (BarcodeWriter w) => w.encode(data),
+  );
 
-  /// Encodes binary [data] with [writer] for this style, byte for byte;
-  /// see [encode] and `BarcodeWriter.encodeBytes`.
+  /// Encodes binary [data] with [writer] (a QR code by default) for this
+  /// style, byte for byte; see [encode] and `BarcodeWriter.encodeBytes`.
   ///
   /// Throws `BarcodeWriteException` if [data] cannot be encoded.
-  Future<BarcodeSymbol> encodeBytes(BarcodeWriter writer, Uint8List data) =>
-      encodeUnderLogo(
-        writerUnderLogo(writer, logo),
-        logo?.size,
-        (BarcodeWriter w) => w.encodeBytes(data),
-      );
+  Future<BarcodeSymbol> encodeBytes(
+    Uint8List data, {
+    BarcodeWriter writer = const BarcodeWriter(BarcodeFormat.qrCode),
+  }) => encodeUnderLogo(
+    writerUnderLogo(writer, logo),
+    logo?.size,
+    (BarcodeWriter w) => w.encodeBytes(data),
+  );
 
   /// Renders [symbol] as an SVG document drawn with this style: the
   /// colors, gradient, module and finder shapes and logo of `BarcodeView`.
@@ -212,7 +221,7 @@ final class BarcodeStyle {
   /// correction the logo needs (see [encode]).
   ///
   /// ```dart
-  /// final symbol = await style.encode(const BarcodeWriter(BarcodeFormat.qrCode), 'https://pub.dev');
+  /// final symbol = await style.encode('https://pub.dev');
   /// await File('qr.svg').writeAsString(await style.toSvg(symbol, size: 512));
   /// ```
   Future<String> toSvg(BarcodeSymbol symbol, {int? size, int? moduleSize}) =>
@@ -243,31 +252,48 @@ final class BarcodeStyle {
   Future<Uint8List> toPng(BarcodeSymbol symbol, {int? size, int? moduleSize}) =>
       styledPng(symbol, this, size: size, moduleSize: moduleSize);
 
-  /// Encodes [data] with [writer] and renders it as an SVG document drawn
-  /// with this style: [encode], then [toSvg].
+  /// Encodes [data] with [writer] (a QR code by default) and renders it as
+  /// an SVG document drawn with this style: [encode], then [toSvg].
+  ///
+  /// ```dart
+  /// final String svg = await BarcodeStyle.soft.encodeSvg('https://pub.dev');
+  /// ```
   ///
   /// Throws `BarcodeWriteException` if [data] cannot be encoded, and the
   /// errors of [toSvg].
   Future<String> encodeSvg(
-    BarcodeWriter writer,
     String data, {
+    BarcodeWriter writer = const BarcodeWriter(BarcodeFormat.qrCode),
     int? size,
     int? moduleSize,
-  }) async =>
-      toSvg(await encode(writer, data), size: size, moduleSize: moduleSize);
+  }) async => toSvg(
+    await encode(data, writer: writer),
+    size: size,
+    moduleSize: moduleSize,
+  );
 
-  /// Encodes [data] with [writer] and renders it as a PNG drawn with this
-  /// style: [encode], then [toPng].
+  /// Encodes [data] with [writer] (a QR code by default) and renders it as
+  /// a PNG drawn with this style: [encode], then [toPng].
+  ///
+  /// ```dart
+  /// final Uint8List png = await BarcodeStyle.dots.encodePng(
+  ///   'https://pub.dev',
+  ///   size: 1024,
+  /// );
+  /// ```
   ///
   /// Throws `BarcodeWriteException` if [data] cannot be encoded, and the
   /// errors of [toPng].
   Future<Uint8List> encodePng(
-    BarcodeWriter writer,
     String data, {
+    BarcodeWriter writer = const BarcodeWriter(BarcodeFormat.qrCode),
     int? size,
     int? moduleSize,
-  }) async =>
-      toPng(await encode(writer, data), size: size, moduleSize: moduleSize);
+  }) async => toPng(
+    await encode(data, writer: writer),
+    size: size,
+    moduleSize: moduleSize,
+  );
 
   /// Creates a copy with the given fields replaced.
   ///

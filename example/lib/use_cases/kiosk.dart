@@ -54,18 +54,8 @@ class _KioskPageState extends State<KioskPage> {
         check: _check,
         // Long enough to read the locker number from a step away.
         resumeAfter: const Duration(seconds: 5),
-      ),
-      // The kiosk has no buttons; staff leave with a long press in the
-      // top-left corner.
-      foregroundBuilder: (context, layout) => Positioned(
-        left: 0,
-        top: 0,
-        width: 88,
-        height: 88,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onLongPress: () => Navigator.of(context).maybePop(),
-        ),
+        // No buttons: staff leave with a long press in the top-left corner.
+        hiddenExit: true,
       ),
     ),
   );

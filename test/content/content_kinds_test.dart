@@ -633,8 +633,81 @@ void main() {
       expect(pass.legs[1].from, 'FRA');
       expect(pass.legs[1].to, 'GVA');
       expect(pass.legs[1].carrier, 'LH');
-      expect(pass.legs[1].dateIn(2026), DateTime(2026, 11, 23));
+      expect(
+        pass.legs[1].date(now: DateTime(2026, 11, 20)),
+        DateTime(2026, 11, 23),
+      );
       expect(pass.toPayload(), text);
+    });
+
+    group('the date of a leg', () {
+      BoardingPassLeg leg(int? day) => BoardingPassLeg(
+        bookingReference: 'ABC123',
+        from: 'EVN',
+        to: 'VIE',
+        carrier: 'OS',
+        flightNumber: '642',
+        dayOfYear: day,
+        cabin: 'Y',
+        seat: '',
+        sequenceNumber: '1',
+      );
+
+      test('in the year of today', () {
+        expect(
+          leg(140).date(now: DateTime(2026, 5, 1, 23, 59)),
+          DateTime(2026, 5, 20),
+        );
+      });
+
+      test('2 January scanned on 30 December is next year', () {
+        expect(leg(2).date(now: DateTime(2026, 12, 30)), DateTime(2027, 1, 2));
+      });
+
+      test('30 December scanned on 2 January was last year', () {
+        expect(
+          leg(364).date(now: DateTime(2027, 1, 2)),
+          DateTime(2026, 12, 30),
+        );
+      });
+
+      test('day 60 is 29 February in a leap year, 1 March otherwise', () {
+        expect(leg(60).date(now: DateTime(2028, 2, 10)), DateTime(2028, 2, 29));
+        expect(
+          leg(60).date(now: DateTime(2027, 2, 10)),
+          DateTime(2027, 3),
+        ); // 1 March
+      });
+
+      test('day 366 falls only in a leap year', () {
+        expect(
+          leg(366).date(now: DateTime(2029, 1, 3)),
+          DateTime(2028, 12, 31),
+        );
+        expect(
+          leg(366).date(now: DateTime(2028, 12, 20)),
+          DateTime(2028, 12, 31),
+        );
+        // None of 2025, 2026 and 2027 has a day 366.
+        expect(leg(366).date(now: DateTime(2026, 6, 10)), isNull);
+      });
+
+      test('no day, no date', () {
+        expect(leg(null).date(), isNull);
+      });
+
+      test('today by default', () {
+        final DateTime now = DateTime.now();
+        final DateTime today = DateTime(now.year, now.month, now.day);
+        final int day =
+            DateTime.utc(
+              now.year,
+              now.month,
+              now.day,
+            ).difference(DateTime.utc(now.year)).inDays +
+            1;
+        expect(leg(day).date(), today);
+      });
     });
 
     test('other text starting with M is not a pass', () {

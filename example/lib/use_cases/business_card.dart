@@ -38,10 +38,10 @@ class BusinessCardPage extends StatelessWidget {
                     style: text.bodyMedium?.copyWith(color: colors.primary),
                   ),
                   const SizedBox(height: 16),
-                  // A vCard 3.0; `toPayload(format: ContactFormat.meCard)`
-                  // makes a smaller code with fewer fields.
-                  BarcodeView(
-                    _contact.toPayload(),
+                  // A vCard 3.0. For a smaller code with fewer fields:
+                  // BarcodeView(_contact.toPayload(format: ContactFormat.meCard)).
+                  BarcodeContentView(
+                    _contact,
                     style: BarcodeStyle.soft,
                     width: 220,
                   ),

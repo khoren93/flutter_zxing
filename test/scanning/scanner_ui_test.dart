@@ -2576,7 +2576,9 @@ void main() {
         _host(
           ScannerScope(
             strings: ScannerStrings(
-              money: (String amount, String? currency) => currency == 'BRL'
+              amount: (String? amount, String? currency) => amount == null
+                  ? 'Qualquer valor'
+                  : currency == 'BRL'
                   ? 'R\$ ${amount.replaceAll('.', ',')}'
                   : amount,
             ),

@@ -17,17 +17,17 @@ class _ParcelsPageState extends State<ParcelsPage> {
   List<Gs1Content>? _received;
 
   // Only GS1 labels go into the list.
-  ScanVerdict? _check(Barcode barcode) => barcode.content is Gs1Content
-      ? null
-      : const ScanVerdict.reject(
-          title: 'Not a GS1 label',
-          message: 'Scan the barcode with (00) under it',
-        );
+  final ScannerCheck _check = acceptOnly<Gs1Content>(
+    reject: const ScanVerdict.reject(
+      title: 'Not a GS1 label',
+      message: 'Scan the barcode with (00) under it',
+    ),
+  );
 
   void _done(List<CollectedBarcode> items) {
+    // The check let only GS1 labels in.
     final List<Gs1Content> labels = [
-      for (final item in items)
-        if (item.barcode.content case final Gs1Content label) label,
+      for (final item in items) item.barcode.content as Gs1Content,
     ];
     // Your code: book the parcels into your warehouse system.
     setState(() => _received = labels);

@@ -2,14 +2,50 @@
 
 ## Unreleased
 
+### Breaking changes
+
+* `ScannerResult.close` is now `backToCodes`: it goes back to the codes of
+  `ScannerTemplate.pick()`, it does not close the scanner.
+* `BarcodeStyle.encode`, `encodeBytes`, `encodePng` and `encodeSvg` take the
+  writer as a named parameter, QR by default:
+  `style.encodePng('https://pub.dev', size: 1024)`.
+* `ScannerStrings(money:)` is now `amount:`, and `wifiOpen` and
+  `wifiEnterprise` are one `wifiSecurity`.
+* `BoardingPassLeg.dateIn(year)` is now `date()`, which picks the year: a
+  pass for 2 January scanned on 30 December is for next year.
+
+### New
+
+* Sheets of labels to print: `BarcodeLabelSheet` lays a list of data out on
+  A4, Letter or your own paper in columns and rows, as a PDF or SVG pages,
+  with a preview widget. 10 000 codes take about 1.5 seconds.
+* `openScanner<T>` opens a template with its result sheet and returns what
+  the sheet passes to `result.finish(value)`, such as the customer a loyalty
+  card belongs to.
+* `scanContent<T>` and `acceptOnly<T>`: accept one kind of content, such as
+  a 2FA code or a Wi‑Fi network, and get it typed.
+* A check can hand what it found to the result sheet: `ScanVerdict(data:)`,
+  read as `result.verdict?.data`, also on collected codes. The default
+  sheet shows an accepted or flagged verdict's title and message.
+* A `resultBuilder` returns `null` for the default sheet.
+* `ScannerAction.scanAgain(result.scanAgain)`, with the text of
+  `ScannerStrings`.
+* Every template takes a title, a hint and its buttons. `hiddenExit`: a
+  long press in the corner closes a kiosk without buttons.
+* `BarcodeContentView` draws a content with what its standard requires,
+  such as the Swiss cross on a QR-bill, and shows why it cannot when the
+  data is wrong.
+* `BarcodeSymbol.toSvgElement` places a code in an SVG of your own.
+* `Gs1Content.contentsGtin`: the GTIN of the goods on a pallet (AI 02).
+* `ScannerStrings.wifiSecurity` and `amount` name a network's security and
+  a payment's amount in your language.
 * The demo has a Use cases tab: 24 ways apps use the package, each one file
   to try and copy. Also on the documentation site.
-* A check can hand what it found to the result sheet: `ScanVerdict(data:)`,
-  read as `result.verdict?.data` in `resultBuilder` and `actionsBuilder`.
-  The default sheet shows an accepted or flagged verdict's title and message.
-* `BarcodeSymbol.toSvgElement` places a code in an SVG of your own, such as a
-  page of labels, in the page's units.
-* `Gs1Content.contentsGtin`: the GTIN of the goods on a pallet (AI 02).
+
+### Fixed
+
+* A result sheet with a primary button of yours and the default buttons
+  filled two buttons with the accent; now only the first.
 
 ## 4.0.0-rc.4
 

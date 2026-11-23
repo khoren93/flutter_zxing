@@ -59,9 +59,8 @@ final class ScannerStrings {
     this.byteCount = _byteCount,
     this.link = 'Link',
     this.wifi = 'Wi‑Fi network',
-    this.wifiOpen = 'Open network',
     this.wifiPassword = 'password in the code',
-    this.wifiEnterprise = 'Enterprise',
+    this.wifiSecurity = _wifiSecurity,
     this.contact = 'Contact',
     this.event = 'Event',
     this.email = 'Email',
@@ -125,7 +124,7 @@ final class ScannerStrings {
     this.dayAndMonth = _dayAndMonth,
     this.fullDate = _fullDate,
     this.vinRegion = _vinRegion,
-    this.money = _money,
+    this.amount = _amount,
     this.payerEntersAmount = 'The payer enters the amount',
     this.reusable = 'Reusable',
     this.copyIban = 'Copy IBAN',
@@ -283,14 +282,19 @@ final class ScannerStrings {
   /// The kind of a [WifiContent].
   final String wifi;
 
-  /// A Wi‑Fi network without a password.
-  final String wifiOpen;
-
   /// A Wi‑Fi network whose password is in the code.
   final String wifiPassword;
 
-  /// A Wi‑Fi network secured with WPA2/WPA3 Enterprise (EAP).
-  final String wifiEnterprise;
+  /// How a Wi‑Fi network is secured, in plain words: "Open network",
+  /// "WEP", "WPA", "WPA3", "Enterprise". The result sheet leaves
+  /// [WifiSecurity.unknown] out.
+  ///
+  /// ```dart
+  /// Text(ScannerStrings.of(context).wifiSecurity(wifi.security))
+  /// ```
+  final String Function(WifiSecurity security) wifiSecurity;
+
+
 
   /// The kind of a [ContactContent].
   final String contact;
@@ -475,14 +479,28 @@ final class ScannerStrings {
   /// A date without its year: "14 Nov".
   final String Function(DateTime date) dayAndMonth;
 
-  /// A date: "31 Aug 1977".
+  /// A full date, as the sheets show expiry, best-before and birth dates:
+  /// "31 Aug 1977".
+  ///
+  /// ```dart
+  /// Text(ScannerStrings.of(context).fullDate(license.expiryDate!))
+  /// ```
   final String Function(DateTime date) fullDate;
 
   /// Where a vehicle was made: "North America".
   final String Function(VinRegion region) vinRegion;
 
-  /// An amount as the sheet shows it: "12.50 EUR". Give your own to format money for a locale, such as "€12,50".
-  final String Function(String amount, String? currency) money;
+  /// A payment amount with its currency, as the payment sheet shows it:
+  /// "12.50 EUR"; "Any amount" for a code without one (`null`), whose
+  /// payer types it in. [amount] is in the main unit with a dot, as
+  /// [PaymentContent.amount] gives it. Give your own to format money for a
+  /// locale, such as "12,50 €".
+  ///
+  /// ```dart
+  /// Text(ScannerStrings.of(context).amount(payment.amount, payment.currency))
+  /// ```
+  final String Function(String? amount, String? currency) amount;
+
 
   /// A payment code without an amount.
   final String payerEntersAmount;
@@ -671,9 +689,8 @@ final class ScannerStrings {
     String Function(int count)? byteCount,
     String? link,
     String? wifi,
-    String? wifiOpen,
     String? wifiPassword,
-    String? wifiEnterprise,
+    String Function(WifiSecurity security)? wifiSecurity,
     String? contact,
     String? event,
     String? email,
@@ -737,7 +754,7 @@ final class ScannerStrings {
     String Function(DateTime date)? dayAndMonth,
     String Function(DateTime date)? fullDate,
     String Function(VinRegion region)? vinRegion,
-    String Function(String amount, String? currency)? money,
+    String Function(String? amount, String? currency)? amount,
     String? payerEntersAmount,
     String? reusable,
     String? copyIban,
@@ -821,9 +838,8 @@ final class ScannerStrings {
     byteCount: byteCount ?? this.byteCount,
     link: link ?? this.link,
     wifi: wifi ?? this.wifi,
-    wifiOpen: wifiOpen ?? this.wifiOpen,
     wifiPassword: wifiPassword ?? this.wifiPassword,
-    wifiEnterprise: wifiEnterprise ?? this.wifiEnterprise,
+    wifiSecurity: wifiSecurity ?? this.wifiSecurity,
     contact: contact ?? this.contact,
     event: event ?? this.event,
     email: email ?? this.email,
@@ -887,7 +903,7 @@ final class ScannerStrings {
     dayAndMonth: dayAndMonth ?? this.dayAndMonth,
     fullDate: fullDate ?? this.fullDate,
     vinRegion: vinRegion ?? this.vinRegion,
-    money: money ?? this.money,
+    amount: amount ?? this.amount,
     payerEntersAmount: payerEntersAmount ?? this.payerEntersAmount,
     reusable: reusable ?? this.reusable,
     copyIban: copyIban ?? this.copyIban,
@@ -1005,9 +1021,8 @@ final class ScannerStrings {
       other.byteCount == byteCount &&
       other.link == link &&
       other.wifi == wifi &&
-      other.wifiOpen == wifiOpen &&
       other.wifiPassword == wifiPassword &&
-      other.wifiEnterprise == wifiEnterprise &&
+      other.wifiSecurity == wifiSecurity &&
       other.contact == contact &&
       other.event == event &&
       other.email == email &&
@@ -1071,7 +1086,7 @@ final class ScannerStrings {
       other.dayAndMonth == dayAndMonth &&
       other.fullDate == fullDate &&
       other.vinRegion == vinRegion &&
-      other.money == money &&
+      other.amount == amount &&
       other.payerEntersAmount == payerEntersAmount &&
       other.reusable == reusable &&
       other.copyIban == copyIban &&
@@ -1157,9 +1172,8 @@ final class ScannerStrings {
     byteCount,
     link,
     wifi,
-    wifiOpen,
     wifiPassword,
-    wifiEnterprise,
+    wifiSecurity,
     contact,
     event,
     email,
@@ -1223,7 +1237,7 @@ final class ScannerStrings {
     dayAndMonth,
     fullDate,
     vinRegion,
-    money,
+    amount,
     payerEntersAmount,
     reusable,
     copyIban,
@@ -1286,8 +1300,20 @@ final class ScannerStrings {
 
   static String _seconds(int seconds) => '$seconds s';
 
-  static String _money(String amount, String? currency) =>
-      currency == null ? amount : '$amount $currency';
+  static String _amount(String? amount, String? currency) => amount == null
+      ? 'Any amount'
+      : currency == null
+      ? amount
+      : '$amount $currency';
+
+  static String _wifiSecurity(WifiSecurity security) => switch (security) {
+    WifiSecurity.none => 'Open network',
+    WifiSecurity.wep => 'WEP',
+    WifiSecurity.wpa => 'WPA',
+    WifiSecurity.wpa3 => 'WPA3',
+    WifiSecurity.enterprise => 'Enterprise',
+    WifiSecurity.unknown => 'Secured',
+  };
 
   static String _flightOf(int flight, int count) => 'Flight $flight of $count';
 

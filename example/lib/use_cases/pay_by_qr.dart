@@ -10,10 +10,9 @@ class PayByQrPage extends StatelessWidget {
 
   // A code with a wrong IBAN or checksum is not a payment, so it is refused
   // here too.
-  static ScanVerdict? _check(Barcode barcode) =>
-      barcode.content is PaymentContent
-      ? null
-      : const ScanVerdict.reject(title: 'Not a payment code');
+  static final ScannerCheck _check = acceptOnly<PaymentContent>(
+    reject: const ScanVerdict.reject(title: 'Not a payment code'),
+  );
 
   // The default sheet shows the payee and the amount; Pay goes on.
   static List<ScannerAction> _actions(
@@ -35,7 +34,7 @@ class PayByQrPage extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) => const Scaffold(
+  Widget build(BuildContext context) => Scaffold(
     body: BarcodeScanner(
       template: ScannerTemplate.payment(
         check: _check,

@@ -22,41 +22,35 @@ class _LoyaltyCardPageState extends State<LoyaltyCardPage> {
   _Customer? _customer;
 
   Future<void> _scan() async {
-    final _Customer? customer = await Navigator.of(context).push(
-      MaterialPageRoute<_Customer>(
-        builder: (context) => Scaffold(
-          body: BarcodeScanner(
-            template: ScannerTemplate.loyalty(
-              title: 'Loyalty card',
-              // The sheet shows the card number large, and under it the
-              // customer the check found.
-              check: (barcode) {
-                final _Customer? member = _members[barcode.text];
-                return member == null
-                    ? const ScanVerdict.warn(
-                        title: 'Unknown card',
-                        message: 'It will be enrolled',
-                        data: (name: 'New member', points: 0),
-                      )
-                    : ScanVerdict.accept(
-                        title: member.name,
-                        message: '${member.points} points',
-                        data: member,
-                      );
-              },
-              actionsBuilder: (context, result) => [
-                ScannerAction(
-                  label: 'Attach to the sale',
-                  primary: true,
-                  onPressed: () => Navigator.of(
-                    context,
-                  ).pop(result.verdict?.data as _Customer?),
-                ),
-                ...result.defaultActions,
-              ],
-            ),
+    // The scanner's own screen with its sheet; "Attach" closes it with the
+    // customer the check found.
+    final _Customer? customer = await openScanner<_Customer>(
+      context,
+      template: ScannerTemplate.loyalty(
+        title: 'Loyalty card',
+        // The sheet shows the card number large, and under it the customer.
+        check: (barcode) {
+          final _Customer? member = _members[barcode.text];
+          return member == null
+              ? const ScanVerdict.warn(
+                  title: 'Unknown card',
+                  message: 'It will be enrolled',
+                  data: (name: 'New member', points: 0),
+                )
+              : ScanVerdict.accept(
+                  title: member.name,
+                  message: '${member.points} points',
+                  data: member,
+                );
+        },
+        actionsBuilder: (context, result) => [
+          ScannerAction(
+            label: 'Attach to the sale',
+            primary: true,
+            onPressed: () => result.finish(result.verdict?.data),
           ),
-        ),
+          ScannerAction.scanAgain(result.scanAgain),
+        ],
       ),
     );
     if (customer == null || !mounted) return; // closed

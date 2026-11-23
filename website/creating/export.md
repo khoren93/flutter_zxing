@@ -29,10 +29,13 @@ program that shows the file picks the closest font it has.
 
 ```dart
 Future<void> share() async {
-  const writer = BarcodeWriter(BarcodeFormat.qrCode);
   const style = BarcodeStyle.lagoon;
-  final Uint8List png = await style.encodePng(writer, 'https://pub.dev', size: 1024);
-  final String svg = await style.encodeSvg(writer, 'https://pub.dev');
+  // A QR code unless you give a writer.
+  final Uint8List png = await style.encodePng('https://pub.dev', size: 1024);
+  final String svg = await style.encodeSvg(
+    '4006381333931',
+    writer: const BarcodeWriter(BarcodeFormat.ean13),
+  );
   print('${png.length} bytes of PNG, ${svg.length} characters of SVG');
 }
 ```
@@ -40,6 +43,18 @@ Future<void> share() async {
 To draw one code several times, encode it once with `style.encode` and draw
 the symbol with `style.toPng` and `style.toSvg`. The export loads the
 logo's image itself, sharp enough for the size asked.
+
+A [content](../content/overview) is encoded with what its standard
+requires by `style.encodeContent`: a Swiss QR-bill or a SEPA payment as a
+QR code with error correction M, GS1 data as GS1.
+
+```dart
+Future<Uint8List> billPng(SwissQrBillContent bill) async {
+  final BarcodeSymbol symbol =
+      await BarcodeStyle.swissQrBill.encodeContent(bill);
+  return BarcodeStyle.swissQrBill.toPng(symbol, size: 1024);
+}
+```
 
 ## In an SVG of your own
 
@@ -69,7 +84,7 @@ Future<String> labelPage(List<String> items) async {
 }
 ```
 
-The Use cases page has a whole [sheet of labels](../use-cases#a-sheet-of-labels).
+For whole pages of labels, with paper sizes, a grid and a PDF to print, see [Sheets of labels](./label-sheets).
 
 ## The modules themselves
 

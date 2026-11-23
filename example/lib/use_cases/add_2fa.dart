@@ -15,20 +15,17 @@ class _AddTwoFactorPageState extends State<AddTwoFactorPage> {
   OtpContent? _account;
 
   Future<void> _scan() async {
-    final Barcode? barcode = await scanBarcode(
+    // Any other code keeps the scanner open with the reject message.
+    final OtpContent? otp = await scanContent<OtpContent>(
       context,
       formats: {BarcodeFormat.qrCode},
       hint: 'Scan the QR code from the service’s 2FA settings',
-      // Any other code keeps the scanner open with this message.
-      check: (barcode) => barcode.content is OtpContent
-          ? null
-          : const ScanVerdict.reject(
-              title: 'Not a 2FA code',
-              message: 'Look for the code that starts two-factor sign-in.',
-            ),
+      reject: const ScanVerdict.reject(
+        title: 'Not a 2FA code',
+        message: 'Look for the code that starts two-factor sign-in.',
+      ),
     );
-    if (barcode == null || !mounted) return; // closed
-    final OtpContent otp = barcode.content as OtpContent;
+    if (otp == null || !mounted) return; // closed
     // Your code: keep otp.secret in secure storage, such as the Keychain.
     setState(() => _account = otp);
   }

@@ -15,6 +15,7 @@ import 'package:flutter/widgets.dart';
 
 import '../barcode/barcode.dart';
 import '../barcode/barcode_format.dart';
+import '../content/barcode_content.dart';
 import '../engine/engine.dart';
 import '../engine/engine_protocol.dart';
 import '../errors.dart';

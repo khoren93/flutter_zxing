@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart' show LongPressGestureRecognizer;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -263,6 +264,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       return;
     }
     List<Barcode> taken = capture.barcodes;
+    final Map<Barcode, ScanVerdict> verdicts = <Barcode, ScanVerdict>{};
     bool told = false;
     if (_template.check != null) {
       taken = <Barcode>[];
@@ -281,8 +283,10 @@ class _TemplateOverlayState extends State<TemplateOverlay>
           case ScanVerdictKind.warn:
             flagged = verdict;
             taken.add(barcode);
+            verdicts[barcode] = verdict!;
           case ScanVerdictKind.accept:
             taken.add(barcode);
+            verdicts[barcode] = verdict!;
         }
       }
       // A refused code is told first: it is not in the list.
@@ -328,6 +332,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
             barcode,
             (before?.count ?? 0) + 1,
             cutOut: before?.cutOut,
+            verdict: verdicts[barcode] ?? before?.verdict,
           ),
         );
         if (before?.cutOut == null && BarcodeThumbnail.needsCutOut(barcode)) {
@@ -482,10 +487,16 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     }
   }
 
-  /// Closes the screen with [barcode], once no other route lies over it.
+  /// `ScannerResult.finish`: the screen closes with [value].
+  void _finish([Object? value]) {
+    _after?.cancel();
+    _closeWith(value);
+  }
+
+  /// Closes the screen with [value], once no other route lies over it.
   /// Where the screen does not close, such as the app's first screen or
   /// one that refuses to be popped, scanning goes on.
-  void _closeWith(Barcode barcode) {
+  void _closeWith(Object? value) {
     _after = null;
     if (!mounted) {
       return;
@@ -498,7 +509,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         return;
       }
       unawaited(
-        navigator.maybePop(barcode).then((bool _) {
+        navigator.maybePop(value).then((bool _) {
           if (mounted && (route?.isCurrent ?? true)) {
             _scanAgain();
           }
@@ -507,7 +518,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     } else if (route.isActive) {
       _after = Timer(
         const Duration(milliseconds: 200),
-        () => _closeWith(barcode),
+        () => _closeWith(value),
       );
     }
   }
@@ -607,7 +618,12 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     }
     final CollectedBarcode item = _items[index];
     setState(() {
-      _items[index] = CollectedBarcode(item.barcode, item.count, cutOut: image);
+      _items[index] = CollectedBarcode(
+        item.barcode,
+        item.count,
+        cutOut: image,
+        verdict: item.verdict,
+      );
     });
   }
 
@@ -1251,6 +1267,35 @@ class _TemplateOverlayState extends State<TemplateOverlay>
               ),
             ),
           ),
+        // A way out for staff on a screen without buttons.
+        if (template.hiddenExit)
+          Positioned(
+            left: 0,
+            top: 0,
+            width: safe.left + 88,
+            height: safe.top + 88,
+            child: RawGestureDetector(
+              behavior: HitTestBehavior.opaque,
+              gestures: <Type, GestureRecognizerFactory>{
+                LongPressGestureRecognizer:
+                    GestureRecognizerFactoryWithHandlers<
+                      LongPressGestureRecognizer
+                    >(
+                      () => LongPressGestureRecognizer(
+                        duration: const Duration(seconds: 2),
+                      ),
+                      (LongPressGestureRecognizer r) => r.onLongPress = () {
+                        final VoidCallback? onClose = template.onClose;
+                        if (onClose != null) {
+                          onClose();
+                        } else {
+                          unawaited(Navigator.maybePop(context));
+                        }
+                      },
+                    ),
+              },
+            ),
+          ),
         // The top bar.
         Positioned(
           left: safe.left + 20,
@@ -1464,7 +1509,8 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       capture: _resultCapture!,
       cutOut: _resultCutOut,
       scanAgain: _scanAgain,
-      close: pick ? _backToCodes : null,
+      finish: _finish,
+      backToCodes: pick ? _backToCodes : null,
       verdict: _resultVerdict,
       defaultActions: defaultResultActions(
         result,
@@ -1478,7 +1524,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
           result,
           actions: template.actionsBuilder?.call(context, shown),
           onScanAgain: _scanAgain,
-          onClose: shown.close,
+          onClose: shown.backToCodes,
           header: template.resultHeader,
           cutOut: _resultCutOut,
           verdict: _resultVerdict,

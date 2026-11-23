@@ -26,11 +26,7 @@ class ProfileQrPage extends StatelessWidget {
   Future<void> _share(BuildContext context) async {
     final box = context.findRenderObject() as RenderBox?;
     // The same look as on screen, sharp at 1024 px.
-    final png = await _style.encodePng(
-      const BarcodeWriter(BarcodeFormat.qrCode),
-      _link,
-      size: 1024,
-    );
+    final png = await _style.encodePng(_link, size: 1024);
     await SharePlus.instance.share(
       ShareParams(
         files: [XFile.fromData(png, mimeType: 'image/png')],

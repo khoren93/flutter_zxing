@@ -26,7 +26,25 @@ final class ScannerAction {
     required this.onPressed,
     this.icon,
     this.primary = false,
-  }) : _copyText = null;
+  }) : _copyText = null,
+       _scanAgain = false;
+
+  /// Scans the next code: [onPressed] is `ScannerResult.scanAgain`. [label]
+  /// replaces [ScannerStrings.scanAgain].
+  ///
+  /// ```dart
+  /// actionsBuilder: (context, result) => [
+  ///   ScannerAction(label: 'Add to cart', primary: true, onPressed: add),
+  ///   ScannerAction.scanAgain(result.scanAgain),
+  /// ],
+  /// ```
+  const ScannerAction.scanAgain(
+    VoidCallback this.onPressed, {
+    this.primary = false,
+    this.label,
+  }) : icon = null,
+       _copyText = null,
+       _scanAgain = true;
 
   /// Copies [text] to the clipboard; the button confirms with "Copied".
   /// [label] replaces [ScannerStrings.copy], such as "Copy IBAN"; an empty
@@ -34,10 +52,12 @@ final class ScannerAction {
   const ScannerAction.copy(String text, {this.primary = false, this.label})
     : icon = ScannerIcons.copy,
       onPressed = null,
-      _copyText = text;
+      _copyText = text,
+      _scanAgain = false;
 
-  /// The text; an empty string shows the [icon] alone. `null` only for
-  /// [ScannerAction.copy], which then says [ScannerStrings.copy].
+  /// The text; an empty string shows the [icon] alone. `null` for
+  /// [ScannerAction.copy] and [ScannerAction.scanAgain] says
+  /// [ScannerStrings.copy] or [ScannerStrings.scanAgain].
   final String? label;
 
   /// An icon before the text.
@@ -46,10 +66,14 @@ final class ScannerAction {
   /// Called on tap.
   final VoidCallback? onPressed;
 
-  /// Filled with the accent; a sheet has at most one.
+  /// Filled with the accent. A sheet has at most one: [ScannerActions]
+  /// fills the first primary action and draws the others plain, so your
+  /// primary button can go before [ScannerResult.defaultActions] as they
+  /// are.
   final bool primary;
 
   final String? _copyText;
+  final bool _scanAgain;
 }
 
 /// What a [BarcodeResultSheet] shows next to its title.
@@ -402,13 +426,10 @@ final class _Summary {
         // An unknown kind of security is left out, not named.
         final String? secured = switch (security) {
           WifiSecurity.none || WifiSecurity.unknown => null,
-          WifiSecurity.wep => 'WEP',
-          WifiSecurity.wpa => 'WPA',
-          WifiSecurity.wpa3 => 'WPA3',
-          WifiSecurity.enterprise => strings.wifiEnterprise,
+          _ => strings.wifiSecurity(security),
         };
         final String detail = security == WifiSecurity.none
-            ? strings.wifiOpen
+            ? strings.wifiSecurity(WifiSecurity.none)
             : <String>[
                 ?secured,
                 if (password != null) strings.wifiPassword,
@@ -535,7 +556,7 @@ final class _Summary {
         );
       case final BoardingPassContent pass:
         final BoardingPassLeg leg = pass.legs.first;
-        final DateTime? day = leg.dateIn(DateTime.now().year);
+        final DateTime? day = leg.date();
         return _Summary(
           '${leg.from} → ${leg.to}',
           kindDetail: '${leg.carrier} ${leg.flightNumber}',
@@ -868,7 +889,7 @@ final class _Summary {
     return _Summary(
       payment.payee ?? strings.payment,
       kindDetail: _paymentStandard(payment),
-      display: amount == null ? null : strings.money(amount, payment.currency),
+      display: amount == null ? null : strings.amount(amount, payment.currency),
       detail: amount == null
           ? <String>[strings.payerEntersAmount, ?detail].join('\n')
           : detail,
@@ -1380,22 +1401,30 @@ class ScannerActions extends StatelessWidget {
   /// The buttons, primary first.
   final List<ScannerAction> actions;
 
-  Widget _button(ScannerAction action) => action._copyText == null
+  Widget _button(
+    BuildContext context,
+    ScannerAction action, {
+    required bool primary,
+  }) => action._copyText == null
       ? ScannerActionButton(
-          label: action.label ?? '',
+          label:
+              action.label ??
+              (action._scanAgain ? ScannerStrings.of(context).scanAgain : ''),
           icon: action.icon,
-          primary: action.primary,
+          primary: primary,
           onPressed: action.onPressed,
         )
       : _CopyButton(
           text: action._copyText,
           label: action.label,
-          primary: action.primary,
+          primary: primary,
         );
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (BuildContext context, BoxConstraints constraints) {
+      // One filled button: the first primary one.
+      final int primary = actions.indexWhere((ScannerAction a) => a.primary);
       final bool row =
           actions.length <= 2 &&
           constraints.maxWidth / actions.length >= 130 &&
@@ -1405,7 +1434,9 @@ class ScannerActions extends StatelessWidget {
           children: <Widget>[
             for (int i = 0; i < actions.length; i++) ...<Widget>[
               if (i > 0) const SizedBox(width: 12),
-              Expanded(child: _button(actions[i])),
+              Expanded(
+                child: _button(context, actions[i], primary: i == primary),
+              ),
             ],
           ],
         );
@@ -1416,7 +1447,7 @@ class ScannerActions extends StatelessWidget {
         children: <Widget>[
           for (int i = 0; i < actions.length; i++) ...<Widget>[
             if (i > 0) const SizedBox(height: 12),
-            _button(actions[i]),
+            _button(context, actions[i], primary: i == primary),
           ],
         ],
       );
@@ -1485,7 +1516,7 @@ class _CopyButtonState extends State<_CopyButton> {
 @immutable
 final class CollectedBarcode {
   /// Creates an entry.
-  const CollectedBarcode(this.barcode, this.count, {this.cutOut});
+  const CollectedBarcode(this.barcode, this.count, {this.cutOut, this.verdict});
 
   /// The code, as last scanned.
   final Barcode barcode;
@@ -1497,6 +1528,11 @@ final class CollectedBarcode {
   /// exactly ([BarcodeThumbnail.needsCutOut]); owned by the scanner, valid
   /// while it is shown: `clone()` it to keep it.
   final ui.Image? cutOut;
+
+  /// What the template's `check` said about the code when it was last
+  /// scanned, with what it found in [ScanVerdict.data], such as the
+  /// product your server returned; `null` without a check.
+  final ScanVerdict? verdict;
 }
 
 /// A sheet listing scanned codes with counts, the latest first and

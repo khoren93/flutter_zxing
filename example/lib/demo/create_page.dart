@@ -378,8 +378,8 @@ class _CreatePageState extends State<CreatePage> {
       }
       try {
         final Uint8List png = await _style.encodePng(
-          _writer,
           data,
+          writer: _writer,
           moduleSize: 4,
         );
         // Every variant of the symbology: Telepen Numeric, for one, is
@@ -423,12 +423,14 @@ class _CreatePageState extends State<CreatePage> {
       final String name = '$_fileName.${what == 'svg' ? 'svg' : 'png'}';
       final XFile file = switch (what) {
         'svg' => XFile.fromData(
-          Uint8List.fromList(utf8.encode(await _style.encodeSvg(writer, data))),
+          Uint8List.fromList(
+            utf8.encode(await _style.encodeSvg(data, writer: writer)),
+          ),
           mimeType: 'image/svg+xml',
           name: '$_fileName.svg',
         ),
         _ => XFile.fromData(
-          await _style.encodePng(writer, data, size: 1024),
+          await _style.encodePng(data, writer: writer, size: 1024),
           mimeType: 'image/png',
           name: '$_fileName.png',
         ),
