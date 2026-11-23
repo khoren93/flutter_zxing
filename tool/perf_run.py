@@ -329,7 +329,10 @@ def verdict(steps, paused, budgets):
                 if scene_step.split(':')[1] in ('L8', 'L9', 'L11', 'L12'):
                     check(f'{scene_step}:{key}', nums.get(key), limit)
     for scene_step, nums in steps.items():
-        if scene_step.split(':')[1] in ('L8', 'L9', 'L11', 'L12'):
+        scene, step = scene_step.split(':')
+        # With a code in view (B) a template takes it and pauses under its
+        # result sheet, so it reads no frames: by design, not a miss.
+        if step in ('L8', 'L9') or (scene != 'B' and step in ('L11', 'L12')):
             reads, fps = nums.get('readsPerSecond', 0), nums.get('cameraFps', 0)
             checks.append((f'{scene_step}:reads per camera frame',
                            round(reads / fps, 2) if fps else 0, 0.95,
