@@ -23,6 +23,10 @@ dependencies:
   share_plus: ^13.3.1
   url_launcher: ^6.3.3
   image_picker: ^1.2.4
+  # Create → Many codes: a CSV file to read the codes from, and the codes
+  # shared as one ZIP.
+  file_selector: ^1.1.0
+  archive: ^4.7.1
 
 dev_dependencies:
   # The ReaderWidget integration tests stand in a fake camera.

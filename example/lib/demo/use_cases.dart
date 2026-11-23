@@ -267,7 +267,7 @@ final List<UseCase> useCases = <UseCase>[
   UseCase(
     id: 'label_sheet',
     title: 'A sheet of labels',
-    summary: 'Thousands of codes on A4 pages in columns, as a PDF to print',
+    summary: 'A thousand numbered codes on A4 pages, as a PDF to print',
     icon: Icons.grid_view_rounded,
     group: UseCaseGroup.create,
     builder: (_) => const LabelSheetPage(),

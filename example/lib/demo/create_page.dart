@@ -1,8 +1,14 @@
 // Create a code: what it holds, its format and style, a live preview that
-// is read back to check it scans, and export as PNG, SVG or Dart.
+// is read back to check it scans, and export as PNG, SVG or Dart. Many
+// codes (create_batch.dart) shares the format and style and lays the codes
+// out on label sheets.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data' show BytesBuilder;
+
+import 'package:archive/archive.dart';
+import 'package:file_selector/file_selector.dart' show XTypeGroup, openFile;
 
 import 'package:flutter/services.dart';
 // material.dart is deprecated since Flutter 3.47 in favour of package:material_ui,
@@ -17,6 +23,8 @@ import 'history.dart';
 import 'kinds.dart';
 import 'style_editor.dart';
 import 'tokens.dart';
+
+part 'create_batch.dart';
 
 /// The error correction a level gives in [format], as its menu shows it
 /// (Micro QR has no H and rMQR no L: the writer takes the nearest).
@@ -41,11 +49,22 @@ const List<String> _qrRecovery = <String>['7%', '15%', '25%', '30%'];
 /// Opens the generator with a text, from elsewhere in the app.
 final ValueNotifier<String?> createWithText = ValueNotifier<String?>(null);
 
+/// Whether [link] (the app's own address by default) opens Create on
+/// Many codes: `?tab=create&mode=batch` on the web, or
+/// `--dart-define=CREATE_MODE=batch`.
+bool opensManyCodes([Uri? link]) =>
+    const String.fromEnvironment('CREATE_MODE') == 'batch' ||
+    (link ?? Uri.base).queryParameters['mode'] == 'batch';
+
 class CreatePage extends StatefulWidget {
-  const CreatePage({super.key, this.wide = false});
+  const CreatePage({super.key, this.wide = false, this.link});
 
   /// Two columns: the form and style, the preview and export.
   final bool wide;
+
+  /// The address the page was opened with, for [opensManyCodes]; the app's
+  /// own by default.
+  final Uri? link;
 
   @override
   State<CreatePage> createState() => _CreatePageState();
@@ -86,6 +105,14 @@ class _CreatePageState extends State<CreatePage> {
   int _check = 0;
   Timer? _debounce;
 
+  /// Many codes instead of one: the same format and style, on label sheets.
+  late bool _many = opensManyCodes(widget.link);
+
+  /// Many codes' items, sheet and export; made when first shown and kept
+  /// when switching back and forth.
+  _Batch? _batchState;
+  _Batch get _batch => _batchState ??= _Batch(this);
+
   @override
   void initState() {
     super.initState();
@@ -98,6 +125,7 @@ class _CreatePageState extends State<CreatePage> {
   void dispose() {
     createWithText.removeListener(_onTextFromElsewhere);
     _debounce?.cancel();
+    _batchState?.dispose();
     _value.dispose();
     for (final TextEditingController c in _fields.values) {
       c.dispose();
@@ -359,6 +387,9 @@ class _CreatePageState extends State<CreatePage> {
   void _scheduleCheck() {
     _debounce?.cancel();
     setState(() => _reads = null);
+    // The format, its options or the style changed: Many codes checks its
+    // items again (only if the writer did change).
+    _batchState?.lookChanged();
     _debounce = Timer(const Duration(milliseconds: 350), () async {
       final int run = ++_check;
       final String data = _data;
@@ -485,8 +516,9 @@ class _CreatePageState extends State<CreatePage> {
   );
 
   @override
-  Widget build(BuildContext context) =>
-      widget.wide ? _buildWide(context) : _buildPhone(context);
+  Widget build(BuildContext context) => _many
+      ? (widget.wide ? _buildBatchWide(context) : _buildBatchPhone(context))
+      : (widget.wide ? _buildWide(context) : _buildPhone(context));
 
   /// The code card: its format and read check, the preview, and export.
   /// The same card in both layouts; in the wide one the preview fills the
@@ -543,43 +575,43 @@ class _CreatePageState extends State<CreatePage> {
             style: Theme.of(context).textTheme.headlineMedium,
           ),
         ),
-        ReadCheck(
-          reads: _reads,
-          invalid: _error != null || _problems.isNotEmpty,
-        ),
+        if (!_many)
+          ReadCheck(
+            reads: _reads,
+            invalid: _error != null || _problems.isNotEmpty,
+          ),
       ],
     ),
   );
 
-  /// Everything but the code card: the kind, the form, the style. The
-  /// title goes first in the wide layout; the phone keeps it above the card.
-  /// With the rail, the kind is picked there.
-  List<Widget> _sections(
-    BuildContext context, {
-    bool title = false,
-    bool rail = false,
-  }) => <Widget>[
-    if (title) ...<Widget>[_title(context), const SizedBox(height: 14)],
-    if (_anyText && !rail) ...<Widget>[
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: _KindButton(this),
+  /// One code or many: the switch under the title, in both layouts.
+  Widget _modeSwitch() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: SizedBox(
+      width: double.infinity,
+      child: SegmentedButton<bool>(
+        showSelectedIcon: false,
+        segments: const <ButtonSegment<bool>>[
+          ButtonSegment<bool>(
+            value: false,
+            label: Text('One code'),
+            icon: Icon(Icons.qr_code_2_rounded),
+          ),
+          ButtonSegment<bool>(
+            value: true,
+            label: Text('Many codes'),
+            icon: Icon(Icons.grid_view_rounded),
+          ),
+        ],
+        selected: <bool>{_many},
+        onSelectionChanged: (Set<bool> s) => setState(() => _many = s.first),
       ),
-      const SizedBox(height: 18),
-    ] else if (_anyText && rail) ...<Widget>[
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: _KindHeading(this),
-      ),
-      const SizedBox(height: 14),
-    ]
-    // Room for the field's floating label.
-    else
-      const SizedBox(height: 10),
-    Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: _Form(this),
     ),
+  );
+
+  /// The digits switch of a linear format and the style: the same in one
+  /// code and in many.
+  List<Widget> _look(BuildContext context) => <Widget>[
     if (_format.isLinear && _format != BarcodeFormat.dxFilmEdge)
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -612,6 +644,43 @@ class _CreatePageState extends State<CreatePage> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: StyleEditor(style: _style, format: _format, onChanged: _setStyle),
     ),
+  ];
+
+  /// Everything but the code card: the kind, the form, the style. The
+  /// title goes first in the wide layout; the phone keeps it above the card.
+  /// With the rail, the kind is picked there.
+  List<Widget> _sections(
+    BuildContext context, {
+    bool title = false,
+    bool rail = false,
+  }) => <Widget>[
+    if (title) ...<Widget>[
+      _title(context),
+      const SizedBox(height: 14),
+      _modeSwitch(),
+      const SizedBox(height: 14),
+    ],
+    if (_anyText && !rail) ...<Widget>[
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: _KindButton(this),
+      ),
+      const SizedBox(height: 18),
+    ] else if (_anyText && rail) ...<Widget>[
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: _KindHeading(this),
+      ),
+      const SizedBox(height: 14),
+    ]
+    // Room for the field's floating label.
+    else
+      const SizedBox(height: 10),
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: _Form(this),
+    ),
+    ..._look(context),
     const SizedBox(height: 24),
     Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -625,6 +694,8 @@ class _CreatePageState extends State<CreatePage> {
     children: <Widget>[
       SizedBox(height: MediaQuery.paddingOf(context).top + 12),
       _title(context),
+      const SizedBox(height: 14),
+      _modeSwitch(),
       const SizedBox(height: 14),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1329,12 +1400,17 @@ Widget _glyph(Object icon, double size, Color color) => switch (icon) {
 };
 
 class _FormatMenu extends StatelessWidget {
-  const _FormatMenu(this.page);
+  const _FormatMenu(this.page, {this.menuKey});
 
   final _CreatePageState page;
 
+  /// Opens the menu from elsewhere ("Change format" under a code that does
+  /// not fit).
+  final GlobalKey<PopupMenuButtonState<BarcodeFormat>>? menuKey;
+
   @override
   Widget build(BuildContext context) => PopupMenuButton<BarcodeFormat>(
+    key: menuKey,
     tooltip: 'Format',
     initialValue: page._format,
     onSelected: page._setFormat,
@@ -1497,16 +1573,43 @@ class _Pill extends StatelessWidget {
 }
 
 class _Preview extends StatelessWidget {
-  const _Preview(this.page, {required this.size});
+  const _Preview(
+    this.page, {
+    required this.size,
+    this.data,
+    this.writer,
+    this.trouble,
+  });
 
   final _CreatePageState page;
   final double size;
+
+  /// The code to show, with [writer]: the first of many. The form's code
+  /// when `null`.
+  final String? data;
+  final BarcodeWriter? writer;
+
+  /// What to show instead of [data]'s code: a title and a line.
+  final (String, String)? trouble;
 
   @override
   Widget build(BuildContext context) {
     final BarcodeStyle style = page._style;
     final bool square = page._square;
-    final List<FieldProblem> problems = page._problems;
+    final List<FieldProblem> formProblems = data != null
+        ? const <FieldProblem>[]
+        : page._problems;
+    final (String, String)? trouble = data != null
+        ? this.trouble
+        : formProblems.isEmpty
+        ? null
+        : (
+            formProblems.length == 1
+                ? '1 field to fix'
+                : '${formProblems.length} fields to fix',
+            formProblems.first.message,
+          );
+    final bool problems = trouble != null;
     final Fz fz = Fz.of(context);
     final Color bad = Theme.of(context).colorScheme.error;
     return AnimatedContainer(
@@ -1516,19 +1619,19 @@ class _Preview extends StatelessWidget {
       // The symbology's own quiet zone (four modules around a QR code) looks
       // like empty space on screen: the tile keeps a narrower margin in its
       // place. Exports keep the full one.
-      padding: problems.isNotEmpty
+      padding: problems
           ? const EdgeInsets.all(16)
           : EdgeInsets.all(style.quietZone ? size * 0.07 : 6),
       decoration: BoxDecoration(
         // A card brings its own ground: around it, the page's.
-        color: problems.isNotEmpty
+        color: problems
             ? bad.withValues(alpha: 0.10)
             : style.card != null
             ? fz.surface
             : style.backgroundColor,
         borderRadius: BorderRadius.circular(18),
       ),
-      child: problems.isNotEmpty
+      child: problems
           // What validate() found: the code appears once it has nothing to
           // say.
           ? FittedBox(
@@ -1541,9 +1644,7 @@ class _Preview extends StatelessWidget {
                     Icon(Icons.error_outline_rounded, size: 28, color: bad),
                     const SizedBox(height: 8),
                     Text(
-                      problems.length == 1
-                          ? '1 field to fix'
-                          : '${problems.length} fields to fix',
+                      trouble.$1,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 16,
@@ -1553,7 +1654,7 @@ class _Preview extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      problems.first.message,
+                      trouble.$2,
                       textAlign: TextAlign.center,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
@@ -1564,8 +1665,8 @@ class _Preview extends StatelessWidget {
               ),
             )
           : BarcodeView(
-              page._data,
-              writer: page._writer,
+              data ?? page._data,
+              writer: writer ?? page._writer,
               // Without text or a card, the quiet zone would look like empty
               // space; with them it sets the spacing, as in the export.
               style:

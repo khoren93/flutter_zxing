@@ -268,13 +268,15 @@ class FzLabel extends StatelessWidget {
   );
 }
 
-/// The mint "Reads · checked" pill, or a warning when a code does not read.
+/// The mint "Reads · checked" pill, or a warning when a code does not read;
+/// with [text], the same pill for another check.
 class ReadCheck extends StatelessWidget {
   const ReadCheck({
     super.key,
     required this.reads,
     this.long = false,
     this.invalid = false,
+    this.text,
   });
 
   /// `null` while checking.
@@ -283,6 +285,9 @@ class ReadCheck extends StatelessWidget {
 
   /// The data cannot be encoded at all: no code to read.
   final bool invalid;
+
+  /// Says something else in the same pill: "All 1,000 fit · QR Code".
+  final String? text;
 
   @override
   Widget build(BuildContext context) {
@@ -294,12 +299,15 @@ class ReadCheck extends StatelessWidget {
               ? const Color(0xFFFFC857)
               : const Color(0xFF8A5A00))
         : fz.lockInk;
-    final String text = switch (ok) {
-      null => 'Checking…',
-      true => long ? 'Reads · checked with flutter_zxing' : 'Reads · checked',
-      false when invalid => 'Invalid data',
-      false => 'Does not read: raise the contrast',
-    };
+    final String text =
+        this.text ??
+        switch (ok) {
+          null => 'Checking…',
+          true =>
+            long ? 'Reads · checked with flutter_zxing' : 'Reads · checked',
+          false when invalid => 'Invalid data',
+          false => 'Does not read: raise the contrast',
+        };
     return Semantics(
       liveRegion: true,
       child: Container(
