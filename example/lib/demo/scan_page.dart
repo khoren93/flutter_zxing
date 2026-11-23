@@ -360,30 +360,53 @@ class _ScanPageState extends State<ScanPage> {
                 controller: _controller,
                 template: _template,
                 onDetect: (BarcodeCapture c) => unawaited(_onDetect(c)),
-                // The template picker and the diagnostics button, over the
-                // template's screen in its theme; the close button they
-                // stand in for is off.
+                // Over the template's screen in its theme: the template
+                // picker where the close button would be (it is off), and the
+                // diagnostics button in the top bar, left of the torch or of
+                // the button that leaves a paused scan, in their place
+                // without them.
                 foregroundBuilder: (BuildContext context, ScannerLayout _) =>
-                    Positioned(
-                      left: top.left + 16,
-                      top: top.top + 8,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          _Picker(
-                            picked: _picked,
-                            open: _menu,
-                            onTap: () => setState(() => _menu = !_menu),
-                          ),
-                          if (!kIsWeb) ...<Widget>[
-                            const SizedBox(width: 8),
-                            ScannerButton(
-                              icon: ScannerIcons.binary,
-                              label: 'Open diagnostics',
-                              onPressed: () => unawaited(_openDiagnostics()),
-                            ),
-                          ],
-                        ],
+                    Positioned.fill(
+                      child: ValueListenableBuilder<ScannerState>(
+                        valueListenable: _controller,
+                        builder:
+                            (
+                              BuildContext context,
+                              ScannerState state,
+                              Widget? _,
+                            ) {
+                              final bool taken =
+                                  state.status == ScannerStatus.paused ||
+                                  state.status == ScannerStatus.error ||
+                                  (_template.torchButton &&
+                                      state.torch != TorchState.unavailable);
+                              return Stack(
+                                children: <Widget>[
+                                  Positioned(
+                                    left: top.left + 16,
+                                    top: top.top + 8,
+                                    child: _Picker(
+                                      picked: _picked,
+                                      open: _menu,
+                                      onTap: () =>
+                                          setState(() => _menu = !_menu),
+                                    ),
+                                  ),
+                                  if (!kIsWeb)
+                                    Positioned(
+                                      right:
+                                          top.right + 20 + (taken ? 48 + 8 : 0),
+                                      top: top.top + 12,
+                                      child: ScannerButton(
+                                        icon: ScannerIcons.binary,
+                                        label: 'Open diagnostics',
+                                        onPressed: () =>
+                                            unawaited(_openDiagnostics()),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
                       ),
                     ),
               ),
