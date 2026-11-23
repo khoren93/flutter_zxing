@@ -43,7 +43,8 @@ enum LadderStep {
   l8('L7 and BarcodeScanner, no overlay'),
   l9('L8 and the scan window overlay'),
   l10('L9 and blurred glass'),
-  l11('The demo template');
+  l11('The demo template'),
+  l12('L11 with a scan line');
 
   const LadderStep(this.description);
 
@@ -836,7 +837,7 @@ class LadderPageState extends State<LadderPage> {
     });
   }
 
-  /// Pauses or resumes the scanner of steps L7 to L11.
+  /// Pauses or resumes the scanner of steps L7 to L12.
   Future<void> pauseScanner({required bool paused}) async {
     final ScannerController? scanner = _scanner;
     if (scanner != null) {
@@ -925,6 +926,15 @@ class LadderPageState extends State<LadderPage> {
                 controller: scanner,
                 // As in the demo: the blur left to the scanner.
                 template: const ScannerTemplate.minimal(),
+              );
+      case LadderStep.l12:
+        return scanner == null
+            ? const SizedBox.expand()
+            : BarcodeScanner(
+                controller: scanner,
+                template: const ScannerTemplate.minimal(),
+                // The scan line's defaults; it shows while searching only.
+                theme: const ScannerTheme(scanLine: ScanLine()),
               );
     }
   }

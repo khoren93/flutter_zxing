@@ -25,7 +25,7 @@ import urllib.parse
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STEPS = 'L0,L2,L3,L8,L9,L11'
+STEPS = 'L0,L2,L3,L8,L9,L11,L12'
 WARMUP, MEASURE, REPEATS = 5, 20, 2
 PAUSE_SECONDS = 20
 
@@ -36,12 +36,18 @@ BUDGETS = {
     'iPhone18,2': {  # iPhone 17 Pro Max
         'A:L11:milliwatts': 95, 'A:L11:instructionsG': 1.9,
         'B:L11:milliwatts': 70, 'B:L11:instructionsG': 1.4,
+        # The scan line (2026-11-23): within the template's budgets.
+        'A:L12:milliwatts': 95, 'A:L12:instructionsG': 1.9,
+        'B:L12:milliwatts': 70, 'B:L12:instructionsG': 1.4,
         'pause:milliwatts': 15, 'pause:instructionsG': 0.35,
-        'L11:slowFramesPercent': 0.5, 'readP95Ms': 12, 'rssMb': 200,
+        'L11:slowFramesPercent': 0.5, 'L12:slowFramesPercent': 0.5,
+        'readP95Ms': 12, 'rssMb': 200,
     },
     'Pixel 4a': {
         'A:L11:cpu': 180, 'B:L11:cpu': 180, 'pause:cpu': 40,
-        'L11:slowFramesPercent': 1, 'readP95Ms': 25, 'rssMb': 400,
+        'A:L12:cpu': 180, 'B:L12:cpu': 180,
+        'L11:slowFramesPercent': 1, 'L12:slowFramesPercent': 1,
+        'readP95Ms': 25, 'rssMb': 400,
     },
 }
 
@@ -187,10 +193,10 @@ def verdict(steps, paused, budgets):
                     check(f'{scene_step}:{parts[1]}', nums.get(parts[1]), limit)
         else:  # every scanning step
             for scene_step, nums in steps.items():
-                if scene_step.split(':')[1] in ('L8', 'L9', 'L11'):
+                if scene_step.split(':')[1] in ('L8', 'L9', 'L11', 'L12'):
                     check(f'{scene_step}:{key}', nums.get(key), limit)
     for scene_step, nums in steps.items():
-        if scene_step.split(':')[1] in ('L8', 'L9', 'L11'):
+        if scene_step.split(':')[1] in ('L8', 'L9', 'L11', 'L12'):
             reads, fps = nums.get('readsPerSecond', 0), nums.get('cameraFps', 0)
             checks.append((f'{scene_step}:reads per camera frame',
                            round(reads / fps, 2) if fps else 0, 0.95,
