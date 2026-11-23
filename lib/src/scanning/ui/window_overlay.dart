@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data' show Float64List;
 import 'dart:ui' as ui show Gradient;
 import 'dart:ui' show ImageFilter, lerpDouble;
 
@@ -260,44 +261,54 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
         children: <Widget>[
           if (!noWindow && shape != ScannerWindowShape.bracketsOnly)
             WindowScrim(window: window),
+          // The line and the brackets repaint on each tick of the clock (and
+          // the brackets as they fly to a code): each in a layer of its own,
+          // so that a tick repaints only what moves, never the scrim and its
+          // blur or the widgets around the overlay.
           if (_lineOn && line != null)
-            CustomPaint(
-              size: layout.size,
-              painter: ScanLinePainter(
-                repaint: _clock.line,
-                progress: _clock.lineProgress,
-                line: line,
-                window: window,
-                radius: radius,
-                circle: shape == ScannerWindowShape.circle,
-                color: line.color ?? theme.lockColor,
+            RepaintBoundary(
+              key: const ValueKey<String>('scan line'),
+              child: CustomPaint(
+                size: layout.size,
+                painter: ScanLinePainter(
+                  repaint: _clock.line,
+                  progress: _clock.lineProgress,
+                  line: line,
+                  window: window,
+                  radius: radius,
+                  circle: shape == ScannerWindowShape.circle,
+                  color: line.color ?? theme.lockColor,
+                ),
               ),
             ),
-          CustomPaint(
-            size: layout.size,
-            painter: BracketsPainter(
-              repaint: Listenable.merge(<Listenable>[_clock.breath, _move]),
-              rect: () {
-                final double t = Curves.easeOutCubic.transform(_move.value);
-                final Rect window = layout.scanWindow;
-                return Rect.lerp(_from ?? window, _to ?? window, t)!;
-              },
-              lock: lock,
-              opacity: noWindow ? lock : null,
-              tight: () => lerpDouble(
-                _fromTight,
-                _toTight,
-                Curves.easeOutCubic.transform(_move.value),
-              )!,
-              scale: () =>
-                  1 - 0.02 * Curves.easeInOut.transform(_clock.breathValue),
-              radius: radius,
-              circle: shape == ScannerWindowShape.circle,
-              color: theme.windowColor,
-              lockColor: theme.lockColor,
-              strokeWidth: theme.resolvedBracketWidth,
-              armLength: theme.bracketLength,
-              version: Object.hash(layout.scanWindow, _version),
+          RepaintBoundary(
+            key: const ValueKey<String>('brackets'),
+            child: CustomPaint(
+              size: layout.size,
+              painter: BracketsPainter(
+                repaint: Listenable.merge(<Listenable>[_clock.breath, _move]),
+                rect: () {
+                  final double t = Curves.easeOutCubic.transform(_move.value);
+                  final Rect window = layout.scanWindow;
+                  return Rect.lerp(_from ?? window, _to ?? window, t)!;
+                },
+                lock: lock,
+                opacity: noWindow ? lock : null,
+                tight: () => lerpDouble(
+                  _fromTight,
+                  _toTight,
+                  Curves.easeOutCubic.transform(_move.value),
+                )!,
+                scale: () =>
+                    1 - 0.02 * Curves.easeInOut.transform(_clock.breathValue),
+                radius: radius,
+                circle: shape == ScannerWindowShape.circle,
+                color: theme.windowColor,
+                lockColor: theme.lockColor,
+                strokeWidth: theme.resolvedBracketWidth,
+                armLength: theme.bracketLength,
+                version: Object.hash(layout.scanWindow, _version),
+              ),
             ),
           ),
         ],
@@ -449,7 +460,73 @@ class ScanLinePainter extends CustomPainter {
   /// The area the line runs in: the window inside its inset.
   Rect get area => window.deflate(line.inset);
 
+  /// The number of bands the glow is drawn with.
+  static const int glowBands = 10;
+
+  /// Half the height of each band of the glow, from the outermost in: the
+  /// glow is a stack of [glowBands] translucent bands, each in the line's
+  /// faded color, which together go up and down in the steps of a blurred
+  /// band, 4 thicknesses tall, as it was drawn before. A blur filter makes
+  /// the GPU draw the band offscreen and blur it, on every frame of the
+  /// line: on weak Android GPUs, a large part of the scanner's work.
+  static Float64List glowHalfHeights(double thickness) {
+    final double half = 2 * thickness;
+    final double sigma = 3 + thickness;
+    final double peak = glowProfile(0, half, sigma);
+    final Float64List halves = Float64List(glowBands);
+    for (int k = 0; k < glowBands; k++) {
+      // Where the blurred band drops to the middle of the step under band
+      // k + 1's level.
+      final double level = (k + 0.5) / glowBands * peak;
+      double inside = 0;
+      double outside = half + 6 * sigma;
+      for (int i = 0; i < 40; i++) {
+        final double middle = (inside + outside) / 2;
+        if (glowProfile(middle, half, sigma) > level) {
+          inside = middle;
+        } else {
+          outside = middle;
+        }
+      }
+      halves[k] = (inside + outside) / 2;
+    }
+    return halves;
+  }
+
+  /// The opacity of a band of [half] its height blurred by [sigma], at
+  /// [distance] from its middle: what the glow followed with a blur.
+  static double glowProfile(double distance, double half, double sigma) {
+    final double s = sigma * math.sqrt2;
+    return 0.5 * (_erf((half - distance) / s) + _erf((half + distance) / s));
+  }
+
+  /// The highest opacity of the glow, at the line, for an [alpha] of the
+  /// line.
+  static double glowPeak(double thickness, double alpha) =>
+      0.45 * alpha * glowProfile(0, 2 * thickness, 3 + thickness);
+
+  // Abramowitz and Stegun 7.1.26, within 1.5e-7.
+  static double _erf(double x) {
+    final double sign = x < 0 ? -1 : 1;
+    final double a = x.abs();
+    final double t = 1 / (1 + 0.3275911 * a);
+    final double y =
+        1 -
+        (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t -
+                        0.284496736) *
+                    t +
+                0.254829592) *
+            t *
+            math.exp(-a * a);
+    return sign * y;
+  }
+
+  // Made once for the painter, which lives as long as the line, its
+  // window and its look stay the same; a tick only moves the line.
   Shader? _shader;
+  Float64List? _halves;
+  Path? _window;
+  final Paint _paint = Paint();
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -463,57 +540,68 @@ class ScanLinePainter extends CustomPainter {
     }
     final double y = area.top + t * area.height;
     // Faded at both ends; the same for every frame.
-    final Shader shader = _shader ??= ui.Gradient.linear(
-      area.centerLeft,
-      area.centerRight,
-      <Color>[
-        color.withValues(alpha: 0),
-        color,
-        color,
-        color.withValues(alpha: 0),
-      ],
-      const <double>[0, 0.15, 0.85, 1],
-    );
+    final Paint paint = _paint
+      ..shader = _shader ??= ui.Gradient.linear(
+        area.centerLeft,
+        area.centerRight,
+        <Color>[
+          color.withValues(alpha: 0),
+          color,
+          color,
+          color.withValues(alpha: 0),
+        ],
+        const <double>[0, 0.15, 0.85, 1],
+      );
     final double thickness = line.thickness;
-    canvas
-      ..save()
-      ..clipPath(
-        circle
-            ? (Path()..addOval(area))
-            : (Path()..addRRect(
-                RRect.fromRectAndRadius(
-                  area,
-                  Radius.circular(math.max(0, radius - line.inset)),
-                ),
-              )),
-      );
-    if (line.glow) {
-      canvas.drawRect(
-        Rect.fromLTRB(
-          area.left,
-          y - thickness * 2,
-          area.right,
-          y + thickness * 2,
-        ),
-        Paint()
-          ..shader = shader
-          ..color = Color.fromRGBO(0, 0, 0, 0.45 * alpha)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3 + thickness),
-      );
+    final Float64List? halves = line.glow
+        ? _halves ??= glowHalfHeights(thickness)
+        : null;
+    final double reach = math.max(halves?.first ?? 0, thickness / 2);
+    // The bands span the area's width: clipped only where the window's
+    // corners cut them, near its top and bottom, or in a circle.
+    final double corner = math.max(0, radius - line.inset);
+    final bool clip =
+        circle ||
+        y - reach < area.top + corner ||
+        y + reach > area.bottom - corner;
+    if (clip) {
+      canvas
+        ..save()
+        ..clipPath(
+          _window ??= circle
+              ? (Path()..addOval(area))
+              : (Path()..addRRect(
+                  RRect.fromRectAndRadius(area, Radius.circular(corner)),
+                )),
+        );
     }
-    canvas
-      ..drawRect(
-        Rect.fromLTRB(
-          area.left,
-          y - thickness / 2,
-          area.right,
-          y + thickness / 2,
-        ),
-        Paint()
-          ..shader = shader
-          ..color = Color.fromRGBO(0, 0, 0, alpha),
-      )
-      ..restore();
+    if (halves != null) {
+      // Each band adds its step over the bands outside it.
+      final double peak = glowPeak(thickness, alpha);
+      double below = 0;
+      for (int k = 0; k < halves.length; k++) {
+        final double level = (k + 1) / halves.length * peak;
+        paint.color = Color.fromRGBO(0, 0, 0, 1 - (1 - level) / (1 - below));
+        below = level;
+        canvas.drawRect(
+          Rect.fromLTRB(area.left, y - halves[k], area.right, y + halves[k]),
+          paint,
+        );
+      }
+    }
+    paint.color = Color.fromRGBO(0, 0, 0, alpha);
+    canvas.drawRect(
+      Rect.fromLTRB(
+        area.left,
+        y - thickness / 2,
+        area.right,
+        y + thickness / 2,
+      ),
+      paint,
+    );
+    if (clip) {
+      canvas.restore();
+    }
   }
 
   @override
@@ -685,30 +773,42 @@ class BracketsPainter extends CustomPainter {
       }
       canvas.drawPath(
         path,
-        Paint()
-          ..style = PaintingStyle.stroke
+        _stroke
           ..strokeWidth = strokeWidth
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round
           ..color = stroke.withValues(alpha: stroke.a * alpha),
       );
     }
 
     if (round < 1) {
-      draw(
-        bracketPath(
-          r,
-          lerpDouble(radius, radius / 2.4, tight)!,
-          arm: armLength,
-        ),
-        alpha * (1 - round),
-      );
+      // While breathing, only the scale changes: the same path.
+      final double corner = lerpDouble(radius, radius / 2.4, tight)!;
+      if (r != _bracketsRect || corner != _bracketsCorner) {
+        _bracketsRect = r;
+        _bracketsCorner = corner;
+        _brackets = bracketPath(r, corner, arm: armLength);
+      }
+      draw(_brackets, alpha * (1 - round));
     }
     if (round > 0) {
-      draw(arcPath(r, radius, arm: armLength), alpha * round);
+      if (r != _arcsRect) {
+        _arcsRect = r;
+        _arcs = arcPath(r, radius, arm: armLength);
+      }
+      draw(_arcs, alpha * round);
     }
     canvas.restore();
   }
+
+  // Kept between the frames of the breathing.
+  final Paint _stroke = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round;
+  late Path _brackets;
+  Rect? _bracketsRect;
+  double? _bracketsCorner;
+  late Path _arcs;
+  Rect? _arcsRect;
 
   /// The four brackets of a round window in [r]: arcs of its oval around
   /// the diagonals, each as long as a bracket of [bracketPath] with corners

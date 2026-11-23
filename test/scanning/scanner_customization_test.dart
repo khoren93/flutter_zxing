@@ -904,7 +904,8 @@ void main() {
         linePainter.progress(line.duration) - before,
         moreOrLessEquals(0.5, epsilon: 0.04),
       );
-      // Clipped to the window, a line of its thickness in it.
+      // A line of its thickness in the window; in the middle, away from the
+      // window's corners, nothing to clip.
       final double y =
           linePainter.area.top +
           ScanLinePainter.at(
@@ -912,18 +913,22 @@ void main() {
                 linePainter.progress(line.duration),
               ).$1 *
               linePainter.area.height;
+      expect(paintOf<ScanLinePainter>(t), isNot(paints..clipPath()));
       expect(
         paintOf<ScanLinePainter>(t),
         paints
-          ..clipPath()
+          // The glow's bands, then the line.
           ..rect()
-          ..rect(
-            rect: Rect.fromLTRB(
-              linePainter.area.left,
-              y - 2,
-              linePainter.area.right,
-              y + 2,
-            ),
+          ..something(
+            (Symbol method, List<dynamic> arguments) =>
+                method == #drawRect &&
+                arguments.first ==
+                    Rect.fromLTRB(
+                      linePainter.area.left,
+                      y - 2,
+                      linePainter.area.right,
+                      y + 2,
+                    ),
           ),
       );
       await close(t);
