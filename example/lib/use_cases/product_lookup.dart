@@ -1,75 +1,66 @@
 // Look up a product: the EAN, UPC or ISBN barcode of a product or a book
-// into your catalogue, found or not. To try it, scan 5901234123457 or the
-// ISBN 9780306406157 (or any EAN). Android, iOS, macOS, the web.
+// in your catalogue, found or not. The check asks your server and keeps
+// what it found for the sheet. To try it, scan 5901234123457 or the ISBN
+// 9780306406157 (or any EAN). Android, iOS, macOS, the web.
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
+
+typedef _Product = ({String name, String price});
 
 class ProductLookupPage extends StatelessWidget {
   const ProductLookupPage({super.key});
 
-  // Your code: your catalogue, by GTIN-14 (14 digits, zeros in front), as
-  // product databases list them. An app asks its server here.
-  static const Map<String, (String, String)> _catalogue = {
-    '05901234123457': ('Sparkling water 0.5 l', '€0.89'),
-    '04006381333931': ('Highlighter, yellow', '€1.49'),
-    '09780306406157': ('Introduction to Physics', '€24.90'),
-  };
+  // Your code: ask your server. Products are listed by GTIN-14 (14 digits,
+  // zeros in front), as product databases list them.
+  static Future<_Product?> _find(String gtin) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    return const <String, _Product>{
+      '05901234123457': (name: 'Sparkling water 0.5 l', price: '€0.89'),
+      '04006381333931': (name: 'Highlighter, yellow', price: '€1.49'),
+      '09780306406157': (name: 'Introduction to Physics', price: '€24.90'),
+    }[gtin];
+  }
 
-  static Widget _sheet(BuildContext context, ScannerResult result) {
-    final BarcodeContent content = result.barcode.content;
-    if (content is! ProductContent) {
-      return BarcodeResultSheet(result.barcode, onScanAgain: result.scanAgain);
+  // Runs before the sheet: it may wait for the server. The sheet shows the
+  // verdict's title and message; its data goes to the buttons.
+  static Future<ScanVerdict?> _check(Barcode barcode) async {
+    final BarcodeContent content = barcode.content;
+    if (content is! ProductContent) return null;
+    final _Product? product = await _find(content.gtin);
+    if (product == null) {
+      return const ScanVerdict.warn(title: 'Not in the catalogue');
     }
-    final ScannerTheme theme = ScannerTheme.of(context);
-    final (String, String)? product = _catalogue[content.gtin];
-    // A book shows its ISBN, anything else the number under the barcode.
-    final String number = content.isbn13 == null
-        ? content.number
-        : 'ISBN ${content.isbn13}';
-    return ScannerSheet(
-      label: product?.$1 ?? 'Not in the catalogue',
-      liveRegion: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(number, style: theme.overlineStyle),
-          const SizedBox(height: 4),
-          if (product case (final String name, final String price)) ...[
-            Text(name, style: theme.titleStyle),
-            const SizedBox(height: 8),
-            Text(price, style: theme.displayStyle),
-          ] else ...[
-            Text('Not in the catalogue', style: theme.titleStyle),
-            const SizedBox(height: 8),
-            const ScannerChip('Not found', tone: ScannerTone.warning),
-          ],
-          const SizedBox(height: 16),
-          ScannerActions([
-            if (product != null)
-              ScannerAction(
-                label: 'Add to cart',
-                primary: true,
-                onPressed: () {
-                  // Your code: add the product to the cart.
-                  result.scanAgain();
-                },
-              ),
-            ScannerAction(
-              label: 'Scan again',
-              primary: product == null,
-              onPressed: result.scanAgain,
-            ),
-          ]),
-        ],
-      ),
+    return ScanVerdict.accept(
+      title: product.name,
+      message: product.price,
+      data: product,
     );
   }
+
+  static List<ScannerAction> _actions(
+    BuildContext context,
+    ScannerResult result,
+  ) => [
+    if (result.verdict?.data case final _Product product)
+      ScannerAction(
+        label: 'Add to cart',
+        primary: true,
+        onPressed: () {
+          // Your code: add the product to the cart.
+          debugPrint('Added ${product.name}');
+          result.scanAgain();
+        },
+      ),
+    ...result.defaultActions,
+  ];
 
   @override
   Widget build(BuildContext context) => const Scaffold(
     body: BarcodeScanner(
-      template: ScannerTemplate.product(resultBuilder: _sheet),
+      template: ScannerTemplate.product(
+        check: _check,
+        actionsBuilder: _actions,
+      ),
     ),
   );
 }

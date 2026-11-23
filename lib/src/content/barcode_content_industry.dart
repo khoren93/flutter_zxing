@@ -331,7 +331,9 @@ final class DriverLicenseContent extends BarcodeContent {
   String toString() => 'DriverLicenseContent(${state ?? country ?? ''})';
 }
 
-/// Where a vehicle was made, from the first character of its VIN.
+/// Where a vehicle was made, from the first character of its VIN. Its
+/// name for people, in the language of the scanner's texts:
+/// `ScannerStrings.of(context).vinRegion(region)`.
 enum VinRegion {
   /// `A`–`H`.
   africa,

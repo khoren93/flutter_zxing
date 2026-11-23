@@ -46,15 +46,15 @@ enum ScanVerdictKind {
 @immutable
 final class ScanVerdict {
   /// Accepts the code.
-  const ScanVerdict.accept({this.title, this.message})
+  const ScanVerdict.accept({this.title, this.message, this.data})
     : kind = ScanVerdictKind.accept;
 
   /// Accepts the code, which needs a look.
-  const ScanVerdict.warn({this.title, this.message})
+  const ScanVerdict.warn({this.title, this.message, this.data})
     : kind = ScanVerdictKind.warn;
 
   /// Refuses the code.
-  const ScanVerdict.reject({this.title, this.message})
+  const ScanVerdict.reject({this.title, this.message, this.data})
     : kind = ScanVerdictKind.reject;
 
   /// The judgement.
@@ -67,15 +67,39 @@ final class ScanVerdict {
   /// A line under the [title], such as a seat.
   final String? message;
 
+  /// What the check found, such as the product your server returned for
+  /// the code, for the result sheet: `result.verdict?.data` in
+  /// `ScannerTemplate.resultBuilder` and `actionsBuilder`. The check is
+  /// the place for asynchronous work; the builders run synchronously.
+  ///
+  /// ```dart
+  /// ScannerTemplate.product(
+  ///   check: (barcode) async {
+  ///     final Product? product = await catalogue.find(barcode.text);
+  ///     if (product == null) return const ScanVerdict.reject(title: 'Not in the catalogue');
+  ///     return ScanVerdict.accept(title: product.name, message: product.price, data: product);
+  ///   },
+  ///   actionsBuilder: (context, result) => [
+  ///     ScannerAction(
+  ///       label: 'Add to cart',
+  ///       primary: true,
+  ///       onPressed: () => cart.add(result.verdict!.data! as Product),
+  ///     ),
+  ///   ],
+  /// )
+  /// ```
+  final Object? data;
+
   @override
   bool operator ==(Object other) =>
       other is ScanVerdict &&
       other.kind == kind &&
       other.title == title &&
-      other.message == message;
+      other.message == message &&
+      other.data == data;
 
   @override
-  int get hashCode => Object.hash(kind, title, message);
+  int get hashCode => Object.hash(kind, title, message, data);
 
   @override
   String toString() =>

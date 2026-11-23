@@ -513,32 +513,81 @@ final class BarcodeSymbol {
       size,
       moduleSize,
     );
-    final StringBuffer path = StringBuffer();
-    for (final ModuleRect r in layout.rects) {
-      path.write('M${r.x} ${r.y}h${r.width}v${r.height}h-${r.width}z');
-    }
     final StringBuffer svg = StringBuffer()
       ..write('<svg xmlns="http://www.w3.org/2000/svg" ')
       ..write('viewBox="0 0 ${layout.width} ${layout.height}" ')
       ..write('width="$width" height="$height" ')
       ..write('shape-rendering="crispEdges">')
-      ..write('<rect width="100%" height="100%" fill="#fff"/>')
-      ..write('<path d="$path" fill="#000"/>');
-    String n(double v) =>
-        v == v.roundToDouble() ? v.round().toString() : v.toString();
+      ..write('<rect width="100%" height="100%" fill="#fff"/>');
+    _writeSvgBody(svg, layout);
+    svg.write('</svg>');
+    return svg.toString();
+  }
+
+  /// Renders the symbol as an SVG element to place in an SVG of your own,
+  /// such as a page of labels to print: a nested `<svg>` at [x], [y] that
+  /// fits [width] by [height], in the units of the page around it
+  /// (millimetres, points…). Black modules and text, no background.
+  ///
+  /// Without [height] the element has the symbol's proportions. With both,
+  /// the symbol keeps its proportions and is centered in the box.
+  /// [quietZone] `false` leaves the blank margin out.
+  ///
+  /// Throws [ArgumentError] if [width] or [height] is not positive.
+  ///
+  /// ```dart
+  /// // A 40 mm code at 10 mm from the top left corner of an A4 page.
+  /// final page = StringBuffer(
+  ///   '<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297">',
+  /// )
+  ///   ..write(symbol.toSvgElement(x: 10, y: 10, width: 40))
+  ///   ..write('</svg>');
+  /// ```
+  String toSvgElement({
+    required double width,
+    double? height,
+    double x = 0,
+    double y = 0,
+    bool quietZone = true,
+  }) {
+    if (width <= 0 || (height != null && height <= 0)) {
+      throw ArgumentError('width and height must be positive');
+    }
+    final SymbolLayout layout = SymbolLayout(
+      quietZone ? this : withoutQuietZone(this),
+    );
+    final double h = height ?? width * layout.height / layout.width;
+    final StringBuffer svg = StringBuffer()
+      ..write('<svg x="${_svgNumber(x)}" y="${_svgNumber(y)}" ')
+      ..write('width="${_svgNumber(width)}" height="${_svgNumber(h)}" ')
+      ..write('viewBox="0 0 ${layout.width} ${layout.height}" ')
+      ..write('shape-rendering="crispEdges">');
+    _writeSvgBody(svg, layout);
+    svg.write('</svg>');
+    return svg.toString();
+  }
+
+  /// The modules as one black path and the text under a linear barcode.
+  static void _writeSvgBody(StringBuffer svg, SymbolLayout layout) {
+    final StringBuffer path = StringBuffer();
+    for (final ModuleRect r in layout.rects) {
+      path.write('M${r.x} ${r.y}h${r.width}v${r.height}h-${r.width}z');
+    }
+    svg.write('<path d="$path" fill="#000"/>');
     for (final TextRun t in layout.textRuns) {
       svg
-        ..write('<text x="${n(t.x)}" ')
-        ..write('y="${n(t.top + t.fontSize)}" ')
+        ..write('<text x="${_svgNumber(t.x)}" ')
+        ..write('y="${_svgNumber(t.top + t.fontSize)}" ')
         ..write('font-family="monospace" ')
-        ..write('font-size="${n(t.fittedSize(layout.width))}" ')
+        ..write('font-size="${_svgNumber(t.fittedSize(layout.width))}" ')
         ..write('text-anchor="middle" fill="#000">')
         ..write(xmlEscape(t.text))
         ..write('</text>');
     }
-    svg.write('</svg>');
-    return svg.toString();
   }
+
+  static String _svgNumber(double v) =>
+      v == v.roundToDouble() ? v.round().toString() : v.toString();
 
   /// Renders the symbol as a PNG, black on white: [toImage] encoded as
   /// PNG. For colors, shapes and a logo use `BarcodeStyle.toPng`.

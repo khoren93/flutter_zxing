@@ -58,7 +58,7 @@ class _ParcelsPageState extends State<ParcelsPage> {
               subtitle: Text(
                 [
                   // A pallet names its goods with AI 02, a trade item with 01.
-                  if (label.gtin ?? label.elements['02'] case final gtin?)
+                  if (label.gtin ?? label.contentsGtin case final gtin?)
                     'GTIN $gtin',
                   if (label.batch case final batch?) 'Batch $batch',
                 ].join(' · '),

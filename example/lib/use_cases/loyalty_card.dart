@@ -21,9 +21,6 @@ class _LoyaltyCardPageState extends State<LoyaltyCardPage> {
   };
   _Customer? _customer;
 
-  _Customer _lookUp(String card) =>
-      _members[card] ?? (name: 'New member', points: 0);
-
   Future<void> _scan() async {
     final _Customer? customer = await Navigator.of(context).push(
       MaterialPageRoute<_Customer>(
@@ -31,24 +28,32 @@ class _LoyaltyCardPageState extends State<LoyaltyCardPage> {
           body: BarcodeScanner(
             template: ScannerTemplate.loyalty(
               title: 'Loyalty card',
-              check: (barcode) => _members.containsKey(barcode.text)
-                  ? null
-                  : const ScanVerdict.warn(
-                      title: 'Unknown card',
-                      message: 'It will be enrolled',
-                    ),
-              // The sheet shows the card number large; one tap attaches it.
-              actionsBuilder: (context, result) {
-                final _Customer customer = _lookUp(result.barcode.text);
-                return [
-                  ScannerAction(
-                    label: 'Attach ${customer.name}',
-                    primary: true,
-                    onPressed: () => Navigator.of(context).pop(customer),
-                  ),
-                  ...result.defaultActions,
-                ];
+              // The sheet shows the card number large, and under it the
+              // customer the check found.
+              check: (barcode) {
+                final _Customer? member = _members[barcode.text];
+                return member == null
+                    ? const ScanVerdict.warn(
+                        title: 'Unknown card',
+                        message: 'It will be enrolled',
+                        data: (name: 'New member', points: 0),
+                      )
+                    : ScanVerdict.accept(
+                        title: member.name,
+                        message: '${member.points} points',
+                        data: member,
+                      );
               },
+              actionsBuilder: (context, result) => [
+                ScannerAction(
+                  label: 'Attach to the sale',
+                  primary: true,
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).pop(result.verdict?.data as _Customer?),
+                ),
+                ...result.defaultActions,
+              ],
             ),
           ),
         ),

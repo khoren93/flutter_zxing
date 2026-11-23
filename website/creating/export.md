@@ -41,6 +41,36 @@ To draw one code several times, encode it once with `style.encode` and draw
 the symbol with `style.toPng` and `style.toSvg`. The export loads the
 logo's image itself, sharp enough for the size asked.
 
+## In an SVG of your own
+
+`toSvgElement` gives a code as an element of a larger SVG, such as a page
+of labels to print: a nested `<svg>` at `x`, `y` that fits `width` by
+`height`, in the units of the page around it. A page in millimetres prints
+at its real size.
+
+```dart
+Future<String> labelPage(List<String> items) async {
+  const writer = BarcodeWriter(BarcodeFormat.qrCode);
+  final page = StringBuffer(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" '
+    'viewBox="0 0 210 297"><rect width="100%" height="100%" fill="#fff"/>',
+  );
+  for (final (i, item) in items.take(32).indexed) {
+    final BarcodeSymbol symbol = await writer.encode(item);
+    // 4 columns of 30 mm codes, 50 mm apart.
+    page.write(symbol.toSvgElement(
+      x: 10 + (i % 4) * 50,
+      y: 10 + (i ~/ 4) * 35,
+      width: 30,
+    ));
+  }
+  page.write('</svg>');
+  return page.toString();
+}
+```
+
+The Use cases page has a whole [sheet of labels](../use-cases#a-sheet-of-labels).
+
 ## The modules themselves
 
 `encode` gives the symbol: its size in modules and whether each module is

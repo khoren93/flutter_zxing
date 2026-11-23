@@ -34,6 +34,7 @@ final class ScannerResult {
     this.cutOut,
     this.close,
     this.defaultActions = const <ScannerAction>[],
+    this.verdict,
   });
 
   /// The code.
@@ -61,6 +62,11 @@ final class ScannerResult {
   /// "Copy IBAN" with the IBAN alone for a payment (none for a code with a
   /// secret), then "Scan again".
   final List<ScannerAction> defaultActions;
+
+  /// What the template's `check` said about the code: accepted or flagged,
+  /// with its title and message (shown on the default sheet) and what the
+  /// check found in [ScanVerdict.data]. `null` without a check.
+  final ScanVerdict? verdict;
 }
 
 /// Called with the [barcode] the user picked in [ScannerMode.pick] and the

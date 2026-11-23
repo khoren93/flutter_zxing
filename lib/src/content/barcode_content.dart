@@ -770,6 +770,11 @@ final class Gs1Content extends BarcodeContent {
   /// as a pallet, if present.
   String? get sscc => elements['00'];
 
+  /// The GTIN of the trade items a logistic unit holds (AI 02), if
+  /// present: a pallet's label names its goods with it, next to their
+  /// [count]. Use [gtin] for the trade item itself.
+  String? get contentsGtin => elements['02'];
+
   /// The batch or lot number (AI 10), if present.
   String? get batch => elements['10'];
 

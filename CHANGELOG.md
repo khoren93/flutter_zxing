@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+* The demo has a Use cases tab: 24 ways apps use the package, each one file
+  to try and copy. Also on the documentation site.
+* A check can hand what it found to the result sheet: `ScanVerdict(data:)`,
+  read as `result.verdict?.data` in `resultBuilder` and `actionsBuilder`.
+  The default sheet shows an accepted or flagged verdict's title and message.
+* `BarcodeSymbol.toSvgElement` places a code in an SVG of your own, such as a
+  page of labels, in the page's units.
+* `Gs1Content.contentsGtin`: the GTIN of the goods on a pallet (AI 02).
+
 ## 4.0.0-rc.4
 
 * A documentation site with a guide to every feature and the demo built in:

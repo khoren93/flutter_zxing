@@ -98,6 +98,43 @@ Widget door() => BarcodeScanner(
 );
 ```
 
+### What the check found
+
+A check that looks the code up, such as a loyalty card in your system,
+passes what it found on to the result sheet. The default sheet shows the
+verdict's title and message under the code, and `data` goes to the buttons
+as `result.verdict?.data`. The check may wait for your server;
+`resultBuilder` and `actionsBuilder` run synchronously, so the work belongs
+in the check.
+
+```dart
+typedef Member = ({String name, int points});
+
+Future<Member?> findMember(String card) async => (name: 'Anna', points: 1240);
+
+Widget till() => BarcodeScanner(
+  template: ScannerTemplate.loyalty(
+    check: (barcode) async {
+      final Member? member = await findMember(barcode.text);
+      if (member == null) return const ScanVerdict.reject(title: 'Unknown card');
+      return ScanVerdict.accept(
+        title: member.name,
+        message: '${member.points} points',
+        data: member,
+      );
+    },
+    actionsBuilder: (context, result) => [
+      ScannerAction(
+        label: 'Attach to the sale',
+        primary: true,
+        onPressed: () => print(result.verdict?.data as Member?),
+      ),
+      ...result.defaultActions,
+    ],
+  ),
+);
+```
+
 ## The result sheet
 
 `actionsBuilder` sets the buttons of the result sheet. `ScannerResult` has

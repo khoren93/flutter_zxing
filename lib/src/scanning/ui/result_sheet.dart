@@ -11,6 +11,7 @@ import '../../content/link_service.dart';
 import 'barcode_label.dart';
 import 'glass.dart';
 import 'pressable.dart';
+import 'scan_verdict.dart';
 import 'scanner_icons.dart';
 import 'scanner_strings.dart';
 import 'scanner_theme.dart';
@@ -95,6 +96,7 @@ class BarcodeResultSheet extends StatelessWidget {
     this.onClose,
     this.header = ResultHeader.picture,
     this.cutOut,
+    this.verdict,
   });
 
   /// The code.
@@ -118,6 +120,12 @@ class BarcodeResultSheet extends StatelessWidget {
   /// scanning again, such as back to the other codes of
   /// `ScannerTemplate.pick`.
   final VoidCallback? onClose;
+
+  /// What a check said about the code, such as a customer's name and
+  /// points for a loyalty card: its title and message show under the
+  /// heading, in the accent or the warning color. Templates pass the
+  /// verdict of their `check`.
+  final ScanVerdict? verdict;
 
   @override
   Widget build(BuildContext context) {
@@ -185,6 +193,11 @@ class BarcodeResultSheet extends StatelessWidget {
               ],
             ],
           ),
+          if (verdict case final ScanVerdict v
+              when v.title != null || v.message != null) ...<Widget>[
+            const SizedBox(height: 16),
+            _VerdictLine(v),
+          ],
           if (summary.display case final String display) ...<Widget>[
             const SizedBox(height: 16),
             Text(display, style: theme.displayStyle, maxLines: 1),
@@ -1672,3 +1685,49 @@ String _symbology(Barcode barcode) => switch (barcode.contentType) {
   BarcodeContentType.iso15434 => '${barcode.format.displayName} · ISO 15434',
   _ => barcode.format.displayName,
 };
+
+/// A check's title and message on the sheet, in the color of its kind.
+class _VerdictLine extends StatelessWidget {
+  const _VerdictLine(this.verdict);
+
+  final ScanVerdict verdict;
+
+  @override
+  Widget build(BuildContext context) {
+    final ScannerTheme theme = ScannerTheme.of(context);
+    final bool warn = verdict.kind == ScanVerdictKind.warn;
+    final Color color = warn ? theme.warningColor : theme.lockColor;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: ScannerIcon(
+            warn ? ScannerIcons.alert : ScannerIcons.check,
+            size: 20,
+            color: color,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (verdict.title case final String title)
+                Text(
+                  title,
+                  style: theme.bodyStyle.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+              if (verdict.message case final String message)
+                Text(message, style: theme.mutedStyle),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}

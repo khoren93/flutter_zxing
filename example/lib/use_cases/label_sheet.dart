@@ -54,14 +54,15 @@ class _LabelSheetPageState extends State<LabelSheetPage> {
       if (n % _perPage == 0) pages.add(StringBuffer(_pageStart));
       final BarcodeSymbol symbol = await writer.encode(item);
       final Offset at = _labelAt(n % _perPage);
-      // The box holds the quiet zone too; a linear code needs it only on
-      // its left and right.
-      final int q = symbol.quietZone, qy = _format.isLinear ? 0 : q;
       pages.last
-        ..write('<svg x="${at.dx + _pad}" y="${at.dy + _pad}" ')
-        ..write('width="$_codeW" height="$_codeH" viewBox="${-q} ${-qy} ')
-        ..write('${symbol.width + 2 * q} ${symbol.height + 2 * qy}">')
-        ..write('<path d="${_modules(symbol)}"/></svg>')
+        ..write(
+          symbol.toSvgElement(
+            x: at.dx + _pad,
+            y: at.dy + _pad,
+            width: _codeW,
+            height: _codeH,
+          ),
+        )
         ..write('<text x="${at.dx + _labelW / 2}" ')
         ..write('y="${at.dy + _labelH - _pad}" font-size="$_textSize" ')
         ..write('font-family="monospace" ')
@@ -172,26 +173,6 @@ class _LabelSheetPageState extends State<LabelSheetPage> {
       ),
     );
   }
-}
-
-// The dark modules as one path in module units, a rectangle per run of
-// dark modules in a row. The rows of a Code 128 barcode are all the same:
-// its first row is drawn as tall as the symbol.
-String _modules(BarcodeSymbol s) {
-  final bool linear = s.format.isLinear;
-  final int band = linear ? s.height : 1;
-  final StringBuffer path = StringBuffer();
-  for (int y = 0; y < (linear ? 1 : s.height); y++) {
-    for (int x = 0; x < s.width; x++) {
-      if (!s.isDark(x, y)) continue;
-      final int start = x;
-      while (x + 1 < s.width && s.isDark(x + 1, y)) {
-        x++;
-      }
-      path.write('M$start ${y}h${x + 1 - start}v${band}h${start - x - 1}z');
-    }
-  }
-  return path.toString();
 }
 
 const HtmlEscape _xml = HtmlEscape(HtmlEscapeMode.element);

@@ -622,6 +622,11 @@ void main() {
       expect(gs1.batch, 'AB12C');
       expect(gs1.serial, '7C4K9M2');
       expect(gs1.count, 24);
+      expect(gs1.contentsGtin, isNull);
+      expect(
+        const Gs1Content(<String, String>{'02': '09501101530003'}).contentsGtin,
+        '09501101530003',
+      );
       // Day 00: the last day of the month.
       expect(gs1.expiryDate, DateTime(2025, 1, 31));
       expect(gs1.bestBeforeDate, DateTime(2026, 12, 31));

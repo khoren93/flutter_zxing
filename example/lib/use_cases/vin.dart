@@ -19,15 +19,6 @@ class _VinPageState extends State<VinPage> {
   final TextEditingController _year = TextEditingController();
   bool? _checkDigitOk;
 
-  static const Map<VinRegion, String> _regions = {
-    VinRegion.africa: 'Africa',
-    VinRegion.asia: 'Asia',
-    VinRegion.europe: 'Europe',
-    VinRegion.northAmerica: 'North America',
-    VinRegion.oceania: 'Oceania',
-    VinRegion.southAmerica: 'South America',
-  };
-
   Future<void> _scan() async {
     final Barcode? barcode = await scanBarcode(
       context,
@@ -41,7 +32,8 @@ class _VinPageState extends State<VinPage> {
       setState(() {
         _vin.text = vin.vin;
         _maker.text = vin.wmi; // Your code: the maker's name for the WMI
-        _region.text = _regions[vin.region] ?? vin.region.name;
+        // In the language of the scanner's texts (ScannerStrings).
+        _region.text = ScannerStrings.of(context).vinRegion(vin.region);
         _year.text = vin.modelYear?.toString() ?? '';
         _checkDigitOk = vin.hasValidCheckDigit;
       });

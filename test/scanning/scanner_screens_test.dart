@@ -259,6 +259,64 @@ void main() {
     });
   });
 
+  group('one code with a check', () {
+    testWidgets('the sheet shows what the check said, its data goes to the '
+        'buttons', (WidgetTester tester) async {
+      await phone(tester);
+      ScannerResult? shown;
+      await tester.pumpWidget(
+        _host(
+          BarcodeScanner(
+            template: ScannerTemplate.minimal(
+              formats: const <BarcodeFormat>{BarcodeFormat.qrCode},
+              check: (Barcode b) async => const ScanVerdict.accept(
+                title: 'Anna Petrova',
+                message: '1240 points',
+                data: 1240,
+              ),
+              actionsBuilder: (BuildContext context, ScannerResult result) {
+                shown = result;
+                return result.defaultActions;
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await push(tester, <Barcode>[_barcode('4006123456789012')]);
+      await wait(tester, 600);
+      expect(find.text('Anna Petrova'), findsOneWidget);
+      expect(find.text('1240 points'), findsOneWidget);
+      expect(shown?.verdict?.data, 1240);
+      expect(shown?.verdict?.kind, ScanVerdictKind.accept);
+    });
+
+    testWidgets('without a check there is no verdict', (
+      WidgetTester tester,
+    ) async {
+      await phone(tester);
+      ScannerResult? shown;
+      await tester.pumpWidget(
+        _host(
+          BarcodeScanner(
+            template: ScannerTemplate.minimal(
+              formats: const <BarcodeFormat>{BarcodeFormat.qrCode},
+              actionsBuilder: (BuildContext context, ScannerResult result) {
+                shown = result;
+                return result.defaultActions;
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await push(tester, <Barcode>[_barcode('one')]);
+      await wait(tester, 600);
+      expect(shown, isNotNull);
+      expect(shown?.verdict, isNull);
+    });
+  });
+
   group('stopped camera', () {
     testWidgets('does not say the camera is starting', (
       WidgetTester tester,

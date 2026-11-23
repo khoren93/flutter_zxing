@@ -476,6 +476,40 @@ void main() {
     });
   });
 
+  group('toSvgElement', () {
+    test("is a nested svg in the page's units, without a background", () {
+      final String svg = _symbol(<String>[
+        '#.#',
+      ], quietZone: 1).toSvgElement(x: 10, y: 2.5, width: 40);
+      expect(svg, startsWith('<svg x="10" y="2.5" width="40" height="24" '));
+      expect(svg, contains('viewBox="0 0 5 3"'));
+      expect(svg, contains('<path d="M1 1h1v1h-1zM3 1h1v1h-1z" fill="#000"/>'));
+      expect(svg, isNot(contains('xmlns')));
+      expect(svg, isNot(contains('<rect')));
+      expect(svg, endsWith('</svg>'));
+    });
+
+    test('fills the box given, without the quiet zone if asked', () {
+      final BarcodeSymbol symbol = _symbol(<String>['#.#'], quietZone: 1);
+      expect(
+        symbol.toSvgElement(width: 30, height: 20, quietZone: false),
+        startsWith('<svg x="0" y="0" width="30" height="20" viewBox="0 0 3 1"'),
+      );
+      expect(() => symbol.toSvgElement(width: 0), throwsArgumentError);
+      expect(
+        () => symbol.toSvgElement(width: 1, height: -1),
+        throwsArgumentError,
+      );
+    });
+
+    test('adds the text, escaped', () {
+      final String svg = _symbol(<String>[
+        '#',
+      ], text: 'a<b&c').toSvgElement(width: 10);
+      expect(svg, contains('>a&lt;b&amp;c</text>'));
+    });
+  });
+
   group('toSvg with a style', () {
     // A 21 × 21 QR-sized symbol: finder patterns in three corners.
     final BarcodeSymbol qr = _symbol(<String>[

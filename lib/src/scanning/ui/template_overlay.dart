@@ -88,6 +88,9 @@ class _TemplateOverlayState extends State<TemplateOverlay>
 
   /// The capture [_result] came from.
   BarcodeCapture? _resultCapture;
+
+  /// What the check said about [_result]; `null` without a check.
+  ScanVerdict? _resultVerdict;
   Timer? _showResult;
   final List<CollectedBarcode> _items = <CollectedBarcode>[];
   String? _notice;
@@ -382,6 +385,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       unawaited(controller.pause());
     }
     ScanVerdict? warning;
+    ScanVerdict? taken;
     if (_template.check != null) {
       final int run = _run;
       final ScanVerdict? verdict = await _judge(barcode);
@@ -407,6 +411,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       if (_settled || _result != null) {
         return;
       }
+      taken = verdict;
       if (verdict.kind == ScanVerdictKind.warn) {
         warning = verdict;
       }
@@ -458,6 +463,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         setState(() {
           _result = barcode;
           _resultCapture = capture;
+          _resultVerdict = taken;
         });
         if (_template.resumeAfter case final Duration after) {
           _after = Timer(after, _scanAgain);
@@ -656,6 +662,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     _run++;
     _result = null;
     _resultCapture = null;
+    _resultVerdict = null;
     _settled = false;
     _holding = false;
   }
@@ -1458,6 +1465,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       cutOut: _resultCutOut,
       scanAgain: _scanAgain,
       close: pick ? _backToCodes : null,
+      verdict: _resultVerdict,
       defaultActions: defaultResultActions(
         result,
         ScannerStrings.of(context),
@@ -1473,6 +1481,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
           onClose: shown.close,
           header: template.resultHeader,
           cutOut: _resultCutOut,
+          verdict: _resultVerdict,
         );
   }
 }
