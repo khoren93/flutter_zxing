@@ -43,7 +43,7 @@
   data is wrong.
 * `BarcodeSymbol.toSvgElement` places a code in an SVG of your own.
 * `Gs1Content.contentsGtin`: the GTIN of the goods on a pallet (AI 02).
-* The demo has a Use cases tab: 24 ways apps use the package, each one file
+* The demo has a Use cases tab: 25 ways apps use the package, each one file
   to try and copy. Also on the documentation site.
 
 ### Fixed

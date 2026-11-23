@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../use_cases/add_2fa.dart';
 import '../use_cases/boarding_pass.dart';
 import '../use_cases/business_card.dart';
+import '../use_cases/custom_look.dart';
 import '../use_cases/door_check_in.dart';
 import '../use_cases/invoice_qr.dart';
 import '../use_cases/join_wifi.dart';
@@ -73,6 +74,14 @@ final List<UseCase> useCases = <UseCase>[
     icon: Icons.qr_code_scanner_rounded,
     group: UseCaseGroup.scan,
     builder: (_) => const ScanButtonPage(),
+  ),
+  UseCase(
+    id: 'custom_look',
+    title: 'Your brand’s look',
+    summary: 'Your colors, buttons, scan window, texts and widgets',
+    icon: Icons.palette_outlined,
+    group: UseCaseGroup.scan,
+    builder: (_) => const CustomLookPage(),
   ),
   UseCase(
     id: 'scan_into_form',

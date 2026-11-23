@@ -116,6 +116,26 @@ void main() {
       });
     }
 
+    testWidgets('custom_look switches looks over one camera', (
+      WidgetTester tester,
+    ) async {
+      final UseCase look = useCases.firstWhere(
+        (UseCase c) => c.id == 'custom_look',
+      );
+      await show(tester, Builder(builder: look.builder));
+      for (final String name in <String>['Grocery', 'Club', 'Bank']) {
+        await tester.tap(find.text(name));
+        for (int i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(tester.takeException(), isNull, reason: name);
+        expect(find.text('$name · a widget of yours'), findsOneWidget);
+      }
+      expect(camera.opened, hasLength(1));
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 4));
+    });
+
     testWidgets('the tab lists every case and shows its code', (
       WidgetTester tester,
     ) async {

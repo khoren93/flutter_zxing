@@ -19,6 +19,18 @@ One code, then back to your screen.
 
 :::
 
+### Your brand’s look
+
+Your colors, buttons, scan window, texts and widgets.
+
+[Try it in the demo](https://khoren93.github.io/flutter_zxing/demo/?case=custom_look){target="_self"}
+
+::: details custom_look.dart
+
+<<< @/../example/lib/use_cases/custom_look.dart
+
+:::
+
 ### Scan into a form
 
 A serial number, IMEI or tracking number into a text field.

@@ -1,0 +1,139 @@
+// Your brand's look: the scanner in your colors and shapes, with a scan
+// window sized and placed for your codes, your own texts and a widget of
+// your own over the camera. Three looks to switch between: a bank, a
+// grocery till and a club door. Android, iOS, macOS, the web.
+import 'package:flutter/material.dart';
+import 'package:flutter_zxing/flutter_zxing.dart';
+
+/// A text of the scanner in your words: subclass the built-in translation
+/// of your app's language and override what you need.
+class _TillTexts extends ScannerLocalizationsEn {
+  @override
+  String get scanAgain => 'Next item';
+}
+
+/// One look: a template with its window, a theme and texts.
+typedef _Look = ({
+  String name,
+  ScannerTemplate template,
+  ScannerTheme theme,
+  ScannerLocalizations? texts,
+});
+
+final List<_Look> _looks = [
+  (
+    name: 'Bank',
+    // A card-shaped window for payment QR codes, light glass, square
+    // buttons and corners.
+    template: const ScannerTemplate.minimal(
+      title: 'Pay by QR code',
+      hint: 'Fit the payment code in the frame',
+      scanWindow: ScanWindow.centered(width: 0.85, aspectRatio: 1.6),
+      formats: {BarcodeFormat.qrCode},
+      zoomButtons: false,
+    ),
+    theme: const ScannerTheme(
+      accent: Color(0xFF1D4ED8),
+      brightness: Brightness.light,
+      buttonShape: ScannerButtonShape.roundedSquare,
+      windowRadius: 6,
+    ),
+    texts: null, // the app's language
+  ),
+  (
+    name: 'Grocery',
+    // A wide, low window for product barcodes, the torch for dark shelves,
+    // and "Next item" instead of "Scan again".
+    template: ScannerTemplate.minimal(
+      hint: 'Barcode on the product',
+      scanWindow: const ScanWindow.centered(
+        width: 0.9,
+        aspectRatio: 3,
+        alignment: Alignment(0, 0.2),
+      ),
+      formats: BarcodeFormat.retail,
+      photoButton: false,
+    ),
+    theme: const ScannerTheme(
+      accent: Color(0xFFFF6A1A),
+      brightness: Brightness.dark,
+      windowRadius: 4,
+    ),
+    texts: _TillTexts(),
+  ),
+  (
+    name: 'Club',
+    // A small square high up, round corners, pink on dark glass, and its
+    // own colors for a ticket that was used or is not valid.
+    template: const ScannerTemplate.minimal(
+      title: 'Door',
+      hint: 'Ticket QR code',
+      scanWindow: ScanWindow.centered(
+        width: 0.55,
+        alignment: Alignment(0, -0.35),
+      ),
+      formats: {BarcodeFormat.qrCode},
+    ),
+    theme: const ScannerTheme(
+      accent: Color(0xFFFF3FA4),
+      brightness: Brightness.dark,
+      windowRadius: 40,
+      warning: Color(0xFFFFD60A),
+      danger: Color(0xFFFF453A),
+      // fontFamily: 'YourBrandFont', // a font your app bundles
+    ),
+    texts: null,
+  ),
+];
+
+class CustomLookPage extends StatefulWidget {
+  const CustomLookPage({super.key});
+
+  @override
+  State<CustomLookPage> createState() => _CustomLookPageState();
+}
+
+class _CustomLookPageState extends State<CustomLookPage> {
+  _Look _look = _looks.first;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Your brand’s look'),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: SegmentedButton<_Look>(
+            segments: [
+              for (final look in _looks)
+                ButtonSegment(value: look, label: Text(look.name)),
+            ],
+            selected: {_look},
+            onSelectionChanged: (s) => setState(() => _look = s.first),
+          ),
+        ),
+      ),
+    ),
+    body: BarcodeScanner(
+      template: _look.template,
+      theme: _look.theme,
+      texts: _look.texts,
+      // Your own widget over the camera, in the look's glass.
+      foregroundBuilder: (context, layout) => Positioned(
+        left: 0,
+        right: 0,
+        bottom: MediaQuery.paddingOf(context).bottom + 120,
+        child: Center(
+          child: ScannerGlass(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Text(
+              '${_look.name} · a widget of yours',
+              style: ScannerTheme.of(context).labelStyle,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
