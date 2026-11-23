@@ -45,6 +45,7 @@ defaults.
 | `windowShape` | `ScannerWindowShape.rounded` | The window drawn with rounded corners, as a `circle`, or as the brackets alone (`bracketsOnly`) ([The window's shape](#the-window-s-shape)) |
 | `breathing` | `true` | Whether the brackets breathe while the scanner searches ([Motion](#motion)) |
 | `scanLine` | none | A line that runs across the window while the scanner searches, like a laser ([Motion](#motion)) |
+| `windowPicture` | `ScannerWindowPicture.exact` | What the window shows of the code found: drawn exactly where it can be, the camera's picture (`photo`) or nothing (`none`) ([The code in the window](#the-code-in-the-window)) |
 | `glass` | a light or dark glass | The background of the buttons, hints and title pills ([Glass and sheets](#glass-and-sheets)) |
 | `sheet` | a more opaque glass | The background of the result sheets and cards |
 | `sheetRadius` | 32 at the top and 24 at the bottom; 20 with `roundedSquare` | Corner radius of the result sheets and cards |
@@ -135,6 +136,31 @@ devices, such as with Xcode's energy gauge or Android Studio's profiler, or
 with `make perf` in the package's repository for its own templates
 ([Load and battery](../more/accuracy-and-speed#load-and-battery)).
 :::
+
+### The code in the window
+
+The code found flies from where it is into the window and stays there under
+the result sheet. By default it is drawn exactly once it lands, sharp
+however fast the camera moved: a QR code, Data Matrix or Aztec code from
+the modules the reader sampled, an EAN, UPC or ITF from its digits. The
+other codes, such as Code 128 or PDF417, can be drawn in more than one way
+and show the camera's picture: the sharpest of the frames read in the
+moment after the code (the result does not wait for it), lightly
+sharpened. The result sheet's thumbnail is pictured the same way
+(`BarcodeThumbnail`).
+
+```dart
+BarcodeScanner(
+  template: const ScannerTemplate.minimal(),
+  theme: const ScannerTheme(
+    windowPicture: ScannerWindowPicture.photo, // or exact, none
+  ),
+)
+```
+
+`photo` always shows the camera's picture, as it was cut out of the frame;
+`none` leaves the camera in the window. `capture.snapshot()` gives the
+camera's picture as cut out, not sharpened.
 
 ## Glass and sheets
 

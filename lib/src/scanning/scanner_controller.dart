@@ -297,6 +297,10 @@ class ScannerController extends ValueNotifier<ScannerState> {
   // so that a decode loop or an open that outlived its session stops.
   int _session = 0;
   Completer<void>? _resumed;
+
+  /// While paused, the code a template's window still looks for; see
+  /// [ScannerControllerGlimpse].
+  _Glimpse? _glimpse;
   int _engineFailures = 0;
   int _cameraRestarts = 0;
   int _engineRestarts = 0;
@@ -538,9 +542,13 @@ class ScannerController extends ValueNotifier<ScannerState> {
     if (!_disposed) {
       value = state;
       // A paused scanner shows the preview only: no frames to copy.
+      if (state.status != ScannerStatus.paused) {
+        _endGlimpse();
+      }
       switch (state.status) {
         case ScannerStatus.paused:
-          _source?.setFramesWanted(false);
+          // A glimpse still reads a few frames.
+          _source?.setFramesWanted(_glimpse != null);
         case ScannerStatus.running:
           _source?.setFramesWanted(true);
         case _:
@@ -933,6 +941,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
       return;
     }
     _session++;
+    _endGlimpse();
     _wakeUp();
     _lastFrame = null;
     _lifecycle?.dispose();
@@ -955,7 +964,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
     // frames the camera sent meanwhile are not frames it missed.
     bool waited = false;
     while (session == _session && !_disposed) {
-      if (value.status == ScannerStatus.paused) {
+      if (value.status == ScannerStatus.paused && _glimpse == null) {
         waited = true;
         await (_resumed ??= Completer<void>()).future;
         continue;
@@ -984,7 +993,7 @@ class ScannerController extends ValueNotifier<ScannerState> {
       if (frame == null || session != _session || _disposed) {
         return;
       }
-      if (value.status != ScannerStatus.running) {
+      if (value.status != ScannerStatus.running && _glimpse == null) {
         continue;
       }
       final (bool visible, Rect? crop) = _cropFor(frame.transform);
@@ -1027,7 +1036,11 @@ class ScannerController extends ValueNotifier<ScannerState> {
         return;
       }
       if (value.status != ScannerStatus.running) {
-        continue; // paused while it was decoded: nothing more is reported
+        // Paused while it was decoded: nothing more is reported, only to a
+        // glimpse.
+        _glimpseAt(frame, result);
+        waited = true;
+        continue;
       }
       _lastFrame = (frame, crop);
       _onFrame(
@@ -1291,6 +1304,49 @@ class ScannerController extends ValueNotifier<ScannerState> {
     await source?.close();
   }
 
+  /// Hands the code a glimpse looks for in [result] of [frame] to it.
+  void _glimpseAt(CameraFrame frame, EngineReadResult result) {
+    final _Glimpse? glimpse = _glimpse;
+    if (glimpse == null) {
+      return;
+    }
+    for (final Barcode b in result.barcodes) {
+      if (!b.isValid ||
+          b.format != glimpse.barcode.format ||
+          b.text != glimpse.barcode.text) {
+        continue;
+      }
+      glimpse.onFrame(
+        BarcodeCapture._(
+          barcodes: <Barcode>[frame.transform.barcodeToDisplay(b)],
+          imageSize: frame.transform.displaySize,
+          time: _now(),
+          source: CaptureSource.camera,
+          cut: frame.cut(
+            <BarcodePosition>[b.position],
+            linear: <bool>[b.format.isLinear],
+          ),
+          positions: <BarcodePosition>[b.position],
+          mirrored: frame.mirrored,
+        ),
+      );
+      return;
+    }
+  }
+
+  /// Ends the glimpse, if any: a paused camera sends no more frames.
+  void _endGlimpse() {
+    final _Glimpse? glimpse = _glimpse;
+    if (glimpse == null) {
+      return;
+    }
+    glimpse.end.cancel();
+    _glimpse = null;
+    if (!_disposed && value.status == ScannerStatus.paused) {
+      _source?.setFramesWanted(false);
+    }
+  }
+
   void _wakeUp() {
     final Completer<void>? resumed = _resumed;
     _resumed = null;
@@ -1451,4 +1507,58 @@ final class _View {
   const _View(this.size, this.fit);
   final Size size;
   final BoxFit fit;
+}
+
+/// While paused, the code a template's window still looks for.
+final class _Glimpse {
+  _Glimpse(this.barcode, this.onFrame, this.end);
+
+  final Barcode barcode;
+  final ValueChanged<BarcodeCapture> onFrame;
+
+  /// Ends it.
+  final Timer end;
+}
+
+/// For the scanner's templates. Not exported.
+extension ScannerControllerGlimpse on ScannerController {
+  /// While the scanner is paused on [barcode], reads the camera on for at
+  /// most [within] and hands each frame [barcode] is found in (its format
+  /// and text) to [onFrame], as a capture of that code alone: for a
+  /// sharper picture of it than the frame it was read from. Nothing is
+  /// reported on [ScannerController.barcodes], the outlines and
+  /// [ScannerController.lastFrameImage] stay as they were.
+  ///
+  /// Ends after [within], with [endGlimpse], and when the scanner resumes,
+  /// stops, fails or is disposed. Does nothing unless the scanner is
+  /// paused; a new glimpse replaces the one before.
+  void glimpse(
+    Barcode barcode,
+    Duration within,
+    ValueChanged<BarcodeCapture> onFrame,
+  ) {
+    _endGlimpse();
+    if (_disposed || value.status != ScannerStatus.paused) {
+      return;
+    }
+    late final _Glimpse glimpse;
+    glimpse = _Glimpse(
+      barcode,
+      onFrame,
+      Timer(within, () {
+        if (_glimpse == glimpse) {
+          _endGlimpse();
+        }
+      }),
+    );
+    _glimpse = glimpse;
+    _source?.setFramesWanted(true);
+    _wakeUp();
+  }
+
+  /// Ends a [glimpse].
+  void endGlimpse() => _endGlimpse();
+
+  /// Whether a [glimpse] reads the camera.
+  bool get glimpsing => _glimpse != null;
 }

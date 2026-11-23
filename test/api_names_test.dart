@@ -58,6 +58,7 @@ const List<Type> _types = <Type>[
   ScannerPickCallback, ScannerPresentation,
   ScanFieldButton, ScannerResultBuilder, ScannerActionsBuilder, ScannerTheme,
   ScannerButtonShape, ScannerWindowShape, ScanLine, ScanLineStyle,
+  ScannerWindowPicture,
   ScannerTextStyles, ScanFeedback,
   ScannerScope,
   ScannerLocalizations,

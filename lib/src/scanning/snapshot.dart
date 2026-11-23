@@ -2,6 +2,7 @@
 // around the codes is kept when they are reported; a code is then
 // straightened from its four corners into a flat grayscale image.
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -472,6 +473,78 @@ GrayImage? straighten(FrameCut cut, List<Offset> corners) {
   _stretch(out);
   return GrayImage(out, width, height);
 }
+
+/// How sharp [image] is: the mean squared Laplacian of its pixels. A code
+/// blurred by motion or focus loses its edges and scores low. Compares
+/// cut-outs of one code from frames close in time, which are about the
+/// same size and, contrast stretched, about the same contrast.
+///
+/// One pass over the pixels: under a millisecond for a cut-out of
+/// 360 × 180 pixels.
+double sharpness(GrayImage image) {
+  final int width = image.width;
+  final int height = image.height;
+  if (width < 3 || height < 3) {
+    return 0;
+  }
+  final Uint8List p = image.pixels;
+  int sum = 0;
+  for (int y = 1; y < height - 1; y++) {
+    final int row = y * width;
+    for (int x = 1; x < width - 1; x++) {
+      final int i = row + x;
+      final int l =
+          4 * p[i] - p[i - 1] - p[i + 1] - p[i - width] - p[i + width];
+      sum += l * l;
+    }
+  }
+  return sum / ((width - 2) * (height - 2));
+}
+
+/// [image] lightly sharpened: an unsharp mask of radius one pixel. Each
+/// pixel moves away from the 3 × 3 blur around it by half the difference,
+/// the step capped so that an edge gains no bright or dark halo. A new
+/// image; [image] is kept.
+GrayImage unsharpMask(GrayImage image) {
+  final int width = image.width;
+  final int height = image.height;
+  final Uint8List p = image.pixels;
+  if (width < 3 || height < 3) {
+    return GrayImage(Uint8List.fromList(p), width, height);
+  }
+  // The blur: [1 2 1] across, then down.
+  final Uint16List across = Uint16List(width * height);
+  for (int y = 0; y < height; y++) {
+    final int row = y * width;
+    across[row] = 3 * p[row] + p[row + 1];
+    for (int x = 1; x < width - 1; x++) {
+      final int i = row + x;
+      across[i] = p[i - 1] + 2 * p[i] + p[i + 1];
+    }
+    final int last = row + width - 1;
+    across[last] = p[last - 1] + 3 * p[last];
+  }
+  final Uint8List out = Uint8List(width * height);
+  for (int y = 0; y < height; y++) {
+    final int up = (y == 0 ? 0 : y - 1) * width;
+    final int row = y * width;
+    final int down = (y == height - 1 ? y : y + 1) * width;
+    for (int x = 0; x < width; x++) {
+      // 16 times the blur.
+      final int blur = across[up + x] + 2 * across[row + x] + across[down + x];
+      final int v = p[row + x];
+      final int step = ((v * 16 - blur) ~/ 32).clamp(
+        -_maxSharpenStep,
+        _maxSharpenStep,
+      );
+      out[row + x] = (v + step).clamp(0, 255);
+    }
+  }
+  return GrayImage(out, width, height);
+}
+
+/// The most [unsharpMask] moves a pixel, of 255.
+const int _maxSharpenStep = 40;
 
 /// Bilinear sample of [cut] at ([x], [y]); white outside.
 int _sample(FrameCut cut, double x, double y) {

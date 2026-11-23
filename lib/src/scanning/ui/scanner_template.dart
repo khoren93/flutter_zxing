@@ -54,8 +54,9 @@ final class ScannerResult {
   /// `capture.snapshot(barcode)`.
   final BarcodeCapture capture;
 
-  /// The camera's cut-out of the code, for a [BarcodeThumbnail]; `null`
-  /// until it is cut out, or where it cannot be. Owned by the scanner and
+  /// The camera's cut-out of the code, for a [BarcodeThumbnail]: from the
+  /// sharpest frame read in the moment after the code, lightly sharpened;
+  /// `null` until it is cut out, or where it cannot be. Owned by the scanner and
   /// valid while the result shows: `clone()` it to keep it.
   final ui.Image? cutOut;
 

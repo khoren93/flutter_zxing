@@ -69,30 +69,19 @@ class BarcodeThumbnail extends StatelessWidget {
     final ScannerTheme theme = ScannerTheme.of(context);
     final BarcodeThumbnailKind kind = barcodeThumbnailKindOf(barcode);
     final ui.Image? image = cutOut;
-    final Widget picture = switch (kind) {
-      BarcodeThumbnailKind.exact => BarcodeView.symbol(
-        barcode.symbol!,
-        style: const BarcodeStyle(quietZone: false),
-        semanticLabel: '',
-      ),
-      BarcodeThumbnailKind.regenerated => BarcodeView(
-        barcode.text,
-        writer: BarcodeWriter(_regenerated(barcode)!, showText: size >= 96),
-        style: const BarcodeStyle(quietZone: false),
-        semanticLabel: '',
-      ),
-      BarcodeThumbnailKind.cutOut when image != null => RawImage(
-        image: image,
-        fit: BoxFit.cover,
-      ),
-      BarcodeThumbnailKind.cutOut => Center(
-        child: ScannerIcon(
-          barcode.format.isLinear ? ScannerIcons.barcode : ScannerIcons.qrCode,
-          size: size * 0.45,
-          color: const Color(0xFF6B7280),
-        ),
-      ),
-    };
+    final Widget picture =
+        exactBarcodePicture(barcode, showText: size >= 96) ??
+        (image != null
+            ? RawImage(image: image, fit: BoxFit.cover)
+            : Center(
+                child: ScannerIcon(
+                  barcode.format.isLinear
+                      ? ScannerIcons.barcode
+                      : ScannerIcons.qrCode,
+                  size: size * 0.45,
+                  color: const Color(0xFF6B7280),
+                ),
+              ));
     final bool photo = kind == BarcodeThumbnailKind.cutOut && image != null;
     return ExcludeSemantics(
       child: SizedBox.square(
@@ -128,6 +117,27 @@ BarcodeThumbnailKind barcodeThumbnailKindOf(Barcode barcode) {
       ? BarcodeThumbnailKind.cutOut
       : BarcodeThumbnailKind.regenerated;
 }
+
+/// [barcode] drawn exactly, as a [BarcodeThumbnail] and the scan window
+/// show it: dark modules on white, without a quiet zone, filling the space
+/// it is given at the code's own proportions. [showText]: the digits under
+/// a code drawn again. `null` for a code pictured by its cut-out
+/// ([BarcodeThumbnailKind.cutOut]).
+Widget? exactBarcodePicture(Barcode barcode, {bool showText = false}) =>
+    switch (barcodeThumbnailKindOf(barcode)) {
+      BarcodeThumbnailKind.exact => BarcodeView.symbol(
+        barcode.symbol!,
+        style: const BarcodeStyle(quietZone: false),
+        semanticLabel: '',
+      ),
+      BarcodeThumbnailKind.regenerated => BarcodeView(
+        barcode.text,
+        writer: BarcodeWriter(_regenerated(barcode)!, showText: showText),
+        style: const BarcodeStyle(quietZone: false),
+        semanticLabel: '',
+      ),
+      BarcodeThumbnailKind.cutOut => null,
+    };
 
 /// The writable format that draws [barcode]'s text exactly as it was
 /// printed, or `null` if there is none.

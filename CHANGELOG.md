@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### New
+
+* The code found shows sharp in the scan window: once it has flown in, a
+  QR code, Data Matrix or Aztec code turns into its exact modules, and an
+  EAN, UPC or ITF into the code drawn again from its digits.
+  `ScannerTheme(windowPicture:)` chooses `exact` (the default), `photo`
+  (always the camera's picture) or `none`.
+* Codes shown from the camera's picture, such as Code 128, get the sharpest
+  of the frames read in the moment after the code, lightly sharpened, in the
+  window and the result sheet. The result is not delayed.
+
 ## 4.0.0-rc.5
 
 Upgrading from rc.4: see

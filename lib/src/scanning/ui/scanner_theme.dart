@@ -30,6 +30,25 @@ enum ScannerWindowShape {
   bracketsOnly,
 }
 
+/// What the scan window shows of the code found, under the result sheet:
+/// its picture flies in from where the code is and stays in the window.
+enum ScannerWindowPicture {
+  /// The code drawn exactly where it can be, like `BarcodeThumbnail`: once
+  /// the camera's cut-out has flown in, it turns into the modules the
+  /// reader sampled (QR, Micro QR, rMQR, Data Matrix, Aztec) or into the
+  /// code drawn again from its digits (EAN, UPC, ITF), sharp however
+  /// blurred the frame. Other codes, such as Code 128 or PDF417, stay the
+  /// cut-out: the sharpest of the frames read in the moment after the
+  /// code, lightly sharpened. The default.
+  exact,
+
+  /// Always the camera's cut-out, as photographed.
+  photo,
+
+  /// Nothing: the camera stays in the window.
+  none,
+}
+
 /// How a [ScanLine] moves.
 enum ScanLineStyle {
   /// From the top of the window to the bottom, then again from the top.
@@ -276,6 +295,7 @@ final class ScannerTheme with Diagnosticable {
     this.windowShape,
     this.breathing,
     this.scanLine,
+    this.windowPicture,
     this.glass,
     this.sheet,
     this.sheetRadius,
@@ -367,6 +387,12 @@ final class ScannerTheme with Diagnosticable {
   /// merged under.
   final ScanLine? scanLine;
 
+  /// What the window shows of the code found: drawn exactly where it can
+  /// be ([ScannerWindowPicture.exact], the default), always the camera's
+  /// cut-out ([ScannerWindowPicture.photo]), or nothing
+  /// ([ScannerWindowPicture.none]).
+  final ScannerWindowPicture? windowPicture;
+
   /// The background of the buttons, hints and title pills over the camera,
   /// such as your brand's color. An opaque color is drawn without the blur
   /// behind it, which saves its cost; a translucent one keeps the blur
@@ -449,6 +475,7 @@ final class ScannerTheme with Diagnosticable {
       windowShape: other.windowShape ?? windowShape,
       breathing: other.breathing ?? breathing,
       scanLine: other.scanLine ?? scanLine,
+      windowPicture: other.windowPicture ?? windowPicture,
       glass: other.glass ?? glass,
       sheet: other.sheet ?? sheet,
       sheetRadius: other.sheetRadius ?? sheetRadius,
@@ -478,6 +505,7 @@ final class ScannerTheme with Diagnosticable {
     ScannerWindowShape? windowShape,
     bool? breathing,
     ScanLine? scanLine,
+    ScannerWindowPicture? windowPicture,
     Color? glass,
     Color? sheet,
     double? sheetRadius,
@@ -503,6 +531,7 @@ final class ScannerTheme with Diagnosticable {
     windowShape: windowShape ?? this.windowShape,
     breathing: breathing ?? this.breathing,
     scanLine: scanLine ?? this.scanLine,
+    windowPicture: windowPicture ?? this.windowPicture,
     glass: glass ?? this.glass,
     sheet: sheet ?? this.sheet,
     sheetRadius: sheetRadius ?? this.sheetRadius,
@@ -544,6 +573,10 @@ final class ScannerTheme with Diagnosticable {
   /// The scan line, or `null` for none ([ScanLine.none] included).
   ScanLine? get resolvedScanLine =>
       scanLine == null || scanLine!._off ? null : scanLine;
+
+  /// What the window shows of the code found.
+  ScannerWindowPicture get resolvedWindowPicture =>
+      windowPicture ?? ScannerWindowPicture.exact;
 
   /// Line width of the outlines of the codes in view.
   double get resolvedOutlineWidth => outlineWidth ?? 3;
@@ -805,6 +838,7 @@ final class ScannerTheme with Diagnosticable {
       other.windowShape == windowShape &&
       other.breathing == breathing &&
       other.scanLine == scanLine &&
+      other.windowPicture == windowPicture &&
       other.glass == glass &&
       other.sheet == sheet &&
       other.sheetRadius == sheetRadius &&
@@ -832,6 +866,7 @@ final class ScannerTheme with Diagnosticable {
     windowShape,
     breathing,
     scanLine,
+    windowPicture,
     glass,
     sheet,
     sheetRadius,
@@ -866,6 +901,7 @@ final class ScannerTheme with Diagnosticable {
       ..add(
         DiagnosticsProperty<ScanLine>('scanLine', scanLine, defaultValue: null),
       )
+      ..add(EnumProperty<ScannerWindowPicture>('windowPicture', windowPicture))
       ..add(ColorProperty('glass', glass, defaultValue: null))
       ..add(ColorProperty('sheet', sheet, defaultValue: null))
       ..add(DoubleProperty('sheetRadius', sheetRadius, defaultValue: null))

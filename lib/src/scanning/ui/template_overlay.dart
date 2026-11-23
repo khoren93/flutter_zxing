@@ -12,6 +12,7 @@ import '../../errors.dart';
 import '../l10n/scanner_localizations.dart';
 import '../l10n/scanner_localizations_lookup.dart';
 import '../scanner_controller.dart';
+import '../snapshot.dart';
 import 'barcode_label.dart';
 import 'controls.dart';
 import 'glass.dart';
@@ -68,8 +69,19 @@ bool _isFull(Rect window, Size size) =>
 
 String _keyOf(Barcode b) => '${b.format.index}|${b.text}';
 
+/// How long the scanner reads on after a code pictured by its cut-out, for
+/// a sharper frame of it: until shortly before the result sheet rises.
+const Duration _lookFor = Duration(milliseconds: 300);
+
+/// How much sharper ([sharpness]) a later frame's cut-out must be to
+/// replace the one shown: not for noise.
+const double _sharperBy = 1.15;
+
+/// The cross-fade to a sharper or exact picture of the code in the window.
+const Duration _pictureFade = Duration(milliseconds: 150);
+
 class _TemplateOverlayState extends State<TemplateOverlay>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   StreamSubscription<BarcodeCapture>? _captures;
 
   /// The code found, cut out of the frame, flying into the window.
@@ -78,6 +90,31 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   List<Offset>? _cutFrom;
   bool _cutLinear = false;
   bool _settled = false;
+
+  /// The width over the height of the card the code flies in on: its first
+  /// cut-out's, kept when a sharper one replaces it.
+  double _cutAspect = 1;
+
+  /// How sharp [_cutOut] is ([sharpness]).
+  double _cutSharpness = 0;
+
+  /// The cut-out [_cutOut] replaced, under it while it fades in ([_swap]).
+  ui.Image? _cutBefore;
+  late final AnimationController _swap;
+
+  /// The code found, drawn exactly over its cut-out once it landed
+  /// ([_exact]); `null` where it is not ([ScannerWindowPicture]).
+  Barcode? _exactOf;
+  late final AnimationController _exact;
+
+  /// The first cut-out of the code found is in the window (or there is
+  /// none): later frames of it are compared with it.
+  Future<void> _taken = Future<void>.value();
+
+  /// A frame of the code found, read after it, waiting to be compared, and
+  /// the lock it belongs to.
+  (BarcodeCapture, int)? _nextLook;
+  bool _looking = false;
 
   /// The cut-out shown in the result sheet: a handle of its own, as the
   /// window's fades away with "Scan again" while the sheet is still leaving.
@@ -170,6 +207,8 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       vsync: this,
       duration: const Duration(milliseconds: 360),
     );
+    _swap = AnimationController(vsync: this, duration: _pictureFade, value: 1);
+    _exact = AnimationController(vsync: this, duration: _pictureFade);
     _listen();
   }
 
@@ -197,8 +236,12 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     _hideVerdict?.cancel();
     _flashEnd?.cancel();
     _after?.cancel();
+    _controller?.endGlimpse();
     _flight.dispose();
+    _swap.dispose();
+    _exact.dispose();
     _cutOut?.dispose();
+    _cutBefore?.dispose();
     _resultCutOut?.dispose();
     _photo?.image.dispose();
     for (final CollectedBarcode item in _items) {
@@ -214,6 +257,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     }
     unawaited(_captures?.cancel());
     _controller?.removeListener(_onState);
+    _controller?.endGlimpse();
     _controller = controller;
     _captures = controller.barcodes.listen(_onCapture);
     controller.addListener(_onState);
@@ -445,9 +489,11 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       }
       _holding = true;
     }
-    unawaited(_takeIn(capture, barcode, ++_lock, from: from));
+    final int lock = ++_lock;
+    unawaited(_taken = _takeIn(capture, barcode, lock, from: from));
     if (_template.closeOnResult) {
       unawaited(controller.pause());
+      _lookForSharper(capture, barcode, lock);
       // Let the code fly into the window before the screen closes.
       _after = Timer(
         const Duration(milliseconds: 450),
@@ -456,15 +502,18 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       return;
     }
     if (hold) {
+      _lookForSharper(capture, barcode, lock);
       return;
     }
     unawaited(controller.pause());
+    _lookForSharper(capture, barcode, lock);
     // Let the code settle in the window before the sheet rises.
     final Duration delay = capture.source == CaptureSource.image
         ? const Duration(milliseconds: 200)
         : const Duration(milliseconds: 380);
     _showResult = Timer(delay, () {
       _showResult = null;
+      controller.endGlimpse();
       if (mounted) {
         setState(() {
           _result = barcode;
@@ -616,7 +665,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
 
   /// Keeps the cut-out of a collected [barcode] for its row.
   Future<void> _cutOutFor(BarcodeCapture capture, Barcode barcode) async {
-    final ui.Image? image = await capture.snapshot(barcode);
+    final ui.Image? image = (await _pictureOf(capture, barcode))?.$1;
     if (image == null) {
       return;
     }
@@ -653,13 +702,14 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     int lock, {
     List<Offset>? from,
   }) async {
-    final ui.Image? image = await capture.snapshot(barcode);
+    final (ui.Image, double)? picture = await _pictureOf(capture, barcode);
     // The layout shows the code from the frame after the capture.
     await WidgetsBinding.instance.endOfFrame;
-    if (image == null || !mounted || lock != _lock) {
-      image?.dispose();
+    if (picture == null || !mounted || lock != _lock) {
+      picture?.$1.dispose();
       return;
     }
+    final (ui.Image image, double score) = picture;
     if (from == null && capture.source == CaptureSource.camera) {
       for (final VisibleBarcode v in widget.layout.barcodes) {
         if (v.barcode.format == barcode.format &&
@@ -676,12 +726,150 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       _resultCutOut = image.clone();
       _cutFrom = from;
       _cutLinear = barcode.format.isLinear;
+      _cutAspect = image.width / image.height;
+      _cutSharpness = score;
+      _cutBefore?.dispose();
+      _cutBefore = null;
+      _swap.value = 1;
+      _exactOf =
+          ScannerTheme.of(context).resolvedWindowPicture ==
+                  ScannerWindowPicture.exact &&
+              !BarcodeThumbnail.needsCutOut(barcode)
+          ? barcode
+          : null;
+      _exact.value = 0;
       _settled = true;
     });
-    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
+    final bool still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (still) {
       _flight.value = 1;
+      _exact.value = 1;
     } else {
-      unawaited(_flight.forward(from: 0));
+      // Landed, the cut-out turns into the code drawn exactly.
+      unawaited(
+        _flight.forward(from: 0).then((_) {
+          if (mounted && lock == _lock && _exactOf != null) {
+            unawaited(_exact.forward(from: 0));
+          }
+        }),
+      );
+    }
+  }
+
+  /// [barcode] cut out of the frame of [capture], lightly sharpened, and
+  /// how sharp it was before ([sharpness]).
+  Future<(ui.Image, double)?> _pictureOf(
+    BarcodeCapture capture,
+    Barcode? barcode,
+  ) async {
+    final GrayImage? gray = await capture.straightened(barcode);
+    if (gray == null) {
+      return null;
+    }
+    return (await unsharpMask(gray).toImage(), sharpness(gray));
+  }
+
+  /// A code pictured by its cut-out, read from a camera frame that may be
+  /// blurred by the motion that brought it into view: the scanner, paused,
+  /// reads on for a moment ([_lookFor]), and a sharper cut-out from a later
+  /// frame replaces the one in the window and the sheet. The result, its
+  /// feedback and `onDetect` do not wait for it.
+  void _lookForSharper(BarcodeCapture capture, Barcode barcode, int lock) {
+    final ScannerController controller = widget.layout.controller;
+    final bool shown =
+        ScannerTheme.of(context).resolvedWindowPicture !=
+            ScannerWindowPicture.none ||
+        (_template.showResult && !_template.closeOnResult);
+    if (!shown ||
+        _template.mode != ScannerMode.single ||
+        capture.source != CaptureSource.camera ||
+        !BarcodeThumbnail.needsCutOut(barcode) ||
+        controller.value.status != ScannerStatus.paused) {
+      return;
+    }
+    controller.glimpse(barcode, _lookFor, (BarcodeCapture frame) {
+      if (!mounted || lock != _lock) {
+        return;
+      }
+      // Only the latest frame waits: the one before is skipped.
+      _nextLook = (frame, lock);
+      if (!_looking) {
+        unawaited(_lookAtFrames());
+      }
+    });
+  }
+
+  /// Compares the frames read after the code with its cut-out shown, one
+  /// at a time, and fades in a sharper one.
+  Future<void> _lookAtFrames() async {
+    _looking = true;
+    try {
+      while (mounted) {
+        final (BarcodeCapture, int)? next = _nextLook;
+        if (next == null) {
+          return;
+        }
+        _nextLook = null;
+        final (BarcodeCapture frame, int lock) = next;
+        await _taken;
+        if (!mounted || lock != _lock || _cutOut == null) {
+          continue;
+        }
+        final (GrayImage, double)? picture = await frame.sharpenedApart();
+        if (picture == null) {
+          continue;
+        }
+        final (GrayImage sharpened, double score) = picture;
+        if (score <= _cutSharpness * _sharperBy) {
+          continue;
+        }
+        final ui.Image image = await sharpened.toImage();
+        if (!mounted || lock != _lock || _cutOut == null) {
+          image.dispose();
+          continue;
+        }
+        _swapIn(image, score);
+      }
+    } finally {
+      _looking = false;
+    }
+  }
+
+  /// Fades [image], sharper ([score]), in over the cut-out in the window;
+  /// in the result sheet too while it has not risen yet.
+  void _swapIn(ui.Image image, double score) {
+    final ui.Image? before = _cutOut;
+    setState(() {
+      _cutBefore?.dispose();
+      _cutBefore = before;
+      _cutOut = image;
+      _cutSharpness = score;
+      if (_result == null) {
+        _resultCutOut?.dispose();
+        _resultCutOut = image.clone();
+      }
+    });
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
+      _dropCutBefore(before);
+      _swap.value = 1;
+      return;
+    }
+    unawaited(
+      _swap.forward(from: 0).then((_) {
+        if (mounted) {
+          _dropCutBefore(before);
+        }
+      }),
+    );
+  }
+
+  /// Lets go of the cut-out [before], once the one after it is in.
+  void _dropCutBefore(ui.Image? before) {
+    if (before != null && _cutBefore == before) {
+      setState(() {
+        before.dispose();
+        _cutBefore = null;
+      });
     }
   }
 
@@ -689,6 +877,8 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   void _clearResult() {
     _showResult?.cancel();
     _showResult = null;
+    _controller?.endGlimpse();
+    _nextLook = null;
     _after?.cancel();
     _after = null;
     _lock++;
@@ -1029,6 +1219,9 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         photo == null &&
         (template.onClose != null || (ModalRoute.of(context)?.canPop ?? false));
     const Duration fade = Duration(milliseconds: 200);
+    // The code found shows in the window, unless the theme says nothing.
+    final bool pictured =
+        theme.resolvedWindowPicture != ScannerWindowPicture.none;
     final String? hint =
         _notice ?? (template.largeHint ? null : template.resolveHint(texts));
     // The torch with the controls; a list, which shows no controls, keeps
@@ -1146,7 +1339,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       children: <Widget>[
         // The camera in the window fades under a dark plate as the cut-out
         // flies in: the whole window, under the brackets.
-        if (camera && _cutOut != null)
+        if (camera && _cutOut != null && pictured)
           IgnorePointer(
             child: AnimatedOpacity(
               opacity: _settled ? 1 : 0,
@@ -1205,7 +1398,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
             width: theme.outlineWidth ?? 2,
             radius: photo.frozen ? 0 : 12,
           ),
-        if (camera && _cutOut != null)
+        if (camera && _cutOut != null && pictured)
           IgnorePointer(
             child: AnimatedOpacity(
               opacity: _settled ? 1 : 0,
@@ -1215,13 +1408,24 @@ class _TemplateOverlayState extends State<TemplateOverlay>
                   setState(() {
                     _cutOut?.dispose();
                     _cutOut = null;
+                    _cutBefore?.dispose();
+                    _cutBefore = null;
                   });
                 }
               },
               child: AnimatedBuilder(
-                animation: _flight,
+                animation: Listenable.merge(<Listenable>[
+                  _flight,
+                  _swap,
+                  _exact,
+                ]),
                 builder: (BuildContext context, Widget? _) => _CutOutFlight(
                   image: _cutOut!,
+                  before: _cutBefore,
+                  swap: _swap.value,
+                  aspect: _cutAspect,
+                  exact: _exactOf,
+                  exactness: _exact.value,
                   from: _cutFrom,
                   linear: _cutLinear,
                   window: layout.scanWindow,
@@ -2088,10 +2292,16 @@ class _CenterOn extends SingleChildLayoutDelegate {
 }
 
 /// The cut-out of the code found on its way from where the code shows into
-/// the scan window.
+/// the scan window; landed, it may turn into the code drawn [exact]ly, and
+/// a sharper cut-out may fade in over it.
 class _CutOutFlight extends StatelessWidget {
   const _CutOutFlight({
     required this.image,
+    required this.before,
+    required this.swap,
+    required this.aspect,
+    required this.exact,
+    required this.exactness,
     required this.from,
     required this.linear,
     required this.window,
@@ -2099,6 +2309,18 @@ class _CutOutFlight extends StatelessWidget {
   });
 
   final ui.Image image;
+
+  /// The cut-out [image] replaces, under it while [swap] runs to 1.
+  final ui.Image? before;
+  final double swap;
+
+  /// The card's width over its height: the first cut-out's.
+  final double aspect;
+
+  /// The code drawn exactly over the cut-out, as [exactness] runs to 1;
+  /// `null` for none.
+  final Barcode? exact;
+  final double exactness;
 
   /// The code's corners on screen when it was found; `null` for a photo,
   /// which grows in the middle of the window.
@@ -2112,7 +2334,6 @@ class _CutOutFlight extends StatelessWidget {
     final ScannerTheme theme = ScannerTheme.of(context);
     final double t = Curves.easeInOutCubicEmphasized.transform(progress);
     final double radius = theme.resolvedWindowRadius;
-    final double aspect = image.width / image.height;
     // Where it settles: as large as the window allows, with a margin; in a
     // round window, inside its circle.
     final Rect inner = theme.resolvedWindowShape == ScannerWindowShape.circle
@@ -2146,6 +2367,42 @@ class _CutOutFlight extends StatelessWidget {
         (1 + 0.05 * math.sin(math.pi * progress));
     final double height = width / aspect;
     final double corner = math.min(12, width * 0.08);
+    final ui.Image? under = swap < 1 ? before : null;
+    final Barcode? drawn = exact;
+    // The code drawn is built from the start, unseen: a code drawn again is
+    // encoded first.
+    final Widget picture = Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        if (drawn == null || exactness < 1) ...<Widget>[
+          if (under != null) RawImage(image: under, fit: BoxFit.fill),
+          Opacity(
+            opacity: under == null ? 1 : swap,
+            child: RawImage(image: image, fit: BoxFit.fill),
+          ),
+        ],
+        if (drawn != null)
+          KeyedSubtree(
+            key: const ValueKey<String>('exact'),
+            child: Opacity(
+              opacity: exactness,
+              child: ColoredBox(
+                color: const Color(0xFFFFFFFF),
+                child: Padding(
+                  // The cut-out's margin around the code: the quiet zone
+                  // it was cut with (see snapshotCorners).
+                  padding: EdgeInsets.all(
+                    linear ? width * 0.054 : math.min(width, height) * 0.076,
+                  ),
+                  child: Center(
+                    child: exactBarcodePicture(drawn, showText: true),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
@@ -2169,7 +2426,7 @@ class _CutOutFlight extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(corner),
-                child: RawImage(image: image, fit: BoxFit.fill),
+                child: picture,
               ),
             ),
           ),

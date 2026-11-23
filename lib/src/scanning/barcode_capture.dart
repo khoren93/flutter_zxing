@@ -73,7 +73,11 @@ final class BarcodeCapture {
   ///
   /// `null` for captures not made by a [ScannerController], and for a
   /// barcode not in [barcodes].
-  Future<ui.Image?> snapshot([Barcode? barcode]) async {
+  Future<ui.Image?> snapshot([Barcode? barcode]) async =>
+      (await _straightened(barcode))?.toImage();
+
+  /// The pixels of [snapshot].
+  Future<GrayImage?> _straightened([Barcode? barcode]) async {
     final int index = barcode == null ? 0 : barcodes.indexOf(barcode);
     final List<BarcodePosition>? positions = _positions;
     if (index < 0 || positions == null) {
@@ -104,21 +108,46 @@ final class BarcodeCapture {
     if (cut == null) {
       return null;
     }
-    final bool linear = barcodes[index].format.isLinear;
-    List<Offset> corners = snapshotCorners(
+    return _straightenCode(
+      cut,
       position,
-      linear: linear,
+      linear: barcodes[index].format.isLinear,
       mirrored: _mirrored,
     );
-    if (linear) {
-      corners = fitBarHeight(
-        cut,
-        alignToBars(cut, corners, mirrored: _mirrored),
-      );
-    }
-    final GrayImage? image = straighten(cut, corners);
-    return image?.toImage();
   }
+}
+
+/// The code at [position] in [cut], straightened (see
+/// [BarcodeCapture.snapshot]).
+GrayImage? _straightenCode(
+  FrameCut cut,
+  BarcodePosition position, {
+  required bool linear,
+  required bool mirrored,
+}) {
+  List<Offset> corners = snapshotCorners(
+    position,
+    linear: linear,
+    mirrored: mirrored,
+  );
+  if (linear) {
+    corners = fitBarHeight(cut, alignToBars(cut, corners, mirrored: mirrored));
+  }
+  return straighten(cut, corners);
+}
+
+/// The code at the position in the cut of [job], straightened, then
+/// sharpened, and how sharp it was before.
+(GrayImage, double)? _sharpenedCode(
+  (FrameCut, BarcodePosition, {bool linear, bool mirrored}) job,
+) {
+  final GrayImage? gray = _straightenCode(
+    job.$1,
+    job.$2,
+    linear: job.linear,
+    mirrored: job.mirrored,
+  );
+  return gray == null ? null : (unsharpMask(gray), sharpness(gray));
 }
 
 /// The longest side of a photo decoded to show on screen.
@@ -126,6 +155,29 @@ const int _photoSide = 2048;
 
 /// For the scanner's templates. Not exported.
 extension BarcodeCapturePhoto on BarcodeCapture {
+  /// The pixels of [BarcodeCapture.snapshot] of [barcode], before they
+  /// become an image: for the scanner's window, which scores and sharpens
+  /// them.
+  Future<GrayImage?> straightened([Barcode? barcode]) => _straightened(barcode);
+
+  /// [straightened] of the first barcode of a camera capture, lightly
+  /// sharpened ([unsharpMask]), and how sharp it was before
+  /// ([sharpness]): worked out on another isolate, as the window compares
+  /// several frames while its picture flies. `null` for a photo.
+  Future<(GrayImage, double)?> sharpenedApart() async {
+    final FrameCut? cut = _cut;
+    final List<BarcodePosition>? positions = _positions;
+    if (cut == null || positions == null) {
+      return null;
+    }
+    return compute(_sharpenedCode, (
+      cut,
+      positions.first,
+      linear: barcode.format.isLinear,
+      mirrored: _mirrored,
+    ));
+  }
+
   /// The photo given to [ScannerController.readImage], turned the way it
   /// shows, and the corners of each of [BarcodeCapture.barcodes] in its
   /// pixels. The caller disposes the image. `null` for a capture of the

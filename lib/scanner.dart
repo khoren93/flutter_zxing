@@ -19,7 +19,11 @@ export 'src/scanning/l10n/scanner_localizations_ru.dart';
 export 'src/scanning/l10n/scanner_localizations_zh.dart';
 export 'src/scanning/scan_window.dart';
 export 'src/scanning/scanner_controller.dart'
-    hide BarcodeCapturePhoto, ScannerControllerDebug, ScannerFrameSample;
+    hide
+        BarcodeCapturePhoto,
+        ScannerControllerDebug,
+        ScannerControllerGlimpse,
+        ScannerFrameSample;
 export 'src/scanning/style_content.dart';
 export 'src/scanning/ui/controls.dart' hide pickAndReadImage;
 export 'src/scanning/ui/glass.dart';
@@ -31,6 +35,6 @@ export 'src/scanning/ui/scanner_template.dart';
 export 'src/scanning/ui/scanner_theme.dart' hide resolvedScannerScope;
 export 'src/scanning/ui/states.dart';
 export 'src/scanning/ui/thumbnail.dart'
-    hide BarcodeThumbnailKind, barcodeThumbnailKindOf;
+    hide BarcodeThumbnailKind, barcodeThumbnailKindOf, exactBarcodePicture;
 export 'src/scanning/ui/window_overlay.dart'
     hide BracketsPainter, OutlinePainter, ScanLinePainter, WindowScrim;
