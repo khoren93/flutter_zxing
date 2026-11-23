@@ -23,12 +23,20 @@ final class FieldCode {
   final String? addOn;
 
   /// Whether a read of [readFormat] and [readText] is this code.
+  ///
+  /// zxing-cpp tells DataBar Expanded Stacked from DataBar Expanded by where
+  /// the rows of the symbol lie (ODDataBarExpandedReader.cpp); in a camera
+  /// frame it often reports a stacked symbol as the plain one, with the right
+  /// text. Either name counts.
   bool matches(String readFormat, String readText) {
     final String read = readText.trim();
-    return readFormat == format &&
+    return _family(readFormat) == _family(format) &&
         (read == text.trim() || read == addOn?.trim());
   }
 }
+
+String _family(String format) =>
+    format == 'dataBarExpandedStacked' ? 'dataBarExpanded' : format;
 
 /// The sheet, in its order.
 const List<FieldCode> fieldCodes = <FieldCode>[
