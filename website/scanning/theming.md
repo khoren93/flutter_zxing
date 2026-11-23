@@ -59,7 +59,8 @@ and `texts` over both.
 ## Texts and languages
 
 The scanner's texts, from its buttons, hints and errors to the result sheet
-and the template titles, come in English and Russian. They follow the app's
+and the template titles, come in English, Russian, German, Spanish, French
+and Chinese (simplified). They follow the app's
 locale with no setup: a Russian app shows «Фонарик», «Сканировать снова»;
 a language the package does not have yet falls back to English. Counts
 ("3 codes", «3 кода»), dates and Wi‑Fi security follow the language.
@@ -72,7 +73,7 @@ scanner needs nothing more:
 <!-- snippet: skip -->
 ```dart
 MaterialApp(
-  supportedLocales: const [Locale('en'), Locale('ru')],
+  supportedLocales: const [Locale('en'), Locale('de'), Locale('ru')],
   localizationsDelegates: GlobalMaterialLocalizations.delegates,
   home: const HomePage(),
 )

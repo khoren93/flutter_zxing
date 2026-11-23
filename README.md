@@ -136,8 +136,9 @@ onto the code, and a sheet with what the code holds and what to do with it.
 | `ScannerTemplate.loyalty()` | Loyalty and membership cards: the card number large |
 
 `ScannerTheme` sets your accent color, the shape of the scan window and
-buttons, and light or dark glass. The texts come in English and Russian
-and follow the app's language with no setup (`ScannerLocalizations`).
+buttons, and light or dark glass. The texts come in English, Russian,
+German, Spanish, French and Chinese and follow the app's language with no
+setup (`ScannerLocalizations`).
 
 ```dart
 BarcodeScanner(

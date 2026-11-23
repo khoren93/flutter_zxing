@@ -72,8 +72,9 @@ Never _fail(String what) {
 
 const String _classDoc = '''
 /// The texts of the scanner widgets: button labels for screen readers,
-/// states, result sheets, the templates' titles and hints. Built in: English
-/// and Russian, chosen by the app's locale with no setup.
+/// states, result sheets, the templates' titles and hints. Built in:
+/// English, Russian, German, Spanish, French and Chinese (simplified),
+/// chosen by the app's locale with no setup.
 ///
 /// Get them with [ScannerLocalizations.of]. To change a text, subclass the
 /// built-in translation and give it to a `ScannerScope`:

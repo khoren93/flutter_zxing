@@ -138,6 +138,30 @@ void main() {
     });
   });
 
+  testWidgets('every built-in language has its own texts, counts and dates', (
+    WidgetTester tester,
+  ) async {
+    const Map<String, String> scanAgain = <String, String>{
+      'de': 'Erneut scannen',
+      'es': 'Escanear de nuevo',
+      'fr': 'Scanner à nouveau',
+      'zh': '重新扫描',
+    };
+    for (final Locale locale in ScannerLocalizations.supportedLocales) {
+      final ScannerLocalizations texts = await _textsIn(
+        tester,
+        (Widget c) => _app(locale, c),
+      );
+      expect(texts.localeName, locale.languageCode);
+      if (scanAgain[locale.languageCode] case final String expected) {
+        expect(texts.scanAgain, expected, reason: '$locale');
+      }
+      expect(texts.itemCount(5), contains('5'), reason: '$locale');
+      expect(texts.fullDate(DateTime(2026, 11, 14)), contains('2026'));
+      expect(texts.fullDate(DateTime(2026, 11, 14)), contains('14'));
+    }
+  });
+
   group('the language', () {
     late ScannerLocalizations ru;
     late ScannerLocalizations en;
@@ -250,8 +274,12 @@ void main() {
       expect(package, isA<ScannerLocalizationsRu>());
       expect(package.scanAgain, 'Сканировать снова');
       expect(ScannerLocalizations.supportedLocales, <Locale>[
+        const Locale('de'),
         const Locale('en'),
+        const Locale('es'),
+        const Locale('fr'),
         const Locale('ru'),
+        const Locale('zh'),
       ]);
       expect(
         ScannerLocalizations.delegate.isSupported(const Locale('ru')),

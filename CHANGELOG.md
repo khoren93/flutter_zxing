@@ -19,8 +19,9 @@
 
 ### New
 
-* The scanner speaks English and Russian and follows the app's language
-  without any setup. Other languages are one translation file away.
+* The scanner speaks English, Russian, German, Spanish, French and Chinese
+  and follows the app's language without any setup. Other languages are one
+  translation file away.
 * Sheets of labels to print: `BarcodeLabelSheet` lays a list of data out on
   A4, Letter or your own paper in columns and rows, as a PDF or SVG pages,
   with a preview widget. 10 000 codes take about 1.5 seconds.

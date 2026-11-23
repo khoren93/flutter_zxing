@@ -4,15 +4,20 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart' as intl;
 
+import 'scanner_localizations_de.dart';
 import 'scanner_localizations_en.dart';
 import 'scanner_localizations_lookup.dart';
+import 'scanner_localizations_es.dart';
+import 'scanner_localizations_fr.dart';
 import 'scanner_localizations_ru.dart';
+import 'scanner_localizations_zh.dart';
 
 // ignore_for_file: type=lint
 
 /// The texts of the scanner widgets: button labels for screen readers,
-/// states, result sheets, the templates' titles and hints. Built in: English
-/// and Russian, chosen by the app's locale with no setup.
+/// states, result sheets, the templates' titles and hints. Built in:
+/// English, Russian, German, Spanish, French and Chinese (simplified),
+/// chosen by the app's locale with no setup.
 ///
 /// Get them with [ScannerLocalizations.of]. To change a text, subclass the
 /// built-in translation and give it to a `ScannerScope`:
@@ -49,8 +54,12 @@ abstract class ScannerLocalizations {
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
+    Locale('de'),
     Locale('en'),
+    Locale('es'),
+    Locale('fr'),
     Locale('ru'),
+    Locale('zh'),
   ];
 
   /// Label of the close button.
@@ -966,8 +975,14 @@ class _ScannerLocalizationsDelegate
   }
 
   @override
-  bool isSupported(Locale locale) =>
-      <String>['en', 'ru'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>[
+    'de',
+    'en',
+    'es',
+    'fr',
+    'ru',
+    'zh',
+  ].contains(locale.languageCode);
 
   @override
   bool shouldReload(_ScannerLocalizationsDelegate old) => false;
@@ -976,10 +991,18 @@ class _ScannerLocalizationsDelegate
 ScannerLocalizations lookupScannerLocalizations(Locale locale) {
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
+    case 'de':
+      return ScannerLocalizationsDe();
     case 'en':
       return ScannerLocalizationsEn();
+    case 'es':
+      return ScannerLocalizationsEs();
+    case 'fr':
+      return ScannerLocalizationsFr();
     case 'ru':
       return ScannerLocalizationsRu();
+    case 'zh':
+      return ScannerLocalizationsZh();
   }
 
   throw FlutterError(
