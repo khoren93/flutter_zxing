@@ -121,6 +121,8 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     // screen one after another:
     //   ext.diag.field?action=resolution&value=sd|hd|fullHd  reopens the camera
     //   ext.diag.field?action=window&value=square|wide|full  the scan window
+    //   ext.diag.field?action=defaults  every other setting back to default,
+    //     so that a run does not depend on what was changed on the phone
     //   ext.diag.field?action=expect&format=qrCode&text=...&addOn=...
     //     &timeout=3000&label=W1-20cm-hd
     // waits for that code and answers {"ms": ...}; a code not read within the
@@ -132,6 +134,7 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
       final Map<String, Object?> answer = switch (params['action']) {
         'resolution' => await _remoteResolution(params['value'] ?? ''),
         'window' => await _remoteWindow(params['value'] ?? ''),
+        'defaults' => await _remoteDefaults(),
         'expect' => await _remoteExpect(params),
         _ => <String, Object?>{'resolution': _a.resolution.name},
       };
@@ -267,6 +270,25 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     return <String, Object?>{'resolution': _a.resolution.name};
   }
 
+  /// The default settings, keeping the camera's resolution and the window;
+  /// side B off.
+  Future<Map<String, Object?>> _remoteDefaults() async {
+    _abTimer?.cancel();
+    setState(() {
+      _abTimer = null;
+      _b = null;
+      _editing = 'A';
+      _live = 'A';
+    });
+    await _change(
+      const DiagSettings().copyWith(
+        resolution: _a.resolution,
+        window: _a.window,
+      ),
+    );
+    return _a.toJson();
+  }
+
   /// Reads in the scan window [name] (a [DiagWindow]).
   Future<Map<String, Object?>> _remoteWindow(String name) async {
     final DiagWindow? next = DiagWindow.values
@@ -323,6 +345,7 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
       'recording': recording,
       'resolution': _a.resolution.name,
       'window': _a.window.name,
+      'returnErrors': _a.returnErrors,
     };
   }
 
