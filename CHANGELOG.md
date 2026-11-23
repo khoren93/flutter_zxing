@@ -19,6 +19,8 @@
   `style.encodePng('https://pub.dev', size: 1024)`.
 * `BoardingPassLeg.dateIn(year)` is now `date()`, which picks the year: a
   pass for 2 January scanned on 30 December is for next year.
+* `ScannerTheme.glassStrongColor` is now `sheetColor`, the color of the
+  sheets that `ScannerTheme(sheet:)` sets.
 
 ### New
 
@@ -53,6 +55,20 @@
 * The scan window in your colours: `ScannerTheme` takes the brackets'
   colour (`window`), their width and length, and the colour of the dimmed
   camera around the window (`scrim`).
+* A scan line, like a till's laser, runs across the window while the
+  scanner searches: `ScannerTheme(scanLine: ScanLine(color: ...))`, sweeping
+  down or bouncing.
+* `breathing: false` keeps the window's brackets still.
+* The window can be round, `windowShape: ScannerWindowShape.circle`, or
+  only its brackets without the dimmed camera around it (`bracketsOnly`).
+* Your brand's colors on the buttons, hints and sheets: `glass`, `sheet`
+  and `sheetRadius`. An opaque color skips the blur behind it.
+* Change the scanner's text styles one by one, such as a bolder title or a
+  larger hint: `textStyles: ScannerTextStyles(...)`.
+* The outlines of the codes in view take your color and width: `outline`,
+  `outlineWidth`.
+* `ScannerTemplate.onFeedback` plays your own sound or haptic when a code is
+  found, accepted, flagged or refused, instead of the built-in ones.
 * Templates move their buttons: `controlsLayout` puts them in a row at the
   bottom, a column beside the window or a row at the top, and
   `torchPosition` puts the torch with them. They keep clear of the window

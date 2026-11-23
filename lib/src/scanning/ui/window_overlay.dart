@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui show Gradient;
 import 'dart:ui' show ImageFilter, lerpDouble;
 
 import 'package:flutter/widgets.dart';
@@ -25,6 +26,7 @@ class ScannerOverlay extends StatelessWidget {
     super.key,
     this.lockOn = true,
     this.settled = false,
+    this.searching = true,
   });
 
   /// The scanner layout.
@@ -37,11 +39,20 @@ class ScannerOverlay extends StatelessWidget {
   /// in the accent color and the outlines are hidden.
   final bool settled;
 
+  /// Whether the scanner looks for a code; `false` holds the brackets'
+  /// breathing and the scan line, as while a verdict shows.
+  final bool searching;
+
   @override
   Widget build(BuildContext context) => Stack(
     fit: StackFit.expand,
     children: <Widget>[
-      ScanWindowOverlay(layout, lockOn: lockOn, settled: settled),
+      ScanWindowOverlay(
+        layout,
+        lockOn: lockOn,
+        settled: settled,
+        searching: searching,
+      ),
       if (!settled) BarcodeOutlines(layout),
     ],
   );
@@ -50,9 +61,12 @@ class ScannerOverlay extends StatelessWidget {
 /// Dims the camera outside the scan window and draws the window's corner
 /// brackets.
 ///
-/// While searching, the brackets breathe. When one barcode is in view they
-/// close in on it in the accent color ([lockOn]); with several, they stay
-/// on the window. Animations follow the platform's reduce motion setting.
+/// While searching, the brackets breathe ([ScannerTheme.breathing]) and the
+/// theme's [ScannerTheme.scanLine] runs across the window. When one barcode
+/// is in view they close in on it in the accent color ([lockOn]); with
+/// several, they stay on the window. The window takes the theme's
+/// [ScannerTheme.windowShape]. Animations follow the platform's reduce
+/// motion setting.
 class ScanWindowOverlay extends StatefulWidget {
   /// Creates the overlay.
   const ScanWindowOverlay(
@@ -60,6 +74,7 @@ class ScanWindowOverlay extends StatefulWidget {
     super.key,
     this.lockOn = true,
     this.settled = false,
+    this.searching = true,
   });
 
   /// The scanner layout.
@@ -72,13 +87,21 @@ class ScanWindowOverlay extends StatefulWidget {
   /// found has been taken into it.
   final bool settled;
 
+  /// Whether the scanner looks for a code; `false` holds the brackets'
+  /// breathing and the scan line, as while a verdict shows. Neither runs
+  /// while the scanner is paused or a code is in view anyway.
+  final bool searching;
+
   @override
   State<ScanWindowOverlay> createState() => _ScanWindowOverlayState();
 }
 
 class _ScanWindowOverlayState extends State<ScanWindowOverlay>
     with TickerProviderStateMixin {
-  final _Breath _breathe = _Breath();
+  final _Clock _clock = _Clock();
+
+  /// Whether the scan line is drawn.
+  bool _lineOn = false;
   late final AnimationController _move = AnimationController(
     vsync: this,
     value: 1,
@@ -122,7 +145,7 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
 
   @override
   void dispose() {
-    _breathe.dispose();
+    _clock.dispose();
     _move.dispose();
     super.dispose();
   }
@@ -159,18 +182,25 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
 
   void _retarget({required bool initial}) {
     final Rect? target = _target();
-    final ScannerStatus status = widget.layout.state.status;
-    final bool searching =
-        target == null &&
-        !widget.settled &&
-        status == ScannerStatus.running &&
-        !_reduceMotion;
+    final ScannerLayout layout = widget.layout;
+    final ScannerTheme theme = ScannerTheme.of(context);
     // Hidden (another page over the scanner), it rests like an animation.
-    if (searching && TickerMode.valuesOf(context).enabled) {
-      _breathe.start();
-    } else {
-      _breathe.stop();
-    }
+    final bool searching =
+        widget.searching &&
+        !widget.settled &&
+        layout.state.status == ScannerStatus.running &&
+        !_reduceMotion &&
+        TickerMode.valuesOf(context).enabled;
+    // The line runs in a window, while no code is in view.
+    _lineOn =
+        searching &&
+        theme.resolvedScanLine != null &&
+        layout.barcodes.isEmpty &&
+        !_isWholeView(layout);
+    _clock.run(
+      breath: searching && target == null && theme.resolvedBreathing,
+      line: _lineOn,
+    );
 
     final double lock = target == null && !widget.settled ? 0 : 1;
     final double tight = target == null ? 0 : 1;
@@ -213,14 +243,12 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
     final ScannerTheme theme = ScannerTheme.of(context);
     final ScannerLayout layout = widget.layout;
     final double radius = theme.resolvedWindowRadius;
+    final ScannerWindowShape shape = theme.resolvedWindowShape;
     final Rect window = layout.scanWindow;
     // A window over the whole scanner is no window: its brackets show only
     // on a code.
-    final bool noWindow =
-        window.left <= 0.5 &&
-        window.top <= 0.5 &&
-        window.right >= layout.size.width - 0.5 &&
-        window.bottom >= layout.size.height - 0.5;
+    final bool noWindow = _isWholeView(layout);
+    final ScanLine? line = theme.resolvedScanLine;
     double lock() => lerpDouble(
       _fromLock,
       _toLock,
@@ -230,11 +258,25 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          if (!noWindow) WindowScrim(window: window, radius: radius),
+          if (!noWindow && shape != ScannerWindowShape.bracketsOnly)
+            WindowScrim(window: window),
+          if (_lineOn && line != null)
+            CustomPaint(
+              size: layout.size,
+              painter: ScanLinePainter(
+                repaint: _clock.line,
+                progress: _clock.lineProgress,
+                line: line,
+                window: window,
+                radius: radius,
+                circle: shape == ScannerWindowShape.circle,
+                color: line.color ?? theme.lockColor,
+              ),
+            ),
           CustomPaint(
             size: layout.size,
             painter: BracketsPainter(
-              repaint: Listenable.merge(<Listenable>[_breathe, _move]),
+              repaint: Listenable.merge(<Listenable>[_clock.breath, _move]),
               rect: () {
                 final double t = Curves.easeOutCubic.transform(_move.value);
                 final Rect window = layout.scanWindow;
@@ -248,8 +290,9 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
                 Curves.easeOutCubic.transform(_move.value),
               )!,
               scale: () =>
-                  1 - 0.02 * Curves.easeInOut.transform(_breathe.value),
+                  1 - 0.02 * Curves.easeInOut.transform(_clock.breathValue),
               radius: radius,
+              circle: shape == ScannerWindowShape.circle,
               color: theme.windowColor,
               lockColor: theme.lockColor,
               strokeWidth: theme.resolvedBracketWidth,
@@ -263,76 +306,248 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
   }
 }
 
-/// The brackets' slow breathing while the scanner searches, 2.4 s each way,
-/// drawn 30 times a second. An AnimationController would redraw the screen
-/// at its full rate, 120 times a second on a ProMotion display, for a
-/// change of a fraction of a pixel per frame.
-final class _Breath extends ChangeNotifier {
-  static const int _periodMicros = 2400000;
-  static const Duration _step = Duration(microseconds: 33333);
+/// Whether [layout]'s window covers the whole scanner, as with
+/// `ScanWindow.full()`: then there is no window to draw.
+bool _isWholeView(ScannerLayout layout) {
+  final Rect window = layout.scanWindow;
+  return window.left <= 0.5 &&
+      window.top <= 0.5 &&
+      window.right >= layout.size.width - 0.5 &&
+      window.bottom >= layout.size.height - 0.5;
+}
 
-  final Stopwatch _clock = Stopwatch();
+/// The clock of the window's slow animations while the scanner searches:
+/// the brackets' breathing, 2.4 s each way, and the scan line. One timer
+/// draws both 30 times a second, on the same frames. An
+/// AnimationController would redraw the screen at its full rate, 120 times
+/// a second on a ProMotion display, for a change of a fraction of a pixel
+/// per frame; two timers out of step would double the frames.
+final class _Clock {
+  static const int _stepMicros = 33333;
+  static const int _breathMicros = 2400000;
+
+  /// Notifies on each frame of the breathing.
+  final _Channel breath = _Channel();
+
+  /// Notifies on each frame of the scan line.
+  final _Channel line = _Channel();
+
   Timer? _timer;
 
-  /// 0 to 1 and back.
-  double value = 0;
+  /// Frames since the clock was made; the timer's own count, which skips
+  /// ahead over frames it was late for.
+  int _ticks = 0;
+  int _ticksBefore = 0;
+  int? _breathFrom;
+  int? _lineFrom;
 
-  void start() {
-    if (_timer != null) {
-      return;
+  /// 0 to 1 and back: the breathing.
+  double get breathValue {
+    final int? from = _breathFrom;
+    if (from == null) {
+      return 0;
     }
-    _clock
-      ..reset()
-      ..start();
-    _timer = Timer.periodic(_step, (_) {
-      final double t = (_clock.elapsedMicroseconds / _periodMicros) % 2;
-      value = t <= 1 ? t : 2 - t;
-      notifyListeners();
-    });
+    final double t = ((_ticks - from) * _stepMicros / _breathMicros) % 2;
+    return t <= 1 ? t : 2 - t;
   }
 
-  void stop() {
-    if (_timer == null) {
-      return;
+  /// Time the scan line has been running, in passes.
+  double lineProgress(Duration pass) {
+    final int? from = _lineFrom;
+    if (from == null || pass.inMicroseconds <= 0) {
+      return 0;
     }
-    _timer!.cancel();
-    _timer = null;
-    _clock.stop();
-    value = 0;
-    notifyListeners();
+    return (_ticks - from) * _stepMicros / pass.inMicroseconds;
   }
 
-  @override
+  /// Starts or stops each animation; the timer runs while one does.
+  void run({required bool breath, required bool line}) {
+    if (breath != (_breathFrom != null)) {
+      _breathFrom = breath ? _ticks : null;
+      this.breath.ping();
+    }
+    if (line != (_lineFrom != null)) {
+      _lineFrom = line ? _ticks : null;
+      this.line.ping();
+    }
+    if ((breath || line) && _timer == null) {
+      _ticksBefore = _ticks;
+      _timer = Timer.periodic(const Duration(microseconds: _stepMicros), (
+        Timer timer,
+      ) {
+        _ticks = _ticksBefore + timer.tick;
+        if (_breathFrom != null) {
+          this.breath.ping();
+        }
+        if (_lineFrom != null) {
+          this.line.ping();
+        }
+      });
+    } else if (!breath && !line && _timer != null) {
+      _timer!.cancel();
+      _timer = null;
+    }
+  }
+
   void dispose() {
     _timer?.cancel();
-    super.dispose();
+    breath.dispose();
+    line.dispose();
   }
 }
 
-/// The dimmed camera outside the scan window, blurred unless
-/// [ScannerTheme.scrimBlur] is `false`.
-class WindowScrim extends StatelessWidget {
-  /// Creates the scrim around [window], whose corners have [radius].
-  const WindowScrim({super.key, required this.window, required this.radius});
+final class _Channel extends ChangeNotifier {
+  void ping() => notifyListeners();
+}
 
-  /// The scan window, left clear.
+/// Draws a [ScanLine] across a scan window, clipped to its shape. Values
+/// are read when painting, so the line moves without rebuilding.
+class ScanLinePainter extends CustomPainter {
+  /// Creates the painter.
+  ScanLinePainter({
+    required Listenable repaint,
+    required this.progress,
+    required this.line,
+    required this.window,
+    required this.radius,
+    required this.circle,
+    required this.color,
+  }) : super(repaint: repaint);
+
+  /// The time the line has run for a pass of the given length, in passes.
+  final double Function(Duration pass) progress;
+
+  /// The line.
+  final ScanLine line;
+
+  /// The scan window.
   final Rect window;
 
   /// Corner radius of the window.
   final double radius;
 
+  /// Whether the window is an oval.
+  final bool circle;
+
+  /// The line's color.
+  final Color color;
+
+  /// The line's place from the top of its way (0) to the bottom (1), and
+  /// its opacity, after [passes] passes.
+  static (double, double) at(ScanLineStyle style, double passes) {
+    switch (style) {
+      case ScanLineStyle.sweep:
+        final double t = passes % 1;
+        // Fades in at the top and out at the bottom instead of jumping.
+        return (t, math.min(1, math.min(t, 1 - t) / 0.12));
+      case ScanLineStyle.bounce:
+        final double t = passes % 2;
+        return (Curves.easeInOut.transform(t <= 1 ? t : 2 - t), 1);
+    }
+  }
+
+  /// The area the line runs in: the window inside its inset.
+  Rect get area => window.deflate(line.inset);
+
+  Shader? _shader;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect area = this.area;
+    if (area.width <= 0 || area.height <= 0) {
+      return;
+    }
+    final (double t, double alpha) = at(line.style, progress(line.duration));
+    if (alpha <= 0) {
+      return;
+    }
+    final double y = area.top + t * area.height;
+    // Faded at both ends; the same for every frame.
+    final Shader shader = _shader ??= ui.Gradient.linear(
+      area.centerLeft,
+      area.centerRight,
+      <Color>[
+        color.withValues(alpha: 0),
+        color,
+        color,
+        color.withValues(alpha: 0),
+      ],
+      const <double>[0, 0.15, 0.85, 1],
+    );
+    final double thickness = line.thickness;
+    canvas
+      ..save()
+      ..clipPath(
+        circle
+            ? (Path()..addOval(area))
+            : (Path()..addRRect(
+                RRect.fromRectAndRadius(
+                  area,
+                  Radius.circular(math.max(0, radius - line.inset)),
+                ),
+              )),
+      );
+    if (line.glow) {
+      canvas.drawRect(
+        Rect.fromLTRB(
+          area.left,
+          y - thickness * 2,
+          area.right,
+          y + thickness * 2,
+        ),
+        Paint()
+          ..shader = shader
+          ..color = Color.fromRGBO(0, 0, 0, 0.45 * alpha)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3 + thickness),
+      );
+    }
+    canvas
+      ..drawRect(
+        Rect.fromLTRB(
+          area.left,
+          y - thickness / 2,
+          area.right,
+          y + thickness / 2,
+        ),
+        Paint()
+          ..shader = shader
+          ..color = Color.fromRGBO(0, 0, 0, alpha),
+      )
+      ..restore();
+  }
+
+  @override
+  bool shouldRepaint(ScanLinePainter old) =>
+      old.line != line ||
+      old.window != window ||
+      old.radius != radius ||
+      old.circle != circle ||
+      old.color != color;
+}
+
+/// The dimmed camera outside the scan window, in the theme's
+/// [ScannerTheme.windowBorder], blurred unless [ScannerTheme.scrimBlur] is
+/// `false`.
+class WindowScrim extends StatelessWidget {
+  /// Creates the scrim around [window].
+  const WindowScrim({super.key, required this.window});
+
+  /// The scan window, left clear.
+  final Rect window;
+
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
+    final ShapeBorder shape = theme.windowBorder;
     final Widget scrim = CustomPaint(
-      painter: _ScrimPainter(window, radius, theme.scrimColor),
+      painter: _ScrimPainter(window, shape, theme.scrimColor),
       child: const SizedBox.expand(),
     );
     if (!theme.resolvedScrimBlur) {
       return scrim;
     }
     return ClipPath(
-      clipper: _OutsideClipper(window, radius),
+      clipper: _OutsideClipper(window, shape),
       child: BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: 6,
@@ -346,38 +561,38 @@ class WindowScrim extends StatelessWidget {
 }
 
 class _OutsideClipper extends CustomClipper<Path> {
-  const _OutsideClipper(this.window, this.radius);
+  const _OutsideClipper(this.window, this.shape);
 
   final Rect window;
-  final double radius;
+  final ShapeBorder shape;
 
   @override
-  Path getClip(Size size) => _outside(size, window, radius);
+  Path getClip(Size size) => _outside(size, window, shape);
 
   @override
   bool shouldReclip(_OutsideClipper old) =>
-      old.window != window || old.radius != radius;
+      old.window != window || old.shape != shape;
 }
 
-Path _outside(Size size, Rect window, double radius) => Path()
+Path _outside(Size size, Rect window, ShapeBorder shape) => Path()
   ..fillType = PathFillType.evenOdd
   ..addRect(Offset.zero & size)
-  ..addRRect(RRect.fromRectAndRadius(window, Radius.circular(radius)));
+  ..addPath(shape.getOuterPath(window), Offset.zero);
 
 class _ScrimPainter extends CustomPainter {
-  const _ScrimPainter(this.window, this.radius, this.color);
+  const _ScrimPainter(this.window, this.shape, this.color);
 
   final Rect window;
-  final double radius;
+  final ShapeBorder shape;
   final Color color;
 
   @override
   void paint(Canvas canvas, Size size) =>
-      canvas.drawPath(_outside(size, window, radius), Paint()..color = color);
+      canvas.drawPath(_outside(size, window, shape), Paint()..color = color);
 
   @override
   bool shouldRepaint(_ScrimPainter old) =>
-      old.window != window || old.radius != radius || old.color != color;
+      old.window != window || old.shape != shape || old.color != color;
 }
 
 /// Draws the four corner brackets of a scan window. Values are read when
@@ -391,6 +606,7 @@ class BracketsPainter extends CustomPainter {
     this.tight,
     required this.scale,
     required this.radius,
+    this.circle = false,
     required this.color,
     required this.lockColor,
     this.strokeWidth = 5,
@@ -421,6 +637,10 @@ class BracketsPainter extends CustomPainter {
   /// Corner radius of the window; brackets on a code have a smaller one.
   final double radius;
 
+  /// Whether the window is an oval: its brackets are four arcs, which turn
+  /// into corners on a code.
+  final bool circle;
+
   /// Color of the brackets on the window.
   final Color color;
 
@@ -441,11 +661,8 @@ class BracketsPainter extends CustomPainter {
     final Rect r = rect();
     final double s = scale();
     final double tight = this.tight?.call() ?? lock;
-    final Path path = bracketPath(
-      r,
-      lerpDouble(radius, radius / 2.4, tight)!,
-      arm: armLength,
-    );
+    // A round window's arcs fade into a code's corners on the way to it.
+    final double round = circle ? 1 - tight : 0;
     canvas.save();
     if (s != 1) {
       canvas
@@ -454,19 +671,19 @@ class BracketsPainter extends CustomPainter {
         ..translate(-r.center.dx, -r.center.dy);
     }
     final Color stroke = Color.lerp(color, lockColor, lock)!;
-    if (lock > 0) {
+    void draw(Path path, double alpha) {
+      if (lock > 0) {
+        canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = strokeWidth
+            ..strokeCap = StrokeCap.round
+            ..color = lockColor.withValues(alpha: 0.65 * lock * alpha)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+        );
+      }
       canvas.drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = strokeWidth
-          ..strokeCap = StrokeCap.round
-          ..color = lockColor.withValues(alpha: 0.65 * lock * alpha)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-      );
-    }
-    canvas
-      ..drawPath(
         path,
         Paint()
           ..style = PaintingStyle.stroke
@@ -474,8 +691,42 @@ class BracketsPainter extends CustomPainter {
           ..strokeCap = StrokeCap.round
           ..strokeJoin = StrokeJoin.round
           ..color = stroke.withValues(alpha: stroke.a * alpha),
-      )
-      ..restore();
+      );
+    }
+
+    if (round < 1) {
+      draw(
+        bracketPath(
+          r,
+          lerpDouble(radius, radius / 2.4, tight)!,
+          arm: armLength,
+        ),
+        alpha * (1 - round),
+      );
+    }
+    if (round > 0) {
+      draw(arcPath(r, radius, arm: armLength), alpha * round);
+    }
+    canvas.restore();
+  }
+
+  /// The four brackets of a round window in [r]: arcs of its oval around
+  /// the diagonals, each as long as a bracket of [bracketPath] with corners
+  /// of [radius] and arms of [arm].
+  static Path arcPath(Rect r, double radius, {double? arm}) {
+    final double side = math.min(r.width, r.height);
+    arm ??= (side * 0.22).clamp(12, 44);
+    final double rr = math.min(radius, side / 2);
+    final double sweep = ((2 * arm + math.pi / 2 * rr) / (side / 2)).clamp(
+      0.2,
+      math.pi / 2 - 0.3,
+    );
+    final Path path = Path();
+    for (int i = 0; i < 4; i++) {
+      final double middle = -3 * math.pi / 4 + i * math.pi / 2;
+      path.addArc(r, middle - sweep / 2, sweep);
+    }
+    return path;
   }
 
   /// The four brackets of [r]: rounded corners with straight arms of
@@ -512,13 +763,15 @@ class BracketsPainter extends CustomPainter {
   bool shouldRepaint(BracketsPainter old) =>
       old.version != version ||
       old.radius != radius ||
+      old.circle != circle ||
       old.color != color ||
       old.lockColor != lockColor ||
       old.strokeWidth != strokeWidth ||
       old.armLength != armLength;
 }
 
-/// Outlines the barcodes in [ScannerLayout.barcodes] in the accent color.
+/// Outlines the barcodes in [ScannerLayout.barcodes] in the theme's
+/// [ScannerTheme.outlineColor] and [ScannerTheme.outlineWidth].
 class BarcodeOutlines extends StatelessWidget {
   /// Creates the overlay.
   const BarcodeOutlines(this.layout, {super.key, this.color});
@@ -526,47 +779,58 @@ class BarcodeOutlines extends StatelessWidget {
   /// The scanner layout.
   final ScannerLayout layout;
 
-  /// Outline color; default [ScannerTheme.lockColor].
+  /// Outline color; default [ScannerTheme.outlineColor].
   final Color? color;
 
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
-    final Color color = this.color ?? theme.lockColor;
+    final Color color = this.color ?? theme.outlineColor;
     return IgnorePointer(
       child: CustomPaint(
         size: layout.size,
-        painter: _OutlinePainter(
+        painter: OutlinePainter(
           layout.barcodes,
           color,
           this.color == null
-              ? theme.lockSoftColor
+              ? theme.outlineFillColor
               : color.withValues(alpha: 0.18),
+          theme.resolvedOutlineWidth,
         ),
       ),
     );
   }
 }
 
-class _OutlinePainter extends CustomPainter {
-  const _OutlinePainter(this.barcodes, this.color, this.fill);
+/// Draws the outlines of [barcodes].
+class OutlinePainter extends CustomPainter {
+  /// Creates the painter.
+  const OutlinePainter(this.barcodes, this.color, this.fill, this.width);
 
+  /// The codes outlined.
   final List<VisibleBarcode> barcodes;
+
+  /// The outline's color.
   final Color color;
+
+  /// The color inside the outline.
   final Color fill;
+
+  /// The outline's line width.
+  final double width;
 
   @override
   void paint(Canvas canvas, Size size) {
     final Paint glow = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
+      ..strokeWidth = width
       ..strokeJoin = StrokeJoin.round
       ..color = color.withValues(alpha: 0.55)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
     final Paint area = Paint()..color = fill;
     final Paint line = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
+      ..strokeWidth = width
       ..strokeJoin = StrokeJoin.round
       ..color = color;
     for (final VisibleBarcode barcode in barcodes) {
@@ -579,6 +843,9 @@ class _OutlinePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_OutlinePainter old) =>
-      old.barcodes != barcodes || old.color != color || old.fill != fill;
+  bool shouldRepaint(OutlinePainter old) =>
+      old.barcodes != barcodes ||
+      old.color != color ||
+      old.fill != fill ||
+      old.width != width;
 }

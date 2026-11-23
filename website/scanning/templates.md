@@ -203,7 +203,7 @@ Every template takes these, in its constructor or in `copyWith`:
 | Setting | What it does |
 |---|---|
 | `formats` | The formats to look for |
-| `scanWindow` | The part of the preview that is decoded and its shape |
+| `scanWindow` | The part of the preview that is decoded: its size and place. The theme's `windowShape` draws it round ([Colours and texts](./theming#the-window-s-shape)) |
 | `title`, `hint` | The texts above and under the window |
 | `facing`, `initialZoom` | The camera to start with and its zoom |
 | `torchButton`, `photoButton`, `zoomButtons`, `switchCameraButton`, `closeButton` | Which buttons show |
@@ -214,7 +214,36 @@ Every template takes these, in its constructor or in `copyWith`:
 | `resumeAfter` | How long a result shows before scanning goes on by itself: the verdict in continuous mode (2 seconds by default), or the sheet in single mode (`null` waits for the user) |
 | `counter` | In continuous mode, a counter of the accepted codes at the top |
 | `haptics`, `sound` | A haptic and the system click when a code is found, and stronger ones for a flagged or refused code |
+| `onFeedback` | Your own sound or haptic for each outcome, instead of `haptics` and `sound` ([below](#your-own-sound)) |
 | `theme` | The template's colours, over the app's `ScannerScope` ([Colours and texts](./theming)) |
+
+### Your own sound
+
+`onFeedback` replaces the template's haptic and system sound with yours,
+such as your app's beep from an audio package. It is told what happened to
+the code: `found` (no check), `accepted`, `warned` or `rejected` by a
+check.
+
+```dart
+Future<void> play(String sound) async {
+  // Your app's audio, e.g. an AudioPlayer.
+}
+
+final ScannerTemplate door = ScannerTemplate.checkIn(
+  check: (barcode) => barcode.text.startsWith('TICKET-')
+      ? const ScanVerdict.accept()
+      : const ScanVerdict.reject(title: 'Not a ticket'),
+  onFeedback: (kind) => switch (kind) {
+    ScanFeedback.found || ScanFeedback.accepted => play('beep'),
+    ScanFeedback.warned => play('chime'),
+    ScanFeedback.rejected => play('buzz'),
+  },
+);
+```
+
+With `onFeedback` set, `haptics` and `sound` are not played; play a haptic
+in it too if you want one. A scanner without a template has no sound of its
+own: play yours in `onDetect`.
 
 ## The buttons
 

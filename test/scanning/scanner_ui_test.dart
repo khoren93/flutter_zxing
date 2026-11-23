@@ -541,8 +541,8 @@ void main() {
       final Finder plate = find.byWidgetPredicate(
         (Widget w) =>
             w is DecoratedBox &&
-            w.decoration is BoxDecoration &&
-            (w.decoration as BoxDecoration).color?.toARGB32() ==
+            w.decoration is ShapeDecoration &&
+            (w.decoration as ShapeDecoration).color?.toARGB32() ==
                 const Color(0xFF06090D).withValues(alpha: 0.82).toARGB32(),
       );
       expect(plate, findsOneWidget);

@@ -9,6 +9,10 @@ import 'scanner_theme.dart';
 /// A translucent panel over the camera: it blurs what is behind it (unless
 /// [ScannerTheme.blur] is off), has a light top edge and a soft shadow.
 ///
+/// Its color is the theme's [ScannerTheme.glassColor], or
+/// [ScannerTheme.sheetColor] when [strong]; an opaque one, such as a brand
+/// color in [ScannerTheme.glass], is drawn without the blur.
+///
 /// The scanner's buttons, hints and sheets are built from it; use it for
 /// your own panels so they match.
 class ScannerGlass extends StatelessWidget {
@@ -25,7 +29,8 @@ class ScannerGlass extends StatelessWidget {
   /// The outline; default [ScannerTheme.pillBorder].
   final ShapeBorder? shape;
 
-  /// More opaque glass, for panels with text on them such as sheets.
+  /// More opaque glass, for panels with text on them such as sheets: the
+  /// theme's [ScannerTheme.sheetColor].
   final bool strong;
 
   /// An opaque color instead of glass, e.g. for a button that is on.
@@ -42,21 +47,22 @@ class ScannerGlass extends StatelessWidget {
     final ScannerTheme theme = ScannerTheme.of(context);
     final ShapeBorder shape = this.shape ?? theme.pillBorder;
     final TextDirection? direction = Directionality.maybeOf(context);
+    final Color fill = color ?? (strong ? theme.sheetColor : theme.glassColor);
     Widget body = CustomPaint(
       foregroundPainter: color == null
           ? _EdgePainter(shape, theme.glassEdgeColor, direction)
           : null,
       child: DecoratedBox(
-        decoration: ShapeDecoration(
-          shape: shape,
-          color: color ?? (strong ? theme.glassStrongColor : theme.glassColor),
-        ),
+        decoration: ShapeDecoration(shape: shape, color: fill),
         child: padding == null
             ? child
             : Padding(padding: padding!, child: child),
       ),
     );
-    final ImageFilter? filter = color == null ? theme.glassFilter : null;
+    // Nothing shows through an opaque color: no blur to pay for.
+    final ImageFilter? filter = color == null && fill.a < 1
+        ? theme.glassFilter
+        : null;
     if (filter != null) {
       body = ClipPath(
         clipper: ShapeBorderClipper(shape: shape, textDirection: direction),
@@ -274,7 +280,9 @@ class ScannerHint extends StatelessWidget {
   }
 }
 
-/// A sheet of strong glass at the bottom of the scanner, for results.
+/// A sheet of strong glass at the bottom of the scanner, for results: in
+/// the theme's [ScannerTheme.sheetColor] and [ScannerTheme.sheetBorder]
+/// ([ScannerTheme.sheet] and [ScannerTheme.sheetRadius]).
 class ScannerSheet extends StatelessWidget {
   /// Creates a sheet.
   const ScannerSheet({

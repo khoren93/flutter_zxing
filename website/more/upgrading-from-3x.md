@@ -400,6 +400,7 @@ of them; this table gives the new form.
 | `strings:` on `ScannerScope`, `BarcodeScanner`, `scanBarcode`, `openScanner`, `scanContent`, `ScanFieldButton` | `texts:`, a `ScannerLocalizations` |
 | `ScannerStrings.of(context)` | `ScannerLocalizations.of(context)` |
 | `strings.wifiSecurity(security)`, `strings.vinRegion(region)`, `strings.amount(amount, currency)` | `texts.wifiSecurityOf(security)`, `texts.vinRegionOf(region)`, `texts.amountOf(amount, currency)` |
+| `ScannerTheme.of(context).glassStrongColor` | `.sheetColor`, set with `ScannerTheme(sheet:)` |
 
 Behaviour that changed without a compile error:
 

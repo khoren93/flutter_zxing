@@ -28,4 +28,5 @@ export 'src/scanning/ui/scanner_theme.dart' hide resolvedScannerScope;
 export 'src/scanning/ui/states.dart';
 export 'src/scanning/ui/thumbnail.dart'
     hide BarcodeThumbnailKind, barcodeThumbnailKindOf;
-export 'src/scanning/ui/window_overlay.dart' hide BracketsPainter, WindowScrim;
+export 'src/scanning/ui/window_overlay.dart'
+    hide BracketsPainter, OutlinePainter, ScanLinePainter, WindowScrim;

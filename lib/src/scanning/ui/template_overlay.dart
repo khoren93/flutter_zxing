@@ -294,7 +294,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       if (refused ?? flagged case final ScanVerdict verdict) {
         final ScannerLocalizations texts = ScannerLocalizations.of(context);
         told = true;
-        _feedback(verdict.kind);
+        _feedback(_feedbackOf(verdict.kind));
         _flashFor(verdict.kind);
         _showNotice(
           <String>[
@@ -310,11 +310,11 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         return;
       }
     }
-    if (!told && _template.haptics) {
-      unawaited(HapticFeedback.selectionClick());
-    }
-    if (!told && _template.sound) {
-      unawaited(SystemSound.play(SystemSoundType.click));
+    if (!told) {
+      _feedback(
+        _template.check == null ? ScanFeedback.found : ScanFeedback.accepted,
+        listed: true,
+      );
     }
     setState(() {
       for (final Barcode barcode in taken) {
@@ -403,7 +403,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         return;
       }
       if (verdict.kind == ScanVerdictKind.reject) {
-        _feedback(ScanVerdictKind.reject);
+        _feedback(ScanFeedback.rejected);
         _flashFor(ScanVerdictKind.reject);
         _showNotice(
           <String>[
@@ -427,7 +427,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     }
     if (warning != null) {
       // Taken, with the verdict's text in the warning color.
-      _feedback(ScanVerdictKind.warn);
+      _feedback(ScanFeedback.warned);
       _flashFor(ScanVerdictKind.warn);
       _showNotice(
         <String>[
@@ -436,7 +436,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         ].join(' · '),
       );
     } else {
-      _feedback(ScanVerdictKind.accept);
+      _feedback(_feedbackOf(ScanVerdictKind.accept));
     }
     if (hold) {
       // The app resumed the scanner already: nothing to hold.
@@ -534,7 +534,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     if (!mounted || verdict == null) {
       return;
     }
-    _feedback(verdict.kind);
+    _feedback(_feedbackOf(verdict.kind));
     _hideVerdict?.cancel();
     final Duration shown = _template.resumeAfter ?? const Duration(seconds: 2);
     setState(() {
@@ -558,21 +558,37 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     });
   }
 
-  void _feedback(ScanVerdictKind kind) {
+  /// A check's verdict as feedback; an accepted code without a check was
+  /// only found.
+  ScanFeedback _feedbackOf(ScanVerdictKind kind) => switch (kind) {
+    ScanVerdictKind.accept when _template.check == null => ScanFeedback.found,
+    ScanVerdictKind.accept => ScanFeedback.accepted,
+    ScanVerdictKind.warn => ScanFeedback.warned,
+    ScanVerdictKind.reject => ScanFeedback.rejected,
+  };
+
+  /// The template's own feedback, or the built-in haptic and sound; a code
+  /// [listed] in a collection gets a lighter haptic.
+  void _feedback(ScanFeedback kind, {bool listed = false}) {
+    final ValueChanged<ScanFeedback>? own = _template.onFeedback;
+    if (own != null) {
+      own(kind);
+      return;
+    }
+    final bool good =
+        kind == ScanFeedback.found || kind == ScanFeedback.accepted;
     if (_template.haptics) {
       unawaited(switch (kind) {
-        ScanVerdictKind.accept => HapticFeedback.mediumImpact(),
-        ScanVerdictKind.warn => HapticFeedback.heavyImpact(),
-        ScanVerdictKind.reject => HapticFeedback.vibrate(),
+        _ when good && listed => HapticFeedback.selectionClick(),
+        ScanFeedback.found ||
+        ScanFeedback.accepted => HapticFeedback.mediumImpact(),
+        ScanFeedback.warned => HapticFeedback.heavyImpact(),
+        ScanFeedback.rejected => HapticFeedback.vibrate(),
       });
     }
     if (_template.sound) {
       unawaited(
-        SystemSound.play(
-          kind == ScanVerdictKind.accept
-              ? SystemSoundType.click
-              : SystemSoundType.alert,
-        ),
+        SystemSound.play(good ? SystemSoundType.click : SystemSoundType.alert),
       );
     }
   }
@@ -1116,6 +1132,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       layout,
       lockOn: template.mode != ScannerMode.collect && !pick,
       settled: _settled && _cutOut != null,
+      searching: _verdict == null,
     );
     if (flash != null) {
       overlay = ScannerScope(
@@ -1138,7 +1155,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
                 animation: _flight,
                 builder: (BuildContext context, Widget? _) => _WindowPlate(
                   window: layout.scanWindow,
-                  radius: theme.resolvedWindowRadius,
+                  shape: theme.windowBorder,
                   opacity: Curves.easeInOutCubicEmphasized.transform(
                     _flight.value,
                   ),
@@ -1171,7 +1188,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
               duration: fade,
               child: _WindowPlate(
                 window: layout.scanWindow,
-                radius: theme.resolvedWindowRadius,
+                shape: theme.windowBorder,
                 opacity: 1,
                 color: (flash ?? theme.lockColor).withValues(alpha: 0.28),
               ),
@@ -1184,7 +1201,8 @@ class _TemplateOverlayState extends State<TemplateOverlay>
             image: photo.image,
             rect: photoRect!,
             codes: photoCodes,
-            color: theme.lockColor,
+            color: theme.outlineColor,
+            width: theme.outlineWidth ?? 2,
             radius: photo.frozen ? 0 : 12,
           ),
         if (camera && _cutOut != null)
@@ -1634,13 +1652,13 @@ enum _ControlsPlace { bottom, side, top }
 class _WindowPlate extends StatelessWidget {
   const _WindowPlate({
     required this.window,
-    required this.radius,
+    required this.shape,
     required this.opacity,
     this.color,
   });
 
   final Rect window;
-  final double radius;
+  final ShapeBorder shape;
   final double opacity;
   final Color? color;
 
@@ -1651,11 +1669,11 @@ class _WindowPlate extends StatelessWidget {
       Positioned.fromRect(
         rect: window,
         child: DecoratedBox(
-          decoration: BoxDecoration(
+          decoration: ShapeDecoration(
             color:
                 color ??
                 const Color(0xFF06090D).withValues(alpha: 0.82 * opacity),
-            borderRadius: BorderRadius.circular(radius),
+            shape: shape,
           ),
         ),
       ),
@@ -1868,6 +1886,7 @@ class _PhotoView extends StatelessWidget {
     required this.rect,
     required this.codes,
     required this.color,
+    required this.width,
     required this.radius,
   });
 
@@ -1877,6 +1896,7 @@ class _PhotoView extends StatelessWidget {
   final Rect rect;
   final List<VisibleBarcode> codes;
   final Color color;
+  final double width;
   final double radius;
 
   @override
@@ -1893,7 +1913,7 @@ class _PhotoView extends StatelessWidget {
               child: RawImage(image: image, fit: BoxFit.fill),
             ),
           ),
-          CustomPaint(painter: _OutlinesPainter(codes, color)),
+          CustomPaint(painter: _OutlinesPainter(codes, color, width)),
         ],
       ),
     ),
@@ -1901,17 +1921,18 @@ class _PhotoView extends StatelessWidget {
 }
 
 class _OutlinesPainter extends CustomPainter {
-  const _OutlinesPainter(this.codes, this.color);
+  const _OutlinesPainter(this.codes, this.color, this.width);
 
   final List<VisibleBarcode> codes;
   final Color color;
+  final double width;
 
   @override
   void paint(Canvas canvas, Size size) {
     final Paint paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
+      ..strokeWidth = width
       ..strokeJoin = StrokeJoin.round;
     for (final VisibleBarcode code in codes) {
       canvas.drawPath(Path()..addPolygon(code.corners, true), paint);
@@ -1920,7 +1941,7 @@ class _OutlinesPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_OutlinesPainter old) =>
-      old.codes != codes || old.color != color;
+      old.codes != codes || old.color != color || old.width != width;
 }
 
 /// [ScannerMode.pick]: a label above a code in view; a tap picks the code.
@@ -2092,8 +2113,15 @@ class _CutOutFlight extends StatelessWidget {
     final double t = Curves.easeInOutCubicEmphasized.transform(progress);
     final double radius = theme.resolvedWindowRadius;
     final double aspect = image.width / image.height;
-    // Where it settles: as large as the window allows, with a margin.
-    final Rect inner = window.deflate(math.max(16, radius * 0.8));
+    // Where it settles: as large as the window allows, with a margin; in a
+    // round window, inside its circle.
+    final Rect inner = theme.resolvedWindowShape == ScannerWindowShape.circle
+        ? Rect.fromCenter(
+            center: window.center,
+            width: window.width / math.sqrt2,
+            height: window.height / math.sqrt2,
+          ).deflate(8)
+        : window.deflate(math.max(16, radius * 0.8));
     final Size fitted = applyBoxFit(
       BoxFit.contain,
       Size(aspect, 1),

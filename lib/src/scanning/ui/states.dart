@@ -105,11 +105,13 @@ class _ScannerPlaceholderState extends State<ScannerPlaceholder>
         final Size size = constraints.biggest;
         final Rect window = widget.scanWindow.resolve(size);
         final double radius = theme.resolvedWindowRadius;
+        final ScannerWindowShape shape = theme.resolvedWindowShape;
         return Stack(
           fit: StackFit.expand,
           children: <Widget>[
             const _Void(),
-            WindowScrim(window: window, radius: radius),
+            if (shape != ScannerWindowShape.bracketsOnly)
+              WindowScrim(window: window),
             CustomPaint(
               size: size,
               painter: BracketsPainter(
@@ -120,6 +122,7 @@ class _ScannerPlaceholderState extends State<ScannerPlaceholder>
                 opacity: () =>
                     1 - 0.45 * math.sin(_clock.value * math.pi).abs(),
                 radius: radius,
+                circle: shape == ScannerWindowShape.circle,
                 color: theme.windowColor,
                 lockColor: theme.lockColor,
                 strokeWidth: theme.resolvedBracketWidth,

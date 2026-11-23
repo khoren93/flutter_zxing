@@ -1,6 +1,8 @@
 // The scanner's customization: icons of an icon font and an icon set in the
-// theme, the window's and the scrim's colors and the brackets' geometry,
-// and where a template puts its controls.
+// theme, the window's and the scrim's colors, shape and brackets, the scan
+// line and the breathing, glass, sheets, text styles and outlines, the
+// template's own feedback, and where a template puts its controls.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' show PathMetric;
@@ -15,7 +17,7 @@ import 'package:flutter_zxing/src/scanning/frame_geometry.dart';
 import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
     show ScannerControllerDebug;
 import 'package:flutter_zxing/src/scanning/ui/window_overlay.dart'
-    show BracketsPainter, WindowScrim;
+    show BracketsPainter, OutlinePainter, ScanLinePainter, WindowScrim;
 
 import 'fake_camera.dart';
 
@@ -719,6 +721,736 @@ void main() {
       await t.tap(find.byType(TorchButton));
       await t.pump();
       expect(controller.value.torch, TorchState.on);
+    });
+  });
+
+  group('looks', () {
+    late FakeCamera camera;
+    late ScannerController controller;
+    // The default scan window on the phone.
+    final Rect window = const ScanWindow.centered().resolve(_phone);
+
+    setUp(() {
+      camera = FakeCamera(transform: const FrameTransform(_phone));
+      ScannerControllerDebug.cameraFactory = () => camera;
+      controller = ScannerController();
+    });
+    tearDown(() => ScannerControllerDebug.cameraFactory = null);
+
+    Future<void> open(
+      WidgetTester t,
+      ScannerTheme theme, {
+      bool reduceMotion = false,
+      bool ticking = true,
+    }) async {
+      t.view
+        ..physicalSize = _phone
+        ..devicePixelRatio = 1;
+      addTearDown(t.view.reset);
+      await t.pumpWidget(
+        _host(
+          MediaQuery(
+            data: MediaQueryData(size: _phone, disableAnimations: reduceMotion),
+            child: TickerMode(
+              enabled: ticking,
+              child: BarcodeScanner(controller: controller, theme: theme),
+            ),
+          ),
+        ),
+      );
+      await t.pump();
+      await t.pump();
+    }
+
+    Future<void> close(WidgetTester t) async {
+      await t.pumpWidget(const SizedBox());
+      await t.runAsync(() async => controller.dispose());
+    }
+
+    T? painter<T>(WidgetTester t) => t
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((CustomPaint p) => p.painter)
+        .whereType<T>()
+        .firstOrNull;
+
+    RenderObject paintOf<T>(WidgetTester t) => t
+        .renderObjectList<RenderCustomPaint>(find.byType(CustomPaint))
+        .firstWhere((RenderCustomPaint r) => r.painter is T);
+
+    /// Frames drawn over a second, pumped every 1/120 s.
+    Future<int> second(WidgetTester t) async {
+      int frames = 0;
+      void count(Duration _) => frames++;
+      t.binding.addPersistentFrameCallback(count);
+      for (int i = 0; i < 120; i++) {
+        await t.pump(const Duration(microseconds: 8333));
+      }
+      final int counted = frames;
+      // Persistent callbacks cannot be removed: stop counting.
+      frames = -1 << 30;
+      return counted;
+    }
+
+    test('the new fields merge, copy and compare', () {
+      const ScanLine red = ScanLine(color: Color(0xFFFF0000));
+      final ScannerTheme theme =
+          const ScannerTheme(
+            windowShape: ScannerWindowShape.circle,
+            breathing: false,
+            glass: Color(0xFF112233),
+            outline: Color(0xFF00FF00),
+          ).merge(
+            const ScannerTheme(
+              scanLine: red,
+              sheet: Color(0xFFFFFFFF),
+              sheetRadius: 12,
+              outlineWidth: 5,
+            ),
+          );
+      expect(theme.resolvedWindowShape, ScannerWindowShape.circle);
+      expect(theme.resolvedBreathing, isFalse);
+      expect(theme.resolvedScanLine, red);
+      expect(theme.glassColor, const Color(0xFF112233));
+      expect(theme.sheetColor, const Color(0xFFFFFFFF));
+      expect(theme.outlineColor, const Color(0xFF00FF00));
+      expect(theme.resolvedOutlineWidth, 5);
+      expect(
+        theme.copyWith(windowShape: ScannerWindowShape.bracketsOnly),
+        isNot(theme),
+      );
+      expect(
+        theme,
+        const ScannerTheme(
+          windowShape: ScannerWindowShape.circle,
+          breathing: false,
+          glass: Color(0xFF112233),
+          outline: Color(0xFF00FF00),
+          scanLine: red,
+          sheet: Color(0xFFFFFFFF),
+          sheetRadius: 12,
+          outlineWidth: 5,
+        ),
+      );
+      // ScanLine.none turns off a line of the theme under it.
+      expect(
+        theme
+            .merge(const ScannerTheme(scanLine: ScanLine.none))
+            .resolvedScanLine,
+        isNull,
+      );
+      // Defaults.
+      const ScannerTheme plain = ScannerTheme(brightness: Brightness.dark);
+      expect(plain.resolvedWindowShape, ScannerWindowShape.rounded);
+      expect(plain.resolvedBreathing, isTrue);
+      expect(plain.resolvedScanLine, isNull);
+      expect(plain.outlineColor, plain.lockColor);
+      expect(plain.outlineFillColor, plain.lockSoftColor);
+      expect(plain.resolvedOutlineWidth, 3);
+      expect(plain.glassColor, const Color(0x9412151B));
+      expect(plain.sheetColor, const Color(0xCC101318));
+      const ScanLine line = ScanLine();
+      expect(line.thickness, 2);
+      expect(line.duration, const Duration(milliseconds: 1600));
+      expect(line.glow, isTrue);
+      expect(line.style, ScanLineStyle.sweep);
+      expect(line.inset, 12);
+      expect(line, const ScanLine());
+      expect(line, isNot(red));
+      expect(line.hashCode, const ScanLine().hashCode);
+    });
+
+    testWidgets('breathing off keeps the brackets still', (
+      WidgetTester t,
+    ) async {
+      await open(t, const ScannerTheme(breathing: false));
+      expect(t.hasRunningAnimations, isFalse);
+      expect(await second(t), 0);
+      expect(painter<BracketsPainter>(t)!.scale(), 1);
+      await close(t);
+
+      // On, it breathes: the scale changes.
+      controller = ScannerController();
+      await open(t, const ScannerTheme());
+      await t.pump(const Duration(milliseconds: 1200));
+      expect(painter<BracketsPainter>(t)!.scale(), lessThan(1));
+      await close(t);
+    });
+
+    testWidgets('the scan line runs in the window while searching', (
+      WidgetTester t,
+    ) async {
+      const ScanLine line = ScanLine(
+        color: Color(0xFFFF2020),
+        thickness: 4,
+        duration: Duration(milliseconds: 1000),
+        inset: 10,
+      );
+      await open(
+        t,
+        const ScannerTheme(scanLine: line, breathing: false, scrimBlur: false),
+      );
+      final ScanLinePainter linePainter = painter<ScanLinePainter>(t)!;
+      expect(linePainter.line, line);
+      expect(linePainter.color, const Color(0xFFFF2020));
+      expect(linePainter.area, window.deflate(10));
+      expect(linePainter.progress(line.duration), 0);
+      // Drawn 30 times a second, without a ticker, not at vsync.
+      expect(t.hasRunningAnimations, isFalse);
+      expect(await second(t), inInclusiveRange(28, 32));
+      // A pass a second: after another 0.5 s, half of a pass more.
+      final double before = linePainter.progress(line.duration);
+      await t.pump(const Duration(milliseconds: 500));
+      expect(
+        linePainter.progress(line.duration) - before,
+        moreOrLessEquals(0.5, epsilon: 0.04),
+      );
+      // Clipped to the window, a line of its thickness in it.
+      final double y =
+          linePainter.area.top +
+          ScanLinePainter.at(
+                ScanLineStyle.sweep,
+                linePainter.progress(line.duration),
+              ).$1 *
+              linePainter.area.height;
+      expect(
+        paintOf<ScanLinePainter>(t),
+        paints
+          ..clipPath()
+          ..rect()
+          ..rect(
+            rect: Rect.fromLTRB(
+              linePainter.area.left,
+              y - 2,
+              linePainter.area.right,
+              y + 2,
+            ),
+          ),
+      );
+      await close(t);
+    });
+
+    test('a sweep goes down and fades at the ends, a bounce comes back', () {
+      expect(ScanLinePainter.at(ScanLineStyle.sweep, 0.5), (0.5, 1.0));
+      expect(ScanLinePainter.at(ScanLineStyle.sweep, 1.25).$1, 0.25);
+      expect(ScanLinePainter.at(ScanLineStyle.sweep, 0.01).$2, lessThan(0.1));
+      expect(ScanLinePainter.at(ScanLineStyle.sweep, 0.99).$2, lessThan(0.1));
+      expect(ScanLinePainter.at(ScanLineStyle.bounce, 1).$1, 1);
+      expect(ScanLinePainter.at(ScanLineStyle.bounce, 1.5).$1, 0.5);
+      expect(ScanLinePainter.at(ScanLineStyle.bounce, 2).$1, 0);
+      expect(ScanLinePainter.at(ScanLineStyle.bounce, 0.01).$2, 1);
+    });
+
+    testWidgets('the scan line stops on a code and while paused', (
+      WidgetTester t,
+    ) async {
+      await open(t, const ScannerTheme(scanLine: ScanLine()));
+      expect(painter<ScanLinePainter>(t), isNotNull);
+      camera.push(<Barcode>[fakeBarcode('A', window.deflate(60))]);
+      await t.pump();
+      await t.pump();
+      expect(painter<ScanLinePainter>(t), isNull);
+      // The code's outline lingers a moment, in real time.
+      await t.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 600)),
+      );
+      camera.push();
+      await t.pump();
+      await t.pump();
+      expect(painter<ScanLinePainter>(t), isNotNull);
+      unawaited(controller.pause());
+      await t.pump();
+      await t.pump();
+      expect(controller.value.status, ScannerStatus.paused);
+      expect(painter<ScanLinePainter>(t), isNull);
+      // Once the brackets are back on the window, nothing ticks.
+      await t.pump(const Duration(milliseconds: 500));
+      expect(await second(t), 0);
+      await close(t);
+    });
+
+    testWidgets('no scan line hidden, with reduce motion, or turned off', (
+      WidgetTester t,
+    ) async {
+      await open(t, const ScannerTheme(scanLine: ScanLine()), ticking: false);
+      expect(painter<ScanLinePainter>(t), isNull);
+      expect(await second(t), 0);
+      await close(t);
+
+      controller = ScannerController();
+      await open(
+        t,
+        const ScannerTheme(scanLine: ScanLine()),
+        reduceMotion: true,
+      );
+      expect(painter<ScanLinePainter>(t), isNull);
+      await close(t);
+
+      controller = ScannerController();
+      await open(
+        t,
+        const ScannerTheme(scanLine: ScanLine.none, breathing: false),
+      );
+      expect(painter<ScanLinePainter>(t), isNull);
+      expect(await second(t), 0);
+      await close(t);
+
+      // Without a window: no line.
+      controller = ScannerController(scanWindow: const ScanWindow.full());
+      await open(t, const ScannerTheme(scanLine: ScanLine()));
+      expect(painter<ScanLinePainter>(t), isNull);
+      await close(t);
+    });
+
+    testWidgets('the scan line hides under a verdict', (WidgetTester t) async {
+      t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (MethodCall call) async => null,
+      );
+      addTearDown(
+        () => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      t.view
+        ..physicalSize = _phone
+        ..devicePixelRatio = 1;
+      addTearDown(t.view.reset);
+      final ScannerTemplate template = ScannerTemplate.checkIn(
+        theme: const ScannerTheme(
+          brightness: Brightness.dark,
+          scanLine: ScanLine(),
+        ),
+        check: (_) => const ScanVerdict.accept(title: 'Welcome'),
+      );
+      controller = ScannerController.fromTemplate(template);
+      await t.pumpWidget(
+        _host(BarcodeScanner(controller: controller, template: template)),
+      );
+      await t.pump();
+      await t.pump();
+      expect(painter<ScanLinePainter>(t), isNotNull);
+      final Rect window = template.scanWindow.resolve(_phone);
+      camera.push(<Barcode>[fakeBarcode('A', window.deflate(60))]);
+      await t.pump();
+      await t.pump();
+      camera.push();
+      for (int i = 0; i < 3; i++) {
+        await t.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.text('Welcome'), findsOneWidget);
+      expect(painter<ScanLinePainter>(t), isNull);
+      // Back to searching once the verdict hides.
+      for (int i = 0; i < 40; i++) {
+        await t.pump(const Duration(milliseconds: 100));
+      }
+      expect(painter<ScanLinePainter>(t), isNotNull);
+      await close(t);
+    });
+
+    testWidgets('each window shape cuts the scrim and draws its brackets', (
+      WidgetTester t,
+    ) async {
+      // Inside the window's rectangle, outside its circle and inside its
+      // rounded corners.
+      final Offset corner = window.topLeft + const Offset(30, 30);
+      Future<void> shape(ScannerWindowShape shape) async {
+        controller = ScannerController();
+        await open(
+          t,
+          ScannerTheme(
+            windowShape: shape,
+            scrimBlur: false,
+            scanLine: const ScanLine(),
+          ),
+        );
+      }
+
+      Finder scrim() => find.descendant(
+        of: find.byType(WindowScrim),
+        matching: find.byType(CustomPaint),
+      );
+
+      await shape(ScannerWindowShape.rounded);
+      expect(
+        t.renderObject(scrim()),
+        paints..path(
+          includes: <Offset>[window.topLeft],
+          excludes: <Offset>[corner, window.center],
+        ),
+      );
+      expect(painter<BracketsPainter>(t)!.circle, isFalse);
+      expect(painter<ScanLinePainter>(t)!.circle, isFalse);
+      await close(t);
+
+      await shape(ScannerWindowShape.circle);
+      await t.pump(const Duration(milliseconds: 500));
+      expect(
+        t.renderObject(scrim()),
+        paints
+          ..path(includes: <Offset>[corner], excludes: <Offset>[window.center]),
+      );
+      expect(painter<BracketsPainter>(t)!.circle, isTrue);
+      expect(painter<ScanLinePainter>(t)!.circle, isTrue);
+      expect(
+        paintOf<ScanLinePainter>(t),
+        paints..clipPath(
+          pathMatcher: isPathThat(
+            includes: <Offset>[window.center],
+            excludes: <Offset>[corner],
+          ),
+        ),
+      );
+      await close(t);
+
+      await shape(ScannerWindowShape.bracketsOnly);
+      expect(find.byType(WindowScrim), findsNothing);
+      expect(painter<BracketsPainter>(t), isNotNull);
+      expect(painter<ScanLinePainter>(t), isNotNull);
+      await close(t);
+    });
+
+    test('a round window has four arcs on its circle', () {
+      final Rect r = Rect.fromCircle(
+        center: const Offset(200, 200),
+        radius: 150,
+      );
+      final List<PathMetric> arcs = BracketsPainter.arcPath(
+        r,
+        24,
+      ).computeMetrics().toList();
+      expect(arcs, hasLength(4));
+      for (final PathMetric arc in arcs) {
+        for (final double at in <double>[0, arc.length / 2, arc.length]) {
+          final Offset p = arc.getTangentForOffset(at)!.position;
+          expect((p - r.center).distance, moreOrLessEquals(150, epsilon: 0.5));
+        }
+        // As long as a bracket of a rounded window.
+        expect(
+          arc.length,
+          moreOrLessEquals(2 * 44 + math.pi / 2 * 24, epsilon: 1),
+        );
+      }
+    });
+
+    testWidgets('the glass color reaches buttons; opaque, it does not blur', (
+      WidgetTester t,
+    ) async {
+      Future<void> button(Color glass) => t.pumpWidget(
+        _host(
+          ScannerScope(
+            theme: ScannerTheme(brightness: Brightness.dark, glass: glass),
+            child: Center(
+              child: ScannerButton(
+                icon: ScannerIcons.close,
+                label: 'Close',
+                onPressed: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      bool filled(Color color) => t
+          .widgetList<DecoratedBox>(
+            find.descendant(
+              of: find.byType(ScannerButton),
+              matching: find.byType(DecoratedBox),
+            ),
+          )
+          .any(
+            (DecoratedBox box) =>
+                box.decoration is ShapeDecoration &&
+                (box.decoration as ShapeDecoration).color == color,
+          );
+      Finder blur() => find.descendant(
+        of: find.byType(ScannerButton),
+        matching: find.byType(BackdropFilter),
+      );
+
+      await button(const Color(0xFF0B3D91));
+      expect(filled(const Color(0xFF0B3D91)), isTrue);
+      expect(blur(), findsNothing);
+      // Translucent: the camera shows through, blurred.
+      await button(const Color(0x800B3D91));
+      expect(filled(const Color(0x800B3D91)), isTrue);
+      expect(blur(), findsOneWidget);
+    });
+
+    testWidgets('the sheet color and radius reach the sheets', (
+      WidgetTester t,
+    ) async {
+      await t.pumpWidget(
+        _host(
+          const ScannerScope(
+            theme: ScannerTheme(
+              brightness: Brightness.light,
+              sheet: Color(0xFFFFFFFF),
+              sheetRadius: 12,
+            ),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: ScannerSheet(child: Text('Hi')),
+            ),
+          ),
+        ),
+      );
+      final ShapeDecoration decoration =
+          t
+                  .widget<DecoratedBox>(
+                    find.descendant(
+                      of: find.byType(ScannerSheet),
+                      matching: find.byType(DecoratedBox),
+                    ),
+                  )
+                  .decoration
+              as ShapeDecoration;
+      expect(decoration.color, const Color(0xFFFFFFFF));
+      expect(
+        decoration.shape,
+        const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+        ),
+      );
+      expect(
+        find.descendant(
+          of: find.byType(ScannerSheet),
+          matching: find.byType(BackdropFilter),
+        ),
+        findsNothing,
+      );
+      // Unset: the glass and corners as before.
+      const ScannerTheme plain = ScannerTheme(brightness: Brightness.light);
+      expect(plain.sheetColor, const Color(0xDBFFFFFF));
+      expect(
+        plain.sheetBorder,
+        const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(32),
+            bottom: Radius.circular(24),
+          ),
+        ),
+      );
+    });
+
+    testWidgets('text styles merge onto the built-in ones', (
+      WidgetTester t,
+    ) async {
+      const ScannerTheme theme = ScannerTheme(
+        brightness: Brightness.light,
+        fontFamily: 'Brand',
+        textStyles: ScannerTextStyles(
+          title: TextStyle(fontSize: 30),
+          hint: TextStyle(fontWeight: FontWeight.w800),
+          body: TextStyle(fontSize: 18),
+          label: TextStyle(letterSpacing: 1),
+          data: TextStyle(fontSize: 13),
+        ),
+      );
+      expect(theme.titleStyle.fontSize, 30);
+      expect(theme.titleStyle.fontFamily, 'Brand');
+      expect(theme.titleStyle.fontWeight, FontWeight.w600);
+      expect(theme.titleStyle.color, theme.inkColor);
+      expect(theme.hintStyle.fontWeight, FontWeight.w800);
+      expect(theme.hintStyle.fontSize, 15);
+      // Muted text follows the body.
+      expect(theme.mutedStyle.fontSize, 18);
+      expect(theme.mutedStyle.color, theme.inkMutedColor);
+      expect(theme.chipStyle.fontSize, 12);
+      expect(theme.dataStyle.fontSize, 13);
+      // Sets merge style by style.
+      final ScannerTheme merged = theme.merge(
+        const ScannerTheme(
+          textStyles: ScannerTextStyles(
+            title: TextStyle(fontWeight: FontWeight.w300),
+          ),
+        ),
+      );
+      expect(merged.titleStyle.fontSize, 30);
+      expect(merged.titleStyle.fontWeight, FontWeight.w300);
+      expect(
+        const ScannerTextStyles(title: TextStyle(fontSize: 1)),
+        const ScannerTextStyles(title: TextStyle(fontSize: 1)),
+      );
+
+      await t.pumpWidget(
+        _host(
+          ScannerScope(
+            theme: theme,
+            child: Column(
+              children: <Widget>[
+                const ScannerHint('Point at a code'),
+                ScannerActionButton(label: 'Open', onPressed: () {}),
+              ],
+            ),
+          ),
+        ),
+      );
+      TextStyle styleOf(String text) => t.widget<Text>(find.text(text)).style!;
+      expect(styleOf('Point at a code').fontWeight, FontWeight.w800);
+      expect(styleOf('Point at a code').fontFamily, 'Brand');
+      expect(styleOf('Open').letterSpacing, 1);
+      expect(styleOf('Open').fontWeight, FontWeight.w600);
+    });
+
+    testWidgets('the outline color and width reach the painter', (
+      WidgetTester t,
+    ) async {
+      await open(
+        t,
+        const ScannerTheme(
+          brightness: Brightness.dark,
+          outline: Color(0xFFFFCC00),
+          outlineWidth: 5,
+        ),
+      );
+      camera.push(<Barcode>[fakeBarcode('A', window.deflate(60))]);
+      await t.pump();
+      await t.pump();
+      final OutlinePainter outlines = painter<OutlinePainter>(t)!;
+      expect(outlines.color, const Color(0xFFFFCC00));
+      expect(outlines.width, 5);
+      expect(outlines.fill, const Color(0xFFFFCC00).withValues(alpha: 0.22));
+      expect(
+        paintOf<OutlinePainter>(t),
+        paints
+          ..path(strokeWidth: 5)
+          ..path(color: const Color(0xFFFFCC00).withValues(alpha: 0.22))
+          ..path(color: const Color(0xFFFFCC00), strokeWidth: 5),
+      );
+      await t.pump(const Duration(seconds: 1));
+      await close(t);
+    });
+  });
+
+  group('own feedback', () {
+    late FakeCamera camera;
+    late ScannerController controller;
+    late List<String> platform;
+    const Rect code = Rect.fromLTWH(140, 360, 110, 110);
+
+    setUp(() {
+      camera = FakeCamera(transform: const FrameTransform(_phone));
+      ScannerControllerDebug.cameraFactory = () => camera;
+    });
+    tearDown(() => ScannerControllerDebug.cameraFactory = null);
+
+    /// Opens [template], shows it a code and returns the feedback given.
+    Future<List<ScanFeedback>> scan(
+      WidgetTester t,
+      ScannerTemplate template, {
+      bool own = true,
+    }) async {
+      platform = <String>[];
+      t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (MethodCall call) async {
+          if (call.method == 'HapticFeedback.vibrate' ||
+              call.method == 'SystemSound.play') {
+            platform.add('${call.method} ${call.arguments}');
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      t.view
+        ..physicalSize = _phone
+        ..devicePixelRatio = 1;
+      addTearDown(t.view.reset);
+      final List<ScanFeedback> given = <ScanFeedback>[];
+      final ScannerTemplate used = own
+          ? template.copyWith(onFeedback: () => given.add)
+          : template;
+      controller = ScannerController.fromTemplate(used);
+      await t.pumpWidget(
+        _host(BarcodeScanner(controller: controller, template: used)),
+      );
+      await t.pump();
+      await t.pump();
+      camera.push(<Barcode>[fakeBarcode('A', code)]);
+      for (int i = 0; i < 8; i++) {
+        await t.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 5)),
+        );
+        await t.pump(const Duration(milliseconds: 100));
+      }
+      await t.pumpWidget(const SizedBox());
+      await t.pump(const Duration(seconds: 4));
+      await t.runAsync(() async => controller.dispose());
+      return given;
+    }
+
+    ScanVerdict? Function(Barcode) verdict(ScanVerdict? v) =>
+        (Barcode _) => v;
+
+    testWidgets('each outcome, instead of the built-in haptic and sound', (
+      WidgetTester t,
+    ) async {
+      final ScannerTemplate minimal = const ScannerTemplate.minimal().copyWith(
+        sound: true,
+      );
+      expect(await scan(t, minimal), <ScanFeedback>[ScanFeedback.found]);
+      expect(platform, isEmpty);
+      expect(
+        await scan(
+          t,
+          minimal.copyWith(check: () => verdict(const ScanVerdict.accept())),
+        ),
+        <ScanFeedback>[ScanFeedback.accepted],
+      );
+      expect(platform, isEmpty);
+      expect(
+        await scan(
+          t,
+          minimal.copyWith(check: () => verdict(const ScanVerdict.warn())),
+        ),
+        <ScanFeedback>[ScanFeedback.warned],
+      );
+      expect(platform, isEmpty);
+      final List<ScanFeedback> refused = await scan(
+        t,
+        minimal.copyWith(check: () => verdict(const ScanVerdict.reject())),
+      );
+      expect(refused, isNotEmpty);
+      expect(refused.toSet(), <ScanFeedback>{ScanFeedback.rejected});
+      expect(platform, isEmpty);
+      // In a list and with verdicts while scanning goes on.
+      expect(await scan(t, const ScannerTemplate.retail()), <ScanFeedback>[
+        ScanFeedback.found,
+      ]);
+      expect(
+        (await scan(
+          t,
+          ScannerTemplate.checkIn(check: (_) => const ScanVerdict.reject()),
+        )).toSet(),
+        <ScanFeedback>{ScanFeedback.rejected},
+      );
+      expect(platform, isEmpty);
+    });
+
+    testWidgets('without it, the built-in haptic and sound play', (
+      WidgetTester t,
+    ) async {
+      expect(
+        await scan(
+          t,
+          const ScannerTemplate.minimal().copyWith(sound: true),
+          own: false,
+        ),
+        isEmpty,
+      );
+      expect(platform, <String>[
+        'HapticFeedback.vibrate HapticFeedbackType.mediumImpact',
+        'SystemSound.play SystemSoundType.click',
+      ]);
+      await scan(t, const ScannerTemplate.retail(), own: false);
+      expect(platform, <String>[
+        'HapticFeedback.vibrate HapticFeedbackType.selectionClick',
+      ]);
     });
   });
 }

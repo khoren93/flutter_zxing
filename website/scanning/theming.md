@@ -38,6 +38,14 @@ defaults.
 | `scrim` | a translucent black, darker on dark glass | The dimmed camera around the window |
 | `bracketWidth` | 5 | Line width of the brackets |
 | `bracketLength` | 22 % of the window's shorter side, 12 to 44 | Length of each bracket's straight arm |
+| `windowShape` | `ScannerWindowShape.rounded` | The window drawn with rounded corners, as a `circle`, or as the brackets alone (`bracketsOnly`) ([The window's shape](#the-window-s-shape)) |
+| `breathing` | `true` | Whether the brackets breathe while the scanner searches ([Motion](#motion)) |
+| `scanLine` | none | A line that runs across the window while the scanner searches, like a laser ([Motion](#motion)) |
+| `glass` | a light or dark glass | The background of the buttons, hints and title pills ([Glass and sheets](#glass-and-sheets)) |
+| `sheet` | a more opaque glass | The background of the result sheets and cards |
+| `sheetRadius` | 32 at the top and 24 at the bottom; 20 with `roundedSquare` | Corner radius of the result sheets and cards |
+| `outline`, `outlineWidth` | the `accent`, 3 | The outlines of the codes in view, as when picking one of several |
+| `textStyles` | the built-in styles | Changes to the text styles, such as a bolder title ([Text styles](#text-styles)) |
 | `icons` | the built-in line icons | The icons of the buttons and sheets ([Icons](#icons)) |
 
 ## The window and the scrim
@@ -61,6 +69,132 @@ BarcodeScanner(
 
 `ScannerTheme.of(context).windowColor` and `.scrimColor` give the colours
 in use, for a window of your own drawn in an `overlayBuilder`.
+
+### The window's shape
+
+`windowShape` draws the window as a `circle`, for round codes, or as its
+brackets alone, with no dimming around it (`bracketsOnly`). The scrim's
+cut-out, the brackets and the scan line follow the shape; a circle's
+brackets are four arcs, which turn into corners on the code they lock onto.
+
+```dart
+BarcodeScanner(
+  template: const ScannerTemplate.minimal(
+    scanWindow: ScanWindow.centered(width: 0.6),
+  ),
+  theme: const ScannerTheme(windowShape: ScannerWindowShape.circle),
+)
+```
+
+The shape is only drawn: the camera is decoded in the window's rectangle,
+the `scanWindow`, whatever its shape. A square window
+(`ScanWindow.centered(aspectRatio: 1)`, the default) makes a circle; a wider
+one, an ellipse. `ScannerTheme.of(context).windowBorder` gives the shape in
+use, for a window of your own.
+
+### Motion
+
+While the scanner searches, the brackets breathe slowly. `breathing: false`
+keeps them still. `scanLine` adds a line that runs across the window, like
+the laser of a till scanner:
+
+```dart
+BarcodeScanner(
+  template: const ScannerTemplate.minimal(
+    scanWindow: ScanWindow.centered(width: 0.9, aspectRatio: 3),
+  ),
+  theme: const ScannerTheme(
+    breathing: false,
+    scanLine: ScanLine(
+      color: Color(0xFFFF1A1A), // the accent by default
+      thickness: 2,
+      duration: Duration(milliseconds: 1600), // one pass
+      style: ScanLineStyle.sweep, // or bounce: down and up
+      inset: 12, // the margin inside the window
+    ),
+  ),
+)
+```
+
+The line runs inside the window only, in its shape, and only while the
+scanner searches: it hides on a code, while the scanner is paused or under a
+result sheet or a verdict, while another screen covers the scanner, and with
+the system's reduce motion setting, which also stops the breathing.
+`ScanLine.none` turns off a line set in a `ScannerScope` for one scanner.
+
+::: tip Energy
+The line and the breathing are drawn 30 times a second, on the same frames,
+and nothing is drawn for them while the scanner does not search. The line
+still costs some energy over a still window: measure your screen on your
+devices, such as with Xcode's energy gauge or Android Studio's profiler, or
+with `make perf` in the package's repository for its own templates
+([Load and battery](../more/accuracy-and-speed#load-and-battery)).
+:::
+
+## Glass and sheets
+
+The buttons, hints and title pills are glass: translucent and blurred over
+the camera. `glass` gives them your colour, `sheet` the result sheets and
+cards, and `sheetRadius` the sheets' corners:
+
+```dart
+BarcodeScanner(
+  template: const ScannerTemplate.minimal(),
+  theme: const ScannerTheme(
+    brightness: Brightness.light,
+    glass: Color(0xFFEAF0FF),
+    sheet: Color(0xFFFFFFFF),
+    sheetRadius: 16,
+  ),
+)
+```
+
+An opaque colour is drawn without the blur behind it, which is not seen
+through it anyway and so costs nothing; a translucent one, such as
+`Color(0xB30B3D91)`, keeps the blur unless `blur` is `false`. Every sheet of
+the scanner is a `ScannerSheet` and takes both, as do your own. Text keeps
+the theme's ink colours, dark on light glass: choose a `brightness` that
+reads on your colour. `.glassColor` and `.sheetColor` give the colours in
+use.
+
+The codes in view are outlined in the accent, as when picking one of
+several: `outline` and `outlineWidth` change it.
+
+## Text styles
+
+`fontFamily` sets the font of every text. `textStyles` changes single
+styles: each is merged onto the built-in one, so set only what changes,
+such as a size or a weight, and the rest stays, the font included.
+
+```dart
+BarcodeScanner(
+  template: const ScannerTemplate.minimal(),
+  theme: const ScannerTheme(
+    fontFamily: 'Inter',
+    textStyles: ScannerTextStyles(
+      title: TextStyle(fontWeight: FontWeight.w800),
+      hint: TextStyle(fontSize: 17),
+      label: TextStyle(letterSpacing: 0.5),
+    ),
+  ),
+)
+```
+
+| Style | Where |
+|---|---|
+| `title` | The titles of the sheets: a merchant, a network, a link's host |
+| `display` | Large numbers, such as an amount |
+| `overline` | The small capitals above a title ("LINK") |
+| `body` | The text of the sheets; `muted` follows it |
+| `muted` | Secondary text, such as a verdict's message |
+| `hint` | The hint and title pills over the camera |
+| `label` | Buttons |
+| `data` | Barcode data; `chip` follows it |
+| `chip` | The symbology chips ("QR Code") |
+
+A colour set in a style replaces the theme's, except on buttons, whose
+text takes the button's colour. `ScannerTheme.of(context).titleStyle` and
+the other styles give the result, for a sheet of your own.
 
 ## Icons
 

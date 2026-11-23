@@ -15,6 +15,223 @@ enum ScannerButtonShape {
   roundedSquare,
 }
 
+/// Shape of the scan window as drawn. The camera is decoded in the window's
+/// rectangle whatever its shape.
+enum ScannerWindowShape {
+  /// A rectangle with corners of [ScannerTheme.windowRadius]. The default.
+  rounded,
+
+  /// A circle, or an ellipse in a window that is not square: the scrim is
+  /// cut out round and the brackets are four arcs. For round codes, with a
+  /// square window (`ScanWindow.centered(aspectRatio: 1)`).
+  circle,
+
+  /// The brackets alone, without the dimmed camera around the window.
+  bracketsOnly,
+}
+
+/// How a [ScanLine] moves.
+enum ScanLineStyle {
+  /// From the top of the window to the bottom, then again from the top.
+  /// The default.
+  sweep,
+
+  /// Down and up again.
+  bounce,
+}
+
+/// A line that runs across the scan window while the scanner searches, like
+/// the laser of a till scanner:
+///
+/// ```dart
+/// ScannerTheme(scanLine: ScanLine(color: Color(0xFFFF1A1A)))
+/// ```
+///
+/// It shows inside the window only, follows its shape, and only while the
+/// scanner searches: not on a code, while paused or under a result sheet,
+/// on a hidden scanner, or with the platform's reduce motion setting. It is
+/// drawn 30 times a second, with the brackets' breathing; it still costs
+/// some energy, so check it with `make perf` on your devices.
+@immutable
+final class ScanLine {
+  /// Creates a scan line.
+  const ScanLine({
+    this.color,
+    this.thickness = 2,
+    this.duration = const Duration(milliseconds: 1600),
+    this.glow = true,
+    this.style = ScanLineStyle.sweep,
+    this.inset = 12,
+  }) : assert(thickness > 0, 'thickness must be above 0'),
+       assert(inset >= 0, 'inset cannot be negative'),
+       _off = false;
+
+  const ScanLine._off()
+    : color = null,
+      thickness = 0,
+      duration = Duration.zero,
+      glow = false,
+      style = ScanLineStyle.sweep,
+      inset = 0,
+      _off = true;
+
+  /// No scan line, also where the theme merged under has one, such as a
+  /// `ScannerScope`'s: `ScannerTheme(scanLine: ScanLine.none)`.
+  static const ScanLine none = ScanLine._off();
+
+  /// The line's color. `null` is the theme's accent ([ScannerTheme.lockColor]).
+  final Color? color;
+
+  /// The line's thickness, in logical pixels. Default 2.
+  final double thickness;
+
+  /// How long one pass across the window takes. Default 1.6 s.
+  final Duration duration;
+
+  /// A soft light around the line, in its color. Default `true`.
+  final bool glow;
+
+  /// How the line moves: a [ScanLineStyle.sweep] (the default) or a
+  /// [ScanLineStyle.bounce].
+  final ScanLineStyle style;
+
+  /// The margin between the line and the window's edges, in logical pixels.
+  /// Default 12.
+  final double inset;
+
+  final bool _off;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ScanLine &&
+      other._off == _off &&
+      other.color == color &&
+      other.thickness == thickness &&
+      other.duration == duration &&
+      other.glow == glow &&
+      other.style == style &&
+      other.inset == inset;
+
+  @override
+  int get hashCode =>
+      Object.hash(_off, color, thickness, duration, glow, style, inset);
+
+  @override
+  String toString() => _off
+      ? 'ScanLine.none'
+      : 'ScanLine(color: $color, thickness: $thickness, duration: $duration, '
+            'glow: $glow, style: ${style.name}, inset: $inset)';
+}
+
+/// Changes to the scanner's text styles, each merged onto the built-in
+/// style: set only what you change, such as a size or a weight, and the
+/// rest stays, the font included.
+///
+/// ```dart
+/// ScannerTheme(
+///   textStyles: ScannerTextStyles(
+///     title: TextStyle(fontWeight: FontWeight.w800),
+///     hint: TextStyle(fontSize: 17),
+///   ),
+/// )
+/// ```
+///
+/// The colors of the built-in styles follow the theme; a color set here
+/// replaces it, except on buttons, whose text takes the button's color.
+@immutable
+final class ScannerTextStyles {
+  /// Creates the changes.
+  const ScannerTextStyles({
+    this.title,
+    this.display,
+    this.overline,
+    this.body,
+    this.muted,
+    this.hint,
+    this.label,
+    this.data,
+    this.chip,
+  });
+
+  /// Sheet titles: a merchant, a network, a link's host
+  /// ([ScannerTheme.titleStyle]).
+  final TextStyle? title;
+
+  /// Large numbers, such as an amount ([ScannerTheme.displayStyle]).
+  final TextStyle? display;
+
+  /// The small capitals above a title ([ScannerTheme.overlineStyle]).
+  final TextStyle? overline;
+
+  /// Body text of the sheets ([ScannerTheme.bodyStyle]); [muted] follows
+  /// it.
+  final TextStyle? body;
+
+  /// Secondary body text, such as a verdict's message
+  /// ([ScannerTheme.mutedStyle]).
+  final TextStyle? muted;
+
+  /// Hints and title pills over the camera ([ScannerTheme.hintStyle]).
+  final TextStyle? hint;
+
+  /// Buttons, such as the result sheet's actions
+  /// ([ScannerTheme.labelStyle]).
+  final TextStyle? label;
+
+  /// Barcode data: payloads and codes ([ScannerTheme.dataStyle]); [chip]
+  /// follows it.
+  final TextStyle? data;
+
+  /// Symbology chips ("QR Code", [ScannerTheme.chipStyle]).
+  final TextStyle? chip;
+
+  /// These changes with [other]'s on top, style by style: a size here and
+  /// a weight in [other] give both.
+  ScannerTextStyles merge(ScannerTextStyles? other) {
+    if (other == null) {
+      return this;
+    }
+    TextStyle? both(TextStyle? a, TextStyle? b) => a?.merge(b) ?? b;
+    return ScannerTextStyles(
+      title: both(title, other.title),
+      display: both(display, other.display),
+      overline: both(overline, other.overline),
+      body: both(body, other.body),
+      muted: both(muted, other.muted),
+      hint: both(hint, other.hint),
+      label: both(label, other.label),
+      data: both(data, other.data),
+      chip: both(chip, other.chip),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ScannerTextStyles &&
+      other.title == title &&
+      other.display == display &&
+      other.overline == overline &&
+      other.body == body &&
+      other.muted == muted &&
+      other.hint == hint &&
+      other.label == label &&
+      other.data == data &&
+      other.chip == chip;
+
+  @override
+  int get hashCode => Object.hash(
+    title,
+    display,
+    overline,
+    body,
+    muted,
+    hint,
+    label,
+    data,
+    chip,
+  );
+}
+
 /// Colors and shapes of the scanner widgets: the scan window, the buttons,
 /// the glass panels and the result sheets.
 ///
@@ -56,6 +273,15 @@ final class ScannerTheme with Diagnosticable {
     this.scrim,
     this.bracketWidth,
     this.bracketLength,
+    this.windowShape,
+    this.breathing,
+    this.scanLine,
+    this.glass,
+    this.sheet,
+    this.sheetRadius,
+    this.outline,
+    this.outlineWidth,
+    this.textStyles = const ScannerTextStyles(),
     this.icons = const ScannerIconSet(),
   });
 
@@ -124,6 +350,52 @@ final class ScannerTheme with Diagnosticable {
   /// from 12 to 44. On a code smaller than the brackets, the arms meet.
   final double? bracketLength;
 
+  /// Shape of the scan window: [ScannerWindowShape.rounded] (the default),
+  /// a [ScannerWindowShape.circle], or [ScannerWindowShape.bracketsOnly]
+  /// without the scrim. The scrim's cut-out, the brackets and the
+  /// [scanLine] follow it; the camera is decoded in the window's rectangle
+  /// whatever its shape.
+  final ScannerWindowShape? windowShape;
+
+  /// Whether the window's brackets breathe while the scanner searches.
+  /// `false` keeps them still. Default `true`; off with the platform's
+  /// reduce motion setting.
+  final bool? breathing;
+
+  /// A line that runs across the window while the scanner searches, like a
+  /// laser. Default none; [ScanLine.none] turns off one of the theme
+  /// merged under.
+  final ScanLine? scanLine;
+
+  /// The background of the buttons, hints and title pills over the camera,
+  /// such as your brand's color. An opaque color is drawn without the blur
+  /// behind it, which saves its cost; a translucent one keeps the blur
+  /// unless [blur] is off. Default a light or dark glass ([glassColor]).
+  final Color? glass;
+
+  /// The background of the result sheets and cards, such as
+  /// `Color(0xFFFFFFFF)` for a plain white one. An opaque color is drawn
+  /// without the blur behind it, as for [glass]. Default a more opaque
+  /// glass ([sheetColor]).
+  final Color? sheet;
+
+  /// The corner radius of the result sheets and cards, in logical pixels.
+  /// `null` gives 32 at the top and 24 at the bottom, or 20 with
+  /// [ScannerButtonShape.roundedSquare] buttons ([sheetBorder]).
+  final double? sheetRadius;
+
+  /// The outlines of the codes in view, as in [ScannerMode.pick] or a
+  /// scanner without a window. Default the [accent] ([outlineColor]).
+  final Color? outline;
+
+  /// Line width of the outlines of the codes in view, in logical pixels.
+  /// Default 3; 2 on a photo.
+  final double? outlineWidth;
+
+  /// Changes to the text styles, merged onto the built-in ones, such as a
+  /// larger hint or a bolder title. The [fontFamily] applies under them.
+  final ScannerTextStyles textStyles;
+
   /// Icons of the built-in buttons and sheets, such as your icon font's:
   ///
   /// ```dart
@@ -174,6 +446,15 @@ final class ScannerTheme with Diagnosticable {
       scrim: other.scrim ?? scrim,
       bracketWidth: other.bracketWidth ?? bracketWidth,
       bracketLength: other.bracketLength ?? bracketLength,
+      windowShape: other.windowShape ?? windowShape,
+      breathing: other.breathing ?? breathing,
+      scanLine: other.scanLine ?? scanLine,
+      glass: other.glass ?? glass,
+      sheet: other.sheet ?? sheet,
+      sheetRadius: other.sheetRadius ?? sheetRadius,
+      outline: other.outline ?? outline,
+      outlineWidth: other.outlineWidth ?? outlineWidth,
+      textStyles: textStyles.merge(other.textStyles),
       icons: icons.merge(other.icons),
     );
   }
@@ -194,6 +475,15 @@ final class ScannerTheme with Diagnosticable {
     Color? scrim,
     double? bracketWidth,
     double? bracketLength,
+    ScannerWindowShape? windowShape,
+    bool? breathing,
+    ScanLine? scanLine,
+    Color? glass,
+    Color? sheet,
+    double? sheetRadius,
+    Color? outline,
+    double? outlineWidth,
+    ScannerTextStyles? textStyles,
     ScannerIconSet? icons,
   }) => ScannerTheme(
     accent: accent ?? this.accent,
@@ -210,6 +500,15 @@ final class ScannerTheme with Diagnosticable {
     scrim: scrim ?? this.scrim,
     bracketWidth: bracketWidth ?? this.bracketWidth,
     bracketLength: bracketLength ?? this.bracketLength,
+    windowShape: windowShape ?? this.windowShape,
+    breathing: breathing ?? this.breathing,
+    scanLine: scanLine ?? this.scanLine,
+    glass: glass ?? this.glass,
+    sheet: sheet ?? this.sheet,
+    sheetRadius: sheetRadius ?? this.sheetRadius,
+    outline: outline ?? this.outline,
+    outlineWidth: outlineWidth ?? this.outlineWidth,
+    textStyles: textStyles ?? this.textStyles,
     icons: icons ?? this.icons,
   );
 
@@ -235,6 +534,20 @@ final class ScannerTheme with Diagnosticable {
   /// Line width of the window's brackets.
   double get resolvedBracketWidth => bracketWidth ?? 5;
 
+  /// The scan window's shape.
+  ScannerWindowShape get resolvedWindowShape =>
+      windowShape ?? ScannerWindowShape.rounded;
+
+  /// Whether the brackets breathe while searching (before reduce motion).
+  bool get resolvedBreathing => breathing ?? true;
+
+  /// The scan line, or `null` for none ([ScanLine.none] included).
+  ScanLine? get resolvedScanLine =>
+      scanLine == null || scanLine!._off ? null : scanLine;
+
+  /// Line width of the outlines of the codes in view.
+  double get resolvedOutlineWidth => outlineWidth ?? 3;
+
   _Palette get _palette => _palettes[this] ??= _Palette(this);
   static final Expando<_Palette> _palettes = Expando<_Palette>();
 
@@ -258,15 +571,27 @@ final class ScannerTheme with Diagnosticable {
   Color get scrimColor =>
       scrim ?? (isDark ? const Color(0x94000000) : const Color(0x8006090D));
 
-  /// Buttons, hints and title pills.
-  Color get glassColor => resolvedBlur
-      ? (isDark ? const Color(0x9412151B) : const Color(0xADFFFFFF))
-      : (isDark ? const Color(0xD912151B) : const Color(0xE6FFFFFF));
+  /// Buttons, hints and title pills ([glass]).
+  Color get glassColor =>
+      glass ??
+      (resolvedBlur
+          ? (isDark ? const Color(0x9412151B) : const Color(0xADFFFFFF))
+          : (isDark ? const Color(0xD912151B) : const Color(0xE6FFFFFF)));
 
-  /// Sheets and cards: glass that text sits on.
-  Color get glassStrongColor => resolvedBlur
-      ? (isDark ? const Color(0xCC101318) : const Color(0xDBFFFFFF))
-      : (isDark ? const Color(0xF2101318) : const Color(0xF7FFFFFF));
+  /// Sheets and cards: the more opaque glass that text sits on ([sheet]).
+  Color get sheetColor =>
+      sheet ??
+      (resolvedBlur
+          ? (isDark ? const Color(0xCC101318) : const Color(0xDBFFFFFF))
+          : (isDark ? const Color(0xF2101318) : const Color(0xF7FFFFFF)));
+
+  /// The outlines of the codes in view ([outline]).
+  Color get outlineColor => outline ?? lockColor;
+
+  /// The faint fill inside the outlines of the codes in view.
+  Color get outlineFillColor => outline == null
+      ? lockSoftColor
+      : outline!.withValues(alpha: isDark ? 0.22 : 0.18);
 
   /// The light edge along the top of glass.
   Color get glassEdgeColor =>
@@ -340,8 +665,21 @@ final class ScannerTheme with Diagnosticable {
     ),
   };
 
+  /// Shape of the scan window as drawn: a rounded rectangle, or an oval for
+  /// [ScannerWindowShape.circle]. Its `getOuterPath` gives the window's
+  /// outline, for a window of your own.
+  ShapeBorder get windowBorder => switch (resolvedWindowShape) {
+    ScannerWindowShape.circle => const OvalBorder(),
+    _ => RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(resolvedWindowRadius)),
+    ),
+  };
+
   /// Shape of the result sheets and cards.
   ShapeBorder get sheetBorder => switch (resolvedButtonShape) {
+    _ when sheetRadius != null => RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(sheetRadius!)),
+    ),
     ScannerButtonShape.circle => const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(32),
@@ -367,47 +705,54 @@ final class ScannerTheme with Diagnosticable {
   TextStyle get _text => TextStyle(fontFamily: fontFamily, color: inkColor);
 
   /// Sheet titles: a merchant, a network, a link's host.
-  TextStyle get titleStyle => _text.copyWith(
-    fontSize: 22,
-    height: 28 / 22,
-    fontWeight: FontWeight.w600,
-    letterSpacing: -0.22,
-  );
+  TextStyle get titleStyle => _text
+      .copyWith(
+        fontSize: 22,
+        height: 28 / 22,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.22,
+      )
+      .merge(textStyles.title);
 
   /// Large numbers, such as an amount.
-  TextStyle get displayStyle => _text.copyWith(
-    fontSize: 34,
-    height: 40 / 34,
-    fontWeight: FontWeight.w600,
-    letterSpacing: -0.68,
-    fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-  );
+  TextStyle get displayStyle => _text
+      .copyWith(
+        fontSize: 34,
+        height: 40 / 34,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.68,
+        fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+      )
+      .merge(textStyles.display);
 
   /// The small capitals above a title ("LINK", "PAYMENT REQUEST").
-  TextStyle get overlineStyle => _text.copyWith(
-    fontSize: 12,
-    height: 16 / 12,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 0.48,
-    color: inkMutedColor,
-  );
+  TextStyle get overlineStyle => _text
+      .copyWith(
+        fontSize: 12,
+        height: 16 / 12,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.48,
+        color: inkMutedColor,
+      )
+      .merge(textStyles.overline);
 
   /// Body text.
-  TextStyle get bodyStyle => _text.copyWith(fontSize: 16, height: 1.5);
+  TextStyle get bodyStyle =>
+      _text.copyWith(fontSize: 16, height: 1.5).merge(textStyles.body);
 
   /// Secondary body text.
-  TextStyle get mutedStyle => bodyStyle.copyWith(color: inkMutedColor);
+  TextStyle get mutedStyle =>
+      bodyStyle.copyWith(color: inkMutedColor).merge(textStyles.muted);
 
   /// Hints and title pills.
-  TextStyle get hintStyle => _text.copyWith(
-    fontSize: 15,
-    height: 20 / 15,
-    fontWeight: FontWeight.w500,
-  );
+  TextStyle get hintStyle => _text
+      .copyWith(fontSize: 15, height: 20 / 15, fontWeight: FontWeight.w500)
+      .merge(textStyles.hint);
 
   /// Buttons.
-  TextStyle get labelStyle =>
-      _text.copyWith(fontSize: 16, height: 1.5, fontWeight: FontWeight.w600);
+  TextStyle get labelStyle => _text
+      .copyWith(fontSize: 16, height: 1.5, fontWeight: FontWeight.w600)
+      .merge(textStyles.label);
 
   /// Barcode data: payloads and codes.
   TextStyle get dataStyle => TextStyle(
@@ -418,15 +763,17 @@ final class ScannerTheme with Diagnosticable {
     fontWeight: FontWeight.w500,
     color: inkColor,
     fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-  );
+  ).merge(textStyles.data);
 
   /// Symbology chips ("QR Code").
-  TextStyle get chipStyle => dataStyle.copyWith(
-    fontSize: 12,
-    height: 16 / 12,
-    letterSpacing: 0.48,
-    color: lockInkColor,
-  );
+  TextStyle get chipStyle => dataStyle
+      .copyWith(
+        fontSize: 12,
+        height: 16 / 12,
+        letterSpacing: 0.48,
+        color: lockInkColor,
+      )
+      .merge(textStyles.chip);
 
   static const String _monoFamily = 'Menlo';
   static const List<String> _monoFallback = <String>[
@@ -455,10 +802,19 @@ final class ScannerTheme with Diagnosticable {
       other.scrim == scrim &&
       other.bracketWidth == bracketWidth &&
       other.bracketLength == bracketLength &&
+      other.windowShape == windowShape &&
+      other.breathing == breathing &&
+      other.scanLine == scanLine &&
+      other.glass == glass &&
+      other.sheet == sheet &&
+      other.sheetRadius == sheetRadius &&
+      other.outline == outline &&
+      other.outlineWidth == outlineWidth &&
+      other.textStyles == textStyles &&
       other.icons == icons;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll(<Object?>[
     accent,
     brightness,
     windowRadius,
@@ -473,8 +829,17 @@ final class ScannerTheme with Diagnosticable {
     scrim,
     bracketWidth,
     bracketLength,
+    windowShape,
+    breathing,
+    scanLine,
+    glass,
+    sheet,
+    sheetRadius,
+    outline,
+    outlineWidth,
+    textStyles,
     icons,
-  );
+  ]);
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -496,6 +861,23 @@ final class ScannerTheme with Diagnosticable {
       ..add(ColorProperty('scrim', scrim, defaultValue: null))
       ..add(DoubleProperty('bracketWidth', bracketWidth, defaultValue: null))
       ..add(DoubleProperty('bracketLength', bracketLength, defaultValue: null))
+      ..add(EnumProperty<ScannerWindowShape>('windowShape', windowShape))
+      ..add(FlagProperty('breathing', value: breathing, ifFalse: 'still'))
+      ..add(
+        DiagnosticsProperty<ScanLine>('scanLine', scanLine, defaultValue: null),
+      )
+      ..add(ColorProperty('glass', glass, defaultValue: null))
+      ..add(ColorProperty('sheet', sheet, defaultValue: null))
+      ..add(DoubleProperty('sheetRadius', sheetRadius, defaultValue: null))
+      ..add(ColorProperty('outline', outline, defaultValue: null))
+      ..add(DoubleProperty('outlineWidth', outlineWidth, defaultValue: null))
+      ..add(
+        DiagnosticsProperty<ScannerTextStyles>(
+          'textStyles',
+          textStyles,
+          defaultValue: const ScannerTextStyles(),
+        ),
+      )
       ..add(
         DiagnosticsProperty<ScannerIconSet>(
           'icons',

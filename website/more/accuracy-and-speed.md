@@ -21,6 +21,8 @@ keeps the rest small:
 - The scan window and the brackets on a code redraw the screen only when
   something moves, not at the display's full rate.
 - The blur turns itself off on a phone without room for it (see below).
+- The brackets' breathing and the optional scan line draw 30 times a
+  second, not at the display's rate, and only while the scanner searches.
 
 `stop()` releases the camera entirely: use it when the scanner is not on
 screen for long.

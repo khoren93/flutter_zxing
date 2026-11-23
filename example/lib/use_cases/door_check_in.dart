@@ -1,7 +1,11 @@
 // Tickets at the door: the scanner never stops, each ticket is checked
 // against the guest list and gets a green, amber or red verdict, and a
-// counter shows how many came in. Android, iOS, macOS, the web.
+// counter shows how many came in, with your own sound for each verdict.
+// Android, iOS, macOS, the web.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
 class DoorCheckInPage extends StatefulWidget {
@@ -35,10 +39,25 @@ class _DoorCheckInPageState extends State<DoorCheckInPage> {
     return ScanVerdict.accept(title: guest, message: 'Welcome!');
   }
 
+  // Instead of the template's sounds and haptics.
+  void _feedback(ScanFeedback kind) {
+    // Your own sound: play your app's beep and buzz here, such as with an
+    // audio package. This one only buzzes, harder for a refused ticket.
+    unawaited(switch (kind) {
+      ScanFeedback.rejected => HapticFeedback.vibrate(),
+      ScanFeedback.warned => HapticFeedback.heavyImpact(),
+      _ => HapticFeedback.lightImpact(),
+    });
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     body: BarcodeScanner(
-      template: ScannerTemplate.checkIn(check: _check, hint: 'Scan the ticket'),
+      template: ScannerTemplate.checkIn(
+        check: _check,
+        hint: 'Scan the ticket',
+        onFeedback: _feedback,
+      ),
     ),
   );
 }

@@ -153,6 +153,22 @@ enum ScannerMode {
   pick,
 }
 
+/// What happened to a code, for `ScannerTemplate.onFeedback` to play a
+/// sound or haptic of your own.
+enum ScanFeedback {
+  /// A code was taken, by a template without a check.
+  found,
+
+  /// The template's check accepted a code (`ScanVerdict.accept`).
+  accepted,
+
+  /// The check flagged a code that needs a look (`ScanVerdict.warn`).
+  warned,
+
+  /// The check refused a code (`ScanVerdict.reject`).
+  rejected,
+}
+
 /// A ready-made scanner screen: which buttons it has, where the scan window
 /// is, what happens when a code is found, and its default [theme].
 ///
@@ -211,6 +227,7 @@ final class ScannerTemplate {
     this.facing,
     this.haptics = true,
     this.sound = false,
+    this.onFeedback,
   }) : _titleOf = null,
        _hintOf = null;
 
@@ -247,6 +264,7 @@ final class ScannerTemplate {
     required this.facing,
     required this.haptics,
     required this.sound,
+    required this.onFeedback,
     required String Function(ScannerLocalizations texts)? titleOf,
     required String Function(ScannerLocalizations texts)? hintOf,
   }) : _titleOf = titleOf,
@@ -277,6 +295,7 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.onFeedback,
   }) : mode = ScannerMode.single,
        largeHint = false,
        hiddenExit = false,
@@ -313,6 +332,7 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.onFeedback,
     this.zoomButtons = false,
     this.switchCameraButton = false,
     this.controlsLayout = ScannerControlsLayout.adaptive,
@@ -355,6 +375,7 @@ final class ScannerTemplate {
     this.check,
     this.haptics = true,
     this.sound = false,
+    this.onFeedback,
     this.hint,
     this.photoButton = false,
     this.zoomButtons = false,
@@ -404,6 +425,7 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.onFeedback,
     this.hint,
     this.photoButton = false,
     this.zoomButtons = false,
@@ -449,6 +471,7 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.onFeedback,
     this.zoomButtons = false,
     this.switchCameraButton = false,
     this.controlsLayout = ScannerControlsLayout.adaptive,
@@ -491,6 +514,7 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.onFeedback,
     this.zoomButtons = false,
     this.switchCameraButton = false,
     this.controlsLayout = ScannerControlsLayout.adaptive,
@@ -539,6 +563,7 @@ final class ScannerTemplate {
     this.initialZoom = 2,
     this.haptics = true,
     this.sound = false,
+    this.onFeedback,
     this.photoButton = false,
     this.switchCameraButton = false,
     this.controlsLayout = ScannerControlsLayout.adaptive,
@@ -578,6 +603,7 @@ final class ScannerTemplate {
     this.check,
     this.haptics = true,
     this.sound = false,
+    this.onFeedback,
     this.photoButton = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
@@ -626,6 +652,7 @@ final class ScannerTemplate {
     this.resumeAfter = const Duration(seconds: 2),
     this.haptics = true,
     this.sound = true,
+    this.onFeedback,
     this.title,
     this.photoButton = false,
     this.zoomButtons = false,
@@ -671,6 +698,7 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.onFeedback,
     this.photoButton = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
@@ -717,6 +745,7 @@ final class ScannerTemplate {
     this.closeOnResult = false,
     this.haptics = true,
     this.sound = false,
+    this.onFeedback,
     this.zoomButtons = false,
     this.switchCameraButton = false,
     this.controlsLayout = ScannerControlsLayout.adaptive,
@@ -758,6 +787,7 @@ final class ScannerTemplate {
     this.check,
     this.haptics = true,
     this.sound = false,
+    this.onFeedback,
     this.hint,
     this.photoButton = false,
     this.zoomButtons = false,
@@ -804,6 +834,7 @@ final class ScannerTemplate {
     this.facing = CameraFacing.front,
     this.haptics = false,
     this.sound = true,
+    this.onFeedback,
     this.photoButton = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
@@ -847,6 +878,7 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.onFeedback,
     this.hint,
   }) : mode = ScannerMode.single,
        scanWindow = const ScanWindow.full(),
@@ -892,6 +924,7 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.onFeedback,
     this.photoButton = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
@@ -943,6 +976,7 @@ final class ScannerTemplate {
     this.actionsBuilder,
     this.haptics = true,
     this.sound = false,
+    this.onFeedback,
     this.zoomButtons = false,
     this.switchCameraButton = false,
     this.controlsLayout = ScannerControlsLayout.adaptive,
@@ -1143,8 +1177,23 @@ final class ScannerTemplate {
 
   /// The system click sound when a code is found, the alert sound when one
   /// is refused or flagged (Android and iOS; the system's sound settings
-  /// apply). For a sound of your own, play it in `BarcodeScanner.onDetect`.
+  /// apply). For a sound of your own, use [onFeedback].
   final bool sound;
+
+  /// Your own sound or haptic for each outcome, instead of the built-in
+  /// ones: when set, [haptics] and [sound] are not played.
+  ///
+  /// ```dart
+  /// onFeedback: (kind) => switch (kind) {
+  ///   ScanFeedback.found || ScanFeedback.accepted => player.play(beep),
+  ///   ScanFeedback.warned || ScanFeedback.rejected => player.play(buzz),
+  /// },
+  /// ```
+  ///
+  /// Called once for each code taken, refused or flagged, at the moment the
+  /// built-in feedback would play; in [ScannerMode.collect], once for the
+  /// codes of a frame.
+  final ValueChanged<ScanFeedback>? onFeedback;
 
   /// How the scanner's own controller reports codes for this template.
   DetectionMode get detection => switch (mode) {
@@ -1212,6 +1261,7 @@ final class ScannerTemplate {
     ValueGetter<CameraFacing?>? facing,
     bool? haptics,
     bool? sound,
+    ValueGetter<ValueChanged<ScanFeedback>?>? onFeedback,
   }) => ScannerTemplate._copy(
     theme: theme ?? this.theme,
     scanWindow: scanWindow ?? this.scanWindow,
@@ -1249,6 +1299,7 @@ final class ScannerTemplate {
     facing: facing == null ? this.facing : facing(),
     haptics: haptics ?? this.haptics,
     sound: sound ?? this.sound,
+    onFeedback: onFeedback == null ? this.onFeedback : onFeedback(),
     titleOf: _titleOf,
     hintOf: _hintOf,
   );

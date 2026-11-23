@@ -23,8 +23,9 @@ typedef _Look = ({
 final List<_Look> _looks = [
   (
     name: 'Bank',
-    // A card-shaped window for payment QR codes, light glass, square
-    // buttons and corners, and the app's Material icons on the buttons.
+    // A card-shaped window for payment QR codes, buttons and panels in the
+    // bank's pale blue, a plain white sheet, square corners, bolder texts
+    // and the app's Material icons on the buttons.
     template: const ScannerTemplate.minimal(
       title: 'Pay by QR code',
       hint: 'Fit the payment code in the frame',
@@ -37,6 +38,13 @@ final List<_Look> _looks = [
       brightness: Brightness.light,
       buttonShape: ScannerButtonShape.roundedSquare,
       windowRadius: 6,
+      glass: Color(0xFFEAF0FF), // opaque: no blur behind it
+      sheet: Color(0xFFFFFFFF),
+      sheetRadius: 16,
+      textStyles: ScannerTextStyles(
+        title: TextStyle(fontWeight: FontWeight.w700),
+        hint: TextStyle(fontWeight: FontWeight.w600),
+      ),
       icons: ScannerIconSet(
         close: ScannerIconData.fromIconData(Icons.arrow_back),
         torchOn: ScannerIconData.fromIconData(Icons.flashlight_on_outlined),
@@ -49,8 +57,9 @@ final List<_Look> _looks = [
   ),
   (
     name: 'Grocery',
-    // A wide, low window for product barcodes, the torch for dark shelves,
-    // and "Next item" instead of "Scan again".
+    // A wide, low window for product barcodes with a till's red laser and
+    // still brackets without dimming, the torch for dark shelves, and "Next
+    // item" instead of "Scan again".
     template: ScannerTemplate.minimal(
       hint: 'Barcode on the product',
       scanWindow: const ScanWindow.centered(
@@ -65,14 +74,17 @@ final List<_Look> _looks = [
       accent: Color(0xFFFF6A1A),
       brightness: Brightness.dark,
       windowRadius: 4,
+      windowShape: ScannerWindowShape.bracketsOnly,
+      breathing: false,
+      scanLine: ScanLine(color: Color(0xFFFF1A1A)), // costs some energy
     ),
     texts: _TillTexts(),
   ),
   (
     name: 'Club',
-    // A small square high up, round corners, pink on dark glass with pink
-    // brackets over a deep violet scrim, and its own colors for a ticket
-    // that was used or is not valid.
+    // A small round window high up, pink on dark glass with pink arcs over
+    // a deep violet scrim, and its own colors for a ticket that was used or
+    // is not valid.
     template: const ScannerTemplate.minimal(
       title: 'Door',
       hint: 'Ticket QR code',
@@ -85,7 +97,7 @@ final List<_Look> _looks = [
     theme: const ScannerTheme(
       accent: Color(0xFFFF3FA4),
       brightness: Brightness.dark,
-      windowRadius: 40,
+      windowShape: ScannerWindowShape.circle,
       window: Color(0xFFFF8CC6),
       scrim: Color(0xC21A0B2E),
       bracketWidth: 4,
