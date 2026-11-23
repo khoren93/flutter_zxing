@@ -346,6 +346,10 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
       'resolution': _a.resolution.name,
       'window': _a.window.name,
       'returnErrors': _a.returnErrors,
+      // Where the camera was when the wait ended: the scanner picks the lens
+      // and zoom by itself.
+      'lens': _controller.lensSample.lens.name,
+      'zoom': _controller.value.zoom,
     };
   }
 
