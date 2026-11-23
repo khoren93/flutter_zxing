@@ -396,8 +396,16 @@ of them; this table gives the new form.
 | `ProductContent.gtin` as printed | `ProductContent.number`; `gtin` is a GTIN-14 |
 | `CryptoContent.amount` in wei (Ethereum) | `amount` in ether; wei in `value` |
 | An exhaustive `switch` on `BarcodeContent` | add a `default`: new kinds come in minor versions |
+| `ScannerStrings(close: ...)`, `strings.copyWith(...)` | A subclass of `ScannerLocalizationsEn` (or `ScannerLocalizationsRu`) that overrides the texts; see [Change a text](/scanning/theming#change-a-text) |
+| `strings:` on `ScannerScope`, `BarcodeScanner`, `scanBarcode`, `openScanner`, `scanContent`, `ScanFieldButton` | `texts:`, a `ScannerLocalizations` |
+| `ScannerStrings.of(context)` | `ScannerLocalizations.of(context)` |
+| `strings.wifiSecurity(security)`, `strings.vinRegion(region)`, `strings.amount(amount, currency)` | `texts.wifiSecurityOf(security)`, `texts.vinRegionOf(region)`, `texts.amountOf(amount, currency)` |
 
 Behaviour that changed without a compile error:
+
+- The scanner's texts follow the app's locale: an app whose locale is
+  Russian shows them in Russian («31 авг. 1977»). English dates read
+  "Aug 31, 1977" and "Nov 14" instead of "31 Aug 1977" and "14 Nov".
 
 - `barcode.rotation` of camera captures is in screen orientation, like the
   corners.

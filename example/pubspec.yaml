@@ -9,6 +9,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Material's, Cupertino's and the widgets' texts in Russian, so that the
+  # demo follows a Russian device (the scanner's texts need nothing).
+  flutter_localizations:
+    sdk: flutter
   flutter_zxing:
     path: ../
   # The diagnostics' load ladder opens the camera without the scanner.

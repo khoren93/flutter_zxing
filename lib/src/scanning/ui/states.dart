@@ -4,11 +4,11 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 
 import '../../errors.dart';
+import '../l10n/scanner_localizations.dart';
 import '../scan_window.dart';
 import 'glass.dart';
 import 'result_sheet.dart';
 import 'scanner_icons.dart';
-import 'scanner_strings.dart';
 import 'scanner_theme.dart';
 import 'window_overlay.dart';
 
@@ -100,7 +100,7 @@ class _ScannerPlaceholderState extends State<ScannerPlaceholder>
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
-    final ScannerStrings strings = ScannerStrings.of(context);
+    final ScannerLocalizations texts = ScannerLocalizations.of(context);
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final Size size = constraints.biggest;
@@ -140,7 +140,7 @@ class _ScannerPlaceholderState extends State<ScannerPlaceholder>
                 right: 16,
                 top: math.min(window.bottom + 24, size.height - 64),
                 child: Center(
-                  child: ScannerHint(strings.starting, liveRegion: true),
+                  child: ScannerHint(texts.starting, liveRegion: true),
                 ),
               ),
             ],
@@ -212,26 +212,26 @@ class ScannerErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
-    final ScannerStrings strings = ScannerStrings.of(context);
+    final ScannerLocalizations texts = ScannerLocalizations.of(context);
     final bool permission = error is CameraPermissionException;
     final String title = permission
-        ? strings.permissionTitle
-        : strings.unavailableTitle;
+        ? texts.permissionTitle
+        : texts.unavailableTitle;
     final String message = <String>[
       switch (error) {
-        CameraPermissionException() => strings.permissionMessage,
-        CameraInUseException() => strings.inUseMessage,
-        CameraUnsupportedException() => strings.unsupportedMessage,
-        _ => strings.unavailableMessage,
+        CameraPermissionException() => texts.permissionMessage,
+        CameraInUseException() => texts.inUseMessage,
+        CameraUnsupportedException() => texts.unsupportedMessage,
+        _ => texts.unavailableMessage,
       },
-      if (onPickImage != null) strings.photoFallback,
+      if (onPickImage != null) texts.photoFallback,
     ].join(' ');
     final VoidCallback? primaryAction = permission && onOpenSettings != null
         ? onOpenSettings
         : onRetry;
     final String primaryLabel = permission && onOpenSettings != null
-        ? strings.openSettings
-        : strings.tryAgain;
+        ? texts.openSettings
+        : texts.tryAgain;
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
@@ -295,7 +295,7 @@ class ScannerErrorView extends StatelessWidget {
                         if (onPickImage != null) ...<Widget>[
                           const SizedBox(height: 12),
                           ScannerActionButton(
-                            label: strings.choosePhoto,
+                            label: texts.choosePhoto,
                             primary: primaryAction == null,
                             onPressed: onPickImage,
                           ),

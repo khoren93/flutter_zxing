@@ -5,11 +5,11 @@ import 'package:flutter/widgets.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../errors.dart';
+import '../l10n/scanner_localizations.dart';
 import '../scanner_controller.dart';
 import 'glass.dart';
 import 'pressable.dart';
 import 'scanner_icons.dart';
-import 'scanner_strings.dart';
 import 'scanner_theme.dart';
 
 /// A glass button that turns the torch on and off; hidden when the camera
@@ -28,11 +28,11 @@ class TorchButton extends StatelessWidget {
       if (state.torch == TorchState.unavailable) {
         return const SizedBox.shrink();
       }
-      final ScannerStrings strings = ScannerStrings.of(context);
+      final ScannerLocalizations texts = ScannerLocalizations.of(context);
       final bool on = state.torch == TorchState.on;
       return ScannerButton(
         icon: on ? ScannerIcons.torchOn : ScannerIcons.torchOff,
-        label: on ? strings.torchOff : strings.torchOn,
+        label: on ? texts.torchOff : texts.torchOn,
         selected: on,
         isToggle: true,
         onPressed: () => unawaited(controller.toggleTorch()),
@@ -60,7 +60,7 @@ class SwitchCameraButton extends StatelessWidget {
       }
       return ScannerButton(
         icon: ScannerIcons.switchCamera,
-        label: ScannerStrings.of(context).switchCamera,
+        label: ScannerLocalizations.of(context).switchCamera,
         onPressed: () => unawaited(controller.switchCamera()),
       );
     },
@@ -79,7 +79,7 @@ class ScannerCloseButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ScannerButton(
     icon: ScannerIcons.close,
-    label: ScannerStrings.of(context).close,
+    label: ScannerLocalizations.of(context).close,
     onPressed: onPressed ?? () => unawaited(Navigator.maybePop(context)),
   );
 }
@@ -105,7 +105,7 @@ class PickImageButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ScannerButton(
     icon: ScannerIcons.photo,
-    label: ScannerStrings.of(context).pickImage,
+    label: ScannerLocalizations.of(context).pickImage,
     onPressed: () => unawaited(_pick()),
   );
 
@@ -213,7 +213,7 @@ class ZoomButtons extends StatelessWidget {
       if (available.length < 2) {
         return const SizedBox.shrink();
       }
-      final ScannerStrings strings = ScannerStrings.of(context);
+      final ScannerLocalizations texts = ScannerLocalizations.of(context);
       final ScannerTheme theme = ScannerTheme.of(context);
       final Color pressedText = theme.isDark
           ? const Color(0xFF161A21)
@@ -286,8 +286,8 @@ class ZoomButtons extends StatelessWidget {
       final List<Widget> buttons = <Widget>[
         if (state.autoZoom != AutoZoomState.unavailable)
           button(
-            text: strings.autoZoom,
-            label: auto ? strings.autoZoomOff : strings.autoZoomOn,
+            text: texts.autoZoom,
+            label: auto ? texts.autoZoomOff : texts.autoZoomOn,
             selected: auto,
             toggle: true,
             onPressed: () => unawaited(controller.setAutoZoom(!auto)),
@@ -305,7 +305,7 @@ class ZoomButtons extends StatelessWidget {
       ];
       return Semantics(
         container: true,
-        label: strings.zoom,
+        label: texts.zoom,
         // The targets reach the glass's edge; the pills keep their inset.
         child: ScannerGlass(
           padding: direction == Axis.horizontal

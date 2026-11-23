@@ -489,7 +489,7 @@ void main() {
 
     test('the result sheet names the service', () {
       expect(
-        const ScannerStrings().kindOf(LinkService.telegram.link('dart')),
+        ScannerLocalizationsEn().kindOf(LinkService.telegram.link('dart')),
         'Telegram',
       );
     });

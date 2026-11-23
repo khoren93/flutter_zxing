@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart'
 // which needs Flutter 3.47; the example still supports Flutter 3.41.
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
 import 'built_with.dart';
@@ -27,6 +28,17 @@ class DemoApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
     title: 'flutter_zxing',
+    // On a Russian device the package's texts are in Russian; the demo's
+    // own texts stay English. The scanner needs no delegate: registering
+    // ScannerLocalizations.delegate is the optional, explicit way.
+    supportedLocales: ScannerLocalizations.supportedLocales,
+    localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
+      ScannerLocalizations.delegate,
+      // The Global*Localizations are deprecated since Flutter 3.47 in favour
+      // of package:material_ui; the example still supports Flutter 3.41.
+      // ignore: deprecated_member_use
+      ...GlobalMaterialLocalizations.delegates,
+    ],
     theme: demoTheme(Brightness.light),
     darkTheme: demoTheme(Brightness.dark),
     home: const DemoShell(),

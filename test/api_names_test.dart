@@ -56,7 +56,11 @@ const List<Type> _types = <Type>[
   // Scanner screens
   ScannerTemplate, ScannerMode, ScannerPickCallback, ScannerPresentation,
   ScanFieldButton, ScannerResultBuilder, ScannerActionsBuilder, ScannerTheme,
-  ScannerButtonShape, ScannerScope, ScannerStrings, ScannerIcon,
+  ScannerButtonShape,
+  ScannerScope,
+  ScannerLocalizations,
+  ScannerLocalizationsEn,
+  ScannerLocalizationsRu, ScannerIcon,
   ScannerIconData, ScannerIcons, ScannerGlass, ScannerButton, ScannerHint,
   ScannerSheet, ScannerActionButton, ScannerChip, ScannerCloseButton,
   PickImageButton, ZoomButtons, ScannerAction, ScannerActions, ScannerBadge,

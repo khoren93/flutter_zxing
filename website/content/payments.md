@@ -79,12 +79,13 @@ Widget bill(PaymentContent payment) => BarcodeContentView(
 );
 ```
 
-`ScannerStrings.amount` writes an amount with its currency as the result
-sheet does ("1949.75 EUR", "Any amount" without one); give your own to
-format it for a locale.
+`ScannerLocalizations.amountOf` writes an amount with its currency as the
+result sheet does, in the scanner's language ("1949.75 EUR", "Any amount"
+without one); override `amount` and `anyAmount` in your
+[texts](/scanning/theming#change-a-text) to format money for a locale.
 
 ```dart
 Widget amount(BuildContext context, PaymentContent payment) => Text(
-  ScannerStrings.of(context).amount(payment.amount, payment.currency),
+  ScannerLocalizations.of(context).amountOf(payment.amount, payment.currency),
 );
 ```

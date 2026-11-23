@@ -4,12 +4,12 @@ import 'package:flutter/widgets.dart';
 
 import '../../barcode/barcode.dart';
 import '../../barcode/barcode_format.dart';
+import '../l10n/scanner_localizations.dart';
 import '../scan_window.dart';
 import '../scanner_controller.dart';
 import 'pressable.dart';
 import 'scan_verdict.dart';
 import 'scanner_icons.dart';
-import 'scanner_strings.dart';
 import 'scanner_template.dart';
 import 'scanner_theme.dart';
 
@@ -46,7 +46,7 @@ class ScanFieldButton extends StatelessWidget {
     this.template,
     this.presentation = ScannerPresentation.sheet,
     this.theme,
-    this.strings,
+    this.texts,
     this.onScanned,
   });
 
@@ -66,7 +66,7 @@ class ScanFieldButton extends StatelessWidget {
   /// A title pill over the scanner, such as the field's label.
   final String? title;
 
-  /// A hint under the scan window; default [ScannerStrings.hintField], or
+  /// A hint under the scan window; default [ScannerLocalizations.hintField], or
   /// the [template]'s hint. An empty string for none.
   final String? hint;
 
@@ -82,7 +82,7 @@ class ScanFieldButton extends StatelessWidget {
   final ScannerTheme? theme;
 
   /// The texts of the scanner and the button's label.
-  final ScannerStrings? strings;
+  final ScannerLocalizations? texts;
 
   /// Called with the code after the field was filled.
   final ValueChanged<Barcode>? onScanned;
@@ -107,10 +107,10 @@ class ScanFieldButton extends StatelessWidget {
       hint:
           hint ??
           (template == null
-              ? (strings ?? ScannerStrings.of(context)).hintField
+              ? (texts ?? ScannerLocalizations.of(context)).hintField
               : null),
       theme: theme,
-      strings: strings,
+      texts: texts,
     );
     if (barcode == null) {
       return;
@@ -126,7 +126,8 @@ class ScanFieldButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ScannerTheme resolved = ScannerTheme.of(context).merge(theme);
-    final ScannerStrings texts = strings ?? ScannerStrings.of(context);
+    final ScannerLocalizations texts =
+        this.texts ?? ScannerLocalizations.of(context);
     const ShapeBorder shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.all(Radius.circular(12)),
     );

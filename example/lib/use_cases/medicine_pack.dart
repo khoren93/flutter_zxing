@@ -12,7 +12,7 @@ class MedicinePackPage extends StatelessWidget {
   // Your code: the batches your verification system has recalled.
   static const Set<String> _recalled = {'RECALL1'};
 
-  ScanVerdict? _check(Barcode barcode, ScannerStrings strings) {
+  ScanVerdict? _check(Barcode barcode, ScannerLocalizations texts) {
     final BarcodeContent content = barcode.content;
     if (content is! Gs1Content || content.gtin == null) {
       return const ScanVerdict.reject(
@@ -24,7 +24,7 @@ class MedicinePackPage extends StatelessWidget {
       return ScanVerdict.reject(
         title: 'Expired',
         message:
-            'Expired on ${strings.fullDate(content.expiryDate!)}. '
+            'Expired on ${texts.fullDate(content.expiryDate!)}. '
             'Do not dispense.',
       );
     }
@@ -43,7 +43,7 @@ class MedicinePackPage extends StatelessWidget {
       template: ScannerTemplate.pharma(
         title: 'Dispense',
         // The dates in the language of the scanner's texts.
-        check: (barcode) => _check(barcode, ScannerStrings.of(context)),
+        check: (barcode) => _check(barcode, ScannerLocalizations.of(context)),
         actionsBuilder: (context, result) => [
           ScannerAction(
             label: 'Dispense',

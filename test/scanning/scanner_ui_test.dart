@@ -1005,7 +1005,7 @@ void main() {
       await tester.pump();
       expect(find.text("The camera isn't available"), findsOneWidget);
       expect(
-        find.textContaining(const ScannerStrings().inUseMessage),
+        find.textContaining(ScannerLocalizationsEn().inUseMessage),
         findsOneWidget,
       );
 
@@ -1014,21 +1014,18 @@ void main() {
       await tester.pump();
       await tester.pump();
       expect(
-        find.textContaining(const ScannerStrings().unsupportedMessage),
+        find.textContaining(ScannerLocalizationsEn().unsupportedMessage),
         findsOneWidget,
       );
     });
 
-    testWidgets('strings replace every text', (WidgetTester tester) async {
+    testWidgets('texts replace every text', (WidgetTester tester) async {
       camera.openError = const CameraPermissionException();
       await tester.pumpWidget(
         _host(
-          const BarcodeScanner(
-            template: ScannerTemplate.retail(),
-            strings: ScannerStrings(
-              permissionTitle: 'Kamera aus',
-              tryAgain: 'Nochmal',
-            ),
+          BarcodeScanner(
+            template: const ScannerTemplate.retail(),
+            texts: _CameraTexts(),
           ),
         ),
       );
@@ -2098,19 +2095,6 @@ void main() {
       await tester.pump();
       expect(camera.focus, isNotNull);
     });
-
-    test('equal strings are equal', () {
-      final String close = <String>['Schließen'].join();
-      expect(ScannerStrings(close: close), ScannerStrings(close: close));
-      expect(
-        ScannerStrings(close: close).hashCode,
-        ScannerStrings(close: close).hashCode,
-      );
-      expect(
-        const ScannerStrings(close: 'a'),
-        isNot(const ScannerStrings(close: 'b')),
-      );
-    });
   });
 
   group('BarcodeThumbnail', () {
@@ -2299,7 +2283,7 @@ void main() {
       );
       expect(find.text("DRIVER'S LICENSE · CA"), findsOneWidget);
       expect(find.text('JOHN QUINCY PUBLIC'), findsOneWidget);
-      expect(find.text('31 Aug 1977'), findsOneWidget);
+      expect(find.text('Aug 31, 1977'), findsOneWidget);
       expect(find.text('Expired'), findsOneWidget);
     });
 
@@ -2379,7 +2363,7 @@ void main() {
         ),
       );
       expect(find.text('Launch'), findsOneWidget);
-      expect(find.text('14 Nov 2026 09:30 – 11:00 · Zurich'), findsOneWidget);
+      expect(find.text('Nov 14, 2026 09:30 – 11:00 · Zurich'), findsOneWidget);
     });
 
     testWidgets('e-mail, phone, SMS and a location', (
@@ -2412,7 +2396,7 @@ void main() {
       expect(find.text('GS1 · GTIN'), findsOneWidget);
       expect(find.text('09501101530003'), findsOneWidget);
       expect(find.text('EXPIRES'), findsOneWidget);
-      expect(find.text('31 Dec 2026'), findsOneWidget);
+      expect(find.text('Dec 31, 2026'), findsOneWidget);
     });
 
     testWidgets('GS1 of a medicine pack: batch, serial, expired', (
@@ -2428,7 +2412,7 @@ void main() {
         ),
       );
       expect(find.text('09501101530003'), findsOneWidget);
-      expect(find.text('31 Jan 2025'), findsOneWidget);
+      expect(find.text('Jan 31, 2025'), findsOneWidget);
       expect(find.text('AB12C'), findsOneWidget);
       expect(find.text('7C4K9M2'), findsOneWidget);
       expect(find.text('(240)'), findsOneWidget);
@@ -2575,13 +2559,7 @@ void main() {
       await tester.pumpWidget(
         _host(
           ScannerScope(
-            strings: ScannerStrings(
-              amount: (String? amount, String? currency) => amount == null
-                  ? 'Qualquer valor'
-                  : currency == 'BRL'
-                  ? 'R\$ ${amount.replaceAll('.', ',')}'
-                  : amount,
-            ),
+            texts: _BrazilianAmounts(),
             child: Align(
               alignment: Alignment.bottomCenter,
               child: BarcodeResultSheet(
@@ -2657,4 +2635,22 @@ String _crc(String text) {
     }
   }
   return crc.toRadixString(16).toUpperCase().padLeft(4, '0');
+}
+
+class _CameraTexts extends ScannerLocalizationsEn {
+  @override
+  String get permissionTitle => 'Kamera aus';
+
+  @override
+  String get tryAgain => 'Nochmal';
+}
+
+class _BrazilianAmounts extends ScannerLocalizationsEn {
+  @override
+  String get anyAmount => 'Qualquer valor';
+
+  @override
+  String amount(String amount, String currency) => currency == 'BRL'
+      ? 'R\$ ${amount.replaceAll('.', ',')}'
+      : '$amount $currency';
 }

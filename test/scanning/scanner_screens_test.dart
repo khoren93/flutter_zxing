@@ -193,7 +193,7 @@ void main() {
         _app(
           (BuildContext context) => ScannerScope(
             theme: const ScannerTheme(accent: Color(0xFFFF6A1A)),
-            strings: const ScannerStrings(close: 'Schließen'),
+            texts: _German(),
             child: Builder(
               builder: (BuildContext context) => GestureDetector(
                 onTap: () => scanBarcode(context),
@@ -378,7 +378,7 @@ void main() {
               windowRadius: 6,
               brightness: Brightness.light,
             ),
-            strings: const ScannerStrings(close: 'Schließen'),
+            texts: _German(),
             child: BarcodeScanner(
               // The template's theme is dark.
               template: ScannerTemplate.retail(onClose: () {}),
@@ -398,7 +398,7 @@ void main() {
       semantics.dispose();
     });
 
-    testWidgets('strings passed to the scanner win over the scope', (
+    testWidgets('texts passed to the scanner win over the scope', (
       WidgetTester tester,
     ) async {
       await phone(tester);
@@ -406,10 +406,10 @@ void main() {
       await tester.pumpWidget(
         _host(
           ScannerScope(
-            strings: const ScannerStrings(close: 'Schließen'),
+            texts: _German(),
             child: BarcodeScanner(
               template: ScannerTemplate.minimal(onClose: () {}),
-              strings: const ScannerStrings(close: 'Fermer'),
+              texts: _French(),
             ),
           ),
         ),
@@ -421,11 +421,9 @@ void main() {
   });
 
   group('preset texts', () {
-    test('come from the strings; an empty string hides them', () {
-      const ScannerStrings de = ScannerStrings(
-        titlePayment: 'Mit QR bezahlen',
-        hintCode: 'Kamera auf einen Code richten',
-      );
+    test('come from the texts; an empty string hides them', () {
+      final ScannerLocalizations de = _German();
+      final ScannerLocalizations en = ScannerLocalizationsEn();
       expect(
         const ScannerTemplate.payment().resolveTitle(de),
         'Mit QR bezahlen',
@@ -435,7 +433,7 @@ void main() {
         'Kamera auf einen Code richten',
       );
       expect(
-        const ScannerTemplate.minimal().resolveHint(const ScannerStrings()),
+        const ScannerTemplate.minimal().resolveHint(en),
         'Point the camera at a code',
       );
       // Set by the app: wins; empty: none.
@@ -448,36 +446,25 @@ void main() {
       final ScannerTemplate copy = const ScannerTemplate.kiosk().copyWith(
         hint: () => 'Hier scannen',
       );
-      expect(copy.resolveTitle(const ScannerStrings()), 'Scan your ticket');
+      expect(copy.resolveTitle(en), 'Scan your ticket');
       expect(copy.resolveHint(de), 'Hier scannen');
       expect(
-        copy.copyWith(hint: () => null).resolveHint(const ScannerStrings()),
+        copy.copyWith(hint: () => null).resolveHint(en),
         'Hold the code up to the camera',
       );
       // The plain constructor has none.
       expect(const ScannerTemplate().resolveHint(de), isNull);
     });
 
-    test('copyWith of the strings replaces some texts', () {
-      final ScannerStrings strings = const ScannerStrings().copyWith(
-        scanAgain: 'Next',
-        itemCount: (int n) => '$n Stück',
-      );
-      expect(strings.scanAgain, 'Next');
-      expect(strings.itemCount(3), '3 Stück');
-      expect(strings.close, const ScannerStrings().close);
-      expect(const ScannerStrings().copyWith(), const ScannerStrings());
-    });
-
-    testWidgets('the scanner shows them in the language of its strings', (
+    testWidgets('the scanner shows them in the language of its texts', (
       WidgetTester tester,
     ) async {
       await phone(tester);
       await tester.pumpWidget(
         _host(
-          const BarcodeScanner(
-            template: ScannerTemplate.payment(),
-            strings: ScannerStrings(titlePayment: 'Mit QR bezahlen'),
+          BarcodeScanner(
+            template: const ScannerTemplate.payment(),
+            texts: _German(),
           ),
         ),
       );
@@ -493,7 +480,7 @@ void main() {
       expect(find.byType(ScannerHint), findsNothing);
     });
 
-    testWidgets('ScanFieldButton hints from the strings', (
+    testWidgets('ScanFieldButton hints from the texts', (
       WidgetTester tester,
     ) async {
       await phone(tester);
@@ -502,7 +489,7 @@ void main() {
       await tester.pumpWidget(
         _app(
           (BuildContext context) => ScannerScope(
-            strings: const ScannerStrings(hintField: 'Code anvisieren'),
+            texts: _German(),
             child: Center(child: ScanFieldButton(controller: field)),
           ),
         ),
@@ -1085,4 +1072,27 @@ void main() {
       expect(sheet.right - rtl.right, moreOrLessEquals(ltr.left - sheet.left));
     });
   });
+}
+
+class _German extends ScannerLocalizationsEn {
+  _German() : super('de');
+
+  @override
+  String get close => 'Schließen';
+
+  @override
+  String get titlePayment => 'Mit QR bezahlen';
+
+  @override
+  String get hintCode => 'Kamera auf einen Code richten';
+
+  @override
+  String get hintField => 'Code anvisieren';
+}
+
+class _French extends ScannerLocalizationsEn {
+  _French() : super('fr');
+
+  @override
+  String get close => 'Fermer';
 }

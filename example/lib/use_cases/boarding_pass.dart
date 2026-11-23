@@ -17,7 +17,7 @@ class BoardingPassPage extends StatelessWidget {
     // Anything else, such as a code from a photo: the default sheet.
     if (content is! BoardingPassContent) return null;
     final ScannerTheme theme = ScannerTheme.of(context);
-    final ScannerStrings strings = ScannerStrings.of(context);
+    final ScannerLocalizations texts = ScannerLocalizations.of(context);
     return ScannerSheet(
       label: 'Boarding pass',
       child: Column(
@@ -35,7 +35,7 @@ class BoardingPassPage extends StatelessWidget {
               'Flight': '${leg.carrier} ${leg.flightNumber}',
               // The pass gives the day of the year, not the year.
               if (leg.date() case final DateTime day)
-                'Date': strings.dayAndMonth(day),
+                'Date': texts.dayAndMonth(day),
               'Seat': leg.seat.isEmpty ? '–' : leg.seat,
               'Class': leg.cabin,
               'Booking': leg.bookingReference,

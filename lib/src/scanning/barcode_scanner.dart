@@ -39,7 +39,7 @@ class BarcodeScanner extends StatefulWidget {
     this.onDetect,
     this.template,
     this.theme,
-    this.strings,
+    this.texts,
     this.overlayBuilder,
     this.foregroundBuilder,
     this.errorBuilder,
@@ -66,8 +66,9 @@ class BarcodeScanner extends StatefulWidget {
   final ScannerTheme? theme;
 
   /// The texts; default those of a [ScannerScope] around the scanner, or
-  /// English.
-  final ScannerStrings? strings;
+  /// the built-in translation for the app's locale
+  /// ([ScannerLocalizations.of]).
+  final ScannerLocalizations? texts;
 
   /// Builds the overlay while the camera runs, instead of the [template]'s
   /// or the default [ScannerOverlay]. Return `const SizedBox.shrink()` for
@@ -424,7 +425,7 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
     return resolvedScannerScope(
       context,
       theme: theme,
-      strings: widget.strings ?? around?.strings ?? const ScannerStrings(),
+      texts: widget.texts ?? around?.texts,
       child: BackdropGroup(
         backdropKey: _backdrop,
         child: LayoutBuilder(
@@ -734,7 +735,7 @@ enum ScannerPresentation {
 /// [presentation] opens it as a page or as a sheet.
 ///
 /// The theme and texts of a [ScannerScope] around [context] apply, under
-/// the template's theme, [theme] and [strings].
+/// the template's theme, [theme] and [texts].
 Future<Barcode?> scanBarcode(
   BuildContext context, {
   Set<BarcodeFormat>? formats,
@@ -745,7 +746,7 @@ Future<Barcode?> scanBarcode(
   ScannerPresentation presentation = ScannerPresentation.page,
   ScannerTemplate? template,
   ScannerTheme? theme,
-  ScannerStrings? strings,
+  ScannerLocalizations? texts,
 }) {
   final ScannerTemplate base = template ?? const ScannerTemplate.minimal();
   final ScannerTemplate page = base.copyWith(
@@ -770,7 +771,7 @@ Future<Barcode?> scanBarcode(
     template: page,
     presentation: presentation,
     theme: theme,
-    strings: strings,
+    texts: texts,
   );
 }
 
@@ -801,26 +802,26 @@ Future<Barcode?> scanBarcode(
 /// ```
 ///
 /// The theme and texts of a [ScannerScope] around [context] apply, under
-/// the template's theme, [theme] and [strings]. [presentation] opens it as
+/// the template's theme, [theme] and [texts]. [presentation] opens it as
 /// a page or as a sheet.
 Future<T?> openScanner<T>(
   BuildContext context, {
   ScannerTemplate template = const ScannerTemplate.minimal(),
   ScannerPresentation presentation = ScannerPresentation.page,
   ScannerTheme? theme,
-  ScannerStrings? strings,
+  ScannerLocalizations? texts,
 }) => _pushScanner<T>(
   context,
   template: template,
   presentation: presentation,
   theme: theme,
-  strings: strings,
+  texts: texts,
 );
 
 /// Opens a scanner that accepts only content of the kind [T], such as an
 /// `OtpContent` or a `WifiContent`, and returns it, or `null` if the user
 /// closes the scanner. Other codes are refused with [reject] (by default
-/// [ScannerStrings.rejected]) and the scanner stays open. The other
+/// [ScannerLocalizations.rejected]) and the scanner stays open. The other
 /// parameters are those of [scanBarcode].
 ///
 /// ```dart
@@ -840,7 +841,7 @@ Future<T?> scanContent<T extends BarcodeContent>(
   ScannerPresentation presentation = ScannerPresentation.page,
   ScannerTemplate? template,
   ScannerTheme? theme,
-  ScannerStrings? strings,
+  ScannerLocalizations? texts,
 }) async {
   final Barcode? barcode = await scanBarcode(
     context,
@@ -852,7 +853,7 @@ Future<T?> scanContent<T extends BarcodeContent>(
     presentation: presentation,
     template: template,
     theme: theme,
-    strings: strings,
+    texts: texts,
   );
   return switch (barcode?.content) {
     final T content => content,
@@ -861,7 +862,7 @@ Future<T?> scanContent<T extends BarcodeContent>(
 }
 
 /// A [ScannerCheck] that accepts only content of the kind [T] and refuses
-/// the rest with [reject] (by default [ScannerStrings.rejected]).
+/// the rest with [reject] (by default [ScannerLocalizations.rejected]).
 ///
 /// ```dart
 /// ScannerTemplate.content(check: acceptOnly<WifiContent>(
@@ -877,18 +878,19 @@ Future<T?> _pushScanner<T>(
   required ScannerTemplate template,
   required ScannerPresentation presentation,
   ScannerTheme? theme,
-  ScannerStrings? strings,
+  ScannerLocalizations? texts,
 }) {
   final ScannerTemplate page = template;
   // The route is built under the navigator: take the caller's scope along.
   final ScannerScope? around = context
       .getInheritedWidgetOfExactType<ScannerScope>();
-  final ScannerStrings texts = strings ?? ScannerStrings.of(context);
+  final ScannerLocalizations resolved =
+      texts ?? ScannerLocalizations.of(context);
   // The page has no Material: keep the caller's font.
   final TextStyle text = DefaultTextStyle.of(context).style;
   final Widget scanner = ScannerScope(
     theme: around?.theme ?? const ScannerTheme(),
-    strings: texts,
+    texts: resolved,
     child: DefaultTextStyle(
       style: text,
       child: _ScanPage(
@@ -919,7 +921,7 @@ Future<T?> _pushScanner<T>(
       opaque: false,
       barrierDismissible: true,
       barrierColor: const Color(0x6B06090D),
-      barrierLabel: texts.close,
+      barrierLabel: resolved.close,
       transitionDuration: const Duration(milliseconds: 320),
       reverseTransitionDuration: const Duration(milliseconds: 240),
       pageBuilder:

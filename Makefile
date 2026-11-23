@@ -23,7 +23,7 @@ RUN_FLAGS = -t lib/$(APP).dart --$(MODE) $(if $(TAB),--dart-define=TAB=$(TAB),) 
 first_device = $(or $(DEVICE),$(shell cd example && flutter devices --machine 2>/dev/null | \
 	python3 -c "import json,sys; d=sorted((x for x in json.load(sys.stdin) if x['targetPlatform'].startswith('$(1)')), key=lambda x: 'iPad' in x['name'] or 'tablet' in x['name'].lower()); print(d[0]['id'] if d else '')"))
 
-.PHONY: help publish publish-dry test analyze sheets fixtures wasm sources \
+.PHONY: help publish publish-dry test analyze l10n sheets fixtures wasm sources \
 	devices run run-android run-ios run-web run-macos run-windows run-linux \
 	run-desktop web-engine diag perf diag-pull replay accuracy accuracy-causes \
 	site site-build site-shots site-check
@@ -42,6 +42,7 @@ help:
 	@echo "Development:"
 	@echo "  make test            Run the Dart tests"
 	@echo "  make analyze         Run the analyzer"
+	@echo "  make l10n            Regenerate the scanner's texts from lib/l10n/*.arb"
 	@echo "  make sheets          Draw every supported code into files of many sizes"
 	@echo "                       and read them back (build/check_sheets/index.html)"
 	@echo "  make accuracy        How far every code can be degraded before it stops"
@@ -104,6 +105,19 @@ test:
 
 analyze:
 	flutter analyze
+
+# The scanner's texts: lib/l10n/*.arb -> lib/src/scanning/l10n/ (committed).
+# CI runs it and fails on a diff: the generated code matches the ARB files.
+# gen-l10n runs from build/l10n, a project with `generate: true` and the
+# options of l10n.yaml: with that flag in pubspec.yaml, every `flutter pub
+# get` here would regenerate the code without tool/patch_l10n.dart.
+l10n:
+	rm -rf build/l10n && mkdir -p build/l10n
+	printf 'name: scanner_l10n\nenvironment:\n  sdk: ">=3.11.0 <4.0.0"\nflutter:\n  generate: true\n' > build/l10n/pubspec.yaml
+	sed -E 's#^(arb-dir|output-dir): #\1: ../../#' l10n.yaml > build/l10n/l10n.yaml
+	cd build/l10n && flutter gen-l10n
+	cd tool && dart run patch_l10n.dart ../lib/src/scanning/l10n/scanner_localizations.dart
+	dart format lib/src/scanning/l10n
 
 # FLUTTER_ROOT gives the sheets Roboto from the Flutter SDK.
 sheets:

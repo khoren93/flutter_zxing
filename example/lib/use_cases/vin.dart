@@ -29,8 +29,8 @@ class _VinPageState extends State<VinPage> {
       setState(() {
         _vin.text = vin.vin;
         _maker.text = vin.wmi; // Your code: the maker's name for the WMI
-        // In the language of the scanner's texts (ScannerStrings).
-        _region.text = ScannerStrings.of(context).vinRegion(vin.region);
+        // In the language of the scanner's texts (ScannerLocalizations).
+        _region.text = ScannerLocalizations.of(context).vinRegionOf(vin.region);
         _year.text = vin.modelYear?.toString() ?? '';
         _checkDigitOk = vin.hasValidCheckDigit;
       });

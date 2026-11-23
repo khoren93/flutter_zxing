@@ -4,18 +4,23 @@
 
 ### Breaking changes
 
+* The scanner's texts are translated: `ScannerStrings` is now
+  `ScannerLocalizations`, and `strings:` is `texts:` on `ScannerScope`,
+  `BarcodeScanner`, `scanBarcode`, `openScanner`, `scanContent` and
+  `ScanFieldButton`. To change a text, subclass a translation:
+  `class MyTexts extends ScannerLocalizationsEn { … }`.
 * `ScannerResult.close` is now `backToCodes`: it goes back to the codes of
   `ScannerTemplate.pick()`, it does not close the scanner.
 * `BarcodeStyle.encode`, `encodeBytes`, `encodePng` and `encodeSvg` take the
   writer as a named parameter, QR by default:
   `style.encodePng('https://pub.dev', size: 1024)`.
-* `ScannerStrings(money:)` is now `amount:`, and `wifiOpen` and
-  `wifiEnterprise` are one `wifiSecurity`.
 * `BoardingPassLeg.dateIn(year)` is now `date()`, which picks the year: a
   pass for 2 January scanned on 30 December is for next year.
 
 ### New
 
+* The scanner speaks English and Russian and follows the app's language
+  without any setup. Other languages are one translation file away.
 * Sheets of labels to print: `BarcodeLabelSheet` lays a list of data out on
   A4, Letter or your own paper in columns and rows, as a PDF or SVG pages,
   with a preview widget. 10 000 codes take about 1.5 seconds.
@@ -37,8 +42,6 @@
   data is wrong.
 * `BarcodeSymbol.toSvgElement` places a code in an SVG of your own.
 * `Gs1Content.contentsGtin`: the GTIN of the goods on a pallet (AI 02).
-* `ScannerStrings.wifiSecurity` and `amount` name a network's security and
-  a payment's amount in your language.
 * The demo has a Use cases tab: 24 ways apps use the package, each one file
   to try and copy. Also on the documentation site.
 

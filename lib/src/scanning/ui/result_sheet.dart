@@ -8,12 +8,13 @@ import 'package:flutter/widgets.dart';
 import '../../barcode/barcode.dart';
 import '../../content/barcode_content.dart';
 import '../../content/link_service.dart';
+import '../l10n/scanner_localizations.dart';
+import '../l10n/scanner_localizations_lookup.dart';
 import 'barcode_label.dart';
 import 'glass.dart';
 import 'pressable.dart';
 import 'scan_verdict.dart';
 import 'scanner_icons.dart';
-import 'scanner_strings.dart';
 import 'scanner_theme.dart';
 import 'thumbnail.dart';
 
@@ -30,7 +31,7 @@ final class ScannerAction {
        _scanAgain = false;
 
   /// Scans the next code: [onPressed] is `ScannerResult.scanAgain`. [label]
-  /// replaces [ScannerStrings.scanAgain].
+  /// replaces [ScannerLocalizations.scanAgain].
   ///
   /// ```dart
   /// actionsBuilder: (context, result) => [
@@ -47,7 +48,7 @@ final class ScannerAction {
        _scanAgain = true;
 
   /// Copies [text] to the clipboard; the button confirms with "Copied".
-  /// [label] replaces [ScannerStrings.copy], such as "Copy IBAN"; an empty
+  /// [label] replaces [ScannerLocalizations.copy], such as "Copy IBAN"; an empty
   /// string shows the icon alone.
   const ScannerAction.copy(String text, {this.primary = false, this.label})
     : icon = ScannerIcons.copy,
@@ -57,7 +58,7 @@ final class ScannerAction {
 
   /// The text; an empty string shows the [icon] alone. `null` for
   /// [ScannerAction.copy] and [ScannerAction.scanAgain] says
-  /// [ScannerStrings.copy] or [ScannerStrings.scanAgain].
+  /// [ScannerLocalizations.copy] or [ScannerLocalizations.scanAgain].
   final String? label;
 
   /// An icon before the text.
@@ -154,14 +155,14 @@ class BarcodeResultSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
-    final ScannerStrings strings = ScannerStrings.of(context);
+    final ScannerLocalizations texts = ScannerLocalizations.of(context);
     final BarcodeContent content = barcode.content;
     // A code with a secret is never shown as a number.
     final bool card = header == ResultHeader.card && content is! OtpContent;
-    final _Summary summary = _Summary.forHeader(barcode, header, strings);
-    final String kind = summary.kind ?? strings.kindOf(content);
+    final _Summary summary = _Summary.forHeader(barcode, header, texts);
+    final String kind = summary.kind ?? texts.kindOf(content);
     final List<ScannerAction> actions =
-        this.actions ?? summary.actions(barcode, strings, onScanAgain);
+        this.actions ?? summary.actions(barcode, texts, onScanAgain);
     final String symbology = _symbology(barcode);
     final VoidCallback? scanAgain = onScanAgain;
     final VoidCallback? close =
@@ -209,9 +210,7 @@ class BarcodeResultSheet extends StatelessWidget {
               if (close != null) ...<Widget>[
                 const SizedBox(width: 8),
                 _SheetClose(
-                  label: onClose != null
-                      ? strings.backToCodes
-                      : strings.scanAgain,
+                  label: onClose != null ? texts.backToCodes : texts.scanAgain,
                   onPressed: close,
                 ),
               ],
@@ -262,7 +261,7 @@ class BarcodeResultSheet extends StatelessWidget {
           ],
           if (summary.secret case final String secret) ...<Widget>[
             const SizedBox(height: 16),
-            _SecretField(secret, strings: strings),
+            _SecretField(secret, texts: texts),
           ],
           const SizedBox(height: 16),
           Wrap(
@@ -362,13 +361,13 @@ final class _Summary {
   factory _Summary.forHeader(
     Barcode barcode,
     ResultHeader header,
-    ScannerStrings strings,
+    ScannerLocalizations texts,
   ) => header == ResultHeader.card && barcode.content is! OtpContent
-      ? _Summary.card(barcode.text, strings)
-      : _Summary.of(barcode, barcode.content, strings);
+      ? _Summary.card(barcode.text, texts)
+      : _Summary.of(barcode, barcode.content, texts);
 
   /// A card number: [text] large, in groups of four when it has no spaces.
-  factory _Summary.card(String text, ScannerStrings strings) {
+  factory _Summary.card(String text, ScannerLocalizations texts) {
     final String trimmed = text.trim();
     final String code = trimmed.contains(' ')
         ? trimmed
@@ -377,8 +376,8 @@ final class _Summary {
               trimmed.substring(i, (i + 4).clamp(0, trimmed.length)),
           ].join(' ');
     return _Summary(
-      strings.cardNumber,
-      kind: strings.loyaltyCard,
+      texts.cardNumber,
+      kind: texts.loyaltyCard,
       code: code,
       largeCode: trimmed.length <= 12,
       copy: trimmed,
@@ -388,7 +387,7 @@ final class _Summary {
   factory _Summary.of(
     Barcode barcode,
     BarcodeContent content,
-    ScannerStrings strings,
+    ScannerLocalizations texts,
   ) {
     final String text = barcode.text;
     String? raw(String shown) => text.trim() == shown.trim() ? null : text;
@@ -426,13 +425,13 @@ final class _Summary {
         // An unknown kind of security is left out, not named.
         final String? secured = switch (security) {
           WifiSecurity.none || WifiSecurity.unknown => null,
-          _ => strings.wifiSecurity(security),
+          _ => texts.wifiSecurityOf(security),
         };
         final String detail = security == WifiSecurity.none
-            ? strings.wifiSecurity(WifiSecurity.none)
+            ? texts.wifiSecurityOf(WifiSecurity.none)
             : <String>[
                 ?secured,
-                if (password != null) strings.wifiPassword,
+                if (password != null) texts.wifiPassword,
               ].join(' · ');
         return _Summary(
           ssid,
@@ -450,7 +449,7 @@ final class _Summary {
             organization ??
             (phones.isNotEmpty ? phones.first : null) ??
             (emails.isNotEmpty ? emails.first : null) ??
-            strings.contact;
+            texts.contact;
         final String detail = <String>[
           if (name != null && organization != null) organization,
           ...phones.take(2),
@@ -464,9 +463,9 @@ final class _Summary {
         :final String? location,
       ):
         final String when = end == null
-            ? _dateTime(start, strings)
-            : '${_dateTime(start, strings)} – '
-                  '${_sameDay(start, end) ? _time(end) : _dateTime(end, strings)}';
+            ? _dateTime(start, texts)
+            : '${_dateTime(start, texts)} – '
+                  '${_sameDay(start, end) ? _time(end) : _dateTime(end, texts)}';
         return _Summary(
           summary,
           detail: location == null ? when : '$when · $location',
@@ -488,21 +487,21 @@ final class _Summary {
           payload: text,
         );
       case final PaymentContent payment:
-        return _paymentSummary(payment, strings);
+        return _paymentSummary(payment, texts);
       case final OtpContent otp:
         // Never the secret in the title or the payload: the code holds it.
         return _Summary(
           otp.issuer ?? otp.account,
           detail: otp.issuer == null ? null : otp.account,
           fields: <String, String>{
-            strings.otpType: otp.type == OtpType.totp
-                ? strings.otpTimeBased
-                : strings.otpCounterBased,
-            strings.otpDigits: '${otp.digits}',
+            texts.otpType: otp.type == OtpType.totp
+                ? texts.otpTimeBased
+                : texts.otpCounterBased,
+            texts.otpDigits: '${otp.digits}',
             if (otp.type == OtpType.totp)
-              strings.otpPeriod: strings.seconds(otp.period)
+              texts.otpPeriod: texts.seconds(otp.period)
             else
-              strings.otpCounter: '${otp.counter}',
+              texts.otpCounter: '${otp.counter}',
           },
           secret: otp.secret,
         );
@@ -510,9 +509,9 @@ final class _Summary {
         return _Summary(
           esim.smdpAddress,
           fields: <String, String>{
-            if (esim.matchingId case final String id) strings.matchingId: id,
+            if (esim.matchingId case final String id) texts.matchingId: id,
             if (esim.confirmationCodeRequired)
-              strings.confirmationCode: strings.needed,
+              texts.confirmationCode: texts.needed,
           },
           fieldColumns: 2,
         );
@@ -528,30 +527,29 @@ final class _Summary {
         );
       case final WifiDppContent dpp:
         return _Summary(
-          dpp.information ?? dpp.macAddress ?? strings.wifiDevice,
+          dpp.information ?? dpp.macAddress ?? texts.wifiDevice,
           fields: <String, String>{
             if (dpp.macAddress case final String mac)
-              strings.macAddress: _mac(mac),
+              texts.macAddress: _mac(mac),
             if (dpp.channels case final String channels)
-              strings.channels: channels,
+              texts.channels: channels,
           },
           fieldColumns: 2,
         );
       case final SmartHomeContent home:
         final bool matter = home.platform == SmartHomePlatform.matter;
         return _Summary(
-          strings.setupCode,
+          texts.setupCode,
           kindDetail: matter ? 'Matter' : 'HomeKit',
           code: matter && home.setupCode.length == 8
               ? '${home.setupCode.substring(0, 4)}-${home.setupCode.substring(4)}'
               : home.setupCode,
           fields: <String, String>{
-            if (home.vendorId case final int id) strings.vendorId: _hexId(id),
-            if (home.productId case final int id) strings.productId: _hexId(id),
-            if (home.discriminator case final int d)
-              strings.discriminator: '$d',
-            if (home.category case final int c) strings.category: '$c',
-            if (home.setupId case final String id) strings.setupId: id,
+            if (home.vendorId case final int id) texts.vendorId: _hexId(id),
+            if (home.productId case final int id) texts.productId: _hexId(id),
+            if (home.discriminator case final int d) texts.discriminator: '$d',
+            if (home.category case final int c) texts.category: '$c',
+            if (home.setupId case final String id) texts.setupId: id,
           },
         );
       case final BoardingPassContent pass:
@@ -561,16 +559,16 @@ final class _Summary {
           '${leg.from} → ${leg.to}',
           kindDetail: '${leg.carrier} ${leg.flightNumber}',
           fields: <String, String>{
-            strings.passenger: pass.passengerName,
-            if (day != null) strings.date: strings.dayAndMonth(day),
-            if (leg.seat.isNotEmpty) strings.seat: leg.seat,
-            if (leg.cabin.isNotEmpty) strings.cabin: leg.cabin,
-            strings.booking: leg.bookingReference,
+            texts.passenger: pass.passengerName,
+            if (day != null) texts.date: texts.dayAndMonth(day),
+            if (leg.seat.isNotEmpty) texts.seat: leg.seat,
+            if (leg.cabin.isNotEmpty) texts.cabin: leg.cabin,
+            texts.booking: leg.bookingReference,
             if (leg.sequenceNumber.isNotEmpty)
-              strings.sequence: leg.sequenceNumber,
+              texts.sequence: leg.sequenceNumber,
           },
           chips: <String>[
-            if (pass.legs.length > 1) strings.flightOf(1, pass.legs.length),
+            if (pass.legs.length > 1) texts.flightOf(1, pass.legs.length),
           ],
         );
       case final DriverLicenseContent id:
@@ -579,30 +577,30 @@ final class _Summary {
           <String>[?id.firstName, ?id.middleName, ?id.lastName].join(' '),
           kindDetail: id.state,
           fields: <String, String>{
-            if (id.licenseNumber case final String n) strings.licenseNumber: n,
+            if (id.licenseNumber case final String n) texts.licenseNumber: n,
             if (id.birthDate case final DateTime d)
-              strings.born: strings.fullDate(d),
-            if (expiry != null) strings.expires: strings.fullDate(expiry),
-            if (id.city case final String c) strings.city: c,
-            if (id.state case final String s) strings.state: s,
-            if (id.country case final String c) strings.country: c,
+              texts.born: texts.fullDate(d),
+            if (expiry != null) texts.expires: texts.fullDate(expiry),
+            if (id.city case final String c) texts.city: c,
+            if (id.state case final String s) texts.state: s,
+            if (id.country case final String c) texts.country: c,
           },
           warning: expiry != null && expiry.isBefore(DateTime.now())
-              ? strings.expired
+              ? texts.expired
               : null,
         );
       case final VinContent vin:
         final bool checked = vin.hasValidCheckDigit;
         return _Summary(
-          strings.vinRegion(vin.region),
+          texts.vinRegionOf(vin.region),
           kindDetail: 'VIN',
           code: vin.vin,
           largeCode: false,
           fields: <String, String>{
-            strings.makerCode: vin.wmi,
+            texts.makerCode: vin.wmi,
             if (checked && vin.modelYear != null)
-              strings.modelYear: '${vin.modelYear}',
-            if (checked) strings.checkDigit: strings.valid,
+              texts.modelYear: '${vin.modelYear}',
+            if (checked) texts.checkDigit: texts.valid,
           },
         );
       case final ProductContent product:
@@ -616,8 +614,8 @@ final class _Summary {
               : product.number,
           fields: <String, String>{
             if (product.isbn10 case final String isbn10) 'ISBN-10': isbn10,
-            if (isbn != null || issn != null) strings.gtin: product.gtin,
-            if (product.addOn case final String addOn) strings.addOn: addOn,
+            if (isbn != null || issn != null) texts.gtin: product.gtin,
+            if (product.addOn case final String addOn) texts.addOn: addOn,
           },
           fieldColumns: 2,
           chips: <String>[
@@ -625,11 +623,9 @@ final class _Summary {
           ],
         );
       case final Gs1Content gs1:
-        return gs1.elements.isEmpty
-            ? _Summary(text)
-            : _gs1Summary(gs1, strings);
+        return gs1.elements.isEmpty ? _Summary(text) : _gs1Summary(gs1, texts);
       case BinaryContent(:final Uint8List bytes):
-        return _Summary(strings.byteCount(bytes.length), payload: _hex(bytes));
+        return _Summary(texts.byteCount(bytes.length), payload: _hex(bytes));
       case TextContent(:final String text):
         // One line is the title alone; more lines put the first in the
         // title and the rest below it, so nothing shows twice.
@@ -652,7 +648,7 @@ final class _Summary {
   /// with "Copy IBAN"), unless the code holds a secret, and "Scan again".
   List<ScannerAction> actions(
     Barcode barcode,
-    ScannerStrings strings,
+    ScannerLocalizations texts,
     VoidCallback? onScanAgain,
   ) => <ScannerAction>[
     // A code with a secret (an OTP key) is not copied unasked.
@@ -664,7 +660,7 @@ final class _Summary {
       ),
     if (onScanAgain != null)
       ScannerAction(
-        label: strings.scanAgain,
+        label: texts.scanAgain,
         onPressed: onScanAgain,
         primary: true,
       ),
@@ -701,7 +697,7 @@ final class _Summary {
   /// A chip in the danger color ("Expired").
   final String? danger;
 
-  /// The kind above the title instead of [ScannerStrings.kindOf].
+  /// The kind above the title instead of `ScannerLocalizations.kindOf`.
   final String? kind;
 
   /// What the default copy button copies instead of the whole text, and
@@ -716,8 +712,8 @@ final class _Summary {
 
   static String _time(DateTime t) => '${_two(t.hour)}:${_two(t.minute)}';
 
-  static String _dateTime(DateTime t, ScannerStrings strings) {
-    final String date = strings.fullDate(t);
+  static String _dateTime(DateTime t, ScannerLocalizations texts) {
+    final String date = texts.fullDate(t);
     return t.hour == 0 && t.minute == 0 ? date : '$date ${_time(t)}';
   }
 
@@ -726,7 +722,7 @@ final class _Summary {
 
   /// GS1 data: the GTIN or SSCC as the title, the dates, batch, serial and
   /// quantity by name, and every other element by its identifier.
-  static _Summary _gs1Summary(Gs1Content gs1, ScannerStrings strings) {
+  static _Summary _gs1Summary(Gs1Content gs1, ScannerLocalizations texts) {
     final Map<String, String> elements = gs1.elements;
     final Set<String> named = <String>{};
     String? take(String ai) {
@@ -741,21 +737,21 @@ final class _Summary {
     // AI 02: the trade items a logistic unit contains.
     String? title = take('01') ?? take('02');
     if (title != null) {
-      kindDetail = strings.gtin;
+      kindDetail = texts.gtin;
     } else if (take('00') case final String sscc) {
       title = sscc;
-      kindDetail = strings.sscc;
+      kindDetail = texts.sscc;
     }
     final DateTime? expiry = gs1.expiryDate;
     final DateTime? bestBefore = gs1.bestBeforeDate;
     final Map<String, String> fields = <String, String>{
-      if (expiry != null) strings.expires: strings.fullDate(expiry),
-      if (bestBefore != null) strings.bestBefore: strings.fullDate(bestBefore),
-      if (take('10') case final String batch) strings.batch: batch,
-      if (take('21') case final String serial) strings.serial: serial,
-      if (gs1.count case final int count) strings.quantity: '$count',
+      if (expiry != null) texts.expires: texts.fullDate(expiry),
+      if (bestBefore != null) texts.bestBefore: texts.fullDate(bestBefore),
+      if (take('10') case final String batch) texts.batch: batch,
+      if (take('21') case final String serial) texts.serial: serial,
+      if (gs1.count case final int count) texts.quantity: '$count',
       if (title != elements['00'])
-        if (take('00') case final String sscc) strings.sscc: sscc,
+        if (take('00') case final String sscc) texts.sscc: sscc,
     };
     if (expiry != null) {
       named.add('17');
@@ -783,10 +779,10 @@ final class _Summary {
       }
       final String label =
           unnamed ??
-          (fields.containsKey(strings.batch)
-              ? strings.batch
-              : fields.containsKey(strings.serial)
-              ? strings.serial
+          (fields.containsKey(texts.batch)
+              ? texts.batch
+              : fields.containsKey(texts.serial)
+              ? texts.serial
               : fields.keys.first);
       title = fields.remove(label) ?? '';
       kindDetail = label;
@@ -796,7 +792,7 @@ final class _Summary {
       kindDetail: kindDetail,
       fields: fields,
       fieldColumns: 2,
-      danger: gs1.isExpired() ? strings.expired : null,
+      danger: gs1.isExpired() ? texts.expired : null,
     );
   }
 
@@ -804,7 +800,7 @@ final class _Summary {
   /// large, what it is for, the account and the standard's own fields.
   static _Summary _paymentSummary(
     PaymentContent payment,
-    ScannerStrings strings,
+    ScannerLocalizations texts,
   ) {
     final String? amount = payment.amount;
     String? detail;
@@ -816,82 +812,81 @@ final class _Summary {
       case final EpcPaymentContent epc:
         detail = epc.message ?? epc.information;
         fields = <String, String>{
-          strings.iban: _grouped(epc.iban),
-          if (epc.bic case final String bic) strings.bic: bic,
+          texts.iban: _grouped(epc.iban),
+          if (epc.bic case final String bic) texts.bic: bic,
           if (epc.creditorReference case final String r)
-            strings.paymentReference: _grouped(r),
+            texts.paymentReference: _grouped(r),
         };
         chips = <String>['EPC'];
-        copyLabel = strings.copyIban;
+        copyLabel = texts.copyIban;
       case final SwissQrBillContent bill:
         final SwissAddress c = bill.creditor;
         detail = bill.message;
         fields = <String, String>{
-          strings.accountNumber: _grouped(bill.iban),
+          texts.accountNumber: _grouped(bill.iban),
           if (bill.creditorReference case final String r)
-            strings.paymentReference:
-                bill.referenceType == SwissReferenceType.qrr
+            texts.paymentReference: bill.referenceType == SwissReferenceType.qrr
                 ? _qrReference(r)
                 : _grouped(r),
-          strings.address: <String>[
+          texts.address: <String>[
             <String>[?c.street, ?c.buildingNumber].join(' '),
             '${c.postalCode} ${c.town}',
           ].where((String s) => s.trim().isNotEmpty).join(', '),
-          if (bill.debtor case final SwissAddress d) strings.payableBy: d.name,
+          if (bill.debtor case final SwissAddress d) texts.payableBy: d.name,
         };
         chips = <String>['Swiss QR-bill'];
-        copyLabel = strings.copyIban;
+        copyLabel = texts.copyIban;
       case final GostPaymentContent gost:
         detail = gost.purpose;
         fields = <String, String>{
-          strings.accountNumber: gost.personalAccount,
-          strings.bic: gost.bic,
-          strings.bank: gost.bankName,
-          if (gost.payeeInn case final String inn) strings.inn: inn,
-          if (gost.kpp case final String kpp) strings.kpp: kpp,
+          texts.accountNumber: gost.personalAccount,
+          texts.bic: gost.bic,
+          texts.bank: gost.bankName,
+          if (gost.payeeInn case final String inn) texts.inn: inn,
+          if (gost.kpp case final String kpp) texts.kpp: kpp,
         };
         chips = <String>['ГОСТ Р 56042'];
-        copyLabel = strings.copyAccount;
+        copyLabel = texts.copyAccount;
       case final UpiPaymentContent upi:
         detail = upi.note;
-        fields = <String, String>{strings.upiId: upi.address};
+        fields = <String, String>{texts.upiId: upi.address};
         chips = <String>['UPI'];
-        copyLabel = strings.copyUpiId;
+        copyLabel = texts.copyUpiId;
       case final EmvPaymentContent emv:
         detail = emv.merchantCity;
         fields = <String, String>{
-          if (emv.pixKey case final String key) strings.pixKey: key,
-          if (emv.reference case final String r) strings.transaction: r,
+          if (emv.pixKey case final String key) texts.pixKey: key,
+          if (emv.reference case final String r) texts.transaction: r,
           if (emv.pixKey == null && emv.merchantCity != null)
-            strings.city: emv.merchantCity!,
+            texts.city: emv.merchantCity!,
           if (emv.pixKey == null && emv.merchantCategoryCode != null)
-            strings.category: emv.merchantCategoryCode!,
+            texts.category: emv.merchantCategoryCode!,
         };
         if (emv.pixKey == null) {
           detail = null;
         }
         chips = <String>[
           'EMVCo',
-          if (!emv.isDynamic && amount == null) strings.reusable,
+          if (!emv.isDynamic && amount == null) texts.reusable,
         ];
-        copyLabel = emv.pixKey == null ? null : strings.copyPixKey;
+        copyLabel = emv.pixKey == null ? null : texts.copyPixKey;
         copy = emv.pixKey;
       case final SpaydPaymentContent spayd:
         detail = spayd.message;
         fields = <String, String>{
-          strings.iban: _grouped(spayd.iban),
+          texts.iban: _grouped(spayd.iban),
           if (spayd.variableSymbol case final String vs)
-            strings.variableSymbol: vs,
+            texts.variableSymbol: vs,
         };
         chips = <String>['SPAYD'];
-        copyLabel = strings.copyIban;
+        copyLabel = texts.copyIban;
     }
     return _Summary(
-      payment.payee ?? strings.payment,
+      payment.payee ?? texts.payment,
       kindDetail: _paymentStandard(payment),
-      display: amount == null ? null : strings.amount(amount, payment.currency),
+      display: amount == null ? null : texts.amountOf(amount, payment.currency),
       detail: amount == null
-          ? <String>[strings.payerEntersAmount, ?detail].join('\n')
+          ? <String>[texts.payerEntersAmount, ?detail].join('\n')
           : detail,
       fields: fields,
       fieldColumns: 2,
@@ -1138,21 +1133,21 @@ final class _Summary {
 /// [onScanAgain].
 List<ScannerAction> defaultResultActions(
   Barcode barcode,
-  ScannerStrings strings, {
+  ScannerLocalizations texts, {
   VoidCallback? onScanAgain,
   ResultHeader header = ResultHeader.picture,
 }) => _Summary.forHeader(
   barcode,
   header,
-  strings,
-).actions(barcode, strings, onScanAgain);
+  texts,
+).actions(barcode, texts, onScanAgain);
 
 /// A secret behind dots, shown on request: an OTP key.
 class _SecretField extends StatefulWidget {
-  const _SecretField(this.secret, {required this.strings});
+  const _SecretField(this.secret, {required this.texts});
 
   final String secret;
-  final ScannerStrings strings;
+  final ScannerLocalizations texts;
 
   @override
   State<_SecretField> createState() => _SecretFieldState();
@@ -1164,7 +1159,7 @@ class _SecretFieldState extends State<_SecretField> {
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
-    final ScannerStrings strings = widget.strings;
+    final ScannerLocalizations texts = widget.texts;
     // Groups of four, as authenticator apps print keys.
     final String grouped = <String>[
       for (int i = 0; i < widget.secret.length; i += 4)
@@ -1186,10 +1181,7 @@ class _SecretFieldState extends State<_SecretField> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Text(
-                    strings.secret.toUpperCase(),
-                    style: theme.overlineStyle,
-                  ),
+                  Text(texts.secret.toUpperCase(), style: theme.overlineStyle),
                   const SizedBox(height: 2),
                   Text(
                     _shown ? grouped : '•••• •••• •••• ••••',
@@ -1226,7 +1218,7 @@ class _SecretFieldState extends State<_SecretField> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          _shown ? strings.hide : strings.show,
+                          _shown ? texts.hide : texts.show,
                           style: theme.hintStyle.copyWith(
                             color: theme.lockInkColor,
                             fontWeight: FontWeight.w600,
@@ -1409,7 +1401,9 @@ class ScannerActions extends StatelessWidget {
       ? ScannerActionButton(
           label:
               action.label ??
-              (action._scanAgain ? ScannerStrings.of(context).scanAgain : ''),
+              (action._scanAgain
+                  ? ScannerLocalizations.of(context).scanAgain
+                  : ''),
           icon: action.icon,
           primary: primary,
           onPressed: action.onPressed,
@@ -1496,14 +1490,14 @@ class _CopyButtonState extends State<_CopyButton> {
 
   @override
   Widget build(BuildContext context) {
-    final ScannerStrings strings = ScannerStrings.of(context);
-    final String label = widget.label ?? strings.copy;
+    final ScannerLocalizations texts = ScannerLocalizations.of(context);
+    final String label = widget.label ?? texts.copy;
     return ScannerActionButton(
-      label: _copied ? (label.isEmpty ? '' : strings.copied) : label,
+      label: _copied ? (label.isEmpty ? '' : texts.copied) : label,
       semanticLabel: _copied
-          ? strings.copied
+          ? texts.copied
           : label.isEmpty
-          ? strings.copy
+          ? texts.copy
           : null,
       icon: _copied ? ScannerIcons.check : ScannerIcons.copy,
       primary: widget.primary,
@@ -1558,14 +1552,14 @@ class BarcodeListSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
-    final ScannerStrings strings = ScannerStrings.of(context);
+    final ScannerLocalizations texts = ScannerLocalizations.of(context);
     final int total = items.fold(
       0,
       (int sum, CollectedBarcode item) => sum + item.count,
     );
     return ScannerSheet(
       padding: const EdgeInsets.all(16),
-      label: '${strings.scanned}: ${strings.itemCount(total)}',
+      label: '${texts.scanned}: ${texts.itemCount(total)}',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -1580,14 +1574,14 @@ class BarcodeListSheet extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       Text(
-                        strings.scanned.toUpperCase(),
+                        texts.scanned.toUpperCase(),
                         style: theme.overlineStyle,
                       ),
                       const SizedBox(height: 2),
                       Semantics(
                         liveRegion: true,
                         child: Text(
-                          strings.itemCount(total),
+                          texts.itemCount(total),
                           style: theme.titleStyle,
                         ),
                       ),
@@ -1596,7 +1590,7 @@ class BarcodeListSheet extends StatelessWidget {
                 ),
                 if (onDone != null)
                   ScannerActionButton(
-                    label: strings.done,
+                    label: texts.done,
                     primary: true,
                     compact: true,
                     onPressed: onDone,
@@ -1608,7 +1602,7 @@ class BarcodeListSheet extends StatelessWidget {
           if (items.isEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
-              child: Text(strings.emptyList, style: theme.mutedStyle),
+              child: Text(texts.emptyList, style: theme.mutedStyle),
             )
           else
             ConstrainedBox(
@@ -1647,15 +1641,15 @@ class _Row extends StatelessWidget {
         when gs1.sscc != null ||
             gs1.gtin != null ||
             gs1.elements['02'] != null) {
-      final ScannerStrings strings = ScannerStrings.of(context);
+      final ScannerLocalizations texts = ScannerLocalizations.of(context);
       final String? sscc = gs1.sscc;
       title = sscc ?? gs1.gtin ?? gs1.elements['02']!;
       detail = <String>[
-        if (sscc != null) strings.sscc else strings.gtin,
-        if (gs1.count case final int count) '${strings.quantity} $count',
-        if (gs1.batch case final String batch) '${strings.batch} $batch',
+        if (sscc != null) texts.sscc else texts.gtin,
+        if (gs1.count case final int count) '${texts.quantity} $count',
+        if (gs1.batch case final String batch) '${texts.batch} $batch',
         if (gs1.expiryDate case final DateTime expiry)
-          '${strings.expires} ${strings.fullDate(expiry)}',
+          '${texts.expires} ${texts.fullDate(expiry)}',
         detail,
       ].join(' · ');
     }

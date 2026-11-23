@@ -531,7 +531,7 @@ void main() {
                   const SizedBox(height: 16),
                   const ScannerFields(<String, String>{
                     'Passenger': 'ZXING/FLUTTER',
-                    'Date': '14 Nov',
+                    'Date': 'Nov 14',
                     'Seat': '12C',
                     'Class': 'Y',
                     'Booking': 'E7QK3TP',

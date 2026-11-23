@@ -1,0 +1,13 @@
+# The scanner's texts (lib/l10n/*.arb) as ScannerLocalizations. The generated
+# code is committed, so apps need neither `generate: true` nor this file:
+# regenerate it with `make l10n` after changing an ARB file (not with
+# `flutter gen-l10n`, which needs `generate: true` and skips
+# tool/patch_l10n.dart).
+arb-dir: lib/l10n
+template-arb-file: scanner_en.arb
+output-dir: lib/src/scanning/l10n
+output-localization-file: scanner_localizations.dart
+output-class: ScannerLocalizations
+nullable-getter: false
+required-resource-attributes: true
+format: true

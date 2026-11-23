@@ -47,6 +47,10 @@ dependencies:
   hooks: ">=2.0.2 <3.0.0"
   image: ^4.1.0
   image_picker: ^1.0.0
+  # Plurals and dates of the scanner's texts (ScannerLocalizations).
+  # flutter_localizations, which apps use next to it, pins intl: 0.20.2 on
+  # Flutter 3.41, ^0.20.3 later; any 0.20 matches both.
+  intl: ">=0.20.2 <0.21.0"
   logging: ^1.3.0
   native_toolchain_c: ">=0.19.2 <0.20.0"
   web: ^1.1.0

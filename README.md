@@ -136,7 +136,8 @@ onto the code, and a sheet with what the code holds and what to do with it.
 | `ScannerTemplate.loyalty()` | Loyalty and membership cards: the card number large |
 
 `ScannerTheme` sets your accent color, the shape of the scan window and
-buttons, and light or dark glass. `ScannerStrings` translates every text.
+buttons, and light or dark glass. The texts come in English and Russian
+and follow the app's language with no setup (`ScannerLocalizations`).
 
 ```dart
 BarcodeScanner(
@@ -152,7 +153,7 @@ BarcodeScanner(
 
 A `ScannerScope` gives every scanner below it, `scanBarcode` and
 `ScanFieldButton` included, a theme and texts. Put it in your app to follow
-its colors and language:
+its colors, or to change a text by subclassing the built-in translation:
 
 ```dart
 MaterialApp(
@@ -161,10 +162,15 @@ MaterialApp(
       accent: Theme.of(context).colorScheme.primary,
       brightness: Theme.of(context).brightness,
     ),
-    strings: const ScannerStrings(close: 'Scanner schließen', scanAgain: 'Weiter'),
+    texts: MyTexts(),
     child: child!,
   ),
 )
+
+class MyTexts extends ScannerLocalizationsEn {
+  @override
+  String get scanAgain => 'Next ticket';
+}
 ```
 
 `actionsBuilder` sets the buttons of the result sheet. `ScannerResult` has

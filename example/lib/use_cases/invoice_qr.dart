@@ -48,7 +48,7 @@ class _InvoiceQrPageState extends State<InvoiceQrPage> {
       _Standard.sepa => _sepa,
       _Standard.swiss => _swiss,
     };
-    final ScannerStrings strings = ScannerStrings.of(context);
+    final ScannerLocalizations texts = ScannerLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text(_number)),
       body: ListView(
@@ -81,8 +81,8 @@ class _InvoiceQrPageState extends State<InvoiceQrPage> {
           ),
           ListTile(
             title: const Text('Amount'),
-            // "1949.75 EUR"; ScannerStrings formats it for your locale.
-            subtitle: Text(strings.amount(payment.amount, payment.currency)),
+            // "1949.75 EUR" in the scanner's language, "Any amount" without one.
+            subtitle: Text(texts.amountOf(payment.amount, payment.currency)),
           ),
           ListTile(
             title: const Text('Reference'),

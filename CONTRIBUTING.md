@@ -134,6 +134,15 @@ screenshots are rendered from the package (`make site-shots`), not
 committed. To try the live demo in `make site`, run the demo with `make
 run-web` and point the site at it: `VITE_DEMO_URL=http://localhost:<port>/`.
 
+## Translations
+
+The scanner's texts are ARB files in `lib/l10n/`: `scanner_en.arb` is the
+template, with a description of every text for translators. To add a
+language, copy it to `scanner_<language>.arb`, translate every text (a test
+fails on a missing one) and run `make l10n`, which regenerates
+`lib/src/scanning/l10n/`. That code is committed, so apps need no setup; CI
+fails when it does not match the ARB files.
+
 ## Pull requests
 
 - One change per pull request, with a test where it can have one.
@@ -143,7 +152,8 @@ run-web` and point the site at it: `VITE_DEMO_URL=http://localhost:<port>/`.
 - Add a line to `CHANGELOG.md` under the unreleased version for anything a
   user of the package would notice.
 - Do not commit generated files: the WebAssembly engine, the test corpus,
-  screenshots or test images. They are built from the sources.
+  screenshots or test images. They are built from the sources. The
+  scanner's texts (`make l10n`) are the exception.
 
 ## Updating zxing-cpp
 

@@ -1,0 +1,682 @@
+{
+  "@@locale": "en",
+  "close": "Close the scanner",
+  "@close": {
+    "description": "Label of the close button."
+  },
+  "torchOn": "Turn on the torch",
+  "@torchOn": {
+    "description": "Label of the torch button while the torch is off."
+  },
+  "torchOff": "Turn off the torch",
+  "@torchOff": {
+    "description": "Label of the torch button while the torch is on."
+  },
+  "switchCamera": "Switch camera",
+  "@switchCamera": {
+    "description": "Label of the switch camera button."
+  },
+  "pickImage": "Read a code from a photo",
+  "@pickImage": {
+    "description": "Label of the photo button."
+  },
+  "zoom": "Zoom",
+  "@zoom": {
+    "description": "Label of the zoom buttons."
+  },
+  "autoZoom": "Auto",
+  "@autoZoom": {
+    "description": "Text of the automatic zoom button, before the zoom presets."
+  },
+  "autoZoomOn": "Turn on automatic zoom",
+  "@autoZoomOn": {
+    "description": "Label of the automatic zoom button while it is off."
+  },
+  "autoZoomOff": "Turn off automatic zoom",
+  "@autoZoomOff": {
+    "description": "Label of the automatic zoom button while it is on."
+  },
+  "starting": "Starting the camera…",
+  "@starting": {
+    "description": "Shown while the camera starts."
+  },
+  "permissionTitle": "Camera access is off",
+  "@permissionTitle": {
+    "description": "Title of the \"no camera permission\" card."
+  },
+  "permissionMessage": "Turn on camera access for this app in Settings to scan codes.",
+  "@permissionMessage": {
+    "description": "Text of the \"no camera permission\" card."
+  },
+  "unavailableTitle": "The camera isn't available",
+  "@unavailableTitle": {
+    "description": "Title of the \"camera not available\" card."
+  },
+  "unavailableMessage": "Another app may be using it, or this device has none.",
+  "@unavailableMessage": {
+    "description": "Text of the \"camera not available\" card."
+  },
+  "inUseMessage": "Another app is using the camera. Close it and try again.",
+  "@inUseMessage": {
+    "description": "Text of the \"camera not available\" card when another app uses the camera (CameraInUseException)."
+  },
+  "unsupportedMessage": "Camera access is not available here. On the web, the page must be opened over https.",
+  "@unsupportedMessage": {
+    "description": "Text of the \"camera not available\" card where cameras cannot be used at all (CameraUnsupportedException: a web page over http)."
+  },
+  "photoFallback": "You can still read a code from a photo.",
+  "@photoFallback": {
+    "description": "Added to the error cards when a photo can be read instead."
+  },
+  "openSettings": "Open Settings",
+  "@openSettings": {
+    "description": "The button that opens the app's settings."
+  },
+  "tryAgain": "Try again",
+  "@tryAgain": {
+    "description": "The button that opens the camera again."
+  },
+  "choosePhoto": "Choose a photo",
+  "@choosePhoto": {
+    "description": "The button that reads a photo instead of the camera."
+  },
+  "noCodeInPhoto": "No code found in this photo",
+  "@noCodeInPhoto": {
+    "description": "Shown when a photo has no code."
+  },
+  "backToCamera": "Back to the camera",
+  "@backToCamera": {
+    "description": "Leaves a photo whose codes ScannerTemplate.pick shows."
+  },
+  "backToCodes": "Back to the codes",
+  "@backToCodes": {
+    "description": "Closes the result of a code picked in ScannerTemplate.pick."
+  },
+  "copy": "Copy",
+  "@copy": {
+    "description": "The button that copies a code's text."
+  },
+  "copied": "Copied",
+  "@copied": {
+    "description": "The copy button after copying."
+  },
+  "scanAgain": "Scan again",
+  "@scanAgain": {
+    "description": "The button that hides a result and scans the next code."
+  },
+  "done": "Done",
+  "@done": {
+    "description": "The button that ends a list of scanned codes."
+  },
+  "scanned": "Scanned",
+  "@scanned": {
+    "description": "Above the number of scanned codes."
+  },
+  "emptyList": "Codes you scan appear here",
+  "@emptyList": {
+    "description": "An empty list of scanned codes."
+  },
+  "itemCount": "{count, plural, one{{count} item} other{{count} items}}",
+  "@itemCount": {
+    "description": "The number of scanned codes: \"3 items\".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "byteCount": "{count, plural, one{{count} byte} other{{count} bytes}}",
+  "@byteCount": {
+    "description": "The size of binary data: \"120 bytes\".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "link": "Link",
+  "@link": {
+    "description": "The kind of a UrlContent."
+  },
+  "wifi": "Wi‑Fi network",
+  "@wifi": {
+    "description": "The kind of a WifiContent."
+  },
+  "wifiPassword": "password in the code",
+  "@wifiPassword": {
+    "description": "A Wi‑Fi network whose password is in the code."
+  },
+  "wifiSecurity": "{security, select, none{Open network} wep{WEP} wpa{WPA} wpa3{WPA3} enterprise{Enterprise} other{Secured}}",
+  "@wifiSecurity": {
+    "description": "How a Wi‑Fi network is secured, in plain words; security is the name of a WifiSecurity value (none, wep, wpa, wpa3, enterprise; other for unknown). Apps call wifiSecurityOf(WifiSecurity). The result sheet leaves WifiSecurity.unknown out.",
+    "placeholders": {
+      "security": {
+        "type": "String"
+      }
+    }
+  },
+  "contact": "Contact",
+  "@contact": {
+    "description": "The kind of a ContactContent."
+  },
+  "event": "Event",
+  "@event": {
+    "description": "The kind of an EventContent."
+  },
+  "email": "Email",
+  "@email": {
+    "description": "The kind of an EmailContent."
+  },
+  "phone": "Phone",
+  "@phone": {
+    "description": "The kind of a PhoneContent."
+  },
+  "sms": "Text message",
+  "@sms": {
+    "description": "The kind of an SmsContent."
+  },
+  "location": "Location",
+  "@location": {
+    "description": "The kind of a GeoContent."
+  },
+  "gs1": "GS1",
+  "@gs1": {
+    "description": "The kind of a Gs1Content."
+  },
+  "faceTime": "FaceTime",
+  "@faceTime": {
+    "description": "The kind of a PhoneContent with CallType.faceTime or CallType.faceTimeAudio."
+  },
+  "payment": "Payment",
+  "@payment": {
+    "description": "The kind of a PaymentContent."
+  },
+  "otp": "One-time password",
+  "@otp": {
+    "description": "The kind of a OtpContent."
+  },
+  "esim": "eSIM",
+  "@esim": {
+    "description": "The kind of a EsimContent."
+  },
+  "crypto": "Crypto payment",
+  "@crypto": {
+    "description": "The kind of a CryptoContent."
+  },
+  "wifiDevice": "Wi‑Fi device",
+  "@wifiDevice": {
+    "description": "The kind of a WifiDppContent."
+  },
+  "smartHome": "Smart home device",
+  "@smartHome": {
+    "description": "The kind of a SmartHomeContent."
+  },
+  "boardingPass": "Boarding pass",
+  "@boardingPass": {
+    "description": "The kind of a BoardingPassContent."
+  },
+  "driverLicense": "Driver's license",
+  "@driverLicense": {
+    "description": "The kind of a DriverLicenseContent."
+  },
+  "vehicle": "Vehicle",
+  "@vehicle": {
+    "description": "The kind of a VinContent."
+  },
+  "product": "Product",
+  "@product": {
+    "description": "The kind of a ProductContent."
+  },
+  "book": "Book",
+  "@book": {
+    "description": "The kind of a ProductContent with an ISBN or ISSN."
+  },
+  "secret": "Secret",
+  "@secret": {
+    "description": "The label of a hidden secret, such as an OtpContent key."
+  },
+  "show": "Show",
+  "@show": {
+    "description": "The button that shows a hidden secret."
+  },
+  "hide": "Hide",
+  "@hide": {
+    "description": "The button that hides a shown secret again."
+  },
+  "otpType": "Type",
+  "@otpType": {
+    "description": "The label of an OtpContent's type."
+  },
+  "otpTimeBased": "Time-based",
+  "@otpTimeBased": {
+    "description": "An OtpContent of OtpType.totp."
+  },
+  "otpCounterBased": "Counter-based",
+  "@otpCounterBased": {
+    "description": "An OtpContent of OtpType.hotp."
+  },
+  "otpDigits": "Digits",
+  "@otpDigits": {
+    "description": "The label of OtpContent.digits."
+  },
+  "otpPeriod": "Every",
+  "@otpPeriod": {
+    "description": "The label of OtpContent.period."
+  },
+  "otpCounter": "Counter",
+  "@otpCounter": {
+    "description": "The label of OtpContent.counter."
+  },
+  "seconds": "{seconds} s",
+  "@seconds": {
+    "description": "A number of seconds: \"30 s\".",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "matchingId": "Matching ID",
+  "@matchingId": {
+    "description": "The label of EsimContent.matchingId."
+  },
+  "confirmationCode": "Confirmation code",
+  "@confirmationCode": {
+    "description": "The label of EsimContent.confirmationCodeRequired."
+  },
+  "needed": "Needed",
+  "@needed": {
+    "description": "A confirmation code is needed."
+  },
+  "setupCode": "Setup code",
+  "@setupCode": {
+    "description": "The title of a SmartHomeContent."
+  },
+  "vendorId": "Vendor",
+  "@vendorId": {
+    "description": "The label of SmartHomeContent.vendorId."
+  },
+  "productId": "Product",
+  "@productId": {
+    "description": "The label of SmartHomeContent.productId."
+  },
+  "discriminator": "Discriminator",
+  "@discriminator": {
+    "description": "The label of SmartHomeContent.discriminator."
+  },
+  "category": "Category",
+  "@category": {
+    "description": "The label of SmartHomeContent.category."
+  },
+  "setupId": "Setup ID",
+  "@setupId": {
+    "description": "The label of SmartHomeContent.setupId."
+  },
+  "gtin": "GTIN",
+  "@gtin": {
+    "description": "The label of ProductContent.gtin."
+  },
+  "addOn": "Add-on",
+  "@addOn": {
+    "description": "The label of ProductContent.addOn."
+  },
+  "passenger": "Passenger",
+  "@passenger": {
+    "description": "The label of BoardingPassContent.passengerName."
+  },
+  "date": "Date",
+  "@date": {
+    "description": "The label of a boarding pass's date."
+  },
+  "seat": "Seat",
+  "@seat": {
+    "description": "The label of BoardingPassLeg.seat."
+  },
+  "cabin": "Class",
+  "@cabin": {
+    "description": "The label of BoardingPassLeg.cabin."
+  },
+  "booking": "Booking",
+  "@booking": {
+    "description": "The label of BoardingPassLeg.bookingReference."
+  },
+  "sequence": "Sequence",
+  "@sequence": {
+    "description": "The label of BoardingPassLeg.sequenceNumber."
+  },
+  "flightOf": "Flight {flight} of {count}",
+  "@flightOf": {
+    "description": "Which leg of a boarding pass the sheet shows: \"Flight 1 of 2\".",
+    "placeholders": {
+      "flight": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "licenseNumber": "Number",
+  "@licenseNumber": {
+    "description": "The label of DriverLicenseContent.licenseNumber."
+  },
+  "born": "Born",
+  "@born": {
+    "description": "The label of DriverLicenseContent.dateOfBirth."
+  },
+  "expires": "Expires",
+  "@expires": {
+    "description": "The label of DriverLicenseContent.expiryDate."
+  },
+  "city": "City",
+  "@city": {
+    "description": "The label of DriverLicenseContent.city."
+  },
+  "state": "State",
+  "@state": {
+    "description": "The label of DriverLicenseContent.state."
+  },
+  "country": "Country",
+  "@country": {
+    "description": "The label of DriverLicenseContent.country."
+  },
+  "expired": "Expired",
+  "@expired": {
+    "description": "A document past its expiry date."
+  },
+  "makerCode": "Maker code",
+  "@makerCode": {
+    "description": "The label of VinContent.wmi."
+  },
+  "modelYear": "Model year",
+  "@modelYear": {
+    "description": "The label of VinContent.modelYear."
+  },
+  "checkDigit": "Check digit",
+  "@checkDigit": {
+    "description": "The label of VinContent.hasValidCheckDigit."
+  },
+  "valid": "Valid",
+  "@valid": {
+    "description": "A check digit that is right."
+  },
+  "macAddress": "MAC",
+  "@macAddress": {
+    "description": "The label of WifiDppContent.macAddress."
+  },
+  "channels": "Channels",
+  "@channels": {
+    "description": "The label of WifiDppContent.channels."
+  },
+  "monthShort": "{month, select, jan{Jan} feb{Feb} mar{Mar} apr{Apr} may{May} jun{Jun} jul{Jul} aug{Aug} sep{Sep} oct{Oct} nov{Nov} dec{Dec} other{}}",
+  "@monthShort": {
+    "description": "The short name of a month, as dates use it inside dayMonth and dayMonthYear: \"Nov\". month is jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov or dec. In languages that decline month names, the form a date uses (Russian: «нояб.», genitive).",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "dayMonth": "{month} {day}",
+  "@dayMonth": {
+    "description": "A date without its year, as the boarding pass sheet shows it: \"Nov 14\". month is the text of monthShort. Apps call dayAndMonth(DateTime).",
+    "placeholders": {
+      "day": {
+        "type": "int"
+      },
+      "month": {
+        "type": "String",
+        "example": "Nov"
+      }
+    }
+  },
+  "dayMonthYear": "{month} {day}, {year}",
+  "@dayMonthYear": {
+    "description": "A full date, as the sheets show expiry, best-before and birth dates: \"Aug 31, 1977\". month is the text of monthShort. Apps call fullDate(DateTime).",
+    "placeholders": {
+      "day": {
+        "type": "int"
+      },
+      "month": {
+        "type": "String",
+        "example": "Aug"
+      },
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "vinRegion": "{region, select, africa{Africa} asia{Asia} europe{Europe} northAmerica{North America} oceania{Oceania} southAmerica{South America} other{Unknown}}",
+  "@vinRegion": {
+    "description": "Where a vehicle was made; region is the name of a VinRegion value. Apps call vinRegionOf(VinRegion).",
+    "placeholders": {
+      "region": {
+        "type": "String"
+      }
+    }
+  },
+  "amount": "{amount} {currency}",
+  "@amount": {
+    "description": "A payment amount with its currency, as the payment sheet shows it: \"12.50 EUR\". amount is in the main unit with a dot, as PaymentContent.amount gives it. Apps call amountOf(amount, currency), which also covers a missing amount or currency.",
+    "placeholders": {
+      "amount": {
+        "type": "String",
+        "example": "12.50"
+      },
+      "currency": {
+        "type": "String",
+        "example": "EUR"
+      }
+    }
+  },
+  "anyAmount": "Any amount",
+  "@anyAmount": {
+    "description": "A payment amount the payer types in: the code has none."
+  },
+  "payerEntersAmount": "The payer enters the amount",
+  "@payerEntersAmount": {
+    "description": "A payment code without an amount."
+  },
+  "reusable": "Reusable",
+  "@reusable": {
+    "description": "A payment code for any number of payments (EMVCo static)."
+  },
+  "copyIban": "Copy IBAN",
+  "@copyIban": {
+    "description": "The copy button of a payment to an IBAN."
+  },
+  "copyAccount": "Copy account",
+  "@copyAccount": {
+    "description": "The copy button of a payment to an account number."
+  },
+  "copyUpiId": "Copy UPI ID",
+  "@copyUpiId": {
+    "description": "The copy button of a UPI payment."
+  },
+  "copyPixKey": "Copy key",
+  "@copyPixKey": {
+    "description": "The copy button of a PIX payment."
+  },
+  "iban": "IBAN",
+  "@iban": {
+    "description": "The label of an IBAN."
+  },
+  "bic": "BIC",
+  "@bic": {
+    "description": "The label of a bank's BIC."
+  },
+  "accountNumber": "Account",
+  "@accountNumber": {
+    "description": "The label of an account number."
+  },
+  "paymentReference": "Reference",
+  "@paymentReference": {
+    "description": "The label of a payment reference."
+  },
+  "address": "Address",
+  "@address": {
+    "description": "The label of a payee's address."
+  },
+  "payableBy": "Payable by",
+  "@payableBy": {
+    "description": "The label of who pays a Swiss QR-bill."
+  },
+  "bank": "Bank",
+  "@bank": {
+    "description": "The label of a bank's name."
+  },
+  "inn": "INN",
+  "@inn": {
+    "description": "The label of a Russian taxpayer number."
+  },
+  "kpp": "KPP",
+  "@kpp": {
+    "description": "The label of a Russian tax registration reason code."
+  },
+  "upiId": "UPI ID",
+  "@upiId": {
+    "description": "The label of a UPI address."
+  },
+  "pixKey": "PIX key",
+  "@pixKey": {
+    "description": "The label of a PIX key."
+  },
+  "transaction": "Transaction",
+  "@transaction": {
+    "description": "The label of a payment's transaction id."
+  },
+  "variableSymbol": "Variable symbol",
+  "@variableSymbol": {
+    "description": "The label of a Czech variable symbol."
+  },
+  "binary": "Binary data",
+  "@binary": {
+    "description": "The kind of a BinaryContent."
+  },
+  "text": "Text",
+  "@text": {
+    "description": "The kind of a TextContent."
+  },
+  "batch": "Batch",
+  "@batch": {
+    "description": "A batch or lot number (GS1 AI 10)."
+  },
+  "serial": "Serial",
+  "@serial": {
+    "description": "A serial number (GS1 AI 21)."
+  },
+  "sscc": "SSCC",
+  "@sscc": {
+    "description": "The shipping container code of a pallet or parcel (GS1 AI 00)."
+  },
+  "quantity": "Quantity",
+  "@quantity": {
+    "description": "How many items a logistic unit holds (GS1 AI 37)."
+  },
+  "bestBefore": "Best before",
+  "@bestBefore": {
+    "description": "A best before date (GS1 AI 15)."
+  },
+  "loyaltyCard": "Loyalty card",
+  "@loyaltyCard": {
+    "description": "The kind above a card read by ScannerTemplate.loyalty."
+  },
+  "cardNumber": "Card number",
+  "@cardNumber": {
+    "description": "The title of a card number."
+  },
+  "accepted": "Accepted",
+  "@accepted": {
+    "description": "Above an accepted code without a title of its own (ScanVerdict.accept)."
+  },
+  "needsAttention": "Check this code",
+  "@needsAttention": {
+    "description": "Above a code to look at without a title of its own (ScanVerdict.warn)."
+  },
+  "rejected": "Not accepted",
+  "@rejected": {
+    "description": "Above a refused code without a title of its own (ScanVerdict.reject)."
+  },
+  "checkedIn": "{count, plural, other{{count} checked in}}",
+  "@checkedIn": {
+    "description": "The counter of accepted codes (ScannerTemplate.counter): \"12 checked in\".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "codesInView": "{count, plural, one{{count} code} other{{count} codes}}",
+  "@codesInView": {
+    "description": "How many codes ScannerTemplate.pick shows labels for: \"3 codes\".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pickCode": "Pick this code",
+  "@pickCode": {
+    "description": "Hint for screen readers on a code's label in ScannerTemplate.pick."
+  },
+  "scanCode": "Scan a code",
+  "@scanCode": {
+    "description": "Label of ScanFieldButton for screen readers."
+  },
+  "hintCode": "Point the camera at a code",
+  "@hintCode": {
+    "description": "The hint of ScannerTemplate.minimal."
+  },
+  "hintQrCode": "Point at a QR code",
+  "@hintQrCode": {
+    "description": "The hint of ScannerTemplate.content."
+  },
+  "hintBarcode": "Point at the barcode",
+  "@hintBarcode": {
+    "description": "The hint of ScannerTemplate.product."
+  },
+  "hintCloser": "Move closer",
+  "@hintCloser": {
+    "description": "The hint of ScannerTemplate.small."
+  },
+  "hintTicket": "Point at the ticket",
+  "@hintTicket": {
+    "description": "The hint of ScannerTemplate.checkIn."
+  },
+  "hintDataMatrix": "Point at the Data Matrix",
+  "@hintDataMatrix": {
+    "description": "The hint of ScannerTemplate.pharma."
+  },
+  "hintPick": "Tap a code",
+  "@hintPick": {
+    "description": "The hint of ScannerTemplate.pick."
+  },
+  "hintKiosk": "Hold the code up to the camera",
+  "@hintKiosk": {
+    "description": "The hint of ScannerTemplate.kiosk."
+  },
+  "hintVin": "Windshield or door pillar",
+  "@hintVin": {
+    "description": "The hint of ScannerTemplate.vin."
+  },
+  "hintCard": "Point at the card's barcode",
+  "@hintCard": {
+    "description": "The hint of ScannerTemplate.loyalty."
+  },
+  "hintField": "Point at the code",
+  "@hintField": {
+    "description": "The hint of the scanner ScanFieldButton opens."
+  },
+  "titlePayment": "Pay with QR",
+  "@titlePayment": {
+    "description": "The title of ScannerTemplate.payment."
+  },
+  "titleTicket": "Scan your ticket",
+  "@titleTicket": {
+    "description": "The title of ScannerTemplate.ticket and ScannerTemplate.kiosk."
+  },
+  "titleSignIn": "Scan to sign in",
+  "@titleSignIn": {
+    "description": "The title of ScannerTemplate.signIn."
+  }
+}

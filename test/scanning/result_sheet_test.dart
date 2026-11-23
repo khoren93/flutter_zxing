@@ -1,5 +1,5 @@
 // What the result sheet says about a code: who a link to a service leads
-// to, texts from ScannerStrings, GS1 titles.
+// to, texts from ScannerLocalizations, GS1 titles.
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -30,14 +30,14 @@ Barcode _barcode(
 Future<void> _show(
   WidgetTester tester,
   Barcode barcode, {
-  ScannerStrings strings = const ScannerStrings(),
+  ScannerLocalizations? texts,
 }) => tester.pumpWidget(
   MediaQuery(
     data: const MediaQueryData(size: Size(390, 844)),
     child: Directionality(
       textDirection: TextDirection.ltr,
       child: ScannerScope(
-        strings: strings,
+        texts: texts,
         child: Align(
           alignment: Alignment.bottomCenter,
           child: SingleChildScrollView(
@@ -164,29 +164,21 @@ void main() {
       await expectLink(tester, facebook, 'l.facebook.com', payload: facebook);
     });
   });
-  group('texts come from ScannerStrings', () {
-    const ScannerStrings de = ScannerStrings(
-      wifiPassword: 'Passwort im Code',
-      wifiSecurity: _germanSecurity,
-      fullDate: _germanDate,
-    );
+  group('texts come from ScannerLocalizations', () {
+    final ScannerLocalizations de = _German();
 
     testWidgets('the security of a Wi‑Fi network', (WidgetTester tester) async {
       await _show(
         tester,
         _barcode('WIFI:S:Corp;T:WPA2-EAP;P:secret12;;'),
-        strings: de,
+        texts: de,
       );
       expect(find.text('Unternehmen · Passwort im Code'), findsOneWidget);
       expect(find.textContaining('ENTERPRISE'), findsNothing);
-      await _show(
-        tester,
-        _barcode('WIFI:S:Lab;T:XYZ;P:secret12;;'),
-        strings: de,
-      );
+      await _show(tester, _barcode('WIFI:S:Lab;T:XYZ;P:secret12;;'), texts: de);
       expect(find.text('Passwort im Code'), findsOneWidget);
       expect(find.textContaining('UNKNOWN'), findsNothing);
-      await _show(tester, _barcode('WIFI:S:Lab;T:XYZ;;'), strings: de);
+      await _show(tester, _barcode('WIFI:S:Lab;T:XYZ;;'), texts: de);
       expect(find.textContaining('UNKNOWN'), findsNothing);
     });
 
@@ -197,7 +189,7 @@ void main() {
           'BEGIN:VEVENT\nSUMMARY:Launch\nDTSTART:20261114T093000\n'
           'DTEND:20261115T110000\nEND:VEVENT',
         ),
-        strings: de,
+        texts: de,
       );
       expect(find.text('14.11.2026 09:30 – 15.11.2026 11:00'), findsOneWidget);
     });
@@ -222,7 +214,7 @@ void main() {
       await _show(tester, gs1('(17)261231(10)X'));
       expect(_title(tester), 'X');
       expect(find.text('261231'), findsNothing);
-      expect(find.text('31 Dec 2026'), findsOneWidget);
+      expect(find.text('Dec 31, 2026'), findsOneWidget);
     });
 
     testWidgets('an element without a name comes first', (
@@ -248,10 +240,28 @@ void main() {
   });
 }
 
-String _germanDate(DateTime d) => '${d.day}.${d.month}.${d.year}';
+class _German extends ScannerLocalizationsEn {
+  _German() : super('de');
 
-String _germanSecurity(WifiSecurity s) => switch (s) {
-  WifiSecurity.none => 'Offenes Netz',
-  WifiSecurity.enterprise => 'Unternehmen',
-  _ => s.name.toUpperCase(),
-};
+  @override
+  String get wifiPassword => 'Passwort im Code';
+
+  @override
+  String wifiSecurity(String security) => switch (security) {
+    'none' => 'Offenes Netz',
+    'enterprise' => 'Unternehmen',
+    _ => security.toUpperCase(),
+  };
+
+  // Dates as 14.11.2026: the month as its number.
+  @override
+  String monthShort(String month) => '${_months.indexOf(month) + 1}';
+
+  @override
+  String dayMonthYear(int day, String month, int year) => '$day.$month.$year';
+}
+
+const List<String> _months = <String>[
+  'jan', 'feb', 'mar', 'apr', 'may', 'jun', //
+  'jul', 'aug', 'sep', 'oct', 'nov', 'dec',
+];

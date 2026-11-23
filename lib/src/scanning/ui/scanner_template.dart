@@ -4,12 +4,12 @@ import 'package:flutter/widgets.dart';
 
 import '../../barcode/barcode.dart';
 import '../../barcode/barcode_format.dart';
+import '../l10n/scanner_localizations.dart';
 import '../scan_window.dart';
 import '../scanner_controller.dart';
 import 'result_sheet.dart';
 import 'scan_verdict.dart';
 import 'scanner_icons.dart';
-import 'scanner_strings.dart';
 import 'scanner_theme.dart';
 
 /// Builds the sheet shown for a code the scanner found: see
@@ -210,8 +210,8 @@ final class ScannerTemplate {
     required this.facing,
     required this.haptics,
     required this.sound,
-    required String Function(ScannerStrings strings)? titleOf,
-    required String Function(ScannerStrings strings)? hintOf,
+    required String Function(ScannerLocalizations texts)? titleOf,
+    required String Function(ScannerLocalizations texts)? hintOf,
   }) : _titleOf = titleOf,
        _hintOf = hintOf;
 
@@ -905,45 +905,45 @@ final class ScannerTemplate {
   final Set<BarcodeFormat>? formats;
 
   /// A title pill at the top, e.g. "Pay with QR"; an empty string for
-  /// none. `null` is the preset's title from [ScannerStrings], such as
-  /// [ScannerStrings.titlePayment], or none. See [resolveTitle].
+  /// none. `null` is the preset's title from [ScannerLocalizations], such as
+  /// [ScannerLocalizations.titlePayment], or none. See [resolveTitle].
   final String? title;
 
   /// A hint under the window while searching; an empty string for none.
-  /// `null` is the preset's hint from [ScannerStrings], such as
-  /// [ScannerStrings.hintCode], or none. See [resolveHint].
+  /// `null` is the preset's hint from [ScannerLocalizations], such as
+  /// [ScannerLocalizations.hintCode], or none. See [resolveHint].
   final String? hint;
 
-  /// The preset's title and hint, from the strings of the scanner.
-  final String Function(ScannerStrings strings)? _titleOf;
-  final String Function(ScannerStrings strings)? _hintOf;
+  /// The preset's title and hint, from the texts of the scanner.
+  final String Function(ScannerLocalizations texts)? _titleOf;
+  final String Function(ScannerLocalizations texts)? _hintOf;
 
-  /// The title shown with [strings]: [title], or the preset's; `null` for
+  /// The title shown with [texts]: [title], or the preset's; `null` for
   /// none.
-  String? resolveTitle(ScannerStrings strings) =>
-      _shown(title ?? _titleOf?.call(strings));
+  String? resolveTitle(ScannerLocalizations texts) =>
+      _shown(title ?? _titleOf?.call(texts));
 
-  /// The hint shown with [strings]: [hint], or the preset's; `null` for
+  /// The hint shown with [texts]: [hint], or the preset's; `null` for
   /// none.
-  String? resolveHint(ScannerStrings strings) =>
-      _shown(hint ?? _hintOf?.call(strings));
+  String? resolveHint(ScannerLocalizations texts) =>
+      _shown(hint ?? _hintOf?.call(texts));
 
   static String? _shown(String? text) =>
       text == null || text.isEmpty ? null : text;
 
-  static String _hintCode(ScannerStrings s) => s.hintCode;
-  static String _hintQrCode(ScannerStrings s) => s.hintQrCode;
-  static String _hintBarcode(ScannerStrings s) => s.hintBarcode;
-  static String _hintCloser(ScannerStrings s) => s.hintCloser;
-  static String _hintTicket(ScannerStrings s) => s.hintTicket;
-  static String _hintDataMatrix(ScannerStrings s) => s.hintDataMatrix;
-  static String _hintPick(ScannerStrings s) => s.hintPick;
-  static String _hintKiosk(ScannerStrings s) => s.hintKiosk;
-  static String _hintVin(ScannerStrings s) => s.hintVin;
-  static String _hintCard(ScannerStrings s) => s.hintCard;
-  static String _titlePayment(ScannerStrings s) => s.titlePayment;
-  static String _titleTicket(ScannerStrings s) => s.titleTicket;
-  static String _titleSignIn(ScannerStrings s) => s.titleSignIn;
+  static String _hintCode(ScannerLocalizations s) => s.hintCode;
+  static String _hintQrCode(ScannerLocalizations s) => s.hintQrCode;
+  static String _hintBarcode(ScannerLocalizations s) => s.hintBarcode;
+  static String _hintCloser(ScannerLocalizations s) => s.hintCloser;
+  static String _hintTicket(ScannerLocalizations s) => s.hintTicket;
+  static String _hintDataMatrix(ScannerLocalizations s) => s.hintDataMatrix;
+  static String _hintPick(ScannerLocalizations s) => s.hintPick;
+  static String _hintKiosk(ScannerLocalizations s) => s.hintKiosk;
+  static String _hintVin(ScannerLocalizations s) => s.hintVin;
+  static String _hintCard(ScannerLocalizations s) => s.hintCard;
+  static String _titlePayment(ScannerLocalizations s) => s.titlePayment;
+  static String _titleTicket(ScannerLocalizations s) => s.titleTicket;
+  static String _titleSignIn(ScannerLocalizations s) => s.titleSignIn;
 
   /// An icon before [hint].
   final ScannerIconData? hintIcon;
@@ -1007,7 +1007,7 @@ final class ScannerTemplate {
   final ScannerCheck? check;
 
   /// With [ScannerMode.continuous]: a counter of the accepted codes at the
-  /// top ([ScannerStrings.checkedIn]).
+  /// top ([ScannerLocalizations.checkedIn]).
   final bool counter;
 
   /// With one result at a time: pause and show a result sheet. Without it,

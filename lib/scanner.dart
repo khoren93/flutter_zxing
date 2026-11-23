@@ -7,6 +7,12 @@ library;
 
 export 'content.dart';
 export 'rendering.dart';
+export 'src/scanning/l10n/scanner_localizations.dart'
+    hide lookupScannerLocalizations;
+export 'src/scanning/l10n/scanner_localizations_en.dart';
+export 'src/scanning/l10n/scanner_localizations_lookup.dart'
+    show ScannerLocalizationsContent;
+export 'src/scanning/l10n/scanner_localizations_ru.dart';
 export 'src/scanning/scan_window.dart';
 export 'src/scanning/scanner_controller.dart'
     hide BarcodeCapturePhoto, ScannerControllerDebug, ScannerFrameSample;
@@ -17,7 +23,6 @@ export 'src/scanning/ui/result_sheet.dart' hide defaultResultActions;
 export 'src/scanning/ui/scan_field_button.dart';
 export 'src/scanning/ui/scan_verdict.dart';
 export 'src/scanning/ui/scanner_icons.dart' hide svgPath;
-export 'src/scanning/ui/scanner_strings.dart';
 export 'src/scanning/ui/scanner_template.dart';
 export 'src/scanning/ui/scanner_theme.dart' hide resolvedScannerScope;
 export 'src/scanning/ui/states.dart';

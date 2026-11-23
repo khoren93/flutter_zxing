@@ -9,6 +9,8 @@ import 'package:flutter/widgets.dart';
 import '../../barcode/barcode.dart';
 import '../../content/barcode_content.dart';
 import '../../errors.dart';
+import '../l10n/scanner_localizations.dart';
+import '../l10n/scanner_localizations_lookup.dart';
 import '../scanner_controller.dart';
 import 'barcode_label.dart';
 import 'controls.dart';
@@ -17,7 +19,6 @@ import 'pressable.dart';
 import 'result_sheet.dart';
 import 'scan_verdict.dart';
 import 'scanner_icons.dart';
-import 'scanner_strings.dart';
 import 'scanner_template.dart';
 import 'scanner_theme.dart';
 import 'states.dart';
@@ -291,7 +292,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       }
       // A refused code is told first: it is not in the list.
       if (refused ?? flagged case final ScanVerdict verdict) {
-        final ScannerStrings strings = ScannerStrings.of(context);
+        final ScannerLocalizations texts = ScannerLocalizations.of(context);
         told = true;
         _feedback(verdict.kind);
         _flashFor(verdict.kind);
@@ -299,8 +300,8 @@ class _TemplateOverlayState extends State<TemplateOverlay>
           <String>[
             verdict.title ??
                 (verdict.kind == ScanVerdictKind.reject
-                    ? strings.rejected
-                    : strings.needsAttention),
+                    ? texts.rejected
+                    : texts.needsAttention),
             ?verdict.message,
           ].join(' · '),
         );
@@ -406,7 +407,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         _flashFor(ScanVerdictKind.reject);
         _showNotice(
           <String>[
-            verdict.title ?? ScannerStrings.of(context).rejected,
+            verdict.title ?? ScannerLocalizations.of(context).rejected,
             ?verdict.message,
           ].join(' · '),
         );
@@ -430,7 +431,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       _flashFor(ScanVerdictKind.warn);
       _showNotice(
         <String>[
-          warning.title ?? ScannerStrings.of(context).needsAttention,
+          warning.title ?? ScannerLocalizations.of(context).needsAttention,
           ?warning.message,
         ].join(' · '),
       );
@@ -879,7 +880,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
 
   void _photoRead(BarcodeCapture? capture) {
     if (capture == null && mounted) {
-      _showNotice(ScannerStrings.of(context).noCodeInPhoto);
+      _showNotice(ScannerLocalizations.of(context).noCodeInPhoto);
     }
   }
 
@@ -972,7 +973,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     final bool landscape = size.width > size.height;
     final bool noWindow = _isFull(full.scanWindow, size);
     final ScannerTheme theme = ScannerTheme.of(context);
-    final ScannerStrings strings = ScannerStrings.of(context);
+    final ScannerLocalizations texts = ScannerLocalizations.of(context);
     // The window as drawn: the scan window, or on its way beside the sheet;
     // without a window, where the code settles.
     Rect window = full.scanWindow;
@@ -1013,7 +1014,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         (template.onClose != null || (ModalRoute.of(context)?.canPop ?? false));
     const Duration fade = Duration(milliseconds: 200);
     final String? hint =
-        _notice ?? (template.largeHint ? null : template.resolveHint(strings));
+        _notice ?? (template.largeHint ? null : template.resolveHint(texts));
     final bool bottomBar =
         template.photoButton ||
         template.zoomButtons ||
@@ -1028,12 +1029,12 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     final String? title = template.largeHint
         ? null
         : counter
-        ? strings.checkedIn(_accepted)
+        ? texts.checkedIn(_accepted)
         : pick && layout.barcodes.isNotEmpty
-        ? strings.codesInView(layout.barcodes.length)
+        ? texts.codesInView(layout.barcodes.length)
         : choosing
-        ? strings.codesInView(photo.codes.length)
-        : template.resolveTitle(strings);
+        ? texts.codesInView(photo.codes.length)
+        : template.resolveTitle(texts);
 
     final ScannerException? error = layout.state.error;
     // The hint: under the window, or above the bottom bar without one.
@@ -1095,7 +1096,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     if (flash != null) {
       overlay = ScannerScope(
         theme: theme.copyWith(accent: flash),
-        strings: strings,
+        texts: texts,
         child: overlay,
       );
     }
@@ -1333,7 +1334,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
                     alignment: AlignmentDirectional.centerEnd,
                     child: ScannerButton(
                       icon: ScannerIcons.close,
-                      label: strings.backToCamera,
+                      label: texts.backToCamera,
                       onPressed: _scanAgain,
                     ),
                   ),
@@ -1498,8 +1499,10 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     if (result == null) {
       return template.largeHint && camera
           ? _HintPanel(
-              title: template.resolveTitle(ScannerStrings.of(context)),
-              hint: _notice ?? template.resolveHint(ScannerStrings.of(context)),
+              title: template.resolveTitle(ScannerLocalizations.of(context)),
+              hint:
+                  _notice ??
+                  template.resolveHint(ScannerLocalizations.of(context)),
             )
           : null;
     }
@@ -1514,7 +1517,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
       verdict: _resultVerdict,
       defaultActions: defaultResultActions(
         result,
-        ScannerStrings.of(context),
+        ScannerLocalizations.of(context),
         onScanAgain: _scanAgain,
         header: template.resultHeader,
       ),
@@ -1582,7 +1585,7 @@ class _VerdictSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
-    final ScannerStrings strings = ScannerStrings.of(context);
+    final ScannerLocalizations texts = ScannerLocalizations.of(context);
     final (
       Color color,
       Color on,
@@ -1593,19 +1596,19 @@ class _VerdictSheet extends StatelessWidget {
         theme.lockColor,
         theme.onLockColor,
         ScannerIcons.check,
-        strings.accepted,
+        texts.accepted,
       ),
       ScanVerdictKind.warn => (
         theme.warningColor,
         theme.onWarningColor,
         ScannerIcons.alert,
-        strings.needsAttention,
+        texts.needsAttention,
       ),
       ScanVerdictKind.reject => (
         theme.dangerColor,
         theme.onDangerColor,
         ScannerIcons.close,
-        strings.rejected,
+        texts.rejected,
       ),
     };
     final String title = verdict.title ?? barcodeLabel(barcode);
@@ -1869,7 +1872,7 @@ class _PickLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ScannerTheme theme = ScannerTheme.of(context);
-    final ScannerStrings strings = ScannerStrings.of(context);
+    final ScannerLocalizations texts = ScannerLocalizations.of(context);
     final Barcode barcode = code.barcode;
     final Rect bounds = code.bounds;
     final String label = _labelOf(barcode);
@@ -1885,8 +1888,8 @@ class _PickLabel extends StatelessWidget {
         delegate: _CenterOn(bounds.center.dx - 8),
         child: Semantics(
           button: true,
-          label: '$number. ${strings.kindOf(barcode.content)}: $label',
-          hint: strings.pickCode,
+          label: '$number. ${texts.kindOf(barcode.content)}: $label',
+          hint: texts.pickCode,
           child: Pressable(
             onPressed: onPressed,
             shape: theme.pillBorder,

@@ -3,7 +3,7 @@ import 'dart:ui' show FontFeature, ImageFilter;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-import 'scanner_strings.dart';
+import '../l10n/scanner_localizations.dart';
 
 /// Shape of the scanner's buttons and panels.
 enum ScannerButtonShape {
@@ -491,7 +491,7 @@ double _contrast(Color a, Color b) {
 /// Put one around the app or a screen to give every scanner below it the
 /// app's theme and translated texts: `BarcodeScanner`, `scanBarcode` and
 /// `ScanFieldButton` take them, under a template's theme and their own
-/// `theme` and `strings`. `BarcodeScanner` inserts one with the result;
+/// `theme` and `texts`. `BarcodeScanner` inserts one with the result;
 /// use it also to style scanner widgets elsewhere, such as a
 /// [ScannerTheme]-styled button in your own screen.
 class ScannerScope extends InheritedWidget {
@@ -499,15 +499,29 @@ class ScannerScope extends InheritedWidget {
   const ScannerScope({
     super.key,
     this.theme = const ScannerTheme(),
-    this.strings = const ScannerStrings(),
+    this.texts,
     required super.child,
   });
 
   /// The theme; a `null` brightness follows the platform's.
   final ScannerTheme theme;
 
-  /// The texts.
-  final ScannerStrings strings;
+  /// The texts of the scanner widgets below, such as a subclass of a
+  /// built-in translation with a few texts changed:
+  ///
+  /// ```dart
+  /// class MyTexts extends ScannerLocalizationsEn {
+  ///   @override
+  ///   String get scanAgain => 'Next ticket';
+  /// }
+  ///
+  /// ScannerScope(texts: MyTexts(), child: ...)
+  /// ```
+  ///
+  /// `null` leaves them to [ScannerLocalizations.of]: those of an outer
+  /// scope, of a registered `ScannerLocalizations.delegate`, or the built-in
+  /// translation for the app's locale.
+  final ScannerLocalizations? texts;
 
   /// The font of the surrounding text, unless it is the warning style a
   /// Material app gives text outside a `Material` (red monospace).
@@ -522,7 +536,7 @@ class ScannerScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(ScannerScope oldWidget) =>
-      oldWidget.theme != theme || oldWidget.strings != strings;
+      oldWidget.theme != theme || oldWidget.texts != texts;
 }
 
 /// A scope whose theme has its brightness resolved from the platform and
@@ -530,7 +544,7 @@ class ScannerScope extends InheritedWidget {
 Widget resolvedScannerScope(
   BuildContext context, {
   required ScannerTheme theme,
-  required ScannerStrings strings,
+  required ScannerLocalizations? texts,
   required Widget child,
 }) {
   final ScannerTheme resolved = theme.brightness != null
@@ -541,7 +555,7 @@ Widget resolvedScannerScope(
         );
   return ScannerScope(
     theme: resolved,
-    strings: strings,
+    texts: texts,
     child: DefaultTextStyle(
       style: TextStyle(
         inherit: false,

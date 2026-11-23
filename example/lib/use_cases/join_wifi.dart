@@ -17,7 +17,7 @@ class JoinWifiPage extends StatelessWidget {
     // Anything else, such as a code from a photo: the default sheet.
     if (content is! WifiContent) return null;
     final ScannerTheme theme = ScannerTheme.of(context);
-    final ScannerStrings strings = ScannerStrings.of(context);
+    final ScannerLocalizations texts = ScannerLocalizations.of(context);
     final String? password = content.password;
     return ScannerSheet(
       label: 'Wi‑Fi network',
@@ -28,7 +28,7 @@ class JoinWifiPage extends StatelessWidget {
           Text('WI‑FI', style: theme.overlineStyle),
           const SizedBox(height: 4),
           Text(content.ssid, style: theme.titleStyle),
-          Text(strings.wifiSecurity(content.security), style: theme.mutedStyle),
+          Text(texts.wifiSecurityOf(content.security), style: theme.mutedStyle),
           if (content.hidden) Text('Hidden network', style: theme.mutedStyle),
           if (password != null && password.isNotEmpty) ...[
             const SizedBox(height: 16),
