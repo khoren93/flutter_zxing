@@ -13,6 +13,16 @@
   of the frames read in the moment after the code, lightly sharpened, in the
   window and the result sheet. The result is not delayed.
 
+* `BarcodeLabelSheet(codeSize:)` sets the size of each code in millimetres
+  instead of filling its label.
+
+### Fixed
+
+* The scan line costs no more than the scanner without it on a Pixel 4a:
+  its glow is drawn without a blur.
+* The label sheet preview centres each caption under its code, as the PDF
+  and SVG do.
+
 ## 4.0.0-rc.5
 
 Upgrading from rc.4: see

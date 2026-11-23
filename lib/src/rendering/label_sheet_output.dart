@@ -70,10 +70,13 @@ LabelPlacement placeLabel(
   );
   final double line = sheet.caption ? sheet.captionSize : 0;
   final double below = sheet.caption ? line * (1 + captionGap) : 0;
-  final double scale = math.min(
+  double scale = math.min(
     inner.width / layout.width,
     (inner.height - below) / layout.height,
   );
+  if (sheet.codeSize case final double size) {
+    scale = math.min(scale, size / math.max(layout.width, layout.height));
+  }
   final double w = layout.width * scale;
   final double h = layout.height * scale;
   final double top = inner.top + (inner.height - h - below) / 2;

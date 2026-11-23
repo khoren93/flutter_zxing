@@ -152,6 +152,9 @@ void main() {
     expect(shown.left, closeTo(at.code.left * 2, 0.01));
     expect(shown.top, closeTo(at.code.top * 2, 0.01));
     expect(shown.width, closeTo(at.code.width * 2, 0.01));
+    // The caption is centred under its code, as in the files.
+    final Rect text = tester.getRect(find.text('SKU-0025'));
+    expect(text.center.dx, closeTo(at.code.center.dx * 2, 0.5));
     await tester.binding.setSurfaceSize(null);
   });
 }

@@ -92,11 +92,13 @@ final class BarcodeLabelSheet {
     this.padding = 2,
     this.caption = true,
     this.captionSize = 3,
+    this.codeSize,
     this.writer = const BarcodeWriter(BarcodeFormat.qrCode),
   }) : assert(columns > 0 && rows > 0, 'A sheet needs a column and a row'),
        assert(columnGap >= 0 && rowGap >= 0, 'Gaps cannot be negative'),
        assert(padding >= 0, 'The padding cannot be negative'),
-       assert(captionSize > 0, 'The caption needs a size');
+       assert(captionSize > 0, 'The caption needs a size'),
+       assert(codeSize == null || codeSize > 0, 'A code needs a size');
 
   /// The size of a page.
   final PaperSize paper;
@@ -128,6 +130,12 @@ final class BarcodeLabelSheet {
   /// The height of the caption's line, in millimetres (3 mm is about
   /// 8.5 pt). A caption too long for the label gets smaller to fit.
   final double captionSize;
+
+  /// The longer side of each code, its quiet zone included, in
+  /// millimetres: a 20 mm QR code on a larger label, centred with its
+  /// caption. `null` makes each code as large as its label allows; a size
+  /// larger than that is cut down to it.
+  final double? codeSize;
 
   /// Encodes the items: the format, error correction and the rest. A QR
   /// code by default.
@@ -300,6 +308,7 @@ final class BarcodeLabelSheet {
     double? padding,
     bool? caption,
     double? captionSize,
+    ValueGetter<double?>? codeSize,
     BarcodeWriter? writer,
   }) => BarcodeLabelSheet(
     paper: paper ?? this.paper,
@@ -311,6 +320,7 @@ final class BarcodeLabelSheet {
     padding: padding ?? this.padding,
     caption: caption ?? this.caption,
     captionSize: captionSize ?? this.captionSize,
+    codeSize: codeSize == null ? this.codeSize : codeSize(),
     writer: writer ?? this.writer,
   );
 
@@ -326,6 +336,7 @@ final class BarcodeLabelSheet {
       other.padding == padding &&
       other.caption == caption &&
       other.captionSize == captionSize &&
+      other.codeSize == codeSize &&
       other.writer == writer;
 
   @override
@@ -339,6 +350,7 @@ final class BarcodeLabelSheet {
     padding,
     caption,
     captionSize,
+    codeSize,
     writer,
   );
 
@@ -507,24 +519,29 @@ class _BarcodeLabelSheetViewState extends State<BarcodeLabelSheetView> {
           child: Baseline(
             baseline: (at.baseline - line.top) * mm,
             baselineType: TextBaseline.alphabetic,
-            child: Text(
-              caption,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.visible,
-              textAlign: TextAlign.center,
-              textDirection: TextDirection.ltr,
-              style: TextStyle(
-                color: const Color(0xFF000000),
-                fontSize: at.captionFontSize * mm,
-                height: 1,
-                fontFamily: 'monospace',
-                fontFamilyFallback: const <String>[
-                  'Courier New',
-                  'Courier',
-                  'Menlo',
-                ],
-                decoration: TextDecoration.none,
+            // Baseline loosens the width: the text gets the whole line to
+            // be centred in, as in the SVG and the PDF.
+            child: SizedBox(
+              width: line.width * mm,
+              child: Text(
+                caption,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.visible,
+                textAlign: TextAlign.center,
+                textDirection: TextDirection.ltr,
+                style: TextStyle(
+                  color: const Color(0xFF000000),
+                  fontSize: at.captionFontSize * mm,
+                  height: 1,
+                  fontFamily: 'monospace',
+                  fontFamilyFallback: const <String>[
+                    'Courier New',
+                    'Courier',
+                    'Menlo',
+                  ],
+                  decoration: TextDecoration.none,
+                ),
               ),
             ),
           ),

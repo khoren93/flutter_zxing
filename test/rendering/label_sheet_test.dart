@@ -152,6 +152,30 @@ void main() {
       );
     });
 
+    test('codeSize makes the code smaller, centred with its caption', () {
+      final BarcodeLabelSheet small = sheet.copyWith(codeSize: () => 12);
+      final Rect label = small.labelRect(0);
+      final LabelPlacement at = placeLabel(small, label, layout, 'SKU-0001');
+      expect(at.code.width, closeTo(12, 1e-9));
+      expect(at.code.height, closeTo(12, 1e-9));
+      expect(at.code.center.dx, closeTo(label.center.dx, 1e-9));
+      // The code and its caption together are centred down the label.
+      final double block = at.captionBox!.bottom - at.code.top;
+      expect(
+        at.code.top - label.top,
+        closeTo(label.bottom - (at.code.top + block), 1e-9),
+      );
+      // Larger than the label allows: cut down to it.
+      final LabelPlacement big = placeLabel(
+        sheet.copyWith(codeSize: () => 500),
+        label,
+        layout,
+        'SKU-0001',
+      );
+      final LabelPlacement full = placeLabel(sheet, label, layout, 'SKU-0001');
+      expect(big.code, full.code);
+    });
+
     test('without a caption the code takes the whole label', () {
       final BarcodeLabelSheet bare = sheet.copyWith(caption: false);
       final Rect label = bare.labelRect(0);

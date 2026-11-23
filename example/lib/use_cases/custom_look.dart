@@ -144,10 +144,11 @@ class _CustomLookPageState extends State<CustomLookPage> {
       theme: _look.theme,
       texts: _look.texts,
       // Your own widget over the camera, in the look's glass.
+      // Under the template's top bar, clear of the result sheet below.
       foregroundBuilder: (context, layout) => Positioned(
         left: 0,
         right: 0,
-        bottom: MediaQuery.paddingOf(context).bottom + 120,
+        top: MediaQuery.paddingOf(context).top + 72,
         child: Center(
           child: ScannerGlass(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),

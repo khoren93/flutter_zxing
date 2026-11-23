@@ -1,6 +1,7 @@
-// A sheet of labels: item codes on A4 pages, 3 × 8 to a page, each a QR
-// code or a Code 128 barcode with its text, shared as one PDF to print at
-// 100 %. Android, iOS, macOS, the web. Also needs share_plus.
+// A sheet of labels: item codes on pages of the paper you choose, so many
+// across and down, each a QR code or a Code 128 barcode of the size you set
+// with its text, shared as one PDF to print at 100 %. Android, iOS, macOS,
+// the web. Also needs share_plus.
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:share_plus/share_plus.dart';
@@ -21,6 +22,48 @@ class _LabelSheetPageState extends State<LabelSheetPage> {
   BarcodeLabelSheet _sheet = const BarcodeLabelSheet(columns: 3, rows: 8);
   int _page = 0;
   double? _progress; // while making the PDF
+
+  static const Map<String, PaperSize> _papers = {
+    'A4': PaperSize.a4,
+    'A5': PaperSize.a5,
+    'A3': PaperSize.a3,
+    'Letter': PaperSize.letter,
+    'Legal': PaperSize.legal,
+  };
+  String _paper = 'A4';
+  bool _landscape = false;
+
+  void _update(BarcodeLabelSheet sheet) => setState(() {
+    _sheet = sheet;
+    // Fewer pages now: stay on the last one.
+    _page = _page.clamp(0, sheet.pageCount(_items.length) - 1);
+  });
+
+  void _setPaper(String name, bool landscape) {
+    _paper = name;
+    _landscape = landscape;
+    final PaperSize paper = _papers[name]!;
+    _update(_sheet.copyWith(paper: landscape ? paper.landscape : paper));
+  }
+
+  Widget _stepper(String label, int value, int max, ValueChanged<int> set) =>
+      Row(
+        children: [
+          Expanded(child: Text(label)),
+          IconButton(
+            onPressed: value > 1 ? () => set(value - 1) : null,
+            icon: const Icon(Icons.remove),
+          ),
+          SizedBox(
+            width: 28,
+            child: Text('$value', textAlign: TextAlign.center),
+          ),
+          IconButton(
+            onPressed: value < max ? () => set(value + 1) : null,
+            icon: const Icon(Icons.add),
+          ),
+        ],
+      );
 
   Future<void> _share(BuildContext context) async {
     final box = context.findRenderObject() as RenderBox?;
@@ -73,6 +116,68 @@ class _LabelSheetPageState extends State<LabelSheetPage> {
               () => _sheet = _sheet.copyWith(writer: BarcodeWriter(s.first)),
             ),
           ),
+          const SizedBox(height: 8),
+          // The paper and the layout: match your label paper.
+          Row(
+            children: [
+              const Expanded(child: Text('Paper')),
+              DropdownButton<String>(
+                value: _paper,
+                items: [
+                  for (final name in _papers.keys)
+                    DropdownMenuItem(value: name, child: Text(name)),
+                ],
+                onChanged: (name) => _setPaper(name!, _landscape),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: _landscape ? 'Portrait' : 'Landscape',
+                onPressed: () => _setPaper(_paper, !_landscape),
+                icon: Icon(
+                  _landscape
+                      ? Icons.crop_landscape_outlined
+                      : Icons.crop_portrait_outlined,
+                ),
+              ),
+            ],
+          ),
+          _stepper(
+            'Codes across',
+            _sheet.columns,
+            10,
+            (n) => _update(_sheet.copyWith(columns: n)),
+          ),
+          _stepper(
+            'Rows on a page',
+            _sheet.rows,
+            20,
+            (n) => _update(_sheet.copyWith(rows: n)),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _sheet.codeSize == null
+                      ? 'Code size: as large as fits'
+                      : 'Code size: ${_sheet.codeSize!.round()} mm',
+                ),
+              ),
+              Switch(
+                value: _sheet.codeSize != null,
+                onChanged: (fixed) =>
+                    _update(_sheet.copyWith(codeSize: () => fixed ? 20 : null)),
+              ),
+            ],
+          ),
+          if (_sheet.codeSize case final double size)
+            Slider(
+              value: size,
+              min: 8,
+              max: 80,
+              divisions: 72,
+              label: '${size.round()} mm',
+              onChanged: (v) => _update(_sheet.copyWith(codeSize: () => v)),
+            ),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

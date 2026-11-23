@@ -46,6 +46,7 @@ are in millimetres.
 | `padding` | `2` | The blank edge inside each label |
 | `caption` | `true` | A line of text under each code |
 | `captionSize` | `3` | The height of that line (3 mm is about 8.5 pt) |
+| `codeSize` | `null` | The longer side of each code in millimetres, centred on its label with the caption; `null` as large as the label allows |
 | `writer` | QR code | The format, error correction and the rest |
 
 Labels fill a page row by row, left to right. In each label the code is
