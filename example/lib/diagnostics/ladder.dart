@@ -44,7 +44,8 @@ enum LadderStep {
   l9('L8 and the scan window overlay'),
   l10('L9 and blurred glass'),
   l11('The demo template'),
-  l12('L11 with a scan line');
+  l12('L11 with a scan line'),
+  l13('L11 held for minutes: memory over time');
 
   const LadderStep(this.description);
 
@@ -420,7 +421,11 @@ class LadderPageState extends State<LadderPage> {
       '${_step.label}  ${_step.description}',
       'CPU ${s.cpu.toStringAsFixed(1)} %  '
           '${s.threads.take(4).map(((String, double) t) => '${t.$1} ${t.$2.toStringAsFixed(1)}').join(' · ')}',
-      'read p50 ${(_pct(reads, 0.5) / 1000).toStringAsFixed(1)} ms  '
+      'RAM ${switch (CpuMeter.residentBytes) {
+            final int b => (b / (1 << 20)).toStringAsFixed(0),
+            null => '-',
+          }} MB  '
+          'read p50 ${(_pct(reads, 0.5) / 1000).toStringAsFixed(1)} ms  '
           'p95 ${(_pct(reads, 0.95) / 1000).toStringAsFixed(1)} ms',
       if (_progress.isNotEmpty) _progress,
     ].join('\n');
@@ -837,7 +842,7 @@ class LadderPageState extends State<LadderPage> {
     });
   }
 
-  /// Pauses or resumes the scanner of steps L7 to L12.
+  /// Pauses or resumes the scanner of steps L7 to L13.
   Future<void> pauseScanner({required bool paused}) async {
     final ScannerController? scanner = _scanner;
     if (scanner != null) {
@@ -919,7 +924,8 @@ class LadderPageState extends State<LadderPage> {
                 controller: scanner,
                 theme: const ScannerTheme(blur: true, scrimBlur: true),
               );
-      case LadderStep.l11:
+      // L13 is L11 held for minutes by `make perf` to watch the memory.
+      case LadderStep.l11 || LadderStep.l13:
         return scanner == null
             ? const SizedBox.expand()
             : BarcodeScanner(

@@ -63,7 +63,8 @@ help:
 	@echo "                       settings on the live camera and their numbers"
 	@echo "  make perf            The scanner's load on DEVICE against the budgets:"
 	@echo "                       profile build, scenes A and B (asks to point the"
-	@echo "                       camera), about 12 min; run before every release"
+	@echo "                       camera) and M (memory leaks), about 25 min; run"
+	@echo "                       before every release"
 	@echo "  make diag-pull       Copy the recorded frames from DEVICE to build/recordings"
 	@echo "  make replay          Read the recordings in build/recordings again here"
 	@echo "                       FILE=<recording>  OPTIONS=tryInvert=true,minLineCount=1"
@@ -170,8 +171,9 @@ run-web: web-engine
 diag:
 	$(MAKE) run APP=diagnostics MODE=$(if $(filter command line,$(origin MODE)),$(MODE),profile)
 
-# Budgets in tool/perf_run.py. SCENES=A or B runs one scene.
-SCENES ?= AB
+# Budgets in tool/perf_run.py. SCENES: A (no code), B (a code), M (memory over
+# SOAK=300 seconds and camera open/close cycles); SCENES=M runs the memory alone.
+SCENES ?= ABM
 perf:
 	@[ -n "$(DEVICE)" ] || { echo "Set DEVICE=<id> (make devices)."; exit 1; }
 	python3 tool/perf_run.py "$(DEVICE)" $(SCENES)

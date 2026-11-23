@@ -423,6 +423,10 @@ final class DiagMetrics extends ChangeNotifier {
       ' meter=${meterMicros}us'
       ' work=${jsonEncode(_work)}'
       ' reads=${_samples[_side]?.where((DiagSample s) => _clock.elapsedMicroseconds - s.atMicros < 1000000).length ?? 0}'
+      ' rss=${switch (CpuMeter.residentBytes) {
+        final int b => (b / (1 << 20)).toStringAsFixed(1),
+        null => '-',
+      }}'
       ' thr=${_threads.map(((String, double) t) => '${t.$1}:${f(t.$2)}').join('|')}',
     );
   }
