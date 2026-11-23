@@ -18,6 +18,7 @@ import 'package:flutter_zxing/src/scanning/scanner_controller.dart'
 import 'diag_metrics.dart';
 import 'diag_runs.dart';
 import 'diag_settings.dart';
+import 'field_codes.dart';
 import 'field_session.dart';
 import 'field_tab.dart';
 import 'frame_recorder.dart';
@@ -25,6 +26,7 @@ import 'frame_saver.dart';
 import 'frames_tab.dart';
 import 'ladder.dart';
 import 'lens_numbers.dart';
+import 'recording.dart';
 import 'scan_benchmark.dart';
 import 'settings_tab.dart';
 import 'ui_stall.dart';
@@ -114,6 +116,24 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
       return developer.ServiceExtensionResponse.result(
         jsonEncode(<String, Object>{'show': show}),
       );
+    });
+    // The field test driven from the Mac (R3-08), with the codes shown on its
+    // screen one after another:
+    //   ext.diag.field?action=resolution&value=sd|hd|fullHd  reopens the camera
+    //   ext.diag.field?action=expect&format=qrCode&text=...&addOn=...
+    //     &timeout=3000&label=W1-20cm-hd
+    // waits for that code and answers {"ms": ...}; a code not read within the
+    // timeout answers {"ms": null} and saves its frames as a recording.
+    developer.registerExtension('ext.diag.field', (
+      String method,
+      Map<String, String> params,
+    ) async {
+      final Map<String, Object?> answer = switch (params['action']) {
+        'resolution' => await _remoteResolution(params['value'] ?? ''),
+        'expect' => await _remoteExpect(params),
+        _ => <String, Object?>{'resolution': _a.resolution.name},
+      };
+      return developer.ServiceExtensionResponse.result(jsonEncode(answer));
     });
     // ext.diag.ladder?action=open|close|step|run|stop|status, with step=L3
     // or for a run steps=L0,L5 warmup=10 measure=60 repeats=3 scene=A.
@@ -223,6 +243,71 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     while (_ladder.currentState == null && mounted) {
       await WidgetsBinding.instance.endOfFrame;
     }
+  }
+
+  /// Opens the camera at [name] (a [CameraResolution]) and waits for its
+  /// first frame.
+  Future<Map<String, Object?>> _remoteResolution(String name) async {
+    final CameraResolution? next = CameraResolution.values
+        .where((CameraResolution r) => r.name == name)
+        .firstOrNull;
+    if (next == null) {
+      return <String, Object?>{'error': 'unknown resolution $name'};
+    }
+    if (next != _a.resolution) {
+      setState(() => _editing = 'A');
+      await _change(_a.copyWith(resolution: next));
+    }
+    await _controller.frameSamples.first.timeout(
+      const Duration(seconds: 15),
+      onTimeout: () => throw TimeoutException('no frames after reopening'),
+    );
+    return <String, Object?>{'resolution': _a.resolution.name};
+  }
+
+  /// Waits for one code and times it; keeps the frames of a code not read.
+  Future<Map<String, Object?>> _remoteExpect(Map<String, String> p) async {
+    final FieldCode code = FieldCode(
+      p['label'] ?? '',
+      '',
+      p['format'] ?? '',
+      p['text'] ?? '',
+      addOn: p['addOn'],
+    );
+    final Duration timeout = Duration(
+      milliseconds: int.tryParse(p['timeout'] ?? '') ?? 3000,
+    );
+    final bool wasArmed = _recorder.armed;
+    _recorder.armed = true;
+    final Stopwatch clock = Stopwatch()..start();
+    final Completer<int?> read = Completer<int?>();
+    int frames = 0;
+    final StreamSubscription<ScannerFrameSample> reads = _controller
+        .frameSamples
+        .listen((ScannerFrameSample s) {
+          frames++;
+          if (!read.isCompleted &&
+              s.reads.any((Barcode b) => code.matches(b.format.name, b.text))) {
+            read.complete(clock.elapsedMilliseconds);
+          }
+        });
+    final int? ms = await read.future.timeout(timeout, onTimeout: () => null);
+    await reads.cancel();
+    String? recording;
+    if (ms == null) {
+      final Recording? frames = _recorder.take(_active, label: p['label']);
+      if (frames != null) {
+        await _recordings.save(frames);
+        recording = frames.name;
+      }
+    }
+    _recorder.armed = wasArmed;
+    return <String, Object?>{
+      'ms': ms,
+      'frames': frames,
+      'recording': recording,
+      'resolution': _a.resolution.name,
+    };
   }
 
   /// Every frame's reads go to the field test: it finds its code among them.

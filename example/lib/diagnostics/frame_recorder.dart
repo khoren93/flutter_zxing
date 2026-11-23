@@ -97,15 +97,17 @@ final class FrameRecorder extends ChangeNotifier {
   }
 
   /// The frames kept now, read with [settings]; `null` without frames.
-  Recording? take(DiagSettings settings) {
+  /// [label] goes in front of the name, which is the time.
+  Recording? take(DiagSettings settings, {String? label}) {
     if (_frames.isEmpty) {
       return null;
     }
-    final String name = DateTime.now()
+    final String time = DateTime.now()
         .toIso8601String()
         .replaceAll(':', '-')
         .split('.')
         .first;
+    final String name = label == null ? time : '$label-$time';
     return Recording(
       name: name,
       device: diagDevice,
