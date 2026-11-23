@@ -11,6 +11,9 @@
   `class MyTexts extends ScannerLocalizationsEn { … }`.
 * `ScannerResult.close` is now `backToCodes`: it goes back to the codes of
   `ScannerTemplate.pick()`, it does not close the scanner.
+* `ScannerAction.copy(...)` has no `icon` of its own: its copy and copied
+  icons come from the theme (`ScannerTheme(icons: ScannerIconSet(copy:,
+  copied:))`).
 * `BarcodeStyle.encode`, `encodeBytes`, `encodePng` and `encodeSvg` take the
   writer as a named parameter, QR by default:
   `style.encodePng('https://pub.dev', size: 1024)`.
