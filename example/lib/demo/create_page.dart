@@ -52,7 +52,7 @@ class CreatePage extends StatefulWidget {
 }
 
 class _CreatePageState extends State<CreatePage> {
-  CreateKind _kind = CreateKind.wifi;
+  CreateKind _kind = CreateKind.text;
   LinkService _service = LinkService.whatsApp;
 
   /// The form's fields, by kind and key: each kind keeps what was typed.
