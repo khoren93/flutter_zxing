@@ -1015,13 +1015,17 @@ class _TemplateOverlayState extends State<TemplateOverlay>
     const Duration fade = Duration(milliseconds: 200);
     final String? hint =
         _notice ?? (template.largeHint ? null : template.resolveHint(texts));
-    final bool bottomBar =
+    // The torch with the controls; a list, which shows no controls, keeps
+    // it at the top.
+    final bool torchInControls =
+        template.torchButton &&
+        template.torchPosition == ScannerTorchPosition.withControls &&
+        template.mode != ScannerMode.collect;
+    final bool controls =
         template.photoButton ||
         template.zoomButtons ||
-        template.switchCameraButton;
-    // Room for a button at each side, so that the zoom stays in the middle.
-    final bool sideButtons =
-        template.photoButton || template.switchCameraButton;
+        template.switchCameraButton ||
+        torchInControls;
     final Color? flash = _flashColor(theme);
     // The counter counts codes let in one after another: continuous only.
     final bool counter =
@@ -1037,16 +1041,36 @@ class _TemplateOverlayState extends State<TemplateOverlay>
         : template.resolveTitle(texts);
 
     final ScannerException? error = layout.state.error;
+    // Where the controls go: the layout's place where it has room, else
+    // the adaptive one.
+    final Rect scanWindow = full.scanWindow;
+    final double topRow =
+        template.controlsLayout == ScannerControlsLayout.topBar
+        ? _topRow(context, theme, title, safe, size, counter: counter)
+        : 0;
+    final _ControlsPlace place = switch (template.controlsLayout) {
+      ScannerControlsLayout.sideColumn
+          when !landscape &&
+              size.width - safe.right - 20 - (scanWindow.right + 12) >= 48 =>
+        _ControlsPlace.side,
+      ScannerControlsLayout.topBar
+          when noWindow || topRow + 48 + 12 <= scanWindow.top =>
+        _ControlsPlace.top,
+      _ => landscape ? _ControlsPlace.side : _ControlsPlace.bottom,
+    };
     // The hint: under the window, or above the bottom bar without one.
     final double hintTop = noWindow
         ? size.height -
               math.max(safe.bottom, 12) -
               24 -
               40 -
-              (bottomBar && !landscape ? 72 : 0)
+              (controls && place == _ControlsPlace.bottom ? 72 : 0)
         : math.min(layout.scanWindow.bottom + 16, size.height - 64);
-    // The highest a pick label goes: below the top bar.
-    final double labelTop = safe.top + _PickLabel.topBar;
+    // The highest a pick label goes: below the top bar, and below the
+    // controls there.
+    final double labelTop = place == _ControlsPlace.top
+        ? math.max(safe.top + _PickLabel.topBar, topRow + 48 + 8)
+        : safe.top + _PickLabel.topBar;
     // The photo, with room above it for the label of a code at its top.
     final double photoTop = safe.top + 72 + _PickLabel.height + _PickLabel.gap;
     final Rect? photoRect = switch (photo) {
@@ -1319,12 +1343,15 @@ class _TemplateOverlayState extends State<TemplateOverlay>
                       padding: const EdgeInsets.symmetric(horizontal: 60),
                       child: ScannerHint(
                         title,
-                        icon: counter ? ScannerIcons.person : null,
+                        icon: counter ? theme.icons.counter : null,
                         liveRegion: counter,
                       ),
                     ),
                   ),
-                if (camera && template.torchButton && photo == null)
+                if (camera &&
+                    template.torchButton &&
+                    !torchInControls &&
+                    photo == null)
                   Align(
                     alignment: AlignmentDirectional.centerEnd,
                     child: TorchButton(controller),
@@ -1333,7 +1360,7 @@ class _TemplateOverlayState extends State<TemplateOverlay>
                   Align(
                     alignment: AlignmentDirectional.centerEnd,
                     child: ScannerButton(
-                      icon: ScannerIcons.close,
+                      icon: theme.icons.close,
                       label: texts.backToCamera,
                       onPressed: _scanAgain,
                     ),
@@ -1342,86 +1369,41 @@ class _TemplateOverlayState extends State<TemplateOverlay>
             ),
           ),
         ),
-        // The bottom bar, hidden under a sheet; a column at the right in
-        // landscape, where a row would run into the window and the hint.
+        // The controls, hidden under a sheet: a row at the bottom or under
+        // the top bar, or a column at the right (in landscape, where a row
+        // would run into the window and the hint).
         if (camera &&
-            bottomBar &&
+            controls &&
             photo == null &&
             template.mode != ScannerMode.collect)
           Positioned(
-            left: landscape ? null : safe.left + 40,
-            right: landscape ? safe.right + 20 : safe.right + 40,
-            top: landscape ? safe.top + 72 : null,
-            bottom: math.max(safe.bottom, 12) + (landscape ? 12 : 24),
+            left: switch (place) {
+              _ControlsPlace.side => landscape ? null : scanWindow.right + 12,
+              _ => safe.left + 40,
+            },
+            right: switch (place) {
+              _ControlsPlace.side => safe.right + 20,
+              _ => safe.right + 40,
+            },
+            top: switch (place) {
+              _ControlsPlace.side => landscape ? safe.top + 72 : scanWindow.top,
+              _ControlsPlace.top => topRow,
+              _ControlsPlace.bottom => null,
+            },
+            bottom: switch (place) {
+              _ControlsPlace.side when !landscape =>
+                size.height - scanWindow.bottom,
+              _ControlsPlace.top => null,
+              _ => math.max(safe.bottom, 12) + (landscape ? 12 : 24),
+            },
             child: IgnorePointer(
               ignoring: sheet != null,
               child: AnimatedOpacity(
                 opacity: sheet == null ? 1 : 0,
                 duration: fade,
-                // On a screen too low for the column it is made smaller.
-                child: landscape
-                    ? Center(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            spacing: 16,
-                            children: <Widget>[
-                              if (template.photoButton)
-                                PickImageButton(
-                                  controller,
-                                  onResult: _photoRead,
-                                ),
-                              if (template.zoomButtons)
-                                ZoomButtons(
-                                  controller,
-                                  direction: Axis.vertical,
-                                ),
-                              // Hidden without a second camera: no gap.
-                              if (template.switchCameraButton &&
-                                  full.state.canSwitchCamera)
-                                SwitchCameraButton(controller),
-                            ],
-                          ),
-                        ),
-                      )
-                    // The zoom in the middle, made smaller where it would
-                    // run into the buttons at the sides.
-                    : SizedBox(
-                        height: 48,
-                        child: Row(
-                          spacing: 8,
-                          children: <Widget>[
-                            if (sideButtons)
-                              SizedBox.square(
-                                dimension: 48,
-                                child: template.photoButton
-                                    ? PickImageButton(
-                                        controller,
-                                        onResult: _photoRead,
-                                      )
-                                    : null,
-                              ),
-                            Expanded(
-                              child: template.zoomButtons
-                                  ? Center(
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        child: ZoomButtons(controller),
-                                      ),
-                                    )
-                                  : const SizedBox.shrink(),
-                            ),
-                            if (sideButtons)
-                              SizedBox.square(
-                                dimension: 48,
-                                child: template.switchCameraButton
-                                    ? SwitchCameraButton(controller)
-                                    : null,
-                              ),
-                          ],
-                        ),
-                      ),
+                child: place == _ControlsPlace.side
+                    ? _controlsColumn(template, full, torchInControls)
+                    : _controlsRow(template, controller, torchInControls),
               ),
             ),
           ),
@@ -1471,6 +1453,115 @@ class _TemplateOverlayState extends State<TemplateOverlay>
           ),
         ),
       ],
+    );
+  }
+
+  /// The top of a row of controls under the top bar, which a title in
+  /// large text makes taller; below the corner of [ScannerTemplate.hiddenExit].
+  double _topRow(
+    BuildContext context,
+    ScannerTheme theme,
+    String? title,
+    EdgeInsets safe,
+    Size size, {
+    required bool counter,
+  }) {
+    double bar = 48;
+    if (title != null) {
+      // The title pill: 60 from each side of the bar, 16 inside it, and
+      // the icon of a counter.
+      final TextPainter painter =
+          TextPainter(
+            text: TextSpan(text: title, style: theme.hintStyle),
+            textAlign: TextAlign.center,
+            textDirection: Directionality.of(context),
+            textScaler: MediaQuery.textScalerOf(context),
+          )..layout(
+            maxWidth: math.max(
+              0,
+              size.width - safe.horizontal - 40 - 120 - 32 - (counter ? 28 : 0),
+            ),
+          );
+      bar = math.max(bar, painter.height + 20);
+      painter.dispose();
+    }
+    final double below = safe.top + 12 + bar + 12;
+    return _template.hiddenExit ? math.max(below, safe.top + 88 + 8) : below;
+  }
+
+  /// The controls in a row: the photo button at the start, the zoom in the
+  /// middle, the camera switch and the torch at the end.
+  Widget _controlsRow(
+    ScannerTemplate template,
+    ScannerController controller,
+    bool torch,
+  ) {
+    final List<Widget> start = <Widget>[
+      if (template.photoButton)
+        PickImageButton(controller, onResult: _photoRead),
+    ];
+    final List<Widget> end = <Widget>[
+      if (template.switchCameraButton) SwitchCameraButton(controller),
+      if (torch) TorchButton(controller),
+    ];
+    // As much room at each side, so that the zoom stays in the middle.
+    final int sides = math.max(start.length, end.length);
+    final double side = sides * 48 + math.max(0, sides - 1) * 8;
+    Widget slot(List<Widget> buttons, MainAxisAlignment alignment) => SizedBox(
+      width: side,
+      height: 48,
+      child: Row(mainAxisAlignment: alignment, spacing: 8, children: buttons),
+    );
+    // The zoom in the middle, made smaller where it would run into the
+    // buttons at the sides.
+    return SizedBox(
+      height: 48,
+      child: Row(
+        spacing: 8,
+        children: <Widget>[
+          if (sides > 0) slot(start, MainAxisAlignment.start),
+          Expanded(
+            child: template.zoomButtons
+                ? Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: ZoomButtons(controller),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+          if (sides > 0) slot(end, MainAxisAlignment.end),
+        ],
+      ),
+    );
+  }
+
+  /// The controls in a column, made smaller on a screen too low for it.
+  Widget _controlsColumn(
+    ScannerTemplate template,
+    ScannerLayout layout,
+    bool torch,
+  ) {
+    final ScannerController controller = layout.controller;
+    return Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 16,
+          children: <Widget>[
+            if (template.photoButton)
+              PickImageButton(controller, onResult: _photoRead),
+            if (template.zoomButtons)
+              ZoomButtons(controller, direction: Axis.vertical),
+            // Hidden without a second camera or a torch: no gap.
+            if (template.switchCameraButton && layout.state.canSwitchCamera)
+              SwitchCameraButton(controller),
+            if (torch && layout.state.torch != TorchState.unavailable)
+              TorchButton(controller),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1535,6 +1626,9 @@ class _TemplateOverlayState extends State<TemplateOverlay>
   }
 }
 
+/// Where the controls of a template are.
+enum _ControlsPlace { bottom, side, top }
+
 /// A plate over the scan window: dark once a code settled in it, or
 /// tinted in a verdict's [color].
 class _WindowPlate extends StatelessWidget {
@@ -1595,19 +1689,19 @@ class _VerdictSheet extends StatelessWidget {
       ScanVerdictKind.accept => (
         theme.lockColor,
         theme.onLockColor,
-        ScannerIcons.check,
+        theme.icons.accept,
         texts.accepted,
       ),
       ScanVerdictKind.warn => (
         theme.warningColor,
         theme.onWarningColor,
-        ScannerIcons.alert,
+        theme.icons.warn,
         texts.needsAttention,
       ),
       ScanVerdictKind.reject => (
         theme.dangerColor,
         theme.onDangerColor,
-        ScannerIcons.close,
+        theme.icons.reject,
         texts.rejected,
       ),
     };

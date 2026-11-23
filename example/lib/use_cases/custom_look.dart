@@ -1,6 +1,6 @@
-// Your brand's look: the scanner in your colors and shapes, with a scan
-// window sized and placed for your codes, your own texts and a widget of
-// your own over the camera. Three looks to switch between: a bank, a
+// Your brand's look: the scanner in your colors, shapes and icons, with a
+// scan window sized and placed for your codes, your own texts and a widget
+// of your own over the camera. Three looks to switch between: a bank, a
 // grocery till and a club door. Android, iOS, macOS, the web.
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
@@ -24,7 +24,7 @@ final List<_Look> _looks = [
   (
     name: 'Bank',
     // A card-shaped window for payment QR codes, light glass, square
-    // buttons and corners.
+    // buttons and corners, and the app's Material icons on the buttons.
     template: const ScannerTemplate.minimal(
       title: 'Pay by QR code',
       hint: 'Fit the payment code in the frame',
@@ -37,6 +37,13 @@ final List<_Look> _looks = [
       brightness: Brightness.light,
       buttonShape: ScannerButtonShape.roundedSquare,
       windowRadius: 6,
+      icons: ScannerIconSet(
+        close: ScannerIconData.fromIconData(Icons.arrow_back),
+        torchOn: ScannerIconData.fromIconData(Icons.flashlight_on_outlined),
+        torchOff: ScannerIconData.fromIconData(Icons.flashlight_off_outlined),
+        photo: ScannerIconData.fromIconData(Icons.photo_library_outlined),
+        switchCamera: ScannerIconData.fromIconData(Icons.cameraswitch_outlined),
+      ),
     ),
     texts: null, // the app's language
   ),
@@ -63,8 +70,9 @@ final List<_Look> _looks = [
   ),
   (
     name: 'Club',
-    // A small square high up, round corners, pink on dark glass, and its
-    // own colors for a ticket that was used or is not valid.
+    // A small square high up, round corners, pink on dark glass with pink
+    // brackets over a deep violet scrim, and its own colors for a ticket
+    // that was used or is not valid.
     template: const ScannerTemplate.minimal(
       title: 'Door',
       hint: 'Ticket QR code',
@@ -78,6 +86,10 @@ final List<_Look> _looks = [
       accent: Color(0xFFFF3FA4),
       brightness: Brightness.dark,
       windowRadius: 40,
+      window: Color(0xFFFF8CC6),
+      scrim: Color(0xC21A0B2E),
+      bracketWidth: 4,
+      bracketLength: 28,
       warning: Color(0xFFFFD60A),
       danger: Color(0xFFFF453A),
       // fontFamily: 'YourBrandFont', // a font your app bundles

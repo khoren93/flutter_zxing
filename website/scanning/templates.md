@@ -207,6 +207,7 @@ Every template takes these, in its constructor or in `copyWith`:
 | `title`, `hint` | The texts above and under the window |
 | `facing`, `initialZoom` | The camera to start with and its zoom |
 | `torchButton`, `photoButton`, `zoomButtons`, `switchCameraButton`, `closeButton` | Which buttons show |
+| `controlsLayout`, `torchPosition` | Where the buttons go ([The buttons](#the-buttons)) |
 | `onClose` | What the close button does; `Navigator.maybePop` by default |
 | `hiddenExit` | A long press of two seconds in the top-left corner closes the screen: a way out for staff on a kiosk without buttons |
 | `closeOnResult` | Once a code is accepted, close the screen with the `Barcode` as the route's result, instead of showing a sheet |
@@ -214,3 +215,68 @@ Every template takes these, in its constructor or in `copyWith`:
 | `counter` | In continuous mode, a counter of the accepted codes at the top |
 | `haptics`, `sound` | A haptic and the system click when a code is found, and stronger ones for a flagged or refused code |
 | `theme` | The template's colours, over the app's `ScannerScope` ([Colours and texts](./theming)) |
+
+## The buttons
+
+The photo button, the zoom presets and the camera switch are the
+template's controls. `controlsLayout` says where they go:
+
+| Layout | Where |
+|---|---|
+| `ScannerControlsLayout.adaptive` | A row at the bottom: photo at the left, zoom in the middle, camera switch at the right. In landscape, a column at the right. The default |
+| `ScannerControlsLayout.sideColumn` | A column at the right, beside the window, as on a tablet. With no room beside the window, as on a phone in portrait, as `adaptive` |
+| `ScannerControlsLayout.topBar` | A row under the close button and the title. Where it would run into the window, in landscape or with a window high up, as `adaptive` |
+
+The torch is at the top right; `torchPosition:
+ScannerTorchPosition.withControls` puts it with the controls, after them.
+Every layout keeps the buttons clear of the scan window and the hint, and
+hides them under a result sheet.
+
+```dart
+BarcodeScanner(
+  template: const ScannerTemplate.minimal(
+    controlsLayout: ScannerControlsLayout.topBar,
+    torchPosition: ScannerTorchPosition.withControls,
+  ),
+)
+```
+
+### Buttons of your own
+
+Anywhere else, turn the template's buttons off and place your own with
+`foregroundBuilder`, relative to the scan window it gives you. The
+built-in `TorchButton` and `PickImageButton` work there with the scanner's
+controller, and a `ScannerButton` takes your icon and action:
+
+```dart
+BarcodeScanner(
+  template: const ScannerTemplate.minimal(
+    torchButton: false,
+    photoButton: false,
+  ),
+  foregroundBuilder: (context, layout) => Positioned(
+    left: 0,
+    right: 0,
+    // Under the window and its hint.
+    top: layout.scanWindow.bottom + 72,
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      spacing: 24,
+      children: [
+        TorchButton(layout.controller),
+        PickImageButton(layout.controller),
+        ScannerButton(
+          icon: const ScannerIconData.fromIconData(Icons.help_outline),
+          label: 'Help',
+          onPressed: () {},
+        ),
+      ],
+    ),
+  ),
+)
+```
+
+The foreground shows in every state of the camera: hide your buttons while
+a result shows (`layout.state.status != ScannerStatus.running`), and find
+them a place in landscape, where the window reaches the bottom. The
+[Buttons of your own](../use-cases#buttons-of-your-own) use case does both.

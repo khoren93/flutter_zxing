@@ -153,7 +153,7 @@ class ScanFieldButton extends StatelessWidget {
                   dimension: 44,
                   child: Center(
                     child: ScannerIcon(
-                      ScannerIcons.scan,
+                      resolved.icons.scan,
                       size: 24,
                       color: resolved.lockInkColor,
                     ),

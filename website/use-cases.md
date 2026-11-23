@@ -31,6 +31,18 @@ Your colors, buttons, scan window, texts and widgets.
 
 :::
 
+### Buttons of your own
+
+Your buttons under the scan window, the built-in ones moved.
+
+[Try it in the demo](https://khoren93.github.io/flutter_zxing/demo/?case=own_buttons){target="_self"}
+
+::: details own_buttons.dart
+
+<<< @/../example/lib/use_cases/own_buttons.dart
+
+:::
+
 ### Scan into a form
 
 A serial number, IMEI or tracking number into a text field.

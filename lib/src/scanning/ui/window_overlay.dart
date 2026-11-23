@@ -252,6 +252,8 @@ class _ScanWindowOverlayState extends State<ScanWindowOverlay>
               radius: radius,
               color: theme.windowColor,
               lockColor: theme.lockColor,
+              strokeWidth: theme.resolvedBracketWidth,
+              armLength: theme.bracketLength,
               version: Object.hash(layout.scanWindow, _version),
             ),
           ),
@@ -391,6 +393,8 @@ class BracketsPainter extends CustomPainter {
     required this.radius,
     required this.color,
     required this.lockColor,
+    this.strokeWidth = 5,
+    this.armLength,
     this.opacity,
     this.version = 0,
   }) : super(repaint: repaint);
@@ -423,6 +427,13 @@ class BracketsPainter extends CustomPainter {
   /// Color of the brackets on a code.
   final Color lockColor;
 
+  /// Line width of the brackets.
+  final double strokeWidth;
+
+  /// Length of each bracket's straight arm; `null` for 22 % of the shorter
+  /// side, from 12 to 44.
+  final double? armLength;
+
   @override
   void paint(Canvas canvas, Size size) {
     final double lock = this.lock();
@@ -430,7 +441,11 @@ class BracketsPainter extends CustomPainter {
     final Rect r = rect();
     final double s = scale();
     final double tight = this.tight?.call() ?? lock;
-    final Path path = bracketPath(r, lerpDouble(radius, radius / 2.4, tight)!);
+    final Path path = bracketPath(
+      r,
+      lerpDouble(radius, radius / 2.4, tight)!,
+      arm: armLength,
+    );
     canvas.save();
     if (s != 1) {
       canvas
@@ -444,7 +459,7 @@ class BracketsPainter extends CustomPainter {
         path,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 5
+          ..strokeWidth = strokeWidth
           ..strokeCap = StrokeCap.round
           ..color = lockColor.withValues(alpha: 0.65 * lock * alpha)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
@@ -455,7 +470,7 @@ class BracketsPainter extends CustomPainter {
         path,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 5
+          ..strokeWidth = strokeWidth
           ..strokeCap = StrokeCap.round
           ..strokeJoin = StrokeJoin.round
           ..color = stroke.withValues(alpha: stroke.a * alpha),
@@ -463,10 +478,11 @@ class BracketsPainter extends CustomPainter {
       ..restore();
   }
 
-  /// The four brackets of [r]: rounded corners with straight arms.
-  static Path bracketPath(Rect r, double radius) {
+  /// The four brackets of [r]: rounded corners with straight arms of
+  /// [arm], or of 22 % of the shorter side (12 to 44).
+  static Path bracketPath(Rect r, double radius, {double? arm}) {
     final double rr = math.min(radius, math.min(r.width, r.height) / 2);
-    final double arm = (math.min(r.width, r.height) * 0.22).clamp(12, 44);
+    arm ??= (math.min(r.width, r.height) * 0.22).clamp(12, 44);
     final double reach = math.min(rr + arm, math.min(r.width, r.height) / 2);
     final Radius c = Radius.circular(rr);
     return Path()
@@ -497,7 +513,9 @@ class BracketsPainter extends CustomPainter {
       old.version != version ||
       old.radius != radius ||
       old.color != color ||
-      old.lockColor != lockColor;
+      old.lockColor != lockColor ||
+      old.strokeWidth != strokeWidth ||
+      old.armLength != armLength;
 }
 
 /// Outlines the barcodes in [ScannerLayout.barcodes] in the accent color.

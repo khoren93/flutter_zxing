@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-/// A line icon of the scanner widgets, drawn from SVG path data in a 24 × 24
-/// box. The scanner draws its own icons, so it needs no icon font.
+/// An icon of the scanner widgets: a line icon drawn from SVG path data in
+/// a 24 × 24 box, or a glyph of an icon font ([ScannerIconData.fromIconData]).
+/// The built-in icons ([ScannerIcons]) are path data, so the scanner needs
+/// no icon font.
 ///
 /// [stroke] is drawn with round caps and joins, [fill] is filled; both use
 /// the icon's color.
@@ -13,7 +16,23 @@ final class ScannerIconData {
     this.stroke = '',
     this.fill = '',
     this.strokeWidth = 1.8,
-  });
+  }) : glyph = null;
+
+  /// An icon of an icon font, such as Material's or Cupertino's, drawn in
+  /// the same box and color as the built-in icons:
+  ///
+  /// ```dart
+  /// ScannerTheme(
+  ///   icons: ScannerIconSet(
+  ///     torchOn: ScannerIconData.fromIconData(Icons.flash_on),
+  ///     torchOff: ScannerIconData.fromIconData(Icons.flash_off),
+  ///   ),
+  /// )
+  /// ```
+  const ScannerIconData.fromIconData(IconData this.glyph)
+    : stroke = '',
+      fill = '',
+      strokeWidth = 1.8;
 
   /// Path data drawn as lines.
   final String stroke;
@@ -24,15 +43,220 @@ final class ScannerIconData {
   /// Line width in the 24 × 24 box.
   final double strokeWidth;
 
+  /// The font glyph drawn instead of path data; `null` for a path icon.
+  final IconData? glyph;
+
   @override
   bool operator ==(Object other) =>
       other is ScannerIconData &&
       other.stroke == stroke &&
       other.fill == fill &&
-      other.strokeWidth == strokeWidth;
+      other.strokeWidth == strokeWidth &&
+      other.glyph == glyph;
 
   @override
-  int get hashCode => Object.hash(stroke, fill, strokeWidth);
+  int get hashCode => Object.hash(stroke, fill, strokeWidth, glyph);
+}
+
+/// The icons the built-in scanner widgets draw, for a [ScannerTheme]'s
+/// `icons`: each one given replaces the built-in icon, an icon left out
+/// (`null`) keeps it.
+///
+/// ```dart
+/// BarcodeScanner(
+///   template: ScannerTemplate.minimal(),
+///   theme: ScannerTheme(
+///     icons: ScannerIconSet(
+///       close: ScannerIconData.fromIconData(Icons.arrow_back),
+///       photo: ScannerIconData.fromIconData(Icons.photo_library_outlined),
+///     ),
+///   ),
+/// )
+/// ```
+///
+/// Read an icon with `ScannerTheme.of(context).icons.torchOn`: the one
+/// given, or the built-in one.
+@immutable
+final class ScannerIconSet with Diagnosticable {
+  /// Creates a set; icons left out keep the built-in ones, or those of the
+  /// set it is merged onto.
+  const ScannerIconSet({
+    ScannerIconData? close,
+    ScannerIconData? torchOn,
+    ScannerIconData? torchOff,
+    ScannerIconData? photo,
+    ScannerIconData? switchCamera,
+    ScannerIconData? copy,
+    ScannerIconData? copied,
+    ScannerIconData? show,
+    ScannerIconData? hide,
+    ScannerIconData? accept,
+    ScannerIconData? warn,
+    ScannerIconData? reject,
+    ScannerIconData? card,
+    ScannerIconData? counter,
+    ScannerIconData? cameraOff,
+    ScannerIconData? cameraError,
+    ScannerIconData? scan,
+  }) : _close = close,
+       _torchOn = torchOn,
+       _torchOff = torchOff,
+       _photo = photo,
+       _switchCamera = switchCamera,
+       _copy = copy,
+       _copied = copied,
+       _show = show,
+       _hide = hide,
+       _accept = accept,
+       _warn = warn,
+       _reject = reject,
+       _card = card,
+       _counter = counter,
+       _cameraOff = cameraOff,
+       _cameraError = cameraError,
+       _scan = scan;
+
+  final ScannerIconData? _close;
+  final ScannerIconData? _torchOn;
+  final ScannerIconData? _torchOff;
+  final ScannerIconData? _photo;
+  final ScannerIconData? _switchCamera;
+  final ScannerIconData? _copy;
+  final ScannerIconData? _copied;
+  final ScannerIconData? _show;
+  final ScannerIconData? _hide;
+  final ScannerIconData? _accept;
+  final ScannerIconData? _warn;
+  final ScannerIconData? _reject;
+  final ScannerIconData? _card;
+  final ScannerIconData? _counter;
+  final ScannerIconData? _cameraOff;
+  final ScannerIconData? _cameraError;
+  final ScannerIconData? _scan;
+
+  /// Closes the scanner (`ScannerCloseButton`), a sheet, or a photo back to
+  /// the camera. Default [ScannerIcons.close].
+  ScannerIconData get close => _close ?? ScannerIcons.close;
+
+  /// The torch button while the torch is on. Default [ScannerIcons.torchOn].
+  ScannerIconData get torchOn => _torchOn ?? ScannerIcons.torchOn;
+
+  /// The torch button while the torch is off. Default
+  /// [ScannerIcons.torchOff].
+  ScannerIconData get torchOff => _torchOff ?? ScannerIcons.torchOff;
+
+  /// Reads a code from a photo (`PickImageButton`). Default
+  /// [ScannerIcons.photo].
+  ScannerIconData get photo => _photo ?? ScannerIcons.photo;
+
+  /// Switches the camera (`SwitchCameraButton`). Default
+  /// [ScannerIcons.switchCamera].
+  ScannerIconData get switchCamera =>
+      _switchCamera ?? ScannerIcons.switchCamera;
+
+  /// The copy button of a result sheet. Default [ScannerIcons.copy].
+  ScannerIconData get copy => _copy ?? ScannerIcons.copy;
+
+  /// The copy button once it copied. Default [ScannerIcons.check].
+  ScannerIconData get copied => _copied ?? ScannerIcons.check;
+
+  /// Shows a hidden secret, such as a Wi‑Fi password. Default
+  /// [ScannerIcons.show].
+  ScannerIconData get show => _show ?? ScannerIcons.show;
+
+  /// Hides a secret again. Default [ScannerIcons.hide].
+  ScannerIconData get hide => _hide ?? ScannerIcons.hide;
+
+  /// A code a check accepted. Default [ScannerIcons.check].
+  ScannerIconData get accept => _accept ?? ScannerIcons.check;
+
+  /// A code a check flagged. Default [ScannerIcons.alert].
+  ScannerIconData get warn => _warn ?? ScannerIcons.alert;
+
+  /// A code a check refused. Default [ScannerIcons.close].
+  ScannerIconData get reject => _reject ?? ScannerIcons.close;
+
+  /// The badge of a loyalty card's number. Default [ScannerIcons.card].
+  ScannerIconData get card => _card ?? ScannerIcons.card;
+
+  /// Before the counter of codes let in. Default [ScannerIcons.person].
+  ScannerIconData get counter => _counter ?? ScannerIcons.person;
+
+  /// The error card without camera access. Default
+  /// [ScannerIcons.cameraOff].
+  ScannerIconData get cameraOff => _cameraOff ?? ScannerIcons.cameraOff;
+
+  /// The error card when the camera failed. Default
+  /// [ScannerIcons.cameraAlert].
+  ScannerIconData get cameraError => _cameraError ?? ScannerIcons.cameraAlert;
+
+  /// The button of a `ScanFieldButton`. Default [ScannerIcons.scan].
+  ScannerIconData get scan => _scan ?? ScannerIcons.scan;
+
+  List<ScannerIconData?> get _all => <ScannerIconData?>[
+    _close,
+    _torchOn,
+    _torchOff,
+    _photo,
+    _switchCamera,
+    _copy,
+    _copied,
+    _show,
+    _hide,
+    _accept,
+    _warn,
+    _reject,
+    _card,
+    _counter,
+    _cameraOff,
+    _cameraError,
+    _scan,
+  ];
+
+  /// This set with the icons [other] gives on top.
+  ScannerIconSet merge(ScannerIconSet? other) {
+    if (other == null) {
+      return this;
+    }
+    return ScannerIconSet(
+      close: other._close ?? _close,
+      torchOn: other._torchOn ?? _torchOn,
+      torchOff: other._torchOff ?? _torchOff,
+      photo: other._photo ?? _photo,
+      switchCamera: other._switchCamera ?? _switchCamera,
+      copy: other._copy ?? _copy,
+      copied: other._copied ?? _copied,
+      show: other._show ?? _show,
+      hide: other._hide ?? _hide,
+      accept: other._accept ?? _accept,
+      warn: other._warn ?? _warn,
+      reject: other._reject ?? _reject,
+      card: other._card ?? _card,
+      counter: other._counter ?? _counter,
+      cameraOff: other._cameraOff ?? _cameraOff,
+      cameraError: other._cameraError ?? _cameraError,
+      scan: other._scan ?? _scan,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ScannerIconSet && listEquals(other._all, _all);
+
+  @override
+  int get hashCode => Object.hashAll(_all);
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties.add(
+      IntProperty(
+        'replaced',
+        _all.whereType<ScannerIconData>().length,
+        defaultValue: 0,
+      ),
+    );
+  }
 }
 
 /// The icons of the scanner widgets.
@@ -352,7 +576,8 @@ class ScannerIcon extends StatelessWidget {
     this.semanticLabel,
   });
 
-  /// The icon.
+  /// The icon: path data, or a font glyph
+  /// ([ScannerIconData.fromIconData]).
   final ScannerIconData icon;
 
   /// Width and height in logical pixels.
@@ -370,13 +595,61 @@ class ScannerIcon extends StatelessWidget {
         this.color ??
         DefaultTextStyle.of(context).style.color ??
         const Color(0xFF000000);
-    final Widget painted = CustomPaint(
-      size: Size.square(size),
-      painter: _IconPainter(icon, color),
-    );
+    final IconData? glyph = icon.glyph;
+    final Widget painted = glyph == null
+        ? CustomPaint(
+            size: Size.square(size),
+            painter: _IconPainter(icon, color),
+          )
+        : _Glyph(glyph, size: size, color: color);
     return semanticLabel == null
         ? ExcludeSemantics(child: painted)
         : Semantics(label: semanticLabel, image: true, child: painted);
+  }
+}
+
+/// A glyph of an icon font in a [size] square, as Flutter's `Icon` draws
+/// it.
+class _Glyph extends StatelessWidget {
+  const _Glyph(this.glyph, {required this.size, required this.color});
+
+  final IconData glyph;
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextDirection direction =
+        Directionality.maybeOf(context) ?? TextDirection.ltr;
+    Widget text = RichText(
+      overflow: TextOverflow.visible,
+      textDirection: direction,
+      text: TextSpan(
+        text: String.fromCharCode(glyph.codePoint),
+        style: TextStyle(
+          inherit: false,
+          color: color,
+          fontSize: size,
+          fontFamily: glyph.fontFamily,
+          package: glyph.fontPackage,
+          fontFamilyFallback: glyph.fontFamilyFallback,
+          height: 1,
+          leadingDistribution: TextLeadingDistribution.even,
+        ),
+      ),
+    );
+    if (glyph.matchTextDirection && direction == TextDirection.rtl) {
+      text = Transform(
+        transform: Matrix4.identity()..scaleByDouble(-1, 1, 1, 1),
+        alignment: Alignment.center,
+        transformHitTests: false,
+        child: text,
+      );
+    }
+    return SizedBox.square(
+      dimension: size,
+      child: Center(child: text),
+    );
   }
 }
 

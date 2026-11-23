@@ -43,7 +43,18 @@
   data is wrong.
 * `BarcodeSymbol.toSvgElement` places a code in an SVG of your own.
 * `Gs1Content.contentsGtin`: the GTIN of the goods on a pallet (AI 02).
-* The demo has a Use cases tab: 25 ways apps use the package, each one file
+* Your icons on the scanner: `ScannerTheme(icons: ScannerIconSet(...))`
+  replaces any icon of the buttons and sheets, and
+  `ScannerIconData.fromIconData(Icons.flash_on)` takes an icon of
+  Material, Cupertino or any icon font wherever the scanner takes an icon.
+* The scan window in your colours: `ScannerTheme` takes the brackets'
+  colour (`window`), their width and length, and the colour of the dimmed
+  camera around the window (`scrim`).
+* Templates move their buttons: `controlsLayout` puts them in a row at the
+  bottom, a column beside the window or a row at the top, and
+  `torchPosition` puts the torch with them. They keep clear of the window
+  in portrait and landscape.
+* The demo has a Use cases tab: 26 ways apps use the package, each one file
   to try and copy. Also on the documentation site.
 
 ### Fixed

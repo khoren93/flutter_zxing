@@ -7,6 +7,7 @@ import 'dart:io';
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_zxing/flutter_zxing.dart';
 // ignore: implementation_imports
 import 'package:flutter_zxing/src/scanning/frame_geometry.dart';
 // ignore: implementation_imports
@@ -132,6 +133,28 @@ void main() {
         expect(find.text('$name · a widget of yours'), findsOneWidget);
       }
       expect(camera.opened, hasLength(1));
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 4));
+    });
+
+    testWidgets('own_buttons places its buttons and moves the built-in ones', (
+      WidgetTester tester,
+    ) async {
+      final UseCase own = useCases.firstWhere(
+        (UseCase c) => c.id == 'own_buttons',
+      );
+      await show(tester, Builder(builder: own.builder));
+      for (final String name in <String>['Top', 'Side', 'Bottom']) {
+        await tester.tap(find.text(name));
+        for (int i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(tester.takeException(), isNull, reason: name);
+        // Yours under the window, one of each.
+        expect(find.byType(TorchButton), findsOneWidget, reason: name);
+        expect(find.byType(PickImageButton), findsOneWidget, reason: name);
+        expect(find.bySemanticsLabel('Help'), findsOneWidget, reason: name);
+      }
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(seconds: 4));
     });

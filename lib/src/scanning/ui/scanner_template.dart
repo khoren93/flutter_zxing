@@ -100,6 +100,39 @@ final class ScannerResult {
 typedef ScannerPickCallback =
     void Function(Barcode barcode, BarcodeCapture capture);
 
+/// Where a [ScannerTemplate] puts its controls: the photo button, the zoom
+/// presets, the camera switch, and the torch with
+/// [ScannerTorchPosition.withControls]. Each layout keeps them clear of the
+/// scan window and the hint: where it has no room, the controls take their
+/// [adaptive] place. They hide under a result sheet.
+enum ScannerControlsLayout {
+  /// A row at the bottom: the photo button at the left, the zoom in the
+  /// middle, the camera switch at the right. In landscape, where a row
+  /// would run into the window, a column at the right. The default.
+  adaptive,
+
+  /// A column at the right, beside the scan window, from top to bottom:
+  /// photo, zoom, camera switch. On a screen with no room beside the
+  /// window, such as a phone in portrait, as [adaptive].
+  sideColumn,
+
+  /// A row under the top bar, as [adaptive]'s row. Where it would run into
+  /// the scan window, such as in landscape or with a window high up, as
+  /// [adaptive].
+  topBar,
+}
+
+/// Where a [ScannerTemplate] puts its torch button.
+enum ScannerTorchPosition {
+  /// At the top right, across from the close button. The default.
+  topBar,
+
+  /// With the other controls ([ScannerTemplate.controlsLayout]), after
+  /// them: at the right of the row, or at the bottom of the column. In
+  /// [ScannerMode.collect], which shows no controls, at the top right.
+  withControls,
+}
+
 /// What a [ScannerTemplate] does with the codes it finds.
 enum ScannerMode {
   /// One code at a time: the brackets lock onto it, scanning pauses and a
@@ -161,6 +194,8 @@ final class ScannerTemplate {
     this.photoButton = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
     this.mode = ScannerMode.single,
     this.onDone,
     this.onPick,
@@ -195,6 +230,8 @@ final class ScannerTemplate {
     required this.photoButton,
     required this.zoomButtons,
     required this.switchCameraButton,
+    required this.controlsLayout,
+    required this.torchPosition,
     required this.mode,
     required this.onDone,
     required this.onPick,
@@ -232,6 +269,8 @@ final class ScannerTemplate {
     this.photoButton = true,
     this.zoomButtons = true,
     this.switchCameraButton = true,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
     this.check,
     this.showResult = true,
     this.resultBuilder,
@@ -276,6 +315,8 @@ final class ScannerTemplate {
     this.sound = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
   }) : mode = ScannerMode.single,
        largeHint = false,
        hiddenExit = false,
@@ -318,6 +359,8 @@ final class ScannerTemplate {
     this.photoButton = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
   }) : mode = ScannerMode.collect,
        onPick = null,
        hintIcon = null,
@@ -365,6 +408,8 @@ final class ScannerTemplate {
     this.photoButton = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
   }) : mode = ScannerMode.single,
        hintIcon = null,
        largeHint = false,
@@ -406,6 +451,8 @@ final class ScannerTemplate {
     this.sound = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
   }) : mode = ScannerMode.single,
        largeHint = false,
        hiddenExit = false,
@@ -446,6 +493,8 @@ final class ScannerTemplate {
     this.sound = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
   }) : mode = ScannerMode.single,
        largeHint = false,
        hiddenExit = false,
@@ -492,6 +541,8 @@ final class ScannerTemplate {
     this.sound = false,
     this.photoButton = false,
     this.switchCameraButton = false,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
   }) : mode = ScannerMode.single,
        largeHint = false,
        hiddenExit = false,
@@ -530,6 +581,8 @@ final class ScannerTemplate {
     this.photoButton = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
   }) : mode = ScannerMode.single,
        largeHint = false,
        hiddenExit = false,
@@ -577,6 +630,8 @@ final class ScannerTemplate {
     this.photoButton = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
   }) : mode = ScannerMode.continuous,
        largeHint = false,
        hiddenExit = false,
@@ -619,6 +674,8 @@ final class ScannerTemplate {
     this.photoButton = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
   }) : mode = ScannerMode.single,
        largeHint = false,
        hiddenExit = false,
@@ -662,6 +719,8 @@ final class ScannerTemplate {
     this.sound = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
   }) : mode = ScannerMode.pick,
        scanWindow = const ScanWindow.full(),
        largeHint = false,
@@ -703,6 +762,8 @@ final class ScannerTemplate {
     this.photoButton = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
   }) : mode = ScannerMode.collect,
        onPick = null,
        hintIcon = null,
@@ -746,6 +807,8 @@ final class ScannerTemplate {
     this.photoButton = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
     this.torchButton = false,
     this.closeButton = false,
     this.onClose,
@@ -776,6 +839,8 @@ final class ScannerTemplate {
     this.photoButton = true,
     this.zoomButtons = true,
     this.switchCameraButton = true,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
     this.check,
     this.showResult = true,
     this.resultBuilder,
@@ -830,6 +895,8 @@ final class ScannerTemplate {
     this.photoButton = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
   }) : mode = ScannerMode.single,
        largeHint = false,
        hiddenExit = false,
@@ -878,6 +945,8 @@ final class ScannerTemplate {
     this.sound = false,
     this.zoomButtons = false,
     this.switchCameraButton = false,
+    this.controlsLayout = ScannerControlsLayout.adaptive,
+    this.torchPosition = ScannerTorchPosition.topBar,
   }) : mode = ScannerMode.single,
        largeHint = false,
        hiddenExit = false,
@@ -971,17 +1040,33 @@ final class ScannerTemplate {
   /// `BarcodeScanner.onOpenSettings` takes precedence.
   final VoidCallback? onOpenSettings;
 
-  /// A torch button at the top right, when the camera has a torch.
+  /// A torch button, when the camera has a torch: at the top right, or
+  /// with the other controls ([torchPosition]).
   final bool torchButton;
 
-  /// A button that reads a code from a photo, at the bottom left.
+  /// A button that reads a code from a photo, first of the controls (at
+  /// the bottom left by default; see [controlsLayout]).
   final bool photoButton;
 
-  /// Zoom presets at the bottom.
+  /// Zoom presets, in the middle of the controls.
   final bool zoomButtons;
 
-  /// A camera switch at the bottom right.
+  /// A camera switch, last of the controls (at the bottom right by
+  /// default).
   final bool switchCameraButton;
+
+  /// Where the controls go: [photoButton], [zoomButtons],
+  /// [switchCameraButton], and the torch with
+  /// [ScannerTorchPosition.withControls]. Default
+  /// [ScannerControlsLayout.adaptive]: a row at the bottom, a column at the
+  /// right in landscape. They hide under a result sheet. For buttons of
+  /// your own elsewhere, turn these off and place yours with
+  /// `BarcodeScanner.foregroundBuilder`.
+  final ScannerControlsLayout controlsLayout;
+
+  /// Where the torch button goes: at the top right (the default), or with
+  /// the other controls, after them.
+  final ScannerTorchPosition torchPosition;
 
   /// What happens with the codes found.
   final ScannerMode mode;
@@ -1110,6 +1195,8 @@ final class ScannerTemplate {
     bool? photoButton,
     bool? zoomButtons,
     bool? switchCameraButton,
+    ScannerControlsLayout? controlsLayout,
+    ScannerTorchPosition? torchPosition,
     ScannerMode? mode,
     ValueGetter<ValueChanged<List<CollectedBarcode>>?>? onDone,
     ValueGetter<ScannerPickCallback?>? onPick,
@@ -1143,6 +1230,8 @@ final class ScannerTemplate {
     photoButton: photoButton ?? this.photoButton,
     zoomButtons: zoomButtons ?? this.zoomButtons,
     switchCameraButton: switchCameraButton ?? this.switchCameraButton,
+    controlsLayout: controlsLayout ?? this.controlsLayout,
+    torchPosition: torchPosition ?? this.torchPosition,
     mode: mode ?? this.mode,
     onDone: onDone == null ? this.onDone : onDone(),
     onPick: onPick == null ? this.onPick : onPick(),

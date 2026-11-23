@@ -13,7 +13,8 @@ import 'scanner_icons.dart';
 import 'scanner_theme.dart';
 
 /// A glass button that turns the torch on and off; hidden when the camera
-/// has no torch.
+/// has no torch. Its icons are the theme's `icons.torchOn` and
+/// `icons.torchOff`.
 class TorchButton extends StatelessWidget {
   /// Creates the button.
   const TorchButton(this.controller, {super.key});
@@ -29,9 +30,10 @@ class TorchButton extends StatelessWidget {
         return const SizedBox.shrink();
       }
       final ScannerLocalizations texts = ScannerLocalizations.of(context);
+      final ScannerIconSet icons = ScannerTheme.of(context).icons;
       final bool on = state.torch == TorchState.on;
       return ScannerButton(
-        icon: on ? ScannerIcons.torchOn : ScannerIcons.torchOff,
+        icon: on ? icons.torchOn : icons.torchOff,
         label: on ? texts.torchOff : texts.torchOn,
         selected: on,
         isToggle: true,
@@ -59,7 +61,7 @@ class SwitchCameraButton extends StatelessWidget {
         return const SizedBox.shrink();
       }
       return ScannerButton(
-        icon: ScannerIcons.switchCamera,
+        icon: ScannerTheme.of(context).icons.switchCamera,
         label: ScannerLocalizations.of(context).switchCamera,
         onPressed: () => unawaited(controller.switchCamera()),
       );
@@ -78,7 +80,7 @@ class ScannerCloseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ScannerButton(
-    icon: ScannerIcons.close,
+    icon: ScannerTheme.of(context).icons.close,
     label: ScannerLocalizations.of(context).close,
     onPressed: onPressed ?? () => unawaited(Navigator.maybePop(context)),
   );
@@ -104,7 +106,7 @@ class PickImageButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ScannerButton(
-    icon: ScannerIcons.photo,
+    icon: ScannerTheme.of(context).icons.photo,
     label: ScannerLocalizations.of(context).pickImage,
     onPressed: () => unawaited(_pick()),
   );

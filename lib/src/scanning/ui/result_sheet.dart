@@ -49,9 +49,10 @@ final class ScannerAction {
 
   /// Copies [text] to the clipboard; the button confirms with "Copied".
   /// [label] replaces [ScannerLocalizations.copy], such as "Copy IBAN"; an empty
-  /// string shows the icon alone.
+  /// string shows the icon alone. Its icons are the theme's `icons.copy`
+  /// and `icons.copied`.
   const ScannerAction.copy(String text, {this.primary = false, this.label})
-    : icon = ScannerIcons.copy,
+    : icon = null,
       onPressed = null,
       _copyText = text,
       _scanAgain = false;
@@ -200,7 +201,7 @@ class BarcodeResultSheet extends StatelessWidget {
           Row(
             children: <Widget>[
               if (header == ResultHeader.icon || card) ...<Widget>[
-                ScannerBadge(icon: card ? ScannerIcons.card : iconOf(content)),
+                ScannerBadge(icon: card ? theme.icons.card : iconOf(content)),
                 const SizedBox(width: 16),
               ] else if (header != ResultHeader.none) ...<Widget>[
                 BarcodeThumbnail(barcode, cutOut: cutOut, size: 72),
@@ -1212,7 +1213,7 @@ class _SecretFieldState extends State<_SecretField> {
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
                         ScannerIcon(
-                          _shown ? ScannerIcons.hide : ScannerIcons.show,
+                          _shown ? theme.icons.hide : theme.icons.show,
                           size: 20,
                           color: theme.lockInkColor,
                         ),
@@ -1268,7 +1269,7 @@ class _SheetClose extends StatelessWidget {
                 dimension: 40,
                 child: Center(
                   child: ScannerIcon(
-                    ScannerIcons.close,
+                    theme.icons.close,
                     size: 20,
                     color: theme.inkMutedColor,
                   ),
@@ -1491,6 +1492,7 @@ class _CopyButtonState extends State<_CopyButton> {
   @override
   Widget build(BuildContext context) {
     final ScannerLocalizations texts = ScannerLocalizations.of(context);
+    final ScannerIconSet icons = ScannerTheme.of(context).icons;
     final String label = widget.label ?? texts.copy;
     return ScannerActionButton(
       label: _copied ? (label.isEmpty ? '' : texts.copied) : label,
@@ -1499,7 +1501,7 @@ class _CopyButtonState extends State<_CopyButton> {
           : label.isEmpty
           ? texts.copy
           : null,
-      icon: _copied ? ScannerIcons.check : ScannerIcons.copy,
+      icon: _copied ? icons.copied : icons.copy,
       primary: widget.primary,
       onPressed: () => unawaited(_copy()),
     );
@@ -1733,7 +1735,7 @@ class _VerdictLine extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(top: 2),
           child: ScannerIcon(
-            warn ? ScannerIcons.alert : ScannerIcons.check,
+            warn ? theme.icons.warn : theme.icons.accept,
             size: 20,
             color: color,
           ),

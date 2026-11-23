@@ -17,6 +17,7 @@ import '../use_cases/label_sheet.dart';
 import '../use_cases/loyalty_card.dart';
 import '../use_cases/medicine_pack.dart';
 import '../use_cases/open_link.dart';
+import '../use_cases/own_buttons.dart';
 import '../use_cases/parcels.dart';
 import '../use_cases/pay_by_qr.dart';
 import '../use_cases/pick_one.dart';
@@ -82,6 +83,14 @@ final List<UseCase> useCases = <UseCase>[
     icon: Icons.palette_outlined,
     group: UseCaseGroup.scan,
     builder: (_) => const CustomLookPage(),
+  ),
+  UseCase(
+    id: 'own_buttons',
+    title: 'Buttons of your own',
+    summary: 'Your buttons under the scan window, the built-in ones moved',
+    icon: Icons.touch_app_outlined,
+    group: UseCaseGroup.scan,
+    builder: (_) => const OwnButtonsPage(),
   ),
   UseCase(
     id: 'scan_into_form',

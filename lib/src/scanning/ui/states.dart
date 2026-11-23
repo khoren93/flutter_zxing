@@ -8,7 +8,6 @@ import '../l10n/scanner_localizations.dart';
 import '../scan_window.dart';
 import 'glass.dart';
 import 'result_sheet.dart';
-import 'scanner_icons.dart';
 import 'scanner_theme.dart';
 import 'window_overlay.dart';
 
@@ -123,6 +122,8 @@ class _ScannerPlaceholderState extends State<ScannerPlaceholder>
                 radius: radius,
                 color: theme.windowColor,
                 lockColor: theme.lockColor,
+                strokeWidth: theme.resolvedBracketWidth,
+                armLength: theme.bracketLength,
                 version: window,
               ),
             ),
@@ -261,8 +262,8 @@ class ScannerErrorView extends StatelessWidget {
                         Center(
                           child: ScannerBadge(
                             icon: permission
-                                ? ScannerIcons.cameraOff
-                                : ScannerIcons.cameraAlert,
+                                ? theme.icons.cameraOff
+                                : theme.icons.cameraError,
                             size: 64,
                             tone: permission
                                 ? ScannerTone.accent

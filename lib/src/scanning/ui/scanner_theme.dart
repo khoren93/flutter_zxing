@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../l10n/scanner_localizations.dart';
+import 'scanner_icons.dart';
 
 /// Shape of the scanner's buttons and panels.
 enum ScannerButtonShape {
@@ -34,7 +35,8 @@ enum ScannerButtonShape {
 /// The text uses the app's font unless [fontFamily] is set. Read the
 /// resolved theme in your own overlay or sheet with [ScannerTheme.of]; its
 /// colors ([lockColor], [glassColor], [inkColor], ...) and text styles
-/// ([titleStyle], [dataStyle], ...) follow the [accent] and [brightness].
+/// ([titleStyle], [dataStyle], ...) follow the [accent] and [brightness],
+/// and [icons] gives every icon of the built-in widgets.
 @immutable
 final class ScannerTheme with Diagnosticable {
   /// Creates a theme. `null` fields keep the value of the theme it is
@@ -50,6 +52,11 @@ final class ScannerTheme with Diagnosticable {
     this.monoFontFamily,
     this.warning,
     this.danger,
+    this.window,
+    this.scrim,
+    this.bracketWidth,
+    this.bracketLength,
+    this.icons = const ScannerIconSet(),
   });
 
   /// The accent of the default theme, a bright teal.
@@ -99,6 +106,39 @@ final class ScannerTheme with Diagnosticable {
   /// red.
   final Color? danger;
 
+  /// The color of the scan window's brackets while the scanner searches;
+  /// on a code they take the [accent]. Default white ([windowColor]).
+  final Color? window;
+
+  /// The dimmed camera around the scan window, such as
+  /// `Color(0xB3000000)` for a darker one or a tint of your brand.
+  /// Default a translucent black that depends on the [brightness]
+  /// ([scrimColor]).
+  final Color? scrim;
+
+  /// Line width of the window's brackets, in logical pixels. Default 5.
+  final double? bracketWidth;
+
+  /// Length of each bracket's straight arm, in logical pixels, after the
+  /// rounded corner. `null` makes it 22 % of the window's shorter side,
+  /// from 12 to 44. On a code smaller than the brackets, the arms meet.
+  final double? bracketLength;
+
+  /// Icons of the built-in buttons and sheets, such as your icon font's:
+  ///
+  /// ```dart
+  /// ScannerTheme(
+  ///   icons: ScannerIconSet(
+  ///     torchOn: ScannerIconData.fromIconData(Icons.flash_on),
+  ///     torchOff: ScannerIconData.fromIconData(Icons.flash_off),
+  ///   ),
+  /// )
+  /// ```
+  ///
+  /// Merged icon by icon: an icon a set leaves out keeps the one of the
+  /// theme it is merged onto, then the built-in one.
+  final ScannerIconSet icons;
+
   /// The theme of the nearest [ScannerScope], or the default theme; without
   /// a [brightness], the platform's (light where unknown).
   static ScannerTheme of(BuildContext context) {
@@ -130,6 +170,11 @@ final class ScannerTheme with Diagnosticable {
       monoFontFamily: other.monoFontFamily ?? monoFontFamily,
       warning: other.warning ?? warning,
       danger: other.danger ?? danger,
+      window: other.window ?? window,
+      scrim: other.scrim ?? scrim,
+      bracketWidth: other.bracketWidth ?? bracketWidth,
+      bracketLength: other.bracketLength ?? bracketLength,
+      icons: icons.merge(other.icons),
     );
   }
 
@@ -145,6 +190,11 @@ final class ScannerTheme with Diagnosticable {
     String? monoFontFamily,
     Color? warning,
     Color? danger,
+    Color? window,
+    Color? scrim,
+    double? bracketWidth,
+    double? bracketLength,
+    ScannerIconSet? icons,
   }) => ScannerTheme(
     accent: accent ?? this.accent,
     brightness: brightness ?? this.brightness,
@@ -156,6 +206,11 @@ final class ScannerTheme with Diagnosticable {
     monoFontFamily: monoFontFamily ?? this.monoFontFamily,
     warning: warning ?? this.warning,
     danger: danger ?? this.danger,
+    window: window ?? this.window,
+    scrim: scrim ?? this.scrim,
+    bracketWidth: bracketWidth ?? this.bracketWidth,
+    bracketLength: bracketLength ?? this.bracketLength,
+    icons: icons ?? this.icons,
   );
 
   // ---------------------------------------------------------------------------
@@ -177,6 +232,9 @@ final class ScannerTheme with Diagnosticable {
   /// Whether the dimmed camera around the scan window is blurred.
   bool get resolvedScrimBlur => scrimBlur ?? true;
 
+  /// Line width of the window's brackets.
+  double get resolvedBracketWidth => bracketWidth ?? 5;
+
   _Palette get _palette => _palettes[this] ??= _Palette(this);
   static final Expando<_Palette> _palettes = Expando<_Palette>();
 
@@ -193,12 +251,12 @@ final class ScannerTheme with Diagnosticable {
   /// Text and icons on [lockColor].
   Color get onLockColor => _palette.onLock;
 
-  /// The scan window's brackets while searching.
-  Color get windowColor => const Color(0xFFFFFFFF);
+  /// The scan window's brackets while searching ([window]).
+  Color get windowColor => window ?? const Color(0xFFFFFFFF);
 
-  /// The dimmed camera outside the scan window.
+  /// The dimmed camera outside the scan window ([scrim]).
   Color get scrimColor =>
-      isDark ? const Color(0x94000000) : const Color(0x8006090D);
+      scrim ?? (isDark ? const Color(0x94000000) : const Color(0x8006090D));
 
   /// Buttons, hints and title pills.
   Color get glassColor => resolvedBlur
@@ -392,7 +450,12 @@ final class ScannerTheme with Diagnosticable {
       other.fontFamily == fontFamily &&
       other.monoFontFamily == monoFontFamily &&
       other.warning == warning &&
-      other.danger == danger;
+      other.danger == danger &&
+      other.window == window &&
+      other.scrim == scrim &&
+      other.bracketWidth == bracketWidth &&
+      other.bracketLength == bracketLength &&
+      other.icons == icons;
 
   @override
   int get hashCode => Object.hash(
@@ -406,6 +469,11 @@ final class ScannerTheme with Diagnosticable {
     monoFontFamily,
     warning,
     danger,
+    window,
+    scrim,
+    bracketWidth,
+    bracketLength,
+    icons,
   );
 
   @override
@@ -423,7 +491,18 @@ final class ScannerTheme with Diagnosticable {
         StringProperty('monoFontFamily', monoFontFamily, defaultValue: null),
       )
       ..add(ColorProperty('warning', warning, defaultValue: null))
-      ..add(ColorProperty('danger', danger, defaultValue: null));
+      ..add(ColorProperty('danger', danger, defaultValue: null))
+      ..add(ColorProperty('window', window, defaultValue: null))
+      ..add(ColorProperty('scrim', scrim, defaultValue: null))
+      ..add(DoubleProperty('bracketWidth', bracketWidth, defaultValue: null))
+      ..add(DoubleProperty('bracketLength', bracketLength, defaultValue: null))
+      ..add(
+        DiagnosticsProperty<ScannerIconSet>(
+          'icons',
+          icons,
+          defaultValue: const ScannerIconSet(),
+        ),
+      );
   }
 }
 
