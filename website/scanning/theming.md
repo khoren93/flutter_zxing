@@ -4,6 +4,10 @@ Every scanner reads a `ScannerTheme` for its colours and shapes and
 `ScannerLocalizations` for its texts, in the app's language. Set them on
 one scanner, or once for the whole app.
 
+The [Your brand’s look](../use-cases#your-brand-s-look) use case puts most
+of this page together in one file: colours, buttons, the scan window, texts
+and a widget of your own.
+
 ## The theme
 
 ```dart
@@ -111,6 +115,7 @@ BarcodeScanner(
       duration: Duration(milliseconds: 1600), // one pass
       style: ScanLineStyle.sweep, // or bounce: down and up
       inset: 12, // the margin inside the window
+      glow: true, // a soft light around the line
     ),
   ),
 )
@@ -306,9 +311,10 @@ nothing in the texts.
 
 ### Change a text
 
-Subclass the built-in translation, override the texts to change and give
-it to a `ScannerScope`, or to one scanner as `texts:`. The other texts stay
-as they were.
+Subclass a built-in translation (`ScannerLocalizationsEn`, `…De`, `…Es`,
+`…Fr`, `…Ru` or `…Zh`), override the texts to change and give it to a
+`ScannerScope`, or to one scanner as `texts:`. The other texts stay as they
+were.
 
 ```dart
 class MyTexts extends ScannerLocalizationsEn {
@@ -325,39 +331,45 @@ Widget app(Widget home) => MaterialApp(
 );
 ```
 
+Texts given this way are used in every language. For an app in several
+languages, choose them by the app's locale, as in
+[Another language](#another-language), and return `null` where the
+built-in translation is right.
+
 The hints and titles of the templates are texts too (`hintQrCode`,
 `hintBarcode`, `hintTicket`, `titlePayment`, `titleTicket`…), so a template
 speaks the app's language without changing the template.
 
 ### Another language
 
-Subclass `ScannerLocalizationsEn` with your language's code, override every
-text, and choose it by the app's locale; `null` keeps the built-in
-translations for the other languages:
+For a language the package does not have yet, subclass
+`ScannerLocalizationsEn` with your language's code, override every text,
+and choose it by the app's locale; `null` keeps the built-in translations
+for the other languages:
 
 ```dart
-class GermanTexts extends ScannerLocalizationsEn {
-  GermanTexts() : super('de');
+class ItalianTexts extends ScannerLocalizationsEn {
+  ItalianTexts() : super('it');
 
   @override
-  String get close => 'Scanner schließen';
+  String get close => 'Chiudi lo scanner';
 
   @override
-  String get scanAgain => 'Weiter scannen';
+  String get scanAgain => 'Scansiona di nuovo';
 
   @override
-  String itemCount(int count) => count == 1 ? '1 Code' : '$count Codes';
+  String itemCount(int count) => count == 1 ? '1 codice' : '$count codici';
 
-  // Dates: "14. Nov 2026"; monthShort gives the month names.
+  // Dates: "14 nov 2026"; monthShort gives the month names.
   @override
-  String dayMonthYear(int day, String month, int year) => '$day. $month $year';
+  String dayMonthYear(int day, String month, int year) => '$day $month $year';
 
   // ... every other text
 }
 
 Widget scope(BuildContext context, Widget child) => ScannerScope(
   texts: switch (Localizations.localeOf(context).languageCode) {
-    'de' => GermanTexts(),
+    'it' => ItalianTexts(),
     _ => null,
   },
   child: child,

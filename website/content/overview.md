@@ -59,18 +59,43 @@ codes that others issue (airlines, states, device makers); their
 | `OtpContent` | secret, account, issuer, TOTP or HOTP, algorithm, digits, period, counter | `otpauth://totp/…` | yes |
 | `EsimContent` | SM-DP+ address, Matching ID, OID, confirmation code | `LPA:1$…` | yes |
 | `CryptoContent` | network, address, `amount` in coins, `value` as written (wei), label, message, chain id | `bitcoin:`, `litecoin:`, `ethereum:`, `lightning:` | yes |
-| `Gs1Content` | Application Identifiers and values; `gtin`, `expiryDate`, `bestBeforeDate`… | GS1 element strings | yes, with `encodeContent` or `gs1: true` |
+| `Gs1Content` | Application Identifiers and values; `gtin`, `sscc`, `contentsGtin`, `count`, `batch`, `serial`, `expiryDate`, `bestBeforeDate` | GS1 element strings | yes, with `encodeContent` or `gs1: true` |
 | `BinaryContent` | bytes | binary | with `encodeContent` or `BarcodeView.bytes` |
 | `PaymentContent` | payee, account, amount, currency, reference; a kind per standard | see [Payments](./payments) | yes |
 | `WifiDppContent` | public key, channels, MAC address, information | `DPP:…;;` (Wi‑Fi Easy Connect) | parsed only |
 | `SmartHomeContent` | Matter or HomeKit; setup code, vendor and product id, discriminator, category, setup id | `MT:…`, `X-HM://…` | parsed only |
 | `ProductContent` | `gtin` (always a GTIN-14), `number` as printed, add-on; ISBN-13, ISBN-10, ISSN | EAN-13, EAN-8, UPC-A, UPC-E barcodes | parsed only |
-| `BoardingPassContent` | passenger, legs: booking, from, to, carrier, flight, day, cabin, seat, sequence | IATA BCBP (`M1…`) | parsed only |
+| `BoardingPassContent` | passenger, legs: booking, from, to, carrier, flight, day of the year and its `date()`, cabin, seat, sequence | IATA BCBP (`M1…`) | parsed only |
 | `DriverLicenseContent` | number, names, `birthDate`, issue and `expiryDate`, address, state, country | AAMVA DL/ID (PDF417) | parsed only |
 | `VinContent` | VIN, WMI, region, model year, check digit | 17 characters (ISO 3779) | parsed only |
 
 `ProductContent` comes only from EAN and UPC codes, and `Gs1Content` and
 `BinaryContent` only from codes marked GS1 or binary.
+
+## GS1 labels and boarding passes
+
+A GS1 label names its data by Application Identifier: `elements['17']` is
+the expiry date as printed. The getters read the common ones. On a
+pallet's label, `sscc` is the pallet itself and `contentsGtin` (AI 02) the
+goods on it, next to their `count`; `gtin` (AI 01) is a trade item itself.
+
+```dart
+void receive(Gs1Content label) {
+  if (label.sscc case final String pallet) {
+    print('Pallet $pallet: ${label.count} x ${label.contentsGtin}');
+  } else {
+    print('Item ${label.gtin}, batch ${label.batch}, expires ${label.expiryDate}');
+  }
+}
+```
+
+A boarding pass gives the day of the year of each flight, not the year.
+`leg.date()` picks the year closest to today: a pass for 2 January scanned
+on 30 December is for next year's flight.
+
+```dart
+DateTime? firstFlight(BoardingPassContent pass) => pass.legs.first.date();
+```
 
 ## Text you already have
 

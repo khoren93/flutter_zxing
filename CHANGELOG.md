@@ -40,7 +40,7 @@
   sheet shows an accepted or flagged verdict's title and message.
 * A `resultBuilder` returns `null` for the default sheet.
 * `ScannerAction.scanAgain(result.scanAgain)`, with the text of
-  `ScannerStrings`.
+  `ScannerLocalizations`.
 * Every template takes a title, a hint and its buttons. `hiddenExit`: a
   long press in the corner closes a kiosk without buttons.
 * `BarcodeContentView` draws a content with what its standard requires,
@@ -78,6 +78,8 @@
 
 ### Fixed
 
+* Automatic zoom keeps a close code big on iPhones: the ultra-wide camera
+  at 0.9× instead of 0.5×.
 * A result sheet with a primary button of yours and the default buttons
   filled two buttons with the accent; now only the first.
 

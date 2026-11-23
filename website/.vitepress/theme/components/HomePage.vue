@@ -46,6 +46,18 @@ const features = [
     api: 'barcode.content',
     link: '/content/overview',
   },
+  {
+    title: 'Your look, your language',
+    text: 'Your colors, icons, window shape, scan line and buttons; texts in six languages that follow the app.',
+    api: 'ScannerTheme · ScannerLocalizations',
+    link: '/scanning/theming',
+  },
+  {
+    title: 'Print sheets of labels',
+    text: 'Thousands of codes on A4 or Letter pages in a grid, as a PDF or SVG, with a preview.',
+    api: 'BarcodeLabelSheet',
+    link: '/creating/label-sheets',
+  },
 ]
 
 // Checked by tool/check_site_snippets.dart like the code in the pages.

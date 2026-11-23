@@ -88,6 +88,19 @@ scanner's theme:
 | `ScannerPlaceholder`, `ScannerErrorView` | What shows while the camera starts, and when it cannot be used |
 | `BarcodeThumbnail` | The picture of a code cut out of the frame |
 
+`ScannerOverlay` draws the window as the theme says: its colours, shape,
+brackets and scan line ([Colours and texts](./theming#the-window-and-the-scrim)).
+`searching: false` holds the brackets' breathing and the scan line, such
+as while your own result shows:
+
+```dart
+Widget overlay(ScannerLayout layout, bool showingResult) =>
+    ScannerOverlay(layout, searching: !showingResult);
+```
+
+The theme's `icons` and texts reach these widgets too: a `ScannerScope`
+around your page gives them your icons and the app's language.
+
 ## Over a template
 
 `foregroundBuilder` adds a layer of your own over the template's, in every

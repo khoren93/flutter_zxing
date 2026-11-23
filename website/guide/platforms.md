@@ -50,8 +50,8 @@ is set.
 ## Automatic zoom on iPhones
 
 On iPhones the scanner picks the camera by itself from where the lens is
-focused: the ultra-wide camera when a code is too close for the main camera
-to focus, 2× and then the telephoto camera when it is far. It never switches
+focused: the ultra-wide camera, at 0.9×, when a code is too close for the
+main camera to focus, 2× and then the telephoto camera when it is far. It never switches
 while codes are being read. See [The controller](../scanning/controller#zoom-torch-and-focus).
 
 Android, the desktop and the web keep the zoom where it is set: their

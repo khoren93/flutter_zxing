@@ -363,10 +363,11 @@ digits (3.x gave 13). Asking for EAN-13 alone still gives EAN-13.
 
 ## From 4.0.0-rc.2
 
-The API changed in a few places before the release. The analyzer finds each
-of them; this table gives the new form.
+The API changed in a few places between the release candidates and the
+release. The analyzer finds each of them; this table gives
+the new form. The rows from `ScannerStrings` on changed after rc.4.
 
-| rc.2 | Now |
+| rc.x | Now |
 |---|---|
 | `BarcodeView(data, format:, errorCorrection:, gs1:, showText:)` | `BarcodeView(data, writer: BarcodeWriter(format, errorCorrection:, gs1:, showText:))` |
 | `BarcodeWriter(quietZone: false)` | `BarcodeStyle(quietZone: false)`, or `symbol.toPng(quietZone: false)` |
@@ -401,13 +402,20 @@ of them; this table gives the new form.
 | `ScannerStrings.of(context)` | `ScannerLocalizations.of(context)` |
 | `strings.wifiSecurity(security)`, `strings.vinRegion(region)`, `strings.amount(amount, currency)` | `texts.wifiSecurityOf(security)`, `texts.vinRegionOf(region)`, `texts.amountOf(amount, currency)` |
 | `ScannerTheme.of(context).glassStrongColor` | `.sheetColor`, set with `ScannerTheme(sheet:)` |
+| `result.close` in `actionsBuilder` and `resultBuilder` | `result.backToCodes`: back to the codes of `ScannerTemplate.pick()`; it does not close the scanner, `result.finish()` does |
+| `ScannerAction.copy(text, icon: ...)` | `ScannerAction.copy(text)`; its icons come from `ScannerTheme(icons: ScannerIconSet(copy: ..., copied: ...))` |
+| `style.encodePng(writer, data, size: 1024)`, also `encode`, `encodeBytes`, `encodeSvg` | `style.encodePng(data, writer: writer, size: 1024)`; without `writer`, a QR code |
+| `leg.dateIn(DateTime.now().year)` | `leg.date()`, which picks the year: a pass for 2 January scanned on 30 December is for next year |
 
 Behaviour that changed without a compile error:
 
+- The default result sheet shows the title and message of a check's
+  accepted or flagged verdict under the code. A sheet with your primary
+  button and the default buttons fills only the first primary button with
+  the accent.
 - The scanner's texts follow the app's locale: an app whose locale is
   Russian shows them in Russian («31 авг. 1977»). English dates read
   "Aug 31, 1977" and "Nov 14" instead of "31 Aug 1977" and "14 Nov".
-
 - `barcode.rotation` of camera captures is in screen orientation, like the
   corners.
 - Images over 128 megapixels or 65535 pixels a side throw

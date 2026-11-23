@@ -77,9 +77,15 @@ Future<void> readFile(File file) async {
 
 - [A ready-made screen](../scanning/templates): 16 templates, and how they
   handle the codes they find.
+- [Colours and texts](../scanning/theming): your brand's look on the
+  scanner, and its texts in six languages.
 - [Your own interface](../scanning/custom-ui): the camera alone, under your
   widgets.
 - [What is in a code](../content/overview): Wi-Fi, contacts, payments and
   more, as Dart types.
 - [Styles and logos](../creating/styles): colours, shapes, a logo, PNG and
   SVG.
+- [Label sheets](../creating/label-sheets): pages of codes to print, as a
+  PDF.
+- [Use cases](../use-cases): 26 ways apps use the package, each one file to
+  copy.

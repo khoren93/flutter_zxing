@@ -188,8 +188,21 @@ BarcodeScanner(
 ```
 
 `result.scanAgain` hides the sheet and scans the next code,
-`result.finish(value)` closes the screen with a value, and
-`result.backToCodes` goes back to the codes of `ScannerTemplate.pick()`.
+`result.finish(value)` closes the screen with a value (what `openScanner`
+returns), and `result.backToCodes` goes back to the codes of
+`ScannerTemplate.pick()` (pick mode); it is `null` in the other modes.
+
+Two buttons come ready-made, with their text in the app's language and
+their icons from the theme ([Icons](./theming#icons)):
+
+| Button | What it does |
+|---|---|
+| `ScannerAction.scanAgain(result.scanAgain)` | "Scan again" |
+| `ScannerAction.copy(text)` | Copies the text, and shows that it did |
+
+Both take `primary:` and `label:`; an empty `label` shows the icon alone. In a sheet of your own,
+`BarcodeResultSheet(barcode, verdict: result.verdict, actions: ...)` shows
+the default sheet with the check's verdict.
 
 With
 `showResult: false` there is no sheet: the brackets lock onto the code, the
@@ -204,18 +217,22 @@ Every template takes these, in its constructor or in `copyWith`:
 |---|---|
 | `formats` | The formats to look for |
 | `scanWindow` | The part of the preview that is decoded: its size and place. The theme's `windowShape` draws it round ([Colours and texts](./theming#the-window-s-shape)) |
-| `title`, `hint` | The texts above and under the window |
+| `title`, `hint` | The texts above and under the window; each template has its own, in the app's language ([Texts and languages](./theming#texts-and-languages)) |
+| `hintIcon`, `largeHint` | An icon before the hint; the title and hint large in a panel at the bottom, for a screen read from a step away |
 | `facing`, `initialZoom` | The camera to start with and its zoom |
 | `torchButton`, `photoButton`, `zoomButtons`, `switchCameraButton`, `closeButton` | Which buttons show |
 | `controlsLayout`, `torchPosition` | Where the buttons go ([The buttons](#the-buttons)) |
 | `onClose` | What the close button does; `Navigator.maybePop` by default |
+| `onOpenSettings` | Opens the app's settings from the error card when camera access is off |
 | `hiddenExit` | A long press of two seconds in the top-left corner closes the screen: a way out for staff on a kiosk without buttons |
+| `showResult` | Whether a sheet shows the code; see above |
+| `resultHeader` | What the default sheet shows next to its title: `ResultHeader.picture` of the code, an `icon` of its kind, the number of a `card`, or `none` |
 | `closeOnResult` | Once a code is accepted, close the screen with the `Barcode` as the route's result, instead of showing a sheet |
 | `resumeAfter` | How long a result shows before scanning goes on by itself: the verdict in continuous mode (2 seconds by default), or the sheet in single mode (`null` waits for the user) |
 | `counter` | In continuous mode, a counter of the accepted codes at the top |
 | `haptics`, `sound` | A haptic and the system click when a code is found, and stronger ones for a flagged or refused code |
 | `onFeedback` | Your own sound or haptic for each outcome, instead of `haptics` and `sound` ([below](#your-own-sound)) |
-| `theme` | The template's colours, over the app's `ScannerScope` ([Colours and texts](./theming)) |
+| `theme` | The template's colours, window, scan line, glass, text styles and icons, over the app's `ScannerScope` ([Colours and texts](./theming)) |
 
 ### Your own sound
 

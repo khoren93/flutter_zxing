@@ -9,10 +9,14 @@ export 'content.dart';
 export 'rendering.dart';
 export 'src/scanning/l10n/scanner_localizations.dart'
     hide lookupScannerLocalizations;
+export 'src/scanning/l10n/scanner_localizations_de.dart';
 export 'src/scanning/l10n/scanner_localizations_en.dart';
+export 'src/scanning/l10n/scanner_localizations_es.dart';
+export 'src/scanning/l10n/scanner_localizations_fr.dart';
 export 'src/scanning/l10n/scanner_localizations_lookup.dart'
     show ScannerLocalizationsContent;
 export 'src/scanning/l10n/scanner_localizations_ru.dart';
+export 'src/scanning/l10n/scanner_localizations_zh.dart';
 export 'src/scanning/scan_window.dart';
 export 'src/scanning/scanner_controller.dart'
     hide BarcodeCapturePhoto, ScannerControllerDebug, ScannerFrameSample;

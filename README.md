@@ -5,8 +5,13 @@ Linux, Windows and the web, with [zxing-cpp](https://github.com/zxing-cpp/zxing-
 built into your app.
 
 - **A complete scanner screen in one line**, or just the camera and your own UI.
+- **Your brand's look:** colors, scan window, scan line, glass, text styles,
+  icons and button layouts on 16 ready-made templates.
+- **Speaks six languages:** English, Russian, German, Spanish, French and
+  Chinese, following the app's language with no setup.
 - **32 formats to read, 30 to create**, the same on every platform.
-- **Barcodes as widgets:** sharp at any size, styled, exported to PNG and SVG.
+- **Barcodes as widgets:** sharp at any size, styled, exported to PNG and SVG,
+  and sheets of labels to print as PDF.
 - **Knows what is inside:** URLs, Wi-Fi, contacts, events, GS1 data, as Dart types.
 - **No ML Kit, no Google Play services, no network.**
 
@@ -135,10 +140,13 @@ onto the code, and a sheet with what the code holds and what to do with it.
 | `ScannerTemplate.vin()` | Vehicle identification numbers on the windshield or the door pillar |
 | `ScannerTemplate.loyalty()` | Loyalty and membership cards: the card number large |
 
-`ScannerTheme` sets your accent color, the shape of the scan window and
-buttons, and light or dark glass. The texts come in English, Russian,
-German, Spanish, French and Chinese and follow the app's language with no
-setup (`ScannerLocalizations`).
+`ScannerTheme` sets your accent color, the scan window (its colors,
+brackets and shape, round or brackets only), a scan line, the shape of the
+buttons, the glass and sheets in your colors, text styles and your own
+icons. The texts come in English, Russian, German, Spanish, French and
+Chinese and follow the app's language with no setup
+(`ScannerLocalizations`). See
+[Colours and texts](https://khoren93.github.io/flutter_zxing/scanning/theming).
 
 ```dart
 BarcodeScanner(
@@ -175,7 +183,7 @@ class MyTexts extends ScannerLocalizationsEn {
 ```
 
 `actionsBuilder` sets the buttons of the result sheet. `ScannerResult` has
-the code, its capture and the default buttons:
+the code, its capture, the check's verdict and the default buttons:
 
 ```dart
 BarcodeScanner(
@@ -197,7 +205,15 @@ final Barcode? barcode = await scanBarcode(
   formats: {BarcodeFormat.qrCode},
   hint: 'Point the camera at a QR code',
 );
+
+// One kind of content, typed: other codes are refused.
+final OtpContent? otp = await scanContent<OtpContent>(context);
 ```
+
+`openScanner<T>` opens a template with its result sheet and returns what
+the sheet passes to `result.finish(value)`, such as the customer a check
+found for a loyalty card (`ScanVerdict.accept(data: customer)`, read back
+as `result.verdict?.data`).
 
 A template's `mode` decides what happens with the codes it finds:
 
@@ -325,8 +341,8 @@ ScannerController(
 ### Automatic zoom (iPhone)
 
 On iPhones the scanner picks the camera by itself from where the lens is
-focused: the ultra-wide camera (0.5×, `ScannerState.minZoom`) when a code is
-too close for the main camera to focus, 2× and then the telephoto camera
+focused: the ultra-wide camera when a code is too close for the main camera
+to focus (zoomed to 0.9×, so that the code stays big), 2× and then the telephoto camera
 (`ScannerState.telephotoZoom`) when it is far. It never switches while codes
 are being read. Zooming by hand turns it off, and the "Auto" button of
 `ZoomButtons` turns it back on:
@@ -453,11 +469,20 @@ its own exports them black on white (`writer.toPng(data)`,
 ```dart
 const writer = BarcodeWriter(BarcodeFormat.qrCode);
 const style = BarcodeStyle.lagoon;
-final Uint8List png = await style.encodePng(writer, 'https://pub.dev', size: 1024);
-final String svg = await style.encodeSvg(writer, 'https://pub.dev');
+final Uint8List png = await style.encodePng('https://pub.dev', size: 1024); // QR
+final String svg = await style.encodeSvg('https://pub.dev', writer: writer);
 
 final BarcodeSymbol symbol = await const BarcodeWriter(BarcodeFormat.dataMatrix)
     .encodeBytes(Uint8List.fromList([0x00, 0x01, 0xFE, 0xFF]));
+```
+
+`BarcodeLabelSheet` lays a list of data out on A4, Letter or your own
+label paper, in columns and rows, as one PDF or SVG pages, with a preview
+widget (`BarcodeLabelSheetView`). 10 000 codes take about 1.5 seconds:
+
+```dart
+const sheet = BarcodeLabelSheet(paper: PaperSize.a4, columns: 3, rows: 8);
+final Uint8List pdf = await sheet.pdf(skus);
 ```
 
 Data a format cannot hold throws a `BarcodeWriteException` that says why

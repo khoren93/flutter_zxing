@@ -64,6 +64,25 @@ BarcodeView(
 `format.input` describes what each format holds, with an example, for a
 form: see [Formats](../formats#what-each-format-holds).
 
+## A content
+
+`BarcodeContentView` draws a [content](../content/overview), such as a
+Wi‑Fi network or a payment, with what its standard requires: a Swiss
+QR-bill gets error correction M and the Swiss cross, GS1 data is encoded
+as GS1. A content with problems, such as a wrong IBAN, shows
+`errorBuilder` with the reason instead of a code.
+
+```dart
+Widget guestWifi() => BarcodeContentView(
+  const WifiContent(ssid: 'Guests', password: 'welcome-2026'),
+  width: 200,
+  errorBuilder: (context, error) => Text(error.message),
+);
+```
+
+See [Payments](../content/payments#create-a-payment-code) and
+[Building content](../content/building#encoding-any-kind).
+
 ## Binary data and read symbols
 
 `BarcodeView.bytes` encodes bytes, for formats with a byte mode (QR, Data
@@ -85,3 +104,8 @@ Widget asRead(Barcode barcode) {
 A `BarcodeView` is announced by its format's name, its title and caption,
 and the digits under a linear barcode: never by the encoded data, which may
 be a password or bank details. `semanticLabel` replaces the label.
+
+## On paper
+
+To print many codes at once, on A4, Letter or label paper, see
+[Label sheets](./label-sheets).

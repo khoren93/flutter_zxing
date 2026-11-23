@@ -68,6 +68,10 @@ final ScanWindow mine = ScanWindow.fromRect(const Rect.fromLTWH(0.1, 0.2, 0.8, 0
 height. On a preview too low for it, such as a phone in landscape, the
 window shrinks to take the same fraction of the height.
 
+The window is decoded as a rectangle. A template's theme draws it round
+or as its brackets alone, in your colours: see
+[The window and the scrim](./theming#the-window-and-the-scrim).
+
 ## State
 
 The controller is a `ValueNotifier<ScannerState>`: listen to it, or use a
@@ -123,9 +127,10 @@ Future<void> controls(ScannerController controller) async {
 
 `setZoom` clamps to the camera's range and turns automatic zoom off. On
 iPhones, automatic zoom picks the camera from where the lens is focused:
-the ultra-wide camera (0.5×, `ScannerState.minZoom`) when a code is too
-close for the main camera to focus, 2× and then the telephoto camera
-(`ScannerState.telephotoZoom`) when it is far. It never switches while
+the ultra-wide camera when a code is too close for the main camera to
+focus (zoomed to 0.9×, so that the code stays big in the frame), and 2×
+and then the telephoto camera (`ScannerState.telephotoZoom`) when it is
+far. It never switches while
 codes are being read, and the Auto button of `ZoomButtons` turns it back
 on. Other platforms do not report their focus and keep the zoom where it is
 set.

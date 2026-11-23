@@ -105,4 +105,5 @@ and an SVG export of it throws an `UnsupportedError`.
 ## Exporting a style
 
 The same style exports to PNG and SVG with the same look, text and card
-included: see [PNG, SVG and images](./export).
+included: `style.encodePng(data, writer: ...)` and `style.encodeSvg`, a QR
+code without a writer. See [PNG, SVG and images](./export).
