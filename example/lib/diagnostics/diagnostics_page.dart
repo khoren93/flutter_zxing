@@ -120,6 +120,7 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     // The field test driven from the Mac (R3-08), with the codes shown on its
     // screen one after another:
     //   ext.diag.field?action=resolution&value=sd|hd|fullHd  reopens the camera
+    //   ext.diag.field?action=window&value=square|wide|full  the scan window
     //   ext.diag.field?action=expect&format=qrCode&text=...&addOn=...
     //     &timeout=3000&label=W1-20cm-hd
     // waits for that code and answers {"ms": ...}; a code not read within the
@@ -130,6 +131,7 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     ) async {
       final Map<String, Object?> answer = switch (params['action']) {
         'resolution' => await _remoteResolution(params['value'] ?? ''),
+        'window' => await _remoteWindow(params['value'] ?? ''),
         'expect' => await _remoteExpect(params),
         _ => <String, Object?>{'resolution': _a.resolution.name},
       };
@@ -265,6 +267,19 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     return <String, Object?>{'resolution': _a.resolution.name};
   }
 
+  /// Reads in the scan window [name] (a [DiagWindow]).
+  Future<Map<String, Object?>> _remoteWindow(String name) async {
+    final DiagWindow? next = DiagWindow.values
+        .where((DiagWindow w) => w.name == name)
+        .firstOrNull;
+    if (next == null) {
+      return <String, Object?>{'error': 'unknown window $name'};
+    }
+    setState(() => _editing = 'A');
+    await _change(_a.copyWith(window: next));
+    return <String, Object?>{'window': _a.window.name};
+  }
+
   /// Waits for one code and times it; keeps the frames of a code not read.
   Future<Map<String, Object?>> _remoteExpect(Map<String, String> p) async {
     final FieldCode code = FieldCode(
@@ -307,6 +322,7 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
       'frames': frames,
       'recording': recording,
       'resolution': _a.resolution.name,
+      'window': _a.window.name,
     };
   }
 
