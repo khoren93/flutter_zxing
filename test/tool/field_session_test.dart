@@ -21,12 +21,19 @@ void main() {
   tearDown(() => session.dispose());
 
   test('every code of the sheet can be told from the others', () {
+    // DataBar Expanded and its stacked form hold the same text and count
+    // as one format (zxing-cpp often names the stacked one plain): the field
+    // test waits for one code at a time, so a read of either is that code.
+    const Set<String> sameText = <String>{'W25', 'W26'};
     for (final FieldCode a in fieldCodes) {
       final List<String> same = <String>[
         for (final FieldCode b in fieldCodes)
           if (b.matches(a.format, a.text)) b.id,
       ];
-      expect(same, <String>[a.id]);
+      expect(
+        same,
+        sameText.contains(a.id) ? sameText.toList() : <String>[a.id],
+      );
     }
   });
 
