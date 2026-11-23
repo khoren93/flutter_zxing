@@ -1,0 +1,8 @@
+# The use cases are copied into apps as they are: no ignore comments in them.
+# package:flutter/material.dart is deprecated since Flutter 3.47 in favour of
+# package:material_ui, which the example cannot use yet (it supports 3.41).
+include: ../../analysis_options.yaml
+
+analyzer:
+  errors:
+    deprecated_member_use: ignore

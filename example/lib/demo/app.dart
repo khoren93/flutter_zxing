@@ -1,4 +1,4 @@
-// The demo app's shell: Scan, Create and History; a glass tab bar on
+// The demo app's shell: Scan, Create, Use cases and History; a glass tab bar on
 // phones, a side menu on wide windows.
 import 'dart:async';
 import 'dart:math' as math;
@@ -17,6 +17,8 @@ import 'history.dart';
 import 'history_page.dart';
 import 'scan_page.dart';
 import 'tokens.dart';
+import 'use_cases.dart';
+import 'use_cases_page.dart';
 
 class DemoApp extends StatelessWidget {
   const DemoApp({super.key});
@@ -31,7 +33,7 @@ class DemoApp extends StatelessWidget {
   );
 }
 
-enum _Tab { scan, create, history }
+enum _Tab { scan, create, cases, history }
 
 class DemoShell extends StatefulWidget {
   const DemoShell({super.key});
@@ -55,6 +57,18 @@ class _DemoShellState extends State<DemoShell> {
   void initState() {
     super.initState();
     unawaited(HistoryStore.instance.load());
+    // --dart-define=CASE=door_check_in (or ?case=door_check_in on the web)
+    // opens a use case directly.
+    final String id = const String.fromEnvironment('CASE') == ''
+        ? Uri.base.queryParameters['case'] ?? ''
+        : const String.fromEnvironment('CASE');
+    for (final UseCase c in useCases) {
+      if (c.id != id) continue;
+      _tab = _Tab.cases;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(openUseCase(context, c));
+      });
+    }
   }
 
   void _open(HistoryItem item) => openResult(
@@ -70,6 +84,7 @@ class _DemoShellState extends State<DemoShell> {
   Widget _page(_Tab tab, {required bool wide}) => switch (tab) {
     _Tab.scan => ScanPage(bottomInset: wide ? 0 : 12),
     _Tab.create => CreatePage(wide: wide),
+    _Tab.cases => const UseCasesPage(),
     _Tab.history => HistoryPage(onOpen: _open, builtWith: !wide),
   };
 
@@ -137,6 +152,7 @@ class _DemoShellState extends State<DemoShell> {
 const List<(_Tab, String, IconData)> _tabs = <(_Tab, String, IconData)>[
   (_Tab.scan, 'Scan', Icons.qr_code_scanner_rounded),
   (_Tab.create, 'Create', Icons.qr_code_2_rounded),
+  (_Tab.cases, 'Use cases', Icons.apps_rounded),
   (_Tab.history, 'History', Icons.history_rounded),
 ];
 

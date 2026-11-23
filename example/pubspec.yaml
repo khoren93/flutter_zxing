@@ -38,3 +38,5 @@ flutter:
   assets:
     - assets/fixtures/corpus/
     - assets/fixtures/corpus_expected.json
+    # The Use cases tab shows each case's file as it is.
+    - lib/use_cases/

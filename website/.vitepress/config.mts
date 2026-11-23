@@ -85,6 +85,7 @@ export default defineConfig({
     nav: [
       { text: 'Guides', link: '/guide/quick-start', activeMatch: '^/(guide|scanning|reading|creating|content|more)/' },
       { text: 'Templates', link: '/templates' },
+      { text: 'Use cases', link: '/use-cases' },
       { text: 'Formats', link: '/formats' },
       { text: 'API reference', link: `https://pub.dev/documentation/flutter_zxing/${version}/` },
       { text: 'Demo', link: `${site}demo/`, target: '_self' },
