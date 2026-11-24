@@ -80,7 +80,7 @@ jobs:
       - name: Put the demo under the site
         run: cp -R example/build/web website/.vitepress/dist/demo
 
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: website/.vitepress/dist
 
