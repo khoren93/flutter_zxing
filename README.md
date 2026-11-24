@@ -101,7 +101,7 @@ for the web and desktop.
 | | Android | iOS | Web | macOS | Linux | Windows |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
 | Read images and create codes | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Camera scanner | ✅ | ✅ | ✅ | ✅ ᶜ | ✅ ᶜ | not verified |
+| Camera scanner | ✅ | ✅ | ✅ | ✅ ᶜ | ✅ ᶜ | ✅ ᶜ |
 
 ᶜ with [`camera_desktop`](https://pub.dev/packages/camera_desktop).
 The web runs the same engine as WebAssembly in a Web Worker, in Chrome,

@@ -374,4 +374,41 @@ void main() {
     expect((await source.nextFrame())?.pixels?.layout, PixelLayout.bgra);
     expect(open(CameraFacing.front), throwsA(isA<CameraNotFoundException>()));
   });
+
+  test(
+    'desktop: on Windows the preview is mirrored, the frames are not',
+    () async {
+      platform.cameras = const <CameraDescription>[
+        CameraDescription(
+          name: 'webcam',
+          lensDirection: CameraLensDirection.external,
+          sensorOrientation: 0,
+        ),
+      ];
+      for (final (TargetPlatform os, bool mirrored) in <(TargetPlatform, bool)>[
+        (TargetPlatform.macOS, false),
+        (TargetPlatform.linux, false),
+        (TargetPlatform.windows, true),
+      ]) {
+        debugDefaultTargetPlatformOverride = os;
+        await open();
+        final Future<CameraFrame?> next = source.nextFrame();
+        platform.frame(
+          platform.lastId,
+          group: ImageFormatGroup.bgra8888,
+          raw: 0,
+        );
+        final CameraFrame? frame = await next;
+        expect(frame?.transform.mirrored, mirrored, reason: '$os');
+        expect(
+          source.previewTransform.value?.mirrored,
+          mirrored,
+          reason: '$os',
+        );
+        // The engine gets the frame as the camera saw it.
+        expect(frame?.mirrored, isFalse, reason: '$os');
+        await source.close();
+      }
+    },
+  );
 }

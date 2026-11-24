@@ -10,7 +10,7 @@ code that reads on one platform reads on the others.
 | Web | ✅ | ✅ Chrome, Safari, Firefox |
 | macOS | ✅ | ✅ with `camera_desktop` |
 | Linux | ✅ | ✅ with `camera_desktop` |
-| Windows | ✅ | not verified |
+| Windows | ✅ | ✅ with `camera_desktop` |
 
 ## Off the UI thread
 
@@ -30,7 +30,7 @@ first creates a code. See [Installation](./installation#web) for HTTPS and
 
 The `camera` package has no desktop implementations. Add
 [`camera_desktop`](https://pub.dev/packages/camera_desktop) to your app and
-`BarcodeScanner` works on macOS and Linux unchanged:
+`BarcodeScanner` works on macOS, Linux and Windows unchanged:
 
 ```yaml
 dependencies:
@@ -42,7 +42,7 @@ dependencies:
   entitlements files (the example app's `macos/Runner` has them).
 - **Linux:** install the GStreamer development packages:
   `libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good`.
-- **Windows:** not verified yet.
+- **Windows:** nothing more to set up.
 
 Desktop cameras do not report a zoom or a focus, so the zoom stays where it
 is set.

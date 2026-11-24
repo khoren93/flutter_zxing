@@ -52,6 +52,7 @@ final class NativeCameraSource implements CameraSource {
 
   static bool get _android => defaultTargetPlatform == TargetPlatform.android;
   static bool get _ios => defaultTargetPlatform == TargetPlatform.iOS;
+  static bool get _windows => defaultTargetPlatform == TargetPlatform.windows;
 
   @override
   ValueListenable<FrameTransform?> get previewTransform => _preview;
@@ -464,7 +465,9 @@ final class NativeCameraSource implements CameraSource {
       // (rule 5 of the prototype); this preview then turns them too.
       return FrameTransform(size, rotation: iosFrameRotation(size, _ui));
     }
-    return FrameTransform(size);
+    // camera_desktop mirrors its preview on Windows in Flutter, not the
+    // frames (on macOS and Linux it mirrors both, at the source).
+    return FrameTransform(size, mirrored: _windows);
   }
 
   @override
