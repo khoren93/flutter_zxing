@@ -15,12 +15,11 @@ name: Site and demo
 # ("Run workflow"). The repository's Pages source has to be "GitHub Actions"
 # (Settings -> Pages), and every branch that publishes has to be allowed in
 # the deployment rules of the `github-pages` environment (Settings ->
-# Environments). Drop 4.0 here once it is merged into main.
+# Environments).
 on:
   push:
     branches:
       - main
-      - "4.0"
   workflow_dispatch:
 
 # One deployment at a time; a newer push replaces a queued one, but a

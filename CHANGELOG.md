@@ -1,8 +1,41 @@
 # Changelog
 
-## Unreleased
+## 4.0.0
 
-### New
+A new engine and a new API to scan and create barcodes, with a ready-made
+scanner, on every platform. The 3.x API keeps working on the new engine,
+deprecated until 5.0. After upgrading, run `flutter clean` once, and see
+[Upgrading from 3.x](https://khoren93.github.io/flutter_zxing/more/upgrading-from-3x).
+
+### Since 3.1.1
+
+* **One engine everywhere:** zxing-cpp 3.2.0 on Android, iOS, macOS, Linux
+  and Windows, and WebAssembly in a Web Worker on the web. Nothing blocks
+  the UI.
+* **32 formats to read and 30 to create**, the same on every platform.
+* **A camera scanner:** `BarcodeScanner` and `ScannerController`, with 16
+  ready-made templates, `ScannerTheme` for your brand and texts in six
+  languages.
+* **Images and pixels:** `BarcodeReader` reads PNG, JPEG, WebP and the other
+  formats Flutter decodes, and raw frames.
+* **Codes to show and print:** `BarcodeView` and `BarcodeStyle` (colors,
+  gradients, module shapes, a logo, a caption and a card), PNG and SVG
+  export, and `BarcodeLabelSheet` for label sheets as PDF, SVG or PNG.
+* **What is inside:** `barcode.content` gives URLs, Wi‑Fi, contacts,
+  events, payments, GS1 data, boarding passes, driver's licenses and more
+  as Dart types, and `toPayload()` builds them.
+* **Smaller apps:** +2.7 MB per Android ABI instead of 6.1 MB, +1.0 MB on
+  iOS instead of 2.2 MB.
+* **A documentation site** with a guide to every feature, 26 use cases and
+  the demo app running in the browser.
+
+### Deprecated
+
+* The 3.x API (`zx`, `Code`, `DecodeParams`, `ReaderWidget`, `WriterWidget`
+  and others) keeps working until 5.0; each deprecated name points to its
+  replacement. Its few behaviour changes are listed under 4.0.0-rc.1.
+
+### New since 4.0.0-rc.5
 
 * The code found shows sharp in the scan window: once it has flown in, a
   QR code, Data Matrix or Aztec code turns into its exact modules, and an
@@ -12,7 +45,6 @@
 * Codes shown from the camera's picture, such as Code 128, get the sharpest
   of the frames read in the moment after the code, lightly sharpened, in the
   window and the result sheet. The result is not delayed.
-
 * `BarcodeLabelSheet(codeSize:)` sets the size of each code in millimetres
   instead of filling its label.
 * `SerialItems('BOX-{n:6}', count: 10000)` makes numbered items for a
@@ -36,13 +68,15 @@
   in a cleaned-up copy of the image, for dot-printed and worn codes. Off by
   default.
 
-### Improved
+### Improved since 4.0.0-rc.5
 
 * zxing-cpp 3.2.0 instead of 3.2.0-rc1: some QR codes seen at a steep angle
   are read more often.
 
-### Fixed
+### Fixed since 4.0.0-rc.5
 
+* Windows: the brackets and labels of the camera scanner sit on the codes
+  in the mirrored preview of `camera_desktop`.
 * The scanner drops the blur it chose itself also when the frames slow
   down later, for example once a code is found, not only in its first
   seconds: no more stutter on slower Android phones.

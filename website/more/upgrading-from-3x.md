@@ -25,7 +25,7 @@ release candidate: see [From 4.0.0-rc.2](#from-4-0-0-rc-2).
    takes longer than the next ones.
 
 3. Build and run. Your 3.x code keeps working; the
-   [CHANGELOG](https://github.com/khoren93/flutter_zxing/blob/4.0/CHANGELOG.md)
+   [CHANGELOG](https://github.com/khoren93/flutter_zxing/blob/main/CHANGELOG.md)
    lists the few behaviour changes: image files are read on a background
    isolate and at full resolution, and barcodes are created with
    zxing-cpp's newer creator.

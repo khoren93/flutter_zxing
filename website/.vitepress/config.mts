@@ -7,9 +7,8 @@ const base = '/flutter_zxing/'
 const site = 'https://khoren93.github.io/flutter_zxing/'
 const repo = 'https://github.com/khoren93/flutter_zxing'
 
-// The branch the pages link to for sources. 4.0 is developed on its own
-// branch until it is merged into main (R6-07): switch this then.
-const branch = '4.0'
+// The branch the pages link to for sources.
+const branch = 'main'
 
 // The version the pages describe: the package's own, so the two never differ.
 const pubspec = readFileSync(new URL('../../pubspec.yaml', import.meta.url), 'utf8')

@@ -403,7 +403,7 @@ Widget scope(BuildContext context, Widget child) => ScannerScope(
 ```
 
 Better still, add it to the package: the texts are ARB files in
-[`lib/l10n`](https://github.com/khoren93/flutter_zxing/tree/4.0/lib/l10n).
+[`lib/l10n`](https://github.com/khoren93/flutter_zxing/tree/main/lib/l10n).
 Copy `scanner_en.arb` to `scanner_<language>.arb`, translate it (the
 `@` entries tell what each text is for) and open a pull request; `make l10n`
 generates the code.

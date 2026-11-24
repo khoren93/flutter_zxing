@@ -1,18 +1,20 @@
 name: Flutter CI
 
-# Trigger CI on (1) pull requests, (2) pushes to main and 4.0 and (3) manually.
+# Trigger CI on (1) pull requests, (2) pushes to main and release tags and
+# (3) manually.
 #
-# Pushes to the 4.0 development branch run a quick subset (about 10 minutes
-# instead of 18+): lint, the engine on every desktop OS, Flutter 3.41.0, web,
-# and the integration tests on Linux and Android. Pull requests, main and
-# manual runs ("Run workflow", any branch) add the iOS, macOS and Windows
+# Pushes to main run a quick subset (about 10 minutes instead of 18+): lint,
+# the engine on every desktop OS, Flutter 3.41.0, web, and the integration
+# tests on Linux and Android. Pull requests, release tags (v*) and manual
+# runs ("Run workflow", any branch) add the iOS, macOS and Windows
 # integration tests and the example builds.
 on:
   pull_request:
   push:
     branches:
       - main
-      - "4.0"
+    tags:
+      - "v*"
   workflow_dispatch:
 
 # A new push or pull request update cancels the run still going for the same
@@ -381,8 +383,8 @@ jobs:
   # separate build job would only burn CI minutes.
   build-example:
     name: 'Build example (${{ matrix.target }}, ${{ matrix.os }})'
-    # Not in the quick subset of 4.0 pushes, see the top of the file.
-    if: github.event_name != 'push' || github.ref_name != '4.0'
+    # Not in the quick subset of pushes to main, see the top of the file.
+    if: github.event_name != 'push' || github.ref_type == 'tag'
     runs-on: ${{ matrix.os }}-latest
     timeout-minutes: 20
     strategy:
@@ -466,10 +468,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 4.0 pushes: Linux only (see the top of the file); otherwise iOS,
-        # macOS, Linux and Windows.
+        # Pushes to main: Linux only (see the top of the file); otherwise
+        # iOS, macOS, Linux and Windows.
         include: >-
-          ${{ fromJSON(github.event_name == 'push' && github.ref_name == '4.0'
+          ${{ fromJSON(github.event_name == 'push' && github.ref_type == 'branch'
           && '[{"target":"linux","os":"ubuntu","device":"linux"}]'
           || '[{"target":"ios","os":"macos","device":"iphone"},
           {"target":"macos","os":"macos","device":"macos"},

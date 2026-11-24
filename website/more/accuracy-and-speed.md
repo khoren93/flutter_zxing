@@ -97,7 +97,7 @@ back on the UI isolate.
 | Web, brotli | — | 312 KB to read; the 507 KB full module loads when a code is first created |
 
 The raw data and how to repeat a run are in
-[benchmark/BENCHMARKS.md](https://github.com/khoren93/flutter_zxing/blob/4.0/benchmark/BENCHMARKS.md).
+[benchmark/BENCHMARKS.md](https://github.com/khoren93/flutter_zxing/blob/main/benchmark/BENCHMARKS.md).
 
 ## Limits
 

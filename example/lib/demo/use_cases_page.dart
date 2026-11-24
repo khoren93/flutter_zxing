@@ -14,7 +14,7 @@ import 'use_cases.dart';
 
 /// Where the cases' files are on GitHub.
 const String _repoFiles =
-    'https://github.com/khoren93/flutter_zxing/blob/4.0/example/';
+    'https://github.com/khoren93/flutter_zxing/blob/main/example/';
 
 /// Opens a use case over the whole app, tab bar included.
 Future<void> openUseCase(BuildContext context, UseCase useCase) => Navigator.of(
