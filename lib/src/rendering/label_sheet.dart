@@ -10,6 +10,7 @@ import '../writing/symbol_layout.dart';
 import 'barcode_style.dart';
 import 'barcode_view.dart';
 import 'label_sheet_output.dart';
+import 'label_sheet_png.dart';
 import 'logo_symbol.dart';
 import 'symbol_shapes.dart';
 
@@ -375,6 +376,56 @@ final class BarcodeLabelSheet {
         slots: page.slots,
         logo: logo,
       );
+    }
+  }
+
+  /// The pages as PNG images at [dpi], one a page, on white paper: what
+  /// [pdf] prints, in pixels. An A4 page is 2480 x 3508 pixels at 300 dpi.
+  /// Each PNG says its dpi, so it prints at the paper's size. Each page is
+  /// made when the stream asks for it.
+  ///
+  /// [captionText] gives the text under the code of an item (the item
+  /// itself by default); see [caption]. The text is drawn in the
+  /// platform's monospace font.
+  ///
+  /// ```dart
+  /// int n = 0;
+  /// await for (final Uint8List page in sheet.pngPages(items, dpi: 600)) {
+  ///   await File('labels-${++n}.png').writeAsBytes(page);
+  /// }
+  /// ```
+  ///
+  /// A page holds width x height x 4 bytes while it is drawn: about
+  /// 35 MB for A4 at 300 dpi, 140 MB at 600.
+  ///
+  /// No items give no pages. Throws [BarcodeWriteException] naming the
+  /// item and its index if an item cannot be encoded, and [ArgumentError]
+  /// if [dpi] is not positive, the labels leave no room for a code or the
+  /// style's logo cannot be loaded; all but the first before the first
+  /// page.
+  Stream<Uint8List> pngPages(
+    Iterable<String> items, {
+    int dpi = 300,
+    String Function(String item)? captionText,
+  }) async* {
+    if (dpi <= 0) {
+      throw ArgumentError.value(dpi, 'dpi', 'must be positive');
+    }
+    checkRoom(this);
+    final ImageInfo? logo = await loadSheetLogoImage(this, dpi);
+    try {
+      await for (final _Page page in _pages(items, captionText)) {
+        yield await pngPage(
+          this,
+          page.symbols,
+          page.captions,
+          dpi: dpi,
+          slots: page.slots,
+          logo: logo?.image,
+        );
+      }
+    } finally {
+      logo?.dispose();
     }
   }
 

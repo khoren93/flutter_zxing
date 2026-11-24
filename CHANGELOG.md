@@ -30,6 +30,8 @@
   the next, for a stack of sheets cut into columns (`rowStrips` for rows).
   `BarcodeLabelSheet.itemAt` and `slotOf` tell which item goes on which
   label.
+* `BarcodeLabelSheet.pngPages` gives each page as a PNG image at the dpi
+  you choose, to print or to send where a PDF does not go.
 
 ### Fixed
 

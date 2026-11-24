@@ -16,11 +16,11 @@ import 'package:flutter/services.dart';
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
-import 'package:share_plus/share_plus.dart';
 
 import 'content.dart';
 import 'history.dart';
 import 'kinds.dart';
+import 'save_files.dart';
 import 'style_editor.dart';
 import 'tokens.dart';
 
@@ -469,17 +469,15 @@ class _CreatePageState extends State<CreatePage> {
       if (!mounted) {
         return;
       }
-      final RenderBox? box = context.findRenderObject() as RenderBox?;
-      final ShareResult shared = await SharePlus.instance.share(
-        ShareParams(
-          files: <XFile>[file],
-          fileNameOverrides: <String>[name],
-          sharePositionOrigin: box == null
-              ? null
-              : box.localToGlobal(Offset.zero) & box.size,
-        ),
+      final String? saved = await saveOrShare(
+        context,
+        <XFile>[file],
+        <String>[name],
       );
-      if (shared.status != ShareResultStatus.dismissed) {
+      if (saved != null) {
+        if (saved.isNotEmpty) {
+          _toast('Saved $saved');
+        }
         HistoryStore.instance.addCreated(
           data,
           writer.format,
@@ -575,7 +573,9 @@ class _CreatePageState extends State<CreatePage> {
             style: Theme.of(context).textTheme.headlineMedium,
           ),
         ),
-        if (!_many)
+        if (_many)
+          _batchCheck(this)
+        else
           ReadCheck(
             reads: _reads,
             invalid: _error != null || _problems.isNotEmpty,
@@ -1710,8 +1710,11 @@ class _ShareMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PopupMenuButton<String>(
-    tooltip: 'Share',
-    icon: const Icon(Icons.ios_share_rounded, size: 22),
+    tooltip: savesToDisk ? 'Save' : 'Share',
+    icon: Icon(
+      savesToDisk ? Icons.download_rounded : Icons.ios_share_rounded,
+      size: 22,
+    ),
     onSelected: (String v) => unawaited(page._export(v)),
     itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
       const PopupMenuItem<String>(value: 'png', child: Text('PNG')),

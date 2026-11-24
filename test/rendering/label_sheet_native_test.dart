@@ -44,9 +44,28 @@ Future<Uint8List> _logoPng([int size = 64]) async {
   return png.buffer.asUint8List();
 }
 
+/// A PNG's pixels.
+Future<PixelBuffer> _decode(Uint8List png) async {
+  final ui.Codec codec = await ui.instantiateImageCodec(png);
+  final ui.Image image = (await codec.getNextFrame()).image;
+  codec.dispose();
+  final ByteData rgba = (await image.toByteData())!;
+  final PixelBuffer pixels = PixelBuffer(
+    rgba.buffer.asUint8List(),
+    width: image.width,
+    height: image.height,
+    layout: PixelLayout.rgba,
+  );
+  image.dispose();
+  return pixels;
+}
+
+late Uint8List _logoPngBytes;
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(warmUpBarcodeEngine);
+  setUpAll(() async => _logoPngBytes = await _logoPng());
 
   const BarcodeLabelSheet qr = BarcodeLabelSheet(columns: 3, rows: 8);
   final BarcodeLabelSheet code128 = qr.copyWith(
@@ -186,12 +205,50 @@ void main() {
       expect(await _read(pixels), firstPage);
     });
 
+    test('$name: every code of the PNG page reads back', () async {
+      final Uint8List png = await sheet.pngPages(items, dpi: 200).first;
+      expect(await _read(await _decode(png)), firstPage);
+    });
+
     test('$name: every code of the SVG page reads back', () async {
       final String svg = await sheet.svgPages(items).first;
       final PixelBuffer pixels = await paintSvgPage(svg, sheet.paper, 8);
       expect(await _read(pixels), firstPage);
     });
   }
+
+  test('PNG: a page an image at the dpi, the last partly filled', () async {
+    final List<Uint8List> pages = await qr.pngPages(_items(30)).toList();
+    expect(pages, hasLength(2));
+    final ui.ImageDescriptor page = await ui.ImageDescriptor.encoded(
+      await ui.ImmutableBuffer.fromUint8List(pages[0]),
+    );
+    // A4 at 300 dpi.
+    expect((page.width, page.height), (2480, 3508));
+    page.dispose();
+    // pHYs, right after the header: 300 dpi is 11,811 pixels a metre.
+    final ByteData data = ByteData.sublistView(pages[0]);
+    expect(String.fromCharCodes(pages[0], 37, 41), 'pHYs');
+    expect(data.getUint32(41), 11811);
+    expect(data.getUint32(45), 11811);
+    expect(await _read(await _decode(pages[1])), _items(30).skip(24).toSet());
+    expect(await qr.pngPages(const <String>[]).toList(), isEmpty);
+    await expectLater(
+      qr.pngPages(_items(3), dpi: 0).toList(),
+      throwsArgumentError,
+    );
+  });
+
+  test('PNG: a styled code with a logo and captions reads back', () async {
+    final BarcodeLabelSheet styled = qr.copyWith(
+      style: BarcodeStyle.presets.values.last.copyWith(
+        logo: () => BarcodeLogo(MemoryImage(_logoPngBytes)),
+      ),
+    );
+    final List<String> items = _items(24);
+    final Uint8List png = await styled.pngPages(items, dpi: 200).first;
+    expect(await _read(await _decode(png)), items.toSet());
+  });
 
   testWidgets('the preview puts the codes where the files do', (
     WidgetTester tester,

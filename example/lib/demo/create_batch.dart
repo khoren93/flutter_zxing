@@ -669,21 +669,77 @@ class _Batch {
     await _share(files, names);
   });
 
-  /// Every code as an SVG and a PNG, in one ZIP. The PNG has a whole
-  /// number of pixels a module, as close to the sheet's code size at [dpi]
-  /// as that allows, and says its dpi in a `pHYs` chunk.
+  /// Every page as a PNG at [dpi], in one ZIP: the sheet as the PDF
+  /// prints it, as images.
+  Future<void> sharePngPages(int dpi) =>
+      _work('Making the PNG pages', () async {
+        final int total = pageCount;
+        final int width = '$total'.length;
+        final Archive zip = Archive();
+        int n = 0;
+        await for (final Uint8List png in sheet.pngPages(items, dpi: dpi)) {
+          if (_cancel) {
+            throw const _Cancelled();
+          }
+          n++;
+          zip.addFile(
+            ArchiveFile.bytes(
+              'flutter_zxing_labels_${'$n'.padLeft(width, '0')}.png',
+              png,
+            ),
+          );
+          _tick(n, total);
+        }
+        await _share(
+          <XFile>[
+            XFile.fromData(
+              ZipEncoder().encodeBytes(zip),
+              mimeType: 'application/zip',
+            ),
+          ],
+          <String>['flutter_zxing_labels_${dpi}dpi.zip'],
+        );
+      });
+
+  /// Every code on its own as an SVG and a PNG, in one ZIP, for a layout
+  /// made elsewhere; with the sheet's text under each code when the sheet
+  /// has it. The PNG has a whole number of pixels a module, as close to
+  /// the sheet's code size at [dpi] as that allows, and says its dpi in a
+  /// `pHYs` chunk.
   Future<void> shareZip(int dpi) => _work('Making the ZIP', () async {
     final BarcodeWriter writer = page._batchWriter;
-    final BarcodeStyle style = page._style.copyWith(
+    final BarcodeStyle plain = page._style.copyWith(
       title: () => null,
       caption: () => null,
       card: () => null,
     );
     final double mm = drawnCodeSize;
+    final bool text = caption;
+    // The sheet's text size, as a fraction of the code's width.
+    final double textSize = (captionSize / mm).clamp(0.04, 0.3);
     final Archive zip = Archive();
     final int width = '${items.length}'.length;
     for (int i = 0; i < items.length; i++) {
       final String item = items[i];
+      final BarcodeStyle style = text
+          ? plain.copyWith(
+              caption: () => BarcodeCaption(
+                item,
+                size: textSize,
+                maxLines: 1,
+                style: const TextStyle(
+                  color: Color(0xFF000000),
+                  fontWeight: FontWeight.w400,
+                  fontFamily: 'Courier',
+                  fontFamilyFallback: <String>[
+                    'Courier New',
+                    'Menlo',
+                    'monospace',
+                  ],
+                ),
+              ),
+            )
+          : plain;
       final BarcodeSymbol symbol = await style.encode(item, writer: writer);
       final int quiet = style.quietZone ? 2 * symbol.quietZone : 0;
       final int modules = math.max(symbol.width, symbol.height) + quiet;
@@ -722,17 +778,10 @@ class _Batch {
     if (!page.mounted) {
       return;
     }
-    // XFile.fromData has no path off the web: the names go separately.
-    final RenderBox? box = page.context.findRenderObject() as RenderBox?;
-    await SharePlus.instance.share(
-      ShareParams(
-        files: files,
-        fileNameOverrides: names,
-        sharePositionOrigin: box == null
-            ? null
-            : box.localToGlobal(Offset.zero) & box.size,
-      ),
-    );
+    final String? saved = await saveOrShare(page.context, files, names);
+    if (saved != null && saved.isNotEmpty) {
+      page._toast('Saved $saved');
+    }
   }
 }
 
@@ -889,7 +938,6 @@ class _FirstCode extends StatelessWidget {
     final _Batch b = page._batch;
     final Fz fz = Fz.of(context);
     final String? first = b.items.firstOrNull;
-    final BarcodeItemIssue? issue = b.issue;
     final int n = b.items.length;
     return FzCard(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
@@ -917,37 +965,27 @@ class _FirstCode extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            first ?? '—',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: <Widget>[
+              Flexible(
+                child: Text(
+                  first ?? '—',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
               Text(
                 n == 0 ? 'No codes yet' : 'The first of ${_plural(n, 'code')}',
                 style: TextStyle(fontSize: 12, color: fz.inkMuted),
-              ),
-              ReadCheck(
-                reads: b.checking || b.skipping ? null : n > 0 && issue == null,
-                invalid: n == 0,
-                text: b.checking || b.skipping
-                    ? null
-                    : n == 0
-                    ? 'No codes'
-                    : issue != null
-                    ? 'Row ${_count(issue.index + 1)} does not fit'
-                    : 'All ${_count(n)} fit · ${page._format.displayName}',
               ),
             ],
           ),
@@ -955,6 +993,25 @@ class _FirstCode extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The check of all the codes, in the title as One code's check is.
+Widget _batchCheck(_CreatePageState page) {
+  final _Batch b = page._batch;
+  final int n = b.items.length;
+  final BarcodeItemIssue? issue = b.issue;
+  final bool busy = b.checking || b.skipping;
+  return ReadCheck(
+    reads: busy ? null : n > 0 && issue == null,
+    invalid: n == 0,
+    text: busy
+        ? null
+        : n == 0
+        ? 'No codes'
+        : issue != null
+        ? 'Row ${_count(issue.index + 1)} does not fit'
+        : 'All ${_count(n)} fit · ${page._format.displayName}',
+  );
 }
 
 /// Where the codes come from: numbered, a list or a CSV column, and the
@@ -1624,6 +1681,10 @@ class _SheetSettings extends StatelessWidget {
               label: Text('Columns'),
             ),
             ButtonSegment<LabelOrder>(
+              value: LabelOrder.rowStrips,
+              label: Text('Row strips'),
+            ),
+            ButtonSegment<LabelOrder>(
               value: LabelOrder.columnStrips,
               label: Text('Column strips'),
             ),
@@ -1636,7 +1697,10 @@ class _SheetSettings extends StatelessWidget {
         Text(switch (b.order) {
           LabelOrder.rows => 'Left to right, then the next row',
           LabelOrder.columns => 'Top to bottom, then the next column',
-          _ =>
+          LabelOrder.rowStrips =>
+            'Each row runs on through every page: '
+                'cut a stack of sheets into strips',
+          LabelOrder.columnStrips =>
             'Each column runs on through every page: '
                 'cut a stack of sheets into strips',
         }, style: TextStyle(fontSize: 13, color: fz.inkMuted)),
@@ -2083,11 +2147,13 @@ class _BatchExport extends StatelessWidget {
         Expanded(
           child: FilledButton.icon(
             onPressed: can ? () => unawaited(b.sharePdf()) : null,
-            icon: const Icon(Icons.ios_share_rounded, size: 20),
+            icon: Icon(
+              savesToDisk ? Icons.download_rounded : Icons.ios_share_rounded,
+              size: 20,
+            ),
             label: Text(
-              pages == 0
-                  ? 'Share PDF'
-                  : 'Share PDF · ${_plural(pages, 'page')}',
+              '${savesToDisk ? 'Save' : 'Share'} PDF'
+              '${pages == 0 ? '' : ' · ${_plural(pages, 'page')}'}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -2100,6 +2166,8 @@ class _BatchExport extends StatelessWidget {
           enabled: can,
           onSelected: (String v) => unawaited(switch (v) {
             'svg' => b.shareSvgPages(),
+            'png300' => b.sharePngPages(300),
+            'png600' => b.sharePngPages(600),
             'zip600' => b.shareZip(600),
             _ => b.shareZip(300),
           }),
@@ -2109,13 +2177,28 @@ class _BatchExport extends StatelessWidget {
               child: Text('SVG pages · ${_plural(pages, 'file')}'),
             ),
             const PopupMenuItem<String>(
-              value: 'zip300',
-              child: Text('Codes as ZIP · 300 dpi'),
+              value: 'png300',
+              child: Text('PNG pages · 300 dpi'),
             ),
             const PopupMenuItem<String>(
-              value: 'zip600',
-              child: Text('Codes as ZIP · 600 dpi'),
+              value: 'png600',
+              child: Text('PNG pages · 600 dpi'),
             ),
+            const PopupMenuDivider(),
+            for (final int dpi in const <int>[300, 600])
+              PopupMenuItem<String>(
+                value: 'zip$dpi',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  title: Text('Separate codes as ZIP · $dpi dpi'),
+                  subtitle: Text(
+                    b.caption
+                        ? 'Each code on its own, its text under it'
+                        : 'Each code on its own, no text',
+                  ),
+                ),
+              ),
           ],
           // The menu button takes the taps; the button only shows.
           child: IgnorePointer(

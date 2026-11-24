@@ -4,6 +4,7 @@
 // which needs Flutter 3.47; the example still supports Flutter 3.41.
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:archive/archive.dart' show getCrc32;
@@ -216,6 +217,38 @@ void main() {
     expect(find.text('Row 2, “AB-1”'), findsOneWidget);
   });
 
+  testWidgets('a computer saves the PDF; a phone shares it', (
+    WidgetTester tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    await _show(tester, link: _batchLink);
+    expect(find.text('Save PDF · 42 pages'), findsOneWidget);
+    expect(find.byIcon(Icons.download_rounded), findsWidgets);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('More: PNG pages, and separate codes with or without text', (
+    WidgetTester tester,
+  ) async {
+    await _show(tester, link: _batchLink);
+    await tester.tap(find.text('More'));
+    await tester.pumpAndSettle();
+    expect(find.text('PNG pages · 300 dpi'), findsOneWidget);
+    expect(find.text('PNG pages · 600 dpi'), findsOneWidget);
+    expect(find.text('Separate codes as ZIP · 300 dpi'), findsOneWidget);
+    expect(
+      find.text('Each code on its own, its text under it'),
+      findsNWidgets(2),
+    );
+    await tester.tapAt(Offset.zero);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Text under each code'));
+    await _settle(tester);
+    await tester.tap(find.text('More'));
+    await tester.pumpAndSettle();
+    expect(find.text('Each code on its own, no text'), findsNWidgets(2));
+  });
+
   testWidgets('the sheet settings change the page count', (
     WidgetTester tester,
   ) async {
@@ -279,7 +312,7 @@ void main() {
     expect(sheet().caption, isFalse);
   });
 
-  testWidgets('the order: rows, columns or column strips', (
+  testWidgets('the order: rows, columns, row or column strips', (
     WidgetTester tester,
   ) async {
     await _show(tester, link: _batchLink);
@@ -295,6 +328,16 @@ void main() {
     // the top of its second column the 337th.
     expect(view.sheet.itemAt(0, 1, 1000), 1);
     expect(view.sheet.itemAt(0, 8, 1000), 336);
+    await tester.tap(find.text('Row strips'));
+    await _settle(tester);
+    expect(find.textContaining('Each row runs on'), findsOneWidget);
+    expect(
+      tester
+          .widget<BarcodeLabelSheetView>(find.byType(BarcodeLabelSheetView))
+          .sheet
+          .order,
+      LabelOrder.rowStrips,
+    );
   });
 
   testWidgets('the page zooms, and opens full screen with paging', (

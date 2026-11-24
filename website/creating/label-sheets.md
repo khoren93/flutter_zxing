@@ -2,8 +2,8 @@
 
 `BarcodeLabelSheet` puts a list of data on pages to print: one code with
 its text on each label, in a fixed grid of columns and rows. You get the
-pages as one PDF or as SVG documents, in millimetres, so they print at
-their real size. The codes are vectors, black on white unless you give
+pages as one PDF, as SVG documents in millimetres or as PNG images at a
+dpi you choose, so they print at their real size. The codes are vectors, black on white unless you give
 them a [style](#styled-codes).
 
 ```dart
@@ -136,14 +136,15 @@ an `ArgumentError` before the first page.
 In the PDF the module shapes are vector paths, a `LinearGradient` or
 `RadialGradient` is a real PDF gradient across each code, and colors are
 opaque. A gradient's `TileMode.repeated` and `mirror` extend its end
-colors there. A `SweepGradient` cannot be drawn in the files: `pdf` and
-`svgPages` throw an `UnsupportedError` for it.
+colors there. A `SweepGradient` cannot be drawn in the PDF or the SVG:
+`pdf` and `svgPages` throw an `UnsupportedError` for it; `pngPages`
+draws it.
 
 Rounded modules and dots take more room than squares: 10 000 QR codes
 make a PDF of about 17 MB with dots and 29 MB with rounded modules, in
 7 to 10 seconds on a laptop (squares: under 3 MB in about 2.5 seconds).
 
-## PDF or SVG
+## PDF, SVG or PNG
 
 `pdf` gives one document with every page: rectangles for the modules and
 the built-in Courier font for the text, so it needs no fonts and opens
@@ -161,6 +162,18 @@ Future<void> savePages(List<String> items, Directory dir) async {
   await for (final String page in sheet.svgPages(items)) {
     await File('${dir.path}/labels-${++n}.svg').writeAsString(page);
   }
+}
+```
+
+`pngPages` gives one PNG image a page at a `dpi` (300 by default): an A4
+page is 2480 x 3508 pixels at 300 dpi. Each PNG says its dpi, so it
+prints at the paper's size. The text is drawn in the platform's monospace
+font, in any script. A page holds width x height x 4 bytes while it is
+drawn: about 35 MB for A4 at 300 dpi, 140 MB at 600.
+
+```dart
+await for (final Uint8List page in sheet.pngPages(items, dpi: 600)) {
+  await File('${dir.path}/labels-${++n}.png').writeAsBytes(page);
 }
 ```
 
