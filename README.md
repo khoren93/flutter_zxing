@@ -18,12 +18,17 @@ Powered by [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp): no ML Kit, no Go
 [![Templates](https://img.shields.io/badge/16_templates-0B1220?style=for-the-badge)](https://khoren93.github.io/flutter_zxing/templates)
 [![API reference](https://img.shields.io/badge/API_reference-0B1220?style=for-the-badge&logo=dart&logoColor=white)](https://pub.dev/documentation/flutter_zxing/latest/)
 
-<img src="https://khoren93.github.io/flutter_zxing/shots/laser.png" width="130" alt="Scanning with a scan line">
-<img src="https://khoren93.github.io/flutter_zxing/shots/pick.png" width="130" alt="Several codes labelled in view">
-<img src="https://khoren93.github.io/flutter_zxing/shots/check-in-ok.png" width="130" alt="Check-in template with an accepted ticket">
-<img src="https://khoren93.github.io/flutter_zxing/shots/ticket.png" width="130" alt="Boarding pass read and shown">
-<img src="https://khoren93.github.io/flutter_zxing/shots/create.png" width="130" alt="A styled Wi‑Fi QR code made in the app">
-<img src="https://khoren93.github.io/flutter_zxing/shots/label-sheet.png" width="130" alt="A sheet of numbered labels to print">
+<img src="https://khoren93.github.io/flutter_zxing/shots/laser.png" width="148" alt="Scanning with a scan line">
+<img src="https://khoren93.github.io/flutter_zxing/shots/pick.png" width="148" alt="Several codes labelled in view">
+<img src="https://khoren93.github.io/flutter_zxing/shots/check-in-ok.png" width="148" alt="Check-in template with an accepted ticket">
+<img src="https://khoren93.github.io/flutter_zxing/shots/ticket.png" width="148" alt="Boarding pass read and shown">
+<img src="https://khoren93.github.io/flutter_zxing/shots/minimal-searching.png" width="148" alt="Searching, with zoom buttons">
+<br>
+<img src="https://khoren93.github.io/flutter_zxing/shots/payment.png" width="148" alt="Paying with a QR code">
+<img src="https://khoren93.github.io/flutter_zxing/shots/content.png" width="148" alt="A Wi‑Fi code, ready to connect">
+<img src="https://khoren93.github.io/flutter_zxing/shots/theme-brand.png" width="148" alt="The scanner in a brand color">
+<img src="https://khoren93.github.io/flutter_zxing/shots/create.png" width="148" alt="A styled Wi‑Fi QR code made in the app">
+<img src="https://khoren93.github.io/flutter_zxing/shots/label-sheet.png" width="148" alt="A sheet of numbered labels to print">
 
 </div>
 
