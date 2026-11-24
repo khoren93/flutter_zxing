@@ -666,7 +666,7 @@ class _Batch {
       );
       _tick(files.length, total);
     }
-    await _share(files, names);
+    await _share(files, names, zipName: 'flutter_zxing_labels_svg.zip');
   });
 
   /// Every page as a PNG at [dpi], in one ZIP: the sheet as the PDF
@@ -774,11 +774,20 @@ class _Batch {
     );
   });
 
-  Future<void> _share(List<XFile> files, List<String> names) async {
+  Future<void> _share(
+    List<XFile> files,
+    List<String> names, {
+    String? zipName,
+  }) async {
     if (!page.mounted) {
       return;
     }
-    final String? saved = await saveOrShare(page.context, files, names);
+    final String? saved = await saveOrShare(
+      page.context,
+      files,
+      names,
+      zipName: zipName ?? 'flutter_zxing_files.zip',
+    );
     if (saved != null && saved.isNotEmpty) {
       page._toast('Saved $saved');
     }
