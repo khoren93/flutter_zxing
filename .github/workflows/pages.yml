@@ -69,9 +69,12 @@ jobs:
           cd example
           flutter build web --release --wasm --base-href /flutter_zxing/demo/
 
-      # The templates as the site shows them, from the package itself.
+      # The templates as the site shows them, from the package itself. Their
+      # monospace text needs DejaVu Sans Mono (see scanner_shots_test.dart).
       - name: Render the template screenshots
-        run: make site-shots
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-dejavu-core
+          make site-shots
 
       - name: Build the site
         run: cd website && npm ci && npm run build

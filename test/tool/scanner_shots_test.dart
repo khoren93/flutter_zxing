@@ -29,8 +29,8 @@ final String? _out = Platform.environment['SHOTS'];
 const Size _phone = Size(390, 844);
 final GlobalKey _boundary = GlobalKey();
 
-/// Roboto, and Menlo for what the SDK's Roboto lacks (such as →), as a
-/// device falls back to its system fonts.
+/// Roboto, and the monospace font (see [_loadFonts]) for what the SDK's
+/// Roboto lacks (such as →), as a device falls back to its system fonts.
 const TextStyle _text = TextStyle(
   fontFamily: 'Roboto',
   fontFamilyFallback: <String>['Menlo'],
@@ -52,17 +52,26 @@ Future<void> _loadFonts() async {
     }
   }
   await roboto.load();
-  final File menlo = File('/System/Library/Fonts/Menlo.ttc');
-  if (menlo.existsSync()) {
-    // Also as 'monospace', the family the label sheet asks for first.
-    for (final String family in <String>['Menlo', 'monospace']) {
-      await (FontLoader(family)..addFont(
-            Future<ByteData>.value(
-              ByteData.sublistView(menlo.readAsBytesSync()),
-            ),
-          ))
-          .load();
+  // A monospace font for the codes' text, which also has the symbols Roboto
+  // lacks: Menlo on a Mac, DejaVu Sans Mono on Linux (the site's CI).
+  final File? mono = <String>[
+    '/System/Library/Fonts/Menlo.ttc',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf',
+  ].map(File.new).where((File f) => f.existsSync()).firstOrNull;
+  if (mono == null) {
+    // Without it the text draws as boxes: fail rather than publish them.
+    if (_out != null) {
+      throw StateError('No monospace font for the screenshots');
     }
+    return;
+  }
+  // As 'Menlo', the scanner's monospace family, and as 'monospace', the
+  // family the label sheet asks for first.
+  for (final String family in <String>['Menlo', 'monospace']) {
+    await (FontLoader(family)..addFont(
+          Future<ByteData>.value(ByteData.sublistView(mono.readAsBytesSync())),
+        ))
+        .load();
   }
 }
 
