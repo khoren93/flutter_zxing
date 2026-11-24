@@ -321,7 +321,7 @@ jobs:
 
       # The WebAssembly engine is not committed: build it, with the pinned
       # Emscripten cached between runs.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/flutter_zxing/emsdk
           key: emsdk-${{ hashFiles('tool/wasm_config.sh') }}
