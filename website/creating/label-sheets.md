@@ -172,8 +172,12 @@ font, in any script. A page holds width x height x 4 bytes while it is
 drawn: about 35 MB for A4 at 300 dpi, 140 MB at 600.
 
 ```dart
-await for (final Uint8List page in sheet.pngPages(items, dpi: 600)) {
-  await File('${dir.path}/labels-${++n}.png').writeAsBytes(page);
+Future<void> savePngPages(List<String> items, Directory dir) async {
+  const sheet = BarcodeLabelSheet(columns: 4, rows: 10);
+  int n = 0;
+  await for (final Uint8List page in sheet.pngPages(items, dpi: 600)) {
+    await File('${dir.path}/labels-${++n}.png').writeAsBytes(page);
+  }
 }
 ```
 
