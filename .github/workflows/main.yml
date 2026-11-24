@@ -187,7 +187,7 @@ jobs:
       - name: Generate the corpus
         run: cd tool && dart pub get --enforce-lockfile && dart run make_fixtures.dart
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: corpus
           path: |
