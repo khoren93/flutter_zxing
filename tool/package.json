@@ -4,6 +4,6 @@
   "description": "Node tools of flutter_zxing (headless browser tests). Not part of the package.",
   "type": "module",
   "dependencies": {
-    "puppeteer-core": "^24.43.1"
+    "puppeteer-core": "^25.18.1"
   }
 }
