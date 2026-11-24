@@ -90,6 +90,12 @@ back on the UI isolate.
 | 12 MP photo, Pixel 4a | not found; UI frozen 1.0 s | **found in 219 ms**, UI not blocked |
 | 12 MP photo, Chrome (WebAssembly) | not supported | found in 204 ms |
 
+| App size, added to an empty app | 3.1.1 | 4.0 |
+|---|---|---|
+| Android APK, per ABI (arm64 / armv7 / x86_64) | +6.1 / 6.0 / 6.3 MB | **+2.7 / 2.6 / 2.9 MB** |
+| iOS `.app`, compressed | +2.2 MB | **+1.0 MB** |
+| Web, brotli | — | 312 KB to read; the 507 KB full module loads when a code is first created |
+
 The raw data and how to repeat a run are in
 [benchmark/BENCHMARKS.md](https://github.com/khoren93/flutter_zxing/blob/4.0/benchmark/BENCHMARKS.md).
 

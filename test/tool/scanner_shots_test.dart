@@ -29,6 +29,13 @@ final String? _out = Platform.environment['SHOTS'];
 const Size _phone = Size(390, 844);
 final GlobalKey _boundary = GlobalKey();
 
+/// Roboto, and Menlo for what the SDK's Roboto lacks (such as →), as a
+/// device falls back to its system fonts.
+const TextStyle _text = TextStyle(
+  fontFamily: 'Roboto',
+  fontFamilyFallback: <String>['Menlo'],
+);
+
 Future<void> _loadFonts() async {
   final String? root = Platform.environment['FLUTTER_ROOT'];
   if (root == null) {
@@ -47,10 +54,15 @@ Future<void> _loadFonts() async {
   await roboto.load();
   final File menlo = File('/System/Library/Fonts/Menlo.ttc');
   if (menlo.existsSync()) {
-    await (FontLoader('Menlo')..addFont(
-          Future<ByteData>.value(ByteData.sublistView(menlo.readAsBytesSync())),
-        ))
-        .load();
+    // Also as 'monospace', the family the label sheet asks for first.
+    for (final String family in <String>['Menlo', 'monospace']) {
+      await (FontLoader(family)..addFont(
+            Future<ByteData>.value(
+              ByteData.sublistView(menlo.readAsBytesSync()),
+            ),
+          ))
+          .load();
+    }
   }
 }
 
@@ -195,7 +207,7 @@ Widget _host(Widget child, {Size size = _phone}) => MediaQuery(
   child: Directionality(
     textDirection: TextDirection.ltr,
     child: DefaultTextStyle(
-      style: const TextStyle(fontFamily: 'Roboto'),
+      style: _text,
       child: RepaintBoundary(
         key: _boundary,
         child: SizedBox.fromSize(size: size, child: child),
@@ -701,16 +713,20 @@ void main() {
             ),
             child: Directionality(
               textDirection: TextDirection.ltr,
-              child: ScannerScope(
-                theme: const ScannerTheme(brightness: Brightness.dark),
-                child: ColoredBox(
-                  color: const Color(0xFF232A33),
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: BarcodeResultSheet(
-                      barcode,
-                      header: ResultHeader.icon,
-                      onScanAgain: () {},
+              // As in [_host]: without it the test's font draws boxes.
+              child: DefaultTextStyle(
+                style: _text,
+                child: ScannerScope(
+                  theme: const ScannerTheme(brightness: Brightness.dark),
+                  child: ColoredBox(
+                    color: const Color(0xFF232A33),
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: BarcodeResultSheet(
+                        barcode,
+                        header: ResultHeader.icon,
+                        onScanAgain: () {},
+                      ),
                     ),
                   ),
                 ),
@@ -1044,5 +1060,201 @@ void main() {
       template: closable(const ScannerTemplate.minimal()),
       openError: const CameraNotFoundException(),
     );
+  }, skip: _out == null);
+
+  // For the README: what else the package does besides the sheets above.
+  testWidgets('readme', (WidgetTester tester) async {
+    // The scan line over a barcode, while searching.
+    const Rect label = Rect.fromLTWH(112, 150, 166, 129);
+    await shot(
+      tester,
+      'laser',
+      preview: _shelf(<Widget>[
+        _paper(
+          label,
+          -2,
+          const BarcodeView(
+            '4006381333931',
+            writer: BarcodeWriter(BarcodeFormat.ean13, showText: true),
+            width: 150,
+            height: 113,
+          ),
+        ),
+      ]),
+      template: closable(
+        ScannerTemplate.retail(title: 'Shelf B-12', onDone: (_) {}),
+      ),
+      theme: const ScannerTheme(scanLine: ScanLine()),
+      torch: true,
+      wait: const Duration(milliseconds: 500),
+    );
+
+    tester.view
+      ..physicalSize = _phone * 2
+      ..devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    Widget heading(String title, String subtitle, {bool dark = false}) =>
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              title,
+              style: _text.copyWith(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: dark ? const Color(0xFFF2F5F8) : const Color(0xFF0E1218),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              style: _text.copyWith(
+                fontSize: 15,
+                color: dark ? const Color(0xFF9AA6B2) : const Color(0xFF5B6673),
+              ),
+            ),
+          ],
+        );
+
+    // A code made in the app: a Wi-Fi card for guests, and other styles.
+    const WifiContent wifi = WifiContent(
+      ssid: 'Lumen Guest',
+      password: 'espresso-2026',
+    );
+    Widget small(BarcodeStyle style) => DecoratedBox(
+      decoration: BoxDecoration(
+        color: style.backgroundColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: BarcodeView(
+          wifi.toPayload(),
+          width: 62,
+          height: 62,
+          style: style.copyWith(quietZone: false),
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      _host(
+        ColoredBox(
+          color: const Color(0xFFEEF2F5),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 87, 24, 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                heading('Wi‑Fi for guests', 'Print it or share it as an image'),
+                const SizedBox(height: 32),
+                Center(
+                  child: BarcodeView(
+                    wifi.toPayload(),
+                    width: 300,
+                    style: const BarcodeStyle(
+                      moduleShape: ModuleShape.rounded,
+                      finderShape: FinderShape.rounded,
+                      gradient: LinearGradient(
+                        colors: <Color>[Color(0xFF00735D), Color(0xFF2563EB)],
+                      ),
+                      caption: BarcodeCaption(
+                        'LUMEN GUEST',
+                        style: TextStyle(
+                          fontFamily: 'Roboto',
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0E1218),
+                        ),
+                      ),
+                      card: BarcodeCard(elevation: 0.04),
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  'STYLES',
+                  style: _text.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                    color: const Color(0xFF5B6673),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    small(BarcodeStyle.soft),
+                    small(BarcodeStyle.dots),
+                    small(BarcodeStyle.ink),
+                    small(BarcodeStyle.night),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    await _save(tester, 'create');
+
+    // A sheet of numbered labels, as printed.
+    await tester.pumpWidget(
+      _host(
+        ColoredBox(
+          color: const Color(0xFF1B2027),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 87, 24, 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                heading(
+                  'Labels',
+                  'A4 · 3 × 6 · LOT-0001 to LOT-0500',
+                  dark: true,
+                ),
+                const SizedBox(height: 28),
+                Expanded(
+                  child: Center(
+                    child: DecoratedBox(
+                      decoration: const BoxDecoration(
+                        boxShadow: <BoxShadow>[
+                          BoxShadow(
+                            color: Color(0x66000000),
+                            blurRadius: 24,
+                            offset: Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: BarcodeLabelSheetView(
+                        sheet: const BarcodeLabelSheet(
+                          columns: 3,
+                          rows: 6,
+                          style: BarcodeStyle.soft,
+                        ),
+                        items: SerialItems('LOT-{n:4}', count: 500),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    // The sheet lays its codes out first, then draws them.
+    for (int i = 0; i < 100; i++) {
+      if (find.byType(BarcodeView).evaluate().length == 18) {
+        break;
+      }
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+    }
+    expect(find.byType(BarcodeView), findsNWidgets(18));
+    await _settle(tester);
+    await _save(tester, 'label-sheet');
   }, skip: _out == null);
 }
