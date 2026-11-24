@@ -235,6 +235,126 @@ void main() {
     expect(find.byType(BarcodeLabelSheetView), findsOneWidget);
   });
 
+  testWidgets('the sheet has no Text or Card section; the first code drops '
+      'the style\'s text', (WidgetTester tester) async {
+    await _show(tester);
+    expect(find.text('CARD'), findsOneWidget);
+    await _enter(tester, 'Above', 'Hello');
+    await _many(tester);
+    expect(find.text('CARD'), findsNothing);
+    expect(find.widgetWithText(TextField, 'Above'), findsNothing);
+    final BarcodeView first = tester.widget<BarcodeView>(
+      find.byWidgetPredicate(
+        (Widget w) => w is BarcodeView && w.data == 'AA000001',
+      ),
+    );
+    expect(first.style.title, isNull);
+    expect(first.style.card, isNull);
+    // One code keeps it.
+    await tester.tap(find.text('One code'));
+    await _settle(tester);
+    expect(find.widgetWithText(TextField, 'Hello'), findsOneWidget);
+  });
+
+  testWidgets('the caption size shows while the caption is on', (
+    WidgetTester tester,
+  ) async {
+    await _show(tester, link: _batchLink);
+    BarcodeLabelSheet sheet() => tester
+        .widget<BarcodeLabelSheetView>(find.byType(BarcodeLabelSheetView))
+        .sheet;
+    expect(find.text('TEXT SIZE'), findsOneWidget);
+    expect(find.text('3 mm'), findsOneWidget);
+    final Finder slider = find.byWidgetPredicate(
+      (Widget w) => w is Slider && w.min == 2 && w.max == 6,
+    );
+    tester.widget<Slider>(slider).onChanged!(4.5);
+    await _settle(tester);
+    expect(find.text('4.5 mm'), findsOneWidget);
+    expect(sheet().captionSize, 4.5);
+    await tester.tap(find.text('Text under each code'));
+    await _settle(tester);
+    expect(find.text('TEXT SIZE'), findsNothing);
+    expect(slider, findsNothing);
+    expect(sheet().caption, isFalse);
+  });
+
+  testWidgets('the order: rows, columns or column strips', (
+    WidgetTester tester,
+  ) async {
+    await _show(tester, link: _batchLink);
+    expect(find.text('Left to right, then the next row'), findsOneWidget);
+    await tester.tap(find.text('Column strips'));
+    await _settle(tester);
+    expect(find.textContaining('cut a stack of sheets'), findsOneWidget);
+    final BarcodeLabelSheetView view = tester.widget<BarcodeLabelSheetView>(
+      find.byType(BarcodeLabelSheetView),
+    );
+    expect(view.sheet.order, LabelOrder.columnStrips);
+    // 1,000 codes on 42 pages: page 1's second label is the second code,
+    // the top of its second column the 337th.
+    expect(view.sheet.itemAt(0, 1, 1000), 1);
+    expect(view.sheet.itemAt(0, 8, 1000), 336);
+  });
+
+  testWidgets('the page zooms, and opens full screen with paging', (
+    WidgetTester tester,
+  ) async {
+    await _show(tester, link: _batchLink);
+    final Finder zoom = find.ancestor(
+      of: find.byType(BarcodeLabelSheetView),
+      matching: find.byType(InteractiveViewer),
+    );
+    expect(zoom, findsOneWidget);
+    expect(tester.widget<InteractiveViewer>(zoom).maxScale, 6);
+    // A double tap zooms in to 3x; the codes are drawn for that scale.
+    final TransformationController controller = tester
+        .widget<InteractiveViewer>(zoom)
+        .transformationController!;
+    final Offset center = tester.getCenter(zoom);
+    await tester.tapAt(center);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(center);
+    await tester.pumpAndSettle();
+    expect(controller.value.getMaxScaleOnAxis(), closeTo(3, 1e-6));
+    expect(
+      MediaQuery.devicePixelRatioOf(
+        tester.element(find.byType(BarcodeLabelSheetView)),
+      ),
+      closeTo(3, 1e-6),
+    );
+    // Again: back to 1x.
+    await tester.tapAt(center);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(center);
+    await tester.pumpAndSettle();
+    expect(controller.value.getMaxScaleOnAxis(), closeTo(1, 1e-6));
+
+    await tester.tap(find.byTooltip('Full screen'));
+    await tester.pumpAndSettle();
+    expect(find.text('Page 1 of 42'), findsOneWidget);
+    final Finder full = find.ancestor(
+      of: find.byType(BarcodeLabelSheetView),
+      matching: find.byType(InteractiveViewer),
+    );
+    expect(full, findsOneWidget);
+    await tester.tap(find.byTooltip('Next page').last);
+    await tester.pump();
+    expect(find.text('Page 2 of 42'), findsOneWidget);
+    expect(
+      tester.widget<BarcodeLabelSheetView>(find.byType(BarcodeLabelSheetView)),
+      isA<BarcodeLabelSheetView>().having(
+        (BarcodeLabelSheetView v) => v.page,
+        'page',
+        1,
+      ),
+    );
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    // The preview follows.
+    expect(find.text('Page 2 of 42 · 24 labels a page'), findsOneWidget);
+  });
+
   test('a PNG says its dpi', () async {
     final Uint8List png = await const BarcodeWriter(
       BarcodeFormat.qrCode,
@@ -289,6 +409,14 @@ void main() {
     expect(codes.left, lessThan(size.width / 2));
     expect(code.bottom, lessThan(page.top));
     expect(find.text('Share PDF · 42 pages'), findsOneWidget);
+    expect(
+      find.ancestor(
+        of: find.byType(BarcodeLabelSheetView),
+        matching: find.byType(InteractiveViewer),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('Full screen'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

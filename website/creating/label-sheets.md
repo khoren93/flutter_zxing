@@ -50,12 +50,11 @@ are in millimetres.
 | `codeSize` | `null` | The longer side of each code in millimetres, centred on its label with the caption; `null` as large as the label allows |
 | `writer` | QR code | The format, error correction and the rest |
 | `style` | `BarcodeStyle.classic` | How the codes are drawn: see [Styled codes](#styled-codes) |
-| `order` | `LabelOrder.rows` | `LabelOrder.columns` fills a page column by column: the next item is below, for labels cut into strips or stacked in order |
+| `order` | `LabelOrder.rows` | The order the items fill the pages in: see [Order](#order) |
 
-Labels fill a page row by row, left to right, or column by column with
-`order: LabelOrder.columns`. In each label the code is
-as large as fits above the caption, keeping its proportions, and the two
-are centered. A caption too long for its label gets smaller.
+In each label the code is as large as fits above the caption, keeping its
+proportions, and the two are centered. A caption too long for its label
+gets smaller.
 
 The caption is the item itself; `captionText` gives other text, such as a
 product name. Turn captions off for EAN-13, UPC-A and the other retail
@@ -77,9 +76,32 @@ Future<Uint8List> shelfLabels(Map<String, String> products) {
 }
 ```
 
-`labelsPerPage`, `pageCount(items)`, `labelSize` and `labelRect(index)`
+`labelsPerPage`, `pageCount(items)`, `labelSize` and `labelRect(slot)`
 give the grid, for a preview of your own or to print something next to
-the codes.
+the codes. `itemAt(page, slot, total)` names the item on a label, in any
+order, and `slotOf(index, total)` finds where an item goes.
+
+## Order
+
+`order` says where the next item goes. With 3 columns, 4 rows and 24
+items on two pages:
+
+| `order` | Page 1 | Page 2 | For |
+|---|---|---|---|
+| `LabelOrder.rows` | 1–12, left to right, then the next row | 13–24 | The default |
+| `LabelOrder.columns` | 1–12, top to bottom, then the next column | 13–24 | One sheet cut into column strips, or labels stacked in order |
+| `LabelOrder.columnStrips` | column 1: 1–4, column 2: 9–12, column 3: 17–20 | column 1: 5–8, column 2: 13–16, column 3: 21–24 | A stack of sheets cut into columns |
+| `LabelOrder.rowStrips` | row 1: 1–3, row 2: 7–9, … | row 1: 4–6, row 2: 10–12, … | A stack of sheets cut into rows |
+
+With `columnStrips` a column runs on through every page before the next
+column starts: print the stack, cut it into strips, and each strip, page
+after page, holds its items in order. The item at column `c`, row `r` of
+page `p` is `c × rows × pages + p × rows + r`. When the items do not fill
+the last pages, the blank labels are at the ends of the columns.
+
+The strip orders need the number of items first, and each item by its
+place: give them a `List`, such as `SerialItems` or `BarcodeItems`. Any
+other `Iterable` is read into a list, all its items in memory at once.
 
 ## Styled codes
 

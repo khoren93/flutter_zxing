@@ -64,6 +64,70 @@ void main() {
     expect(await qr.svgPages(const <String>[]).toList(), isEmpty);
   });
 
+  group('column strips', () {
+    // 3 x 4: 22 items take two pages; a column runs through both.
+    final BarcodeLabelSheet strips = qr.copyWith(
+      rows: 4,
+      order: LabelOrder.columnStrips,
+    );
+    final List<String> items = _items(22);
+
+    /// The item each caption of a page names, by the slot it is on.
+    Map<int, String> slots(String page, RegExp caption) => <int, String>{
+      for (final Match m in caption.allMatches(page))
+        <int>[
+          for (int slot = 0; slot < strips.labelsPerPage; slot++)
+            if (strips
+                .labelRect(slot)
+                .contains(Offset(double.parse(m[1]!), double.parse(m[2]!))))
+              slot,
+        ].single: m[3]!,
+    };
+
+    /// The items the sheet puts on each slot of [page].
+    Map<int, String> expected(int page) => <int, String>{
+      for (int slot = 0; slot < strips.labelsPerPage; slot++)
+        if (strips.itemAt(page, slot, items.length) case final int i)
+          slot: items[i],
+    };
+
+    test('the sheet: page 2 starts each column where page 1 stops', () {
+      expect(expected(0)[0], 'SKU-0001');
+      expect(expected(0)[4], 'SKU-0009');
+      expect(expected(1)[0], 'SKU-0005');
+      expect(expected(1)[8], 'SKU-0021');
+      expect(expected(1), hasLength(10));
+    });
+
+    test('SVG', () async {
+      final RegExp caption = RegExp(
+        r'<text x="([\d.]+)" y="([\d.]+)"[^>]*>([^<]+)</text>',
+      );
+      // An Iterable that is not a List is read into one.
+      final List<String> pages = await strips
+          .svgPages(items.map((String s) => s))
+          .toList();
+      expect(pages, hasLength(2));
+      expect(slots(pages[0], caption), expected(0));
+      expect(slots(pages[1], caption), expected(1));
+    });
+
+    test('PDF', () async {
+      final List<(int, int)> progress = <(int, int)>[];
+      final PdfPages pdf = readPdf(
+        await strips.pdf(
+          items,
+          onProgress: (int done, int total) => progress.add((done, total)),
+        ),
+      );
+      final RegExp caption = RegExp(r'([\d.]+) ([\d.]+) Tm \(([^)]+)\) Tj');
+      expect(pdf.contents, hasLength(2));
+      expect(slots(pdf.contents[0], caption), expected(0));
+      expect(slots(pdf.contents[1], caption), expected(1));
+      expect(progress, <(int, int)>[(12, 22), (22, 22)]);
+    });
+  });
+
   test('custom captions', () async {
     final String page = await qr.svgPages(<String>[
       'A',
@@ -364,6 +428,67 @@ void main() {
       final Rect second = tester.getRect(find.text('SKU-0002'));
       expect(second.center.dx, closeTo(first.center.dx, 0.01));
       expect(second.top, greaterThan(first.bottom));
+      await tester.binding.setSurfaceSize(null);
+    });
+
+    testWidgets('the preview shows the items of a page in column strips', (
+      WidgetTester tester,
+    ) async {
+      final BarcodeLabelSheet sheet = qr.copyWith(
+        rows: 4,
+        order: LabelOrder.columnStrips,
+      );
+      await tester.binding.setSurfaceSize(const Size(420, 700));
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 420,
+              child: BarcodeLabelSheetView(
+                sheet: sheet,
+                items: _items(22),
+                page: 1,
+              ),
+            ),
+          ),
+        ),
+      );
+      for (int i = 0; i < 100; i++) {
+        if (find.byType(BarcodeView).evaluate().length == 10) {
+          break;
+        }
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+      expect(find.byType(BarcodeView), findsNWidgets(10));
+      // Page 2: column 1 holds items 5-8, column 3 items 21 and 22.
+      expect(find.text('SKU-0001'), findsNothing);
+      expect(find.text('SKU-0009'), findsNothing);
+      final double mm = 420 / sheet.paper.width;
+      for (final (String item, int slot) in <(String, int)>[
+        ('SKU-0005', 0),
+        ('SKU-0008', 3),
+        ('SKU-0013', 4),
+        ('SKU-0021', 8),
+        ('SKU-0022', 9),
+      ]) {
+        final Rect label = sheet.labelRect(slot);
+        final Offset at = tester.getCenter(find.text(item));
+        expect(
+          Rect.fromLTRB(
+            label.left * mm,
+            label.top * mm,
+            label.right * mm,
+            label.bottom * mm,
+          ).contains(at),
+          isTrue,
+          reason: item,
+        );
+      }
       await tester.binding.setSurfaceSize(null);
     });
 

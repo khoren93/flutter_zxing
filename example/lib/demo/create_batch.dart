@@ -37,6 +37,14 @@ String _count(int n) {
 }
 
 /// `1 code`, `1,000 codes`.
+/// Millimetres to a half: `3`, `2.5`.
+String _mm(double v) {
+  final double half = (v * 2).round() / 2;
+  return half == half.roundToDouble()
+      ? '${half.round()}'
+      : half.toStringAsFixed(1);
+}
+
 String _plural(int n, String one) => '${_count(n)} ${n == 1 ? one : '${one}s'}';
 
 /// What a separator is called.
@@ -183,6 +191,9 @@ class _Batch {
   double? codeSize;
   LabelOrder order = LabelOrder.rows;
   bool? _caption;
+
+  /// The caption's height, in millimetres.
+  double captionSize = 3;
   int _page = 0;
 
   // An export or a skip in progress.
@@ -538,6 +549,7 @@ class _Batch {
     rows: rows,
     order: order,
     caption: caption,
+    captionSize: captionSize,
     style: page._style,
     writer: page._batchWriter,
   );
@@ -1598,28 +1610,36 @@ class _SheetSettings extends StatelessWidget {
             onChanged: (double v) => b.change(() => b.codeSize = v),
           ),
         const SizedBox(height: 8),
-        Row(
-          children: <Widget>[
-            const Expanded(child: FzLabel('Order')),
-            SegmentedButton<LabelOrder>(
-              showSelectedIcon: false,
-              style: compact,
-              segments: const <ButtonSegment<LabelOrder>>[
-                ButtonSegment<LabelOrder>(
-                  value: LabelOrder.rows,
-                  label: Text('Rows'),
-                ),
-                ButtonSegment<LabelOrder>(
-                  value: LabelOrder.columns,
-                  label: Text('Columns'),
-                ),
-              ],
-              selected: <LabelOrder>{b.order},
-              onSelectionChanged: (Set<LabelOrder> s) =>
-                  b.change(() => b.order = s.first),
+        const FzLabel('Order'),
+        const SizedBox(height: 8),
+        SegmentedButton<LabelOrder>(
+          showSelectedIcon: false,
+          segments: const <ButtonSegment<LabelOrder>>[
+            ButtonSegment<LabelOrder>(
+              value: LabelOrder.rows,
+              label: Text('Rows'),
+            ),
+            ButtonSegment<LabelOrder>(
+              value: LabelOrder.columns,
+              label: Text('Columns'),
+            ),
+            ButtonSegment<LabelOrder>(
+              value: LabelOrder.columnStrips,
+              label: Text('Column strips'),
             ),
           ],
+          selected: <LabelOrder>{b.order},
+          onSelectionChanged: (Set<LabelOrder> s) =>
+              b.change(() => b.order = s.first),
         ),
+        const SizedBox(height: 6),
+        Text(switch (b.order) {
+          LabelOrder.rows => 'Left to right, then the next row',
+          LabelOrder.columns => 'Top to bottom, then the next column',
+          _ =>
+            'Each column runs on through every page: '
+                'cut a stack of sheets into strips',
+        }, style: TextStyle(fontSize: 13, color: fz.inkMuted)),
         const SizedBox(height: 8),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
@@ -1636,13 +1656,34 @@ class _SheetSettings extends StatelessWidget {
           value: b.caption,
           onChanged: b.setCaption,
         ),
+        if (b.caption) ...<Widget>[
+          Row(
+            children: <Widget>[
+              const Expanded(child: FzLabel('Text size')),
+              Text(
+                '${_mm(b.captionSize)} mm',
+                style: TextStyle(fontSize: 13, color: fz.inkMuted),
+              ),
+            ],
+          ),
+          Slider(
+            value: b.captionSize,
+            min: 2,
+            max: 6,
+            divisions: 8,
+            label: '${_mm(b.captionSize)} mm',
+            semanticFormatterCallback: (double v) => '${_mm(v)} millimetres',
+            onChanged: (double v) => b.change(() => b.captionSize = v),
+          ),
+        ],
       ],
     );
   }
 }
 
-/// A page of the sheet as it prints, with paging. In the wide layout it
-/// fills the height it is given.
+/// A page of the sheet as it prints, with paging, pinch and double-tap to
+/// zoom, and a button to open it full screen. In the wide layout it fills
+/// the height it is given.
 class _SheetPreview extends StatelessWidget {
   const _SheetPreview(this.page, {this.fill = false});
 
@@ -1657,59 +1698,17 @@ class _SheetPreview extends StatelessWidget {
     final int pages = b.pageCount;
     final int shown = b.pageShown;
     final bool room = b.maxCodeSize > 0;
-    final PaperSize paper = sheet.paper;
     final Widget frame = Container(
-      padding: const EdgeInsets.all(16),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: fz.surface,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints c) {
-          final double aspect = paper.width / paper.height;
-          final double width = math.max(
-            0,
-            math.min(c.maxWidth, c.maxHeight * aspect),
-          );
-          return Center(
-            child: SizedBox(
-              width: width,
-              height: width / aspect,
-              child: DecoratedBox(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.all(Radius.circular(2)),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: Color(0x1A0E1218),
-                      blurRadius: 18,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: room
-                    ? BarcodeLabelSheetView(
-                        sheet: sheet,
-                        items: b.items,
-                        page: shown,
-                      )
-                    : Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text(
-                            'No room for a code on these labels',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: const Color(0xFF4B5563),
-                            ),
-                          ),
-                        ),
-                      ),
-              ),
-            ),
-          );
-        },
+      child: _Zoom(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: _Paper(sheet: sheet, items: b.items, page: shown, room: room),
+        ),
       ),
     );
     return FzCard(
@@ -1731,6 +1730,26 @@ class _SheetPreview extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+              ),
+              IconButton(
+                tooltip: 'Full screen',
+                icon: const Icon(Icons.open_in_full_rounded, size: 20),
+                onPressed: pages == 0 || !room
+                    ? null
+                    : () => unawaited(
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            fullscreenDialog: true,
+                            builder: (BuildContext context) => _FullPage(
+                              sheet: sheet,
+                              items: b.items,
+                              pages: pages,
+                              initial: shown,
+                              onPage: b.goTo,
+                            ),
+                          ),
+                        ),
+                      ),
               ),
               IconButton(
                 tooltip: 'Previous page',
@@ -1757,6 +1776,260 @@ class _SheetPreview extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// A page of [sheet] on white paper with a shadow, as large as the box
+/// allows at the paper's proportions; a line instead when the labels have
+/// no room for a code.
+class _Paper extends StatelessWidget {
+  const _Paper({
+    required this.sheet,
+    required this.items,
+    required this.page,
+    required this.room,
+  });
+
+  final BarcodeLabelSheet sheet;
+  final List<String> items;
+  final int page;
+  final bool room;
+
+  @override
+  Widget build(BuildContext context) {
+    final PaperSize paper = sheet.paper;
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints c) {
+        final double aspect = paper.width / paper.height;
+        final double width = math.max(
+          0,
+          math.min(c.maxWidth, c.maxHeight * aspect),
+        );
+        return Center(
+          child: SizedBox(
+            width: width,
+            height: width / aspect,
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.all(Radius.circular(2)),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: Color(0x1A0E1218),
+                    blurRadius: 18,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: room
+                  ? BarcodeLabelSheetView(
+                      sheet: sheet,
+                      items: items,
+                      page: page,
+                    )
+                  : const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text(
+                          'No room for a code on these labels',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF4B5563),
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Pinch to zoom [child] up to 6×; a double tap zooms to 3× where it
+/// lands, or back out.
+///
+/// The codes stay sharp: the page is vectors and text, drawn again at the
+/// zoomed scale. Once a zoom comes to rest the child sees a device pixel
+/// ratio multiplied by it, so a [BarcodeView] snaps its modules to the
+/// zoomed pixels rather than to those of the page at 1×.
+class _Zoom extends StatefulWidget {
+  const _Zoom({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_Zoom> createState() => _ZoomState();
+}
+
+class _ZoomState extends State<_Zoom> with SingleTickerProviderStateMixin {
+  final TransformationController _controller = TransformationController();
+  late final AnimationController _animation = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+  )..addListener(_step);
+  Animation<Matrix4>? _tween;
+  Offset _tap = Offset.zero;
+
+  /// The scale the child is drawn for, set once a zoom comes to rest.
+  double _scale = 1;
+
+  /// Whether a drag pans the page: only zoomed in, so that at 1× it
+  /// scrolls the list around it.
+  bool _zoomed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onTransform);
+  }
+
+  void _onTransform() {
+    final bool zoomed = _controller.value.getMaxScaleOnAxis() > 1.01;
+    if (zoomed != _zoomed) {
+      setState(() => _zoomed = zoomed);
+    }
+  }
+
+  @override
+  void dispose() {
+    _animation.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _step() {
+    final Animation<Matrix4>? tween = _tween;
+    if (tween != null) {
+      _controller.value = tween.value;
+    }
+    if (_animation.isCompleted) {
+      _rest();
+    }
+  }
+
+  void _rest() {
+    final double scale =
+        (_controller.value.getMaxScaleOnAxis() * 100).round() / 100;
+    if (scale != _scale) {
+      setState(() => _scale = scale);
+    }
+  }
+
+  void _toggle() {
+    final Matrix4 from = _controller.value.clone();
+    final Matrix4 to;
+    if (from.getMaxScaleOnAxis() > 1.01) {
+      to = Matrix4.identity();
+    } else {
+      const double zoom = 3;
+      final Offset scene = _controller.toScene(_tap);
+      to = Matrix4.identity()
+        ..translateByDouble(_tap.dx, _tap.dy, 0, 1)
+        ..scaleByDouble(zoom, zoom, 1, 1)
+        ..translateByDouble(-scene.dx, -scene.dy, 0, 1);
+    }
+    _tween = Matrix4Tween(
+      begin: from,
+      end: to,
+    ).animate(CurvedAnimation(parent: _animation, curve: Curves.easeOutCubic));
+    unawaited(_animation.forward(from: 0));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final MediaQueryData media = MediaQuery.of(context);
+    return GestureDetector(
+      onDoubleTapDown: (TapDownDetails d) => _tap = d.localPosition,
+      onDoubleTap: _toggle,
+      child: InteractiveViewer(
+        transformationController: _controller,
+        maxScale: 6,
+        panEnabled: _zoomed,
+        onInteractionStart: (_) => _animation.stop(),
+        onInteractionEnd: (_) => _rest(),
+        child: MediaQuery(
+          data: media.copyWith(
+            devicePixelRatio: media.devicePixelRatio * _scale,
+          ),
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
+/// A page full screen: zoom as in the preview, and paging that the
+/// preview follows.
+class _FullPage extends StatefulWidget {
+  const _FullPage({
+    required this.sheet,
+    required this.items,
+    required this.pages,
+    required this.initial,
+    required this.onPage,
+  });
+
+  final BarcodeLabelSheet sheet;
+  final List<String> items;
+  final int pages;
+  final int initial;
+  final ValueChanged<int> onPage;
+
+  @override
+  State<_FullPage> createState() => _FullPageState();
+}
+
+class _FullPageState extends State<_FullPage> {
+  late int _page = widget.initial;
+
+  void _goTo(int page) {
+    setState(() => _page = page);
+    widget.onPage(page);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Fz fz = Fz.of(context);
+    return Scaffold(
+      backgroundColor: fz.surface,
+      appBar: AppBar(
+        backgroundColor: fz.surface,
+        title: Text(
+          'Page ${_count(_page + 1)} of ${_count(widget.pages)}',
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+        ),
+        actions: <Widget>[
+          IconButton(
+            tooltip: 'Previous page',
+            icon: const Icon(Icons.chevron_left_rounded),
+            onPressed: _page > 0 ? () => _goTo(_page - 1) : null,
+          ),
+          IconButton(
+            tooltip: 'Next page',
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: _page < widget.pages - 1 ? () => _goTo(_page + 1) : null,
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: SafeArea(
+        top: false,
+        child: _Zoom(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: _Paper(
+              sheet: widget.sheet,
+              items: widget.items,
+              page: _page,
+              room: true,
+            ),
+          ),
+        ),
       ),
     );
   }

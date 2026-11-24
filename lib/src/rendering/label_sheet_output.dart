@@ -191,14 +191,16 @@ bool _blankBackground(BarcodeStyle style) =>
 /// The id of the logo's `<symbol>` in an SVG page.
 const String svgLogoId = 'zx-logo';
 
-/// One page of [sheet] as an SVG document in millimetres: [symbols] in
-/// label order, [captions] under them (`null`: none), each code drawn
-/// with [BarcodeLabelSheet.style]. [logo] is the style's logo, loaded
-/// once for the whole sheet; without it the codes have none.
+/// One page of [sheet] as an SVG document in millimetres: [symbols] on
+/// the labels [slots] name (see [BarcodeLabelSheet.labelRect]; by default
+/// the first, in order), [captions] under them (`null`: none), each code
+/// drawn with [BarcodeLabelSheet.style]. [logo] is the style's logo,
+/// loaded once for the whole sheet; without it the codes have none.
 String svgPage(
   BarcodeLabelSheet sheet,
   List<BarcodeSymbol> symbols,
   List<String?> captions, {
+  List<int>? slots,
   SheetLogo? logo,
 }) {
   final PaperSize paper = sheet.paper;
@@ -211,7 +213,7 @@ String svgPage(
     final String? caption = captions[i];
     final LabelPlacement at = placeLabel(
       sheet,
-      sheet.labelRect(i),
+      sheet.labelRect(slots?[i] ?? i),
       SymbolLayout(shown),
       caption,
     );
@@ -280,6 +282,7 @@ String svgPage(
 /// The content stream of one page of [sheet] as a PDF draws it: in
 /// millimetres with y down, the codes drawn with [BarcodeLabelSheet.style]
 /// (black rectangles for the classic style), Courier for the text.
+/// [symbols] go on the labels [slots] name, as for [svgPage].
 ///
 /// A style with a gradient or a logo needs [resources], which adds the
 /// shadings and the logo image to the document and lists those the page
@@ -288,6 +291,7 @@ String pdfPageContent(
   BarcodeLabelSheet sheet,
   List<BarcodeSymbol> symbols,
   List<String?> captions, {
+  List<int>? slots,
   PdfPageResources? resources,
 }) {
   final BarcodeStyle style = codeStyleOf(sheet);
@@ -303,7 +307,7 @@ String pdfPageContent(
     final String? caption = captions[i];
     final LabelPlacement at = placeLabel(
       sheet,
-      sheet.labelRect(i),
+      sheet.labelRect(slots?[i] ?? i),
       layout,
       caption,
     );

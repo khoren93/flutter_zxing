@@ -642,7 +642,13 @@ class _CreatePageState extends State<CreatePage> {
     const SizedBox(height: 18),
     Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: StyleEditor(style: _style, format: _format, onChanged: _setStyle),
+      child: StyleEditor(
+        style: _style,
+        format: _format,
+        onChanged: _setStyle,
+        // A label sheet draws neither the style's text nor its card.
+        textAndCard: !_many,
+      ),
     ),
   ];
 
@@ -1594,7 +1600,15 @@ class _Preview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final BarcodeStyle style = page._style;
+    // The first of many shows the code as the sheet prints it: without the
+    // style's title, caption and card.
+    final BarcodeStyle style = data == null
+        ? page._style
+        : page._style.copyWith(
+            title: () => null,
+            caption: () => null,
+            card: () => null,
+          );
     final bool square = page._square;
     final List<FieldProblem> formProblems = data != null
         ? const <FieldProblem>[]

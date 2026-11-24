@@ -158,6 +158,157 @@ void main() {
       expect(byRows.toString(), isNot(contains('columns')));
     });
 
+    group('column strips', () {
+      final BarcodeLabelSheet strips = byRows.copyWith(
+        order: LabelOrder.columnStrips,
+      );
+
+      /// The items of each slot of [page], `null` for a blank label.
+      List<int?> page(BarcodeLabelSheet sheet, int page, int total) => <int?>[
+        for (int slot = 0; slot < sheet.labelsPerPage; slot++)
+          sheet.itemAt(page, slot, total),
+      ];
+
+      test('3 x 4, 24 items: a column through both pages, then the next', () {
+        // Slots run down the columns, as with LabelOrder.columns.
+        expect(strips.labelRect(1), byColumns.labelRect(1));
+        expect(strips.labelRect(4), byColumns.labelRect(4));
+        expect(strips.pageCount(24), 2);
+        // Page 1: column 1 = 1-4, column 2 = 9-12, column 3 = 17-20.
+        expect(page(strips, 0, 24), <int>[
+          0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19, //
+        ]);
+        // Page 2: column 1 = 5-8, column 2 = 13-16, column 3 = 21-24.
+        expect(page(strips, 1, 24), <int>[
+          4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23, //
+        ]);
+        expect(page(strips, 2, 24), everyElement(isNull));
+      });
+
+      test('22 items: the last two labels of page 2 are blank', () {
+        expect(strips.pageCount(22), 2);
+        expect(page(strips, 0, 22), <int>[
+          0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19, //
+        ]);
+        expect(page(strips, 1, 22), <int?>[
+          4, 5, 6, 7, 12, 13, 14, 15, 20, 21, null, null, //
+        ]);
+      });
+
+      test('a few items: blank labels at the ends of the columns, no '
+          'blank page', () {
+        // 13 items over 2 pages: 8 a column.
+        expect(page(strips, 0, 13), <int?>[
+          0, 1, 2, 3, 8, 9, 10, 11, null, null, null, null, //
+        ]);
+        expect(page(strips, 1, 13), <int?>[
+          4, 5, 6, 7, 12, null, null, null, null, null, null, null, //
+        ]);
+        for (final int total in <int>[1, 5, 12, 13, 22, 24, 25, 100]) {
+          for (int p = 0; p < strips.pageCount(total); p++) {
+            expect(page(strips, p, total).first, isNotNull);
+          }
+        }
+        expect(page(strips, 0, 0), everyElement(isNull));
+      });
+
+      test('slotOf is the reverse of itemAt, in every order', () {
+        for (final LabelOrder order in LabelOrder.values) {
+          final BarcodeLabelSheet sheet = byRows.copyWith(order: order);
+          for (final int total in <int>[1, 13, 22, 24, 25, 61]) {
+            final Set<int> seen = <int>{};
+            for (int p = 0; p < sheet.pageCount(total); p++) {
+              for (int slot = 0; slot < sheet.labelsPerPage; slot++) {
+                final int? i = sheet.itemAt(p, slot, total);
+                if (i != null) {
+                  expect(seen.add(i), isTrue);
+                  expect(sheet.slotOf(i, total), (page: p, slot: slot));
+                }
+              }
+            }
+            expect(seen, hasLength(total), reason: '$order, $total');
+          }
+        }
+      });
+
+      test('rows and columns are unchanged: item i is slot i', () {
+        for (final BarcodeLabelSheet sheet in <BarcodeLabelSheet>[
+          byRows,
+          byColumns,
+        ]) {
+          expect(page(sheet, 0, 30), <int>[for (int i = 0; i < 12; i++) i]);
+          expect(page(sheet, 2, 30), <int?>[
+            24, 25, 26, 27, 28, 29, null, null, null, null, null, null, //
+          ]);
+          expect(sheet.slotOf(13, 30), (page: 1, slot: 1));
+        }
+      });
+
+      test('row strips: a row through both pages, then the next', () {
+        final BarcodeLabelSheet rowStrips = byRows.copyWith(
+          order: LabelOrder.rowStrips,
+        );
+        expect(rowStrips.labelRect(1), byRows.labelRect(1));
+        // Row 1 = 1-3 on page 1, 4-6 on page 2; row 2 = 7-9, 10-12...
+        expect(page(rowStrips, 0, 24), <int>[
+          0, 1, 2, 6, 7, 8, 12, 13, 14, 18, 19, 20, //
+        ]);
+        expect(page(rowStrips, 1, 24), <int>[
+          3, 4, 5, 9, 10, 11, 15, 16, 17, 21, 22, 23, //
+        ]);
+      });
+
+      test('bad arguments', () {
+        expect(() => strips.itemAt(0, 12, 24), throwsRangeError);
+        expect(() => strips.itemAt(0, -1, 24), throwsRangeError);
+        expect(() => strips.itemAt(-1, 0, 24), throwsArgumentError);
+        expect(() => strips.itemAt(0, 0, -1), throwsArgumentError);
+        expect(() => strips.slotOf(24, 24), throwsRangeError);
+        expect(() => strips.slotOf(-1, 24), throwsRangeError);
+      });
+
+      test('toString', () {
+        expect(strips.toString(), contains('by columnStrips'));
+      });
+    });
+
+    test('the SVG and the PDF put the codes on the slots given', () {
+      final List<BarcodeSymbol> symbols = <BarcodeSymbol>[
+        _square(21),
+        _square(21),
+      ];
+      final Rect fifth = byColumns.labelRect(5);
+      final String svg = svgPage(
+        byColumns,
+        symbols,
+        <String?>['A', 'B'],
+        slots: <int>[0, 5],
+      );
+      final List<Offset> at = <Offset>[
+        for (final Match m in RegExp(
+          r'<svg x="([\d.]+)" y="([\d.]+)"',
+        ).allMatches(svg))
+          Offset(double.parse(m[1]!), double.parse(m[2]!)),
+      ];
+      expect(at, hasLength(2));
+      expect(fifth.contains(at[1]), isTrue);
+      final String pdf = pdfPageContent(
+        byColumns,
+        symbols,
+        <String?>['A', 'B'],
+        slots: <int>[0, 5],
+      );
+      final List<Offset> codes = <Offset>[
+        for (final Match m in RegExp(
+          r'^q [\d.]+ 0 0 [\d.]+ ([\d.]+) ([\d.]+) cm$',
+          multiLine: true,
+        ).allMatches(pdf))
+          Offset(double.parse(m[1]!), double.parse(m[2]!)),
+      ];
+      expect(codes, hasLength(2));
+      expect(fifth.contains(codes[1]), isTrue);
+    });
+
     test('the SVG and the PDF put item 1 under item 0', () {
       final List<BarcodeSymbol> symbols = <BarcodeSymbol>[
         _square(21),

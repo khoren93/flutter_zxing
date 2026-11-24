@@ -82,9 +82,14 @@ class StyleEditor extends StatelessWidget {
     required this.style,
     required this.onChanged,
     required this.format,
+    this.textAndCard = true,
   });
 
   final BarcodeStyle style;
+
+  /// Whether the Text and Card sections show: not for a label sheet,
+  /// which draws neither and has its own caption.
+  final bool textAndCard;
   final ValueChanged<BarcodeStyle> onChanged;
   final BarcodeFormat format;
 
@@ -296,8 +301,10 @@ class StyleEditor extends StatelessWidget {
             ],
           ),
         ],
-        const SizedBox(height: 16),
-        TextAndCard(style: style, onChanged: onChanged),
+        if (textAndCard) ...<Widget>[
+          const SizedBox(height: 16),
+          TextAndCard(style: style, onChanged: onChanged),
+        ],
         const SizedBox(height: 8),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,

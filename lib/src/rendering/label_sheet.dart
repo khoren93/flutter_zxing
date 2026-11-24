@@ -60,15 +60,48 @@ final class PaperSize {
   String toString() => 'PaperSize($width x $height mm)';
 }
 
-/// The order in which a [BarcodeLabelSheet] fills a page with labels.
+/// The order in which a [BarcodeLabelSheet] fills its pages with labels.
+///
+/// On a sheet of 3 columns and 4 rows, 24 items take two pages:
+///
+/// | Order | Page 1 | Page 2 |
+/// |---|---|---|
+/// | [rows] | 1–12, row by row | 13–24 |
+/// | [columns] | 1–12, column by column | 13–24 |
+/// | [columnStrips] | column 1: 1–4, column 2: 9–12, column 3: 17–20 | column 1: 5–8, column 2: 13–16, column 3: 21–24 |
+/// | [rowStrips] | row 1: 1–3, row 2: 7–9, … | row 1: 4–6, row 2: 10–12, … |
 enum LabelOrder {
   /// Row by row: the next item is to the right, then the next row starts
-  /// at the left. The default.
+  /// at the left; then the next page. The default.
   rows,
 
   /// Column by column: the next item is below, then the next column
-  /// starts at the top. For labels cut into strips or stacked in order.
+  /// starts at the top; then the next page. For a single sheet cut into
+  /// column strips or labels stacked in order.
   columns,
+
+  /// For a stack of sheets cut into columns: down the first column of
+  /// page 1, then the same column of page 2 and every page after it, then
+  /// the second column, from page 1 again. Each cut strip, stacked in page
+  /// order, keeps its items in order.
+  ///
+  /// The item at column `c`, row `r` of page `p` is
+  /// `c * rows * pages + p * rows + r`, with `pages` the
+  /// [BarcodeLabelSheet.pageCount] of all the items. The files and the
+  /// preview need the number of items first: an [Iterable] that is not a
+  /// [List] is read into one, all its items in memory at once.
+  columnStrips,
+
+  /// For a stack of sheets cut into rows: along the first row of page 1,
+  /// then the same row of page 2 and every page after it, then the second
+  /// row. As [columnStrips], with rows for columns.
+  rowStrips;
+
+  /// Whether a page fills down its columns first.
+  bool get _down => this == columns || this == columnStrips;
+
+  /// Whether a column or row runs through all the pages.
+  bool get _strips => this == columnStrips || this == rowStrips;
 }
 
 /// Pages of labels to print: a code with its text on each label, in a
@@ -191,10 +224,12 @@ final class BarcodeLabelSheet {
   /// throw an [UnsupportedError] for it.
   final BarcodeStyle style;
 
-  /// The order the items fill a page in: row by row (the default) or
-  /// column by column ([LabelOrder.columns]: the next item is below; for
-  /// labels cut into strips or stacked in order). The files and the
-  /// preview follow it.
+  /// The order the items fill the pages in: row by row (the default),
+  /// column by column ([LabelOrder.columns]: the next item is below), or
+  /// a column through all the pages before the next
+  /// ([LabelOrder.columnStrips], for a stack of sheets cut into columns;
+  /// [LabelOrder.rowStrips] for rows). The files and the preview follow
+  /// it; [itemAt] and [slotOf] map an item to its label.
   final LabelOrder order;
 
   /// Labels on one page.
@@ -209,16 +244,22 @@ final class BarcodeLabelSheet {
     (paper.height - margin.vertical - (rows - 1) * rowGap) / rows,
   );
 
-  /// Where the label of item [index] is on its page, in millimetres from
-  /// the top left corner. Labels fill a page in [order]: row by row, left
-  /// to right, or column by column, top to bottom; item `labelsPerPage`
-  /// starts the next page at the same place as item 0.
+  /// Where label [slot] is on its page, in millimetres from the top left
+  /// corner. Slots count the labels of a page in [order]'s direction: row
+  /// by row, left to right, for [LabelOrder.rows] and
+  /// [LabelOrder.rowStrips]; column by column, top to bottom, for
+  /// [LabelOrder.columns] and [LabelOrder.columnStrips].
   ///
-  /// Throws [ArgumentError] if [index] is negative or the margins and gaps
+  /// With [LabelOrder.rows] and [LabelOrder.columns] the slot of item `i`
+  /// is `i` itself: item `labelsPerPage` starts the next page at the same
+  /// place as item 0. With the strip orders an item's page and slot depend
+  /// on the number of items: see [slotOf].
+  ///
+  /// Throws [ArgumentError] if [slot] is negative or the margins and gaps
   /// leave no room for the labels.
-  Rect labelRect(int index) {
-    if (index < 0) {
-      throw ArgumentError.value(index, 'index', 'cannot be negative');
+  Rect labelRect(int slot) {
+    if (slot < 0) {
+      throw ArgumentError.value(slot, 'slot', 'cannot be negative');
     }
     final Size size = labelSize;
     if (size.width <= 0 || size.height <= 0) {
@@ -227,17 +268,74 @@ final class BarcodeLabelSheet {
         'on $paper',
       );
     }
-    final int i = index % labelsPerPage;
-    final (int column, int row) = switch (order) {
-      LabelOrder.rows => (i % columns, i ~/ columns),
-      LabelOrder.columns => (i ~/ rows, i % rows),
-    };
+    final int i = slot % labelsPerPage;
+    final (int column, int row) = order._down
+        ? (i ~/ rows, i % rows)
+        : (i % columns, i ~/ columns);
     return Rect.fromLTWH(
       margin.left + column * (size.width + columnGap),
       margin.top + row * (size.height + rowGap),
       size.width,
       size.height,
     );
+  }
+
+  /// The index of the item on label [slot] (see [labelRect]) of [page],
+  /// both from 0, when the sheet holds [total] items; `null` for a blank
+  /// label: past the last item, or on a page past the last.
+  ///
+  /// ```dart
+  /// const sheet = BarcodeLabelSheet(
+  ///   columns: 3,
+  ///   rows: 4,
+  ///   order: LabelOrder.columnStrips,
+  /// );
+  /// sheet.itemAt(1, 0, 24); // 4: the fifth item tops column 1 of page 2
+  /// sheet.itemAt(0, 4, 24); // 8: column 2 of page 1 starts with the ninth
+  /// ```
+  ///
+  /// Throws [ArgumentError] if [slot] is not on a page or [page] or
+  /// [total] is negative.
+  int? itemAt(int page, int slot, int total) {
+    if (slot < 0 || slot >= labelsPerPage) {
+      throw RangeError.range(slot, 0, labelsPerPage - 1, 'slot');
+    }
+    if (page < 0) {
+      throw ArgumentError.value(page, 'page', 'cannot be negative');
+    }
+    if (total < 0) {
+      throw ArgumentError.value(total, 'total', 'cannot be negative');
+    }
+    final int pages = pageCount(total);
+    if (page >= pages) {
+      return null;
+    }
+    final int index;
+    if (order._strips) {
+      // A strip is a column (or a row) through every page.
+      final int along = order._down ? rows : columns;
+      final int strip = slot ~/ along;
+      index = strip * along * pages + page * along + slot % along;
+    } else {
+      index = page * labelsPerPage + slot;
+    }
+    return index < total ? index : null;
+  }
+
+  /// The page and the slot (see [labelRect]) of item [index] of [total],
+  /// all from 0: the reverse of [itemAt].
+  ///
+  /// Throws [RangeError] unless `0 <= index < total`.
+  ({int page, int slot}) slotOf(int index, int total) {
+    RangeError.checkValidIndex(index, null, 'index', total);
+    if (!order._strips) {
+      return (page: index ~/ labelsPerPage, slot: index % labelsPerPage);
+    }
+    final int pages = pageCount(total);
+    final int along = order._down ? rows : columns;
+    final int strip = index ~/ (along * pages);
+    final int inStrip = index % (along * pages);
+    return (page: inStrip ~/ along, slot: strip * along + inStrip % along);
   }
 
   /// The pages as SVG documents, one a page, in millimetres: an A4 page is
@@ -270,7 +368,13 @@ final class BarcodeLabelSheet {
     _check();
     final SheetLogo? logo = await loadSheetLogo(this, png: true);
     await for (final _Page page in _pages(items, captionText)) {
-      yield svgPage(this, page.symbols, page.captions, logo: logo);
+      yield svgPage(
+        this,
+        page.symbols,
+        page.captions,
+        slots: page.slots,
+        logo: logo,
+      );
     }
   }
 
@@ -295,7 +399,8 @@ final class BarcodeLabelSheet {
   /// printed as `?`: use [svgPages] for other scripts.
   ///
   /// [onProgress] is called after each page with the labels done and the
-  /// number of [items]; with it, [items] is counted first.
+  /// number of [items]; with it, [items] is counted first. The strip
+  /// orders count them in any case (see [LabelOrder.columnStrips]).
   ///
   /// ```dart
   /// final Uint8List bytes = await sheet.pdf(
@@ -327,6 +432,7 @@ final class BarcodeLabelSheet {
         this,
         page.symbols,
         page.captions,
+        slots: page.slots,
         resources: resources,
       );
       pdf.addPage(
@@ -349,8 +455,37 @@ final class BarcodeLabelSheet {
     Iterable<String> items,
     String Function(String item)? captionText,
   ) async* {
-    final Iterator<String> it = items.iterator;
     final BarcodeWriter writer = writerUnderLogo(this.writer, style.logo);
+    if (order._strips) {
+      // Random access: a List as it is, anything else read into one.
+      final List<String> all = items is List<String> ? items : items.toList();
+      final int pages = pageCount(all.length);
+      for (int p = 0; p < pages; p++) {
+        final List<int> slots = <int>[];
+        final List<int> indices = <int>[];
+        for (int slot = 0; slot < labelsPerPage; slot++) {
+          final int? i = itemAt(p, slot, all.length);
+          if (i != null) {
+            slots.add(slot);
+            indices.add(i);
+          }
+        }
+        if (indices.isEmpty) {
+          continue;
+        }
+        final List<BarcodeSymbol> symbols = await Future.wait(
+          <Future<BarcodeSymbol>>[
+            for (final int i in indices) _encode(writer, i, all[i]),
+          ],
+        );
+        yield _Page(symbols, <String?>[
+          for (final int i in indices)
+            if (caption) captionText?.call(all[i]) ?? all[i] else null,
+        ], slots);
+      }
+      return;
+    }
+    final Iterator<String> it = items.iterator;
     int index = 0;
     while (true) {
       final List<String> data = <String>[];
@@ -465,15 +600,17 @@ final class BarcodeLabelSheet {
   @override
   String toString() =>
       'BarcodeLabelSheet(${columns}x$rows on $paper, ${writer.format.name}'
-      '${order == LabelOrder.rows ? '' : ', by columns'}'
+      '${order == LabelOrder.rows ? '' : ', by ${order.name}'}'
       '${style == BarcodeStyle.classic ? '' : ', styled'})';
 }
 
-/// The codes of one page and the captions under them.
+/// The codes of one page, the captions under them and their slots
+/// (`null`: the first ones, in order).
 final class _Page {
-  const _Page(this.symbols, this.captions);
+  const _Page(this.symbols, this.captions, [this.slots]);
   final List<BarcodeSymbol> symbols;
   final List<String?> captions;
+  final List<int>? slots;
 }
 
 /// Shows one page of a [BarcodeLabelSheet]: white paper at the page's
@@ -501,7 +638,9 @@ class BarcodeLabelSheetView extends StatefulWidget {
   /// The layout and the writer.
   final BarcodeLabelSheet sheet;
 
-  /// All the items; the view shows those of [page].
+  /// All the items; the view shows those of [page], in the sheet's
+  /// [BarcodeLabelSheet.order]. The strip orders need all of them at once
+  /// (see [LabelOrder.columnStrips]): give those a [List].
   final Iterable<String> items;
 
   /// The page to show, from 0. A page past the items shows blank paper.
@@ -520,6 +659,9 @@ class _BarcodeLabelSheetViewState extends State<BarcodeLabelSheetView> {
   /// (the sheet's, as the style's logo needs it).
   List<String> _items = const <String>[];
   BarcodeWriter? _writer;
+
+  /// The label of each item (see [BarcodeLabelSheet.labelRect]).
+  List<int> _slots = const <int>[];
   BarcodeLogo? _logo;
 
   /// Their symbols, `null` for one that cannot be encoded or is not yet.
@@ -539,16 +681,41 @@ class _BarcodeLabelSheetViewState extends State<BarcodeLabelSheetView> {
 
   /// Encodes the items of the page when they or the writer changed.
   void _update() {
-    final int n = widget.sheet.labelsPerPage;
-    final List<String> items = widget.page < 0
-        ? const <String>[]
-        : widget.items.skip(widget.page * n).take(n).toList();
-    final BarcodeLogo? logo = widget.sheet.style.logo;
-    final BarcodeWriter writer = writerUnderLogo(widget.sheet.writer, logo);
-    if (writer == _writer && logo == _logo && listEquals(items, _items)) {
+    final BarcodeLabelSheet sheet = widget.sheet;
+    final int n = sheet.labelsPerPage;
+    final List<String> items;
+    final List<int> slots;
+    if (widget.page < 0) {
+      items = const <String>[];
+      slots = const <int>[];
+    } else if (sheet.order._strips) {
+      final Iterable<String> source = widget.items;
+      final List<String> all = source is List<String>
+          ? source
+          : source.toList();
+      items = <String>[];
+      slots = <int>[];
+      for (int slot = 0; slot < n; slot++) {
+        final int? i = sheet.itemAt(widget.page, slot, all.length);
+        if (i != null) {
+          items.add(all[i]);
+          slots.add(slot);
+        }
+      }
+    } else {
+      items = widget.items.skip(widget.page * n).take(n).toList();
+      slots = <int>[for (int i = 0; i < items.length; i++) i];
+    }
+    final BarcodeLogo? logo = sheet.style.logo;
+    final BarcodeWriter writer = writerUnderLogo(sheet.writer, logo);
+    if (writer == _writer &&
+        logo == _logo &&
+        listEquals(items, _items) &&
+        listEquals(slots, _slots)) {
       return;
     }
     _items = items;
+    _slots = slots;
     _writer = writer;
     _logo = logo;
     _symbols = List<BarcodeSymbol?>.filled(items.length, null);
@@ -610,7 +777,7 @@ class _BarcodeLabelSheetViewState extends State<BarcodeLabelSheetView> {
     final BarcodeStyle style = codeStyleOf(sheet);
     final LabelPlacement at = placeLabel(
       sheet,
-      sheet.labelRect(i),
+      sheet.labelRect(_slots[i]),
       SymbolLayout(styledSymbol(symbol, style)),
       caption,
     );

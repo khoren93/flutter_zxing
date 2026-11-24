@@ -26,6 +26,10 @@
   rounded modules, dots, round eyes and a logo, in the preview, the PDF
   and the SVG alike. `order: LabelOrder.columns` fills a page column by
   column.
+* `LabelOrder.columnStrips` runs each column on through every page before
+  the next, for a stack of sheets cut into columns (`rowStrips` for rows).
+  `BarcodeLabelSheet.itemAt` and `slotOf` tell which item goes on which
+  label.
 
 ### Fixed
 
