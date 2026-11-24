@@ -33,6 +33,11 @@
 * `BarcodeLabelSheet.pngPages` gives each page as a PNG image at the dpi
   you choose, to print or to send where a PDF does not go.
 
+### Improved
+
+* zxing-cpp 3.2.0 instead of 3.2.0-rc1: some QR codes seen at a steep angle
+  are read more often.
+
 ### Fixed
 
 * The scan line costs no more than the scanner without it on a Pixel 4a:

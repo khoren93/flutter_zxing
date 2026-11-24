@@ -1,5 +1,5 @@
 {
-  "zxingCppVersion": "3.2.0-rc1",
+  "zxingCppVersion": "3.2.0",
   "results": {
     "aztec-1__7": [{"format":"Aztec","text":"Code 2D!","ecLevel":"52%","version":"1","symbologyIdentifier":"]z0","position":[25,29,63,29,63,67,25,67]}],
     "aztec-1__BinarizerFallback": [{"format":"Aztec","text":"This is an example Aztec symbol for Wikipedia.","ecLevel":"37%","version":"3","symbologyIdentifier":"]z0","position":[0,0,184,0,184,184,0,184]}],
@@ -538,7 +538,7 @@
     "micropdf417-1___1159": [{"format":"MicroPDF417","text":"[)>\u001e06\u001dSMA3326324154\u001d1P3TL68105AA01\u001d11P\u001dE\r\t^\u001e\u0004","contentType":"iso15434","ecLevel":"28%","symbologyIdentifier":"]L2","rotation":1,"position":[12,107,135,108,133,206,10,202]}],
     "microqrcode-1__1": [{"format":"MicroQRCode","text":"Wikipedia","ecLevel":"L","version":"M3","symbologyIdentifier":"]Q1","position":[228,45,405,45,405,223,228,223]}],
     "microqrcode-1__11": [{"format":"MicroQRCode","text":"Loser","ecLevel":"Q","version":"M4","symbologyIdentifier":"]Q1","rotation":-2,"position":[389,391,480,388,484,479,392,483]}],
-    "microqrcode-1__12_": [{"format":"MicroQRCode","text":"SN888623311","ecLevel":"Q","version":"M4","symbologyIdentifier":"]Q1","position":[93,81,516,81,519,501,93,504]}],
+    "microqrcode-1__12": [{"format":"MicroQRCode","text":"SN888623311","ecLevel":"Q","version":"M4","symbologyIdentifier":"]Q1","position":[93,81,516,81,519,501,93,504]}],
     "microqrcode-1__3": [{"format":"MicroQRCode","text":"malgajninto","ecLevel":"M","version":"M4","symbologyIdentifier":"]Q1","rotation":1,"position":[456,679,490,679,490,714,456,713]}],
     "microqrcode-1__7": [{"format":"MicroQRCode","text":"Victus","ecLevel":"M","version":"M3","symbologyIdentifier":"]Q1","position":[389,231,547,229,539,375,397,373]}],
     "microqrcode-1__9": [{"format":"MicroQRCode","text":"ezik","ecLevel":"M","version":"M3","symbologyIdentifier":"]Q1","rotation":5,"position":[434,109,501,115,495,181,428,175]}],

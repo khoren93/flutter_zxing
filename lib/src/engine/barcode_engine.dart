@@ -1,7 +1,7 @@
 import 'engine.dart';
 
 /// The zxing-cpp version inside the engine.
-const String zxingCppVersion = '3.2.0-rc1';
+const String zxingCppVersion = '3.2.0';
 
 /// Starts the barcode engine ahead of time, e.g. in `main()`, so that the
 /// first scan or read does not wait for it.

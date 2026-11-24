@@ -63,4 +63,4 @@ such as `Invalid check digit '4', expecting '3'`.
 
 ## The engine
 
-zxing-cpp 3.2.0-rc1. `zxingCppVersion` gives the version at run time.
+zxing-cpp 3.2.0. `zxingCppVersion` gives the version at run time.

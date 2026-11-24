@@ -545,7 +545,7 @@ BarcodeView(LinkService.whatsApp.link('+374 91 234567').toPayload());
 ᴿ read only. ᴬ read with their EAN-13, EAN-8, UPC-A or UPC-E
 (`ReaderOptions(eanAddOn:)`). ᶜ created only; an ISBN reads as EAN-13.
 `BarcodeFormat.writable` lists the formats to create, for a format picker.
-Engine: zxing-cpp 3.2.0-rc1 (`zxingCppVersion`).
+Engine: zxing-cpp 3.2.0 (`zxingCppVersion`).
 
 MaxiCode is read from clean images only (a code without background, not
 skewed), not from the camera: a limit of zxing-cpp.
