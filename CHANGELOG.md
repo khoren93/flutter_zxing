@@ -43,6 +43,9 @@
 
 ### Fixed
 
+* The scanner drops the blur it chose itself also when the frames slow
+  down later, for example once a code is found, not only in its first
+  seconds: no more stutter on slower Android phones.
 * The scan line costs no more than the scanner without it on a Pixel 4a:
   its glow is drawn without a blur.
 * The label sheet preview centres each caption under its code, as the PDF

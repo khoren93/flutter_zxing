@@ -174,7 +174,10 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
   /// [_lateFrames] of them take longer than [_frameBudget], and after them
   /// when one in ten takes longer than [_frameRoom]: a device without that
   /// room misses frames now and then, which a device that keeps up never
-  /// does.
+  /// does. A blur kept after them is still watched by the same two rules
+  /// over the last [_judgedFrames] frames, as the scanner can draw more
+  /// later than in its first seconds (a code found, its picture in the
+  /// window, a result sheet).
   static const int _judgedFrames = 90;
   static const int _lateFrames = 5;
   static const Duration _frameBudget = Duration(microseconds: 16667);
@@ -202,32 +205,47 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
       _frameTimes.add(
         t.rasterDuration > t.buildDuration ? t.rasterDuration : t.buildDuration,
       );
+      if (_kept && _frameTimes.length > _judgedFrames) {
+        _frameTimes.removeAt(0);
+      }
       final int late = _frameTimes
           .where((Duration d) => d > _frameBudget)
           .length;
       if (late >= _lateFrames) {
-        _blurDecided(drop: true, why: '$late of ${_frameTimes.length} late');
+        _dropBlur('$late of ${_frameTimes.length} late');
         return;
+      }
+      if (_kept) {
+        // One in ten of the last frames over [_frameRoom].
+        final int tight = _frameTimes
+            .where((Duration d) => d > _frameRoom)
+            .length;
+        if (tight > _judgedFrames ~/ 10) {
+          _dropBlur(
+            '$tight of the last ${_frameTimes.length} took '
+            '${_frameRoom.inMilliseconds} ms or more',
+          );
+          return;
+        }
+        continue;
       }
       if (_frameTimes.length >= _judgedFrames) {
         final List<Duration> sorted = List<Duration>.of(_frameTimes)..sort();
         final Duration p90 = sorted[(sorted.length * 0.9).floor()];
-        _blurDecided(
-          drop: p90 > _frameRoom,
-          why: 'one in ten took ${p90.inMicroseconds / 1000} ms or more',
-        );
-        return;
+        final String why =
+            'one in ten took ${p90.inMicroseconds / 1000} ms or more';
+        if (p90 > _frameRoom) {
+          _dropBlur(why);
+          return;
+        }
+        _kept = true;
       }
     }
   }
 
-  /// Stops watching the frames; [drop]: the blur goes for good.
-  void _blurDecided({required bool drop, required String why}) {
+  /// Stops watching the frames: the blur goes for good.
+  void _dropBlur(String why) {
     _watchFrames(false);
-    _decided = true;
-    if (!drop) {
-      return;
-    }
     debugPrint(
       'flutter_zxing: the frames have no room for blur ($why); the '
       'scanner stops blurring (set ScannerTheme.blur and scrimBlur to '
@@ -238,8 +256,9 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
     }
   }
 
-  /// Whether the blur was judged: it is not watched again.
-  bool _decided = false;
+  /// Whether the first frames had room for the blur: from then on the
+  /// last [_judgedFrames] frames are judged.
+  bool _kept = false;
 
   ScannerController get _controller =>
       widget.controller ?? (_own ??= _create(widget.template));
@@ -421,7 +440,7 @@ class _BarcodeScannerState extends State<BarcodeScanner> {
         scrimBlur: theme.scrimBlur ?? false,
       );
     }
-    _watchFrames(autoBlur && !_decided && _shown);
+    _watchFrames(autoBlur && !_blurTooSlow && _shown);
     return resolvedScannerScope(
       context,
       theme: theme,

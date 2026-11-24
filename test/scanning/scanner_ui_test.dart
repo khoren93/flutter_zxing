@@ -593,13 +593,31 @@ void main() {
         expect(blur(), findsWidgets);
       }
 
-      // Room to spare for three seconds: it stays, and late frames later
-      // have other causes.
+      // Room to spare for three seconds: it stays. A late frame now and
+      // then later does not take it away: fewer than five in the last 90.
       await fresh();
       report(15 + 90, 6);
-      report(60, 25);
+      for (int i = 0; i < 6; i++) {
+        report(1, 25);
+        report(29, 6);
+      }
       await tester.pump();
       expect(blur(), findsWidgets);
+      // Later frames that keep missing do: the scanner draws more than in
+      // its first seconds (a code found, its picture, a result sheet).
+      report(5, 25);
+      await tester.pump();
+      expect(blur(), findsNothing);
+      // So do later frames in time but without room: one in ten over half
+      // of one.
+      await fresh();
+      report(15 + 90, 6);
+      report(9, 12);
+      await tester.pump();
+      expect(blur(), findsWidgets);
+      report(1, 12);
+      await tester.pump();
+      expect(blur(), findsNothing);
       // In time, but one frame in ten takes over half of one: gone.
       await fresh();
       report(15 + 80, 6);
