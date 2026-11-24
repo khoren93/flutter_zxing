@@ -392,6 +392,7 @@ ReaderOptions readerOptions(fzx_ctx* ctx, const char* formats, uint32_t flags, i
 		.tryRotate(flags & FZX_TRY_ROTATE)
 		.tryInvert(flags & FZX_TRY_INVERT)
 		.tryDownscale(flags & FZX_TRY_DOWNSCALE)
+		.tryDenoise(flags & FZX_TRY_DENOISE)
 		.isPure(flags & FZX_IS_PURE)
 		.returnErrors(flags & FZX_RETURN_ERRORS)
 		.validateOptionalChecksum(flags & FZX_VALIDATE_OPTIONAL_CHECKSUM)

@@ -48,6 +48,7 @@ final class DiagSettings {
     this.tryRotate = true,
     this.tryInvert = false,
     this.tryDownscale = true,
+    this.tryDenoise = false,
     this.isPure = false,
     this.returnErrors = false,
     this.validateChecksum = false,
@@ -71,6 +72,7 @@ final class DiagSettings {
   final bool tryRotate;
   final bool tryInvert;
   final bool tryDownscale;
+  final bool tryDenoise;
   final bool isPure;
   final bool returnErrors;
   final bool validateChecksum;
@@ -107,6 +109,7 @@ final class DiagSettings {
     tryRotate: tryRotate,
     tryInvert: tryInvert,
     tryDownscale: tryDownscale,
+    tryDenoise: tryDenoise,
     isPure: isPure,
     returnErrors: returnErrors,
     validateOptionalChecksum: validateChecksum,
@@ -152,6 +155,7 @@ final class DiagSettings {
     bool? tryRotate,
     bool? tryInvert,
     bool? tryDownscale,
+    bool? tryDenoise,
     bool? isPure,
     bool? returnErrors,
     bool? validateChecksum,
@@ -174,6 +178,7 @@ final class DiagSettings {
     tryRotate: tryRotate ?? this.tryRotate,
     tryInvert: tryInvert ?? this.tryInvert,
     tryDownscale: tryDownscale ?? this.tryDownscale,
+    tryDenoise: tryDenoise ?? this.tryDenoise,
     isPure: isPure ?? this.isPure,
     returnErrors: returnErrors ?? this.returnErrors,
     validateChecksum: validateChecksum ?? this.validateChecksum,
@@ -205,6 +210,7 @@ final class DiagSettings {
       tryRotate: flag('tryRotate', d.tryRotate),
       tryInvert: flag('tryInvert', d.tryInvert),
       tryDownscale: flag('tryDownscale', d.tryDownscale),
+      tryDenoise: flag('tryDenoise', d.tryDenoise),
       isPure: flag('isPure', d.isPure),
       returnErrors: flag('returnErrors', d.returnErrors),
       validateChecksum: flag('validateChecksum', d.validateChecksum),
@@ -231,6 +237,7 @@ final class DiagSettings {
     'tryRotate': tryRotate,
     'tryInvert': tryInvert,
     'tryDownscale': tryDownscale,
+    'tryDenoise': tryDenoise,
     'isPure': isPure,
     'returnErrors': returnErrors,
     'validateChecksum': validateChecksum,

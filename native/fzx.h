@@ -74,6 +74,8 @@ enum {
 	FZX_DOWNSCALE_FACTOR_MASK = 0x3 << 14,
 	FZX_DOWNSCALE_THRESHOLD_SHIFT = 16,
 	FZX_DOWNSCALE_THRESHOLD_MASK = 0xFFF << 16,
+	// zxing-cpp tryDenoise: also read 2D codes after a morphological closing.
+	FZX_TRY_DENOISE = 1 << 28,
 };
 
 // Binarizers, in zxing-cpp's order.

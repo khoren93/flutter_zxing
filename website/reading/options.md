@@ -20,6 +20,7 @@ const pure = BarcodeReader(
 | `tryRotate` | `true` | Also look for codes turned by 90°, 180° and 270° |
 | `tryInvert` | `true`, `false` in `camera()` | Also look for light-on-dark codes |
 | `tryDownscale` | `true` | Also search a smaller copy of large images; finds big, blurry codes |
+| `tryDenoise` | `false` | Also look for 2D codes in a cleaned-up copy of the image; finds dot-printed and worn QR, Data Matrix and Aztec codes, at the cost of a second pass |
 | `isPure` | `false` | The image is exactly one clean, unrotated, tightly cropped code |
 | `returnErrors` | `false` | Also return codes that were found but could not be decoded, with their `error` |
 | `validateOptionalChecksum` | `false` | Check the optional checksums of Code 39 and ITF, and drop codes that fail |

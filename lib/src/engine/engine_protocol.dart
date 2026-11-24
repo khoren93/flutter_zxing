@@ -66,6 +66,9 @@ abstract final class FzxFlags {
   /// Shift of the EAN-2/EAN-5 add-on mode, `EanAddOn.index` (zxing-cpp's
   /// order).
   static const int eanAddOnShift = 12;
+
+  /// zxing-cpp `tryDenoise` (above the downscale bits 14-27).
+  static const int tryDenoise = 1 << 28;
 }
 
 /// Error codes returned by the fzx functions (`FZX_ERR_*`).
@@ -128,6 +131,7 @@ final class EngineReadOptions {
         (options.tryRotate ? FzxFlags.tryRotate : 0) |
         (options.tryInvert ? FzxFlags.tryInvert : 0) |
         (options.tryDownscale ? FzxFlags.tryDownscale : 0) |
+        (options.tryDenoise ? FzxFlags.tryDenoise : 0) |
         (options.isPure ? FzxFlags.isPure : 0) |
         (options.returnErrors ? FzxFlags.returnErrors : 0) |
         (options.validateOptionalChecksum

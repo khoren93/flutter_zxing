@@ -13,6 +13,7 @@ final class ReaderOptions {
     this.tryRotate = true,
     this.tryInvert = true,
     this.tryDownscale = true,
+    this.tryDenoise = false,
     this.isPure = false,
     this.returnErrors = false,
     this.validateOptionalChecksum = false,
@@ -50,6 +51,12 @@ final class ReaderOptions {
 
   /// Also search a downscaled copy of large images (finds big, blurry codes).
   final bool tryDownscale;
+
+  /// Also look for 2D codes (QR, Data Matrix, Aztec) in a cleaned-up copy
+  /// of the image, where small gaps between dark modules are closed. Helps
+  /// with dot-printed, worn or poorly printed codes. Off by default: it
+  /// adds a second pass to every image without a code.
+  final bool tryDenoise;
 
   /// The image contains exactly one clean, unrotated, tightly cropped
   /// symbol (e.g. a generated barcode). Much faster, fails on photos.
@@ -92,6 +99,7 @@ final class ReaderOptions {
     bool? tryRotate,
     bool? tryInvert,
     bool? tryDownscale,
+    bool? tryDenoise,
     bool? isPure,
     bool? returnErrors,
     bool? validateOptionalChecksum,
@@ -104,6 +112,7 @@ final class ReaderOptions {
     tryRotate: tryRotate ?? this.tryRotate,
     tryInvert: tryInvert ?? this.tryInvert,
     tryDownscale: tryDownscale ?? this.tryDownscale,
+    tryDenoise: tryDenoise ?? this.tryDenoise,
     isPure: isPure ?? this.isPure,
     returnErrors: returnErrors ?? this.returnErrors,
     validateOptionalChecksum:
@@ -121,6 +130,7 @@ final class ReaderOptions {
       other.tryRotate == tryRotate &&
       other.tryInvert == tryInvert &&
       other.tryDownscale == tryDownscale &&
+      other.tryDenoise == tryDenoise &&
       other.isPure == isPure &&
       other.returnErrors == returnErrors &&
       other.validateOptionalChecksum == validateOptionalChecksum &&
@@ -135,6 +145,7 @@ final class ReaderOptions {
     tryRotate,
     tryInvert,
     tryDownscale,
+    tryDenoise,
     isPure,
     returnErrors,
     validateOptionalChecksum,
@@ -149,7 +160,7 @@ final class ReaderOptions {
   @override
   String toString() {
     const ReaderOptions d = ReaderOptions();
-    return 'ReaderOptions(${<String>[if (tryHarder != d.tryHarder) 'tryHarder: $tryHarder', if (tryRotate != d.tryRotate) 'tryRotate: $tryRotate', if (tryInvert != d.tryInvert) 'tryInvert: $tryInvert', if (tryDownscale != d.tryDownscale) 'tryDownscale: $tryDownscale', if (isPure != d.isPure) 'isPure: $isPure', if (returnErrors != d.returnErrors) 'returnErrors: $returnErrors', if (validateOptionalChecksum != d.validateOptionalChecksum) 'validateOptionalChecksum: $validateOptionalChecksum', if (binarizer != d.binarizer) 'binarizer: ${binarizer.name}', if (minLineCount != d.minLineCount) 'minLineCount: $minLineCount', if (eanAddOn != d.eanAddOn) 'eanAddOn: ${eanAddOn.name}', if (characterSet case final CharacterSet c) 'characterSet: ${c.name}'].join(', ')})';
+    return 'ReaderOptions(${<String>[if (tryHarder != d.tryHarder) 'tryHarder: $tryHarder', if (tryRotate != d.tryRotate) 'tryRotate: $tryRotate', if (tryInvert != d.tryInvert) 'tryInvert: $tryInvert', if (tryDownscale != d.tryDownscale) 'tryDownscale: $tryDownscale', if (tryDenoise != d.tryDenoise) 'tryDenoise: $tryDenoise', if (isPure != d.isPure) 'isPure: $isPure', if (returnErrors != d.returnErrors) 'returnErrors: $returnErrors', if (validateOptionalChecksum != d.validateOptionalChecksum) 'validateOptionalChecksum: $validateOptionalChecksum', if (binarizer != d.binarizer) 'binarizer: ${binarizer.name}', if (minLineCount != d.minLineCount) 'minLineCount: $minLineCount', if (eanAddOn != d.eanAddOn) 'eanAddOn: ${eanAddOn.name}', if (characterSet case final CharacterSet c) 'characterSet: ${c.name}'].join(', ')})';
   }
 }
 

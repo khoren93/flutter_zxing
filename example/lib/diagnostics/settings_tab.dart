@@ -61,6 +61,12 @@ class DiagSettingsTab extends StatelessWidget {
           s.tryDownscale,
           (bool v) => s.copyWith(tryDownscale: v),
         ),
+        _flag(
+          'tryDenoise',
+          s.tryDenoise,
+          (bool v) => s.copyWith(tryDenoise: v),
+          note: '2D codes in a cleaned-up copy',
+        ),
         _flag('isPure', s.isPure, (bool v) => s.copyWith(isPure: v)),
         _flag(
           'returnErrors',

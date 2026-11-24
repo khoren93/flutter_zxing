@@ -326,6 +326,7 @@ void main() {
           tryRotate: false,
           tryInvert: false,
           tryDownscale: false,
+          tryDenoise: true,
           isPure: true,
           returnErrors: true,
           validateOptionalChecksum: true,
@@ -337,7 +338,8 @@ void main() {
       expect(o.formats, 'QRCode,EAN13');
       expect(
         o.flags,
-        FzxFlags.isPure |
+        FzxFlags.tryDenoise |
+            FzxFlags.isPure |
             FzxFlags.returnErrors |
             FzxFlags.validateOptionalChecksum,
       );

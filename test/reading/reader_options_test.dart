@@ -13,13 +13,15 @@ void main() {
       );
       expect(
         const ReaderOptions(
+          tryDenoise: true,
           isPure: true,
           binarizer: Binarizer.boolCast,
           minLineCount: 3,
           eanAddOn: EanAddOn.read,
           characterSet: CharacterSet.cp1251,
         ).toString(),
-        'ReaderOptions(isPure: true, binarizer: boolCast, minLineCount: 3, '
+        'ReaderOptions(tryDenoise: true, isPure: true, binarizer: boolCast, '
+        'minLineCount: 3, '
         'eanAddOn: read, characterSet: cp1251)',
       );
     });

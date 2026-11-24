@@ -32,6 +32,9 @@
   label.
 * `BarcodeLabelSheet.pngPages` gives each page as a PNG image at the dpi
   you choose, to print or to send where a PDF does not go.
+* `ReaderOptions.tryDenoise`: also look for QR, Data Matrix and Aztec codes
+  in a cleaned-up copy of the image, for dot-printed and worn codes. Off by
+  default.
 
 ### Improved
 
