@@ -191,18 +191,21 @@ void main() {
     });
   });
 
-  test('tryDenoise reads a QR code printed with gaps on a rough surface', () async {
-    // zxing-cpp's own test reads this sample only with tryDenoise.
-    final Uint8List dots = _sample('qrcode-2/28.webp');
-    const BarcodeReader qr = BarcodeReader(
-      formats: <BarcodeFormat>{BarcodeFormat.qrCode},
-    );
-    expect(await qr.read(dots), isNull);
-    final Barcode? denoised = await qr
-        .copyWith(options: const ReaderOptions(tryDenoise: true))
-        .read(dots);
-    expect(denoised?.text, 'http://www.webtech.co.jp/k/');
-  });
+  test(
+    'tryDenoise reads a QR code printed with gaps on a rough surface',
+    () async {
+      // zxing-cpp's own test reads this sample only with tryDenoise.
+      final Uint8List dots = _sample('qrcode-2/28.webp');
+      const BarcodeReader qr = BarcodeReader(
+        formats: <BarcodeFormat>{BarcodeFormat.qrCode},
+      );
+      expect(await qr.read(dots), isNull);
+      final Barcode? denoised = await qr
+          .copyWith(options: const ReaderOptions(tryDenoise: true))
+          .read(dots);
+      expect(denoised?.text, 'http://www.webtech.co.jp/k/');
+    },
+  );
 
   group('readPixels', () {
     late PixelBuffer image;
